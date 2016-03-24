@@ -99,6 +99,25 @@ uint32_t write_text_asset(ostream &fout, uint32_t id, std::string const &str)
 }
 
 
+///////////////////////// write_text_asset //////////////////////////////////
+uint32_t write_text_asset(ostream &fout, uint32_t id, std::vector<uint8_t> const &str)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackTextHeader shdr = { (uint32_t)str.size(), (size_t)fout.tellp() + sizeof(shdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "TEXT", sizeof(shdr), &shdr);
+
+  write_chunk(fout, "DATA", str.size(), str.data());
+
+  write_chunk(fout, "AEND", 0, nullptr);
+
+  return id + 1;
+}
+
+
 ///////////////////////// write_imag_asset //////////////////////////////////
 uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, void const *bits, float alignx, float aligny)
 {

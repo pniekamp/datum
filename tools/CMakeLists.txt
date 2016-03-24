@@ -2,8 +2,8 @@
 # datum tools
 #
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -ffast-math")
 
@@ -15,7 +15,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 # assetbuilder
 #
 
-add_executable(assetbuilder atlaspacker.h assetpacker.h assetpacker.cpp assetbuilder.cpp)
+add_executable(assetbuilder atlaspacker.h assetpacker.h assetpacker.cpp assetbuilder.cpp glslang.h glslang.cpp)
 
 target_link_libraries(assetbuilder leap Qt5::Gui)
 

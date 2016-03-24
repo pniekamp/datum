@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "platform.h"
 #include <cassert>
 #include <iostream>
 
@@ -19,7 +20,6 @@
 #include <atomic>
 #include <intrin.h>
 #include <thread>
-#include "platform.h"
 #include "math/color.h"
 
 inline void *operator new(std::size_t)
@@ -30,6 +30,11 @@ inline void *operator new(std::size_t)
 }
 
 inline void operator delete(void *ptr) noexcept
+{
+  assert(false);
+}
+
+inline void operator delete(void *ptr, size_t) noexcept
 {
   assert(false);
 }

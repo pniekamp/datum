@@ -3,14 +3,18 @@
 //
 
 #include "platform.h"
-#include "datumtest.h"
 #include "leap/pathstring.h"
 #include <windows.h>
+#include <vulkan/vulkan.h>
 #include <iostream>
 
 using namespace std;
 using namespace leap;
 using namespace DatumPlatform;
+
+void datumtest_init(DatumPlatform::PlatformInterface &platform);
+void datumtest_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt);
+void datumtest_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 
 
 //|---------------------- Platform ------------------------------------------
@@ -22,9 +26,14 @@ class Platform : public PlatformInterface
 
     Platform();
 
-    void initialise(size_t gamememorysize);
+    void initialise(RenderDevice const &renderdevice, std::size_t gamememorysize);
 
   public:
+
+    // device
+
+    virtual RenderDevice render_device() override;
+
 
     // data access
 
@@ -56,6 +65,8 @@ class Platform : public PlatformInterface
     std::vector<char> m_gamescratchmemory;
     std::vector<char> m_renderscratchmemory;
 
+    RenderDevice m_renderdevice;
+
     WorkQueue m_workqueue;
 };
 
@@ -68,8 +79,10 @@ Platform::Platform()
 
 
 ///////////////////////// Platform::initialise //////////////////////////////
-void Platform::initialise(std::size_t gamememorysize)
+void Platform::initialise(RenderDevice const &renderdevice, std::size_t gamememorysize)
 {
+  m_renderdevice = renderdevice;
+
   m_gamememory.reserve(gamememorysize);
   m_gamescratchmemory.reserve(256*1024*1024);
   m_renderscratchmemory.reserve(256*1024*1024);
@@ -79,6 +92,13 @@ void Platform::initialise(std::size_t gamememorysize)
   gamememory_initialise(gamescratchmemory, m_gamescratchmemory.data(), m_gamescratchmemory.capacity());
 
   gamememory_initialise(renderscratchmemory, m_renderscratchmemory.data(), m_renderscratchmemory.capacity());
+}
+
+
+///////////////////////// PlatformCore::render_device ///////////////////////
+RenderDevice Platform::render_device()
+{
+  return m_renderdevice;
 }
 
 
@@ -126,11 +146,11 @@ class Game
 
     Game();
 
-    void init();
+    void init(VkPhysicalDevice physicaldevice, VkDevice device);
 
     void update(float dt);
 
-    void render(int x, int y, int width, int height);
+    void render(VkImage image, VkSemaphore aquirecomplete, VkSemaphore rendercomplete, int x, int y, int width, int height);
 
     void terminate();
 
@@ -170,7 +190,7 @@ Game::Game()
 
 
 ///////////////////////// Game::init ////////////////////////////////////////
-void Game::init()
+void Game::init(VkPhysicalDevice physicaldevice, VkDevice device)
 {
   game_init = datumtest_init;
   game_update = datumtest_update;
@@ -179,7 +199,7 @@ void Game::init()
   if (!game_init || !game_update || !game_render)
     throw std::runtime_error("Unable to init game code");
 
-  m_platform.initialise(1*1024*1024*1024);
+  m_platform.initialise({ physicaldevice, device }, 1*1024*1024*1024);
 
   game_init(m_platform);
 
@@ -202,11 +222,11 @@ void Game::update(float dt)
 
 
 ///////////////////////// Game::render //////////////////////////////////////
-void Game::render(int x, int y, int width, int height)
+void Game::render(VkImage image, VkSemaphore aquirecomplete, VkSemaphore rendercomplete, int x, int y, int width, int height)
 {
   m_platform.renderscratchmemory.size = 0;
 
-  game_render(m_platform, { x, y, width, height });
+  game_render(m_platform, { x, y, width, height, image, aquirecomplete, rendercomplete });
 
   ++m_fpscount;
 
@@ -229,12 +249,386 @@ void Game::terminate()
 }
 
 
+
+//|---------------------- Vulkan --------------------------------------------
+//|--------------------------------------------------------------------------
+
+struct Vulkan
+{
+  void init(HINSTANCE hinstance, HWND hwnd);
+
+  void acquire();
+  void present();
+  void testdraw();
+
+  void destroy();
+
+  VkInstance instance;
+  VkPhysicalDevice physicaldevice;
+  VkPhysicalDeviceProperties physicaldeviceproperties;
+  VkPhysicalDeviceMemoryProperties physicaldevicememoryproperties;
+  VkDevice device;
+  VkQueue queue;
+
+  VkSurfaceKHR surface;
+  VkSurfaceFormatKHR surfaceformat;
+
+  VkSwapchainKHR swapchain;
+
+  VkCommandPool commandpool;
+
+  VkImage presentimages[3];
+
+  VkSemaphore rendercomplete;
+  VkSemaphore acquirecomplete;
+
+  uint32_t imageindex;
+
+  VkDebugReportCallbackEXT debugreportcallback;
+
+} vulkan;
+
+
+//|//////////////////// Vulkan::init ////////////////////////////////////////
+void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
+{
+  //
+  // Instance, Device & Queue
+  //
+
+  VkApplicationInfo appinfo = {};
+  appinfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+  appinfo.pApplicationName = "Datum Test";
+  appinfo.pEngineName = "Datum";
+  appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 3);
+
+#ifdef NDEBUG
+  const char *validationlayers[] = { };
+  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+#else
+  const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+//  const char *validationlayers[] = { /*"VK_LAYER_GOOGLE_threading",*/ "VK_LAYER_LUNARG_mem_tracker", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_draw_state", "VK_LAYER_LUNARG_param_checker", "VK_LAYER_LUNARG_swapchain", "VK_LAYER_LUNARG_device_limits", "VK_LAYER_LUNARG_image", "VK_LAYER_GOOGLE_unique_objects" };
+  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
+#endif
+
+  VkInstanceCreateInfo instanceinfo = {};
+  instanceinfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+  instanceinfo.pApplicationInfo = &appinfo;
+  instanceinfo.enabledExtensionCount = std::extent<decltype(instanceextensions)>::value;
+  instanceinfo.ppEnabledExtensionNames = instanceextensions;
+  instanceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;
+  instanceinfo.ppEnabledLayerNames = validationlayers;
+
+  if (vkCreateInstance(&instanceinfo, nullptr, &instance) != VK_SUCCESS)
+    throw runtime_error("Vulkan CreateInstance failed");
+
+  uint32_t physicaldevicecount = 0;
+  vkEnumeratePhysicalDevices(instance, &physicaldevicecount, nullptr);
+
+  if (physicaldevicecount == 0)
+    throw runtime_error("Vulkan EnumeratePhysicalDevices failed");
+
+  vector<VkPhysicalDevice> physicaldevices(physicaldevicecount);
+  vkEnumeratePhysicalDevices(instance, &physicaldevicecount, physicaldevices.data());
+
+  for(uint32_t i = 0; i < physicaldevicecount; ++i)
+  {
+    VkPhysicalDeviceProperties physicaldevicesproperties;
+    vkGetPhysicalDeviceProperties(physicaldevices[i], &physicaldevicesproperties);
+
+    cout << "Vulkan Physical Device " << i << ": " << physicaldevicesproperties.deviceName << endl;
+  }
+
+  physicaldevice = physicaldevices[0];
+
+  uint32_t queuecount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(physicaldevice, &queuecount, nullptr);
+
+  if (queuecount == 0)
+    throw runtime_error("Vulkan vkGetPhysicalDeviceQueueFamilyProperties failed");
+
+  vector<VkQueueFamilyProperties> queueproperties(queuecount);
+  vkGetPhysicalDeviceQueueFamilyProperties(physicaldevice, &queuecount, queueproperties.data());
+
+  uint32_t queueindex = 0;
+  while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+    ++queueindex;
+
+  array<float, 1> queuepriorities = { 0.0f };
+
+  VkDeviceQueueCreateInfo queueinfo = {};
+  queueinfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queueinfo.queueFamilyIndex = queueindex;
+  queueinfo.queueCount = 1;
+  queueinfo.pQueuePriorities = queuepriorities.data();
+
+  const char* deviceextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+
+  VkDeviceCreateInfo deviceinfo = {};
+  deviceinfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+  deviceinfo.queueCreateInfoCount = 1;
+  deviceinfo.pQueueCreateInfos = &queueinfo;
+  deviceinfo.pEnabledFeatures = NULL;
+  deviceinfo.enabledExtensionCount = std::extent<decltype(deviceextensions)>::value;
+  deviceinfo.ppEnabledExtensionNames = deviceextensions;
+  deviceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;;
+  deviceinfo.ppEnabledLayerNames = validationlayers;
+
+  if (vkCreateDevice(physicaldevice, &deviceinfo, nullptr, &device) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateDevice failed");
+
+  vkGetPhysicalDeviceProperties(physicaldevice, &physicaldeviceproperties);
+
+  vkGetPhysicalDeviceMemoryProperties(physicaldevice, &physicaldevicememoryproperties);
+
+  vkGetDeviceQueue(device, queueindex, 0, &queue);
+
+#ifndef NDEBUG
+
+  //
+  // Debug
+  //
+
+  static auto debugmessagecallback = [](VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objtype, uint64_t srcobject, size_t location, int32_t msgcode, const char *layerprefix, const char *msg, void *userdata) -> VkBool32 {
+    cout << msg << endl;
+    return false;
+  };
+
+  auto VkCreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+
+  VkDebugReportCallbackCreateInfoEXT debugreportinfo = {};
+  debugreportinfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+  debugreportinfo.pfnCallback = (PFN_vkDebugReportCallbackEXT)debugmessagecallback;
+  debugreportinfo.pUserData = nullptr;
+  debugreportinfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;// | VK_DEBUG_REPORT_INFORMATION_BIT_EXT;
+
+  VkCreateDebugReportCallback(instance, &debugreportinfo, nullptr, &debugreportcallback);
+
+#endif
+
+  //
+  // Command Pool
+  //
+
+  VkCommandPoolCreateInfo commandpoolinfo = {};
+  commandpoolinfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  commandpoolinfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  commandpoolinfo.queueFamilyIndex = queueindex;
+
+  if (vkCreateCommandPool(device, &commandpoolinfo, nullptr, &commandpool) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateCommandPool failed");
+
+  //
+  // Surface
+  //
+
+  VkWin32SurfaceCreateInfoKHR surfaceinfo = {};
+  surfaceinfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+  surfaceinfo.hinstance = hinstance;
+  surfaceinfo.hwnd = hwnd;
+
+  if (vkCreateWin32SurfaceKHR(instance, &surfaceinfo, nullptr, &surface) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateWin32SurfaceKHR failed");
+
+  VkBool32 surfacesupport = VK_FALSE;
+  vkGetPhysicalDeviceSurfaceSupportKHR(physicaldevice, queueindex, surface, &surfacesupport);
+
+  if (surfacesupport != VK_TRUE)
+    throw runtime_error("Vulkan vkGetPhysicalDeviceSurfaceSupportKHR error");
+
+  uint32_t formatscount = 0;
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatscount, nullptr);
+
+  vector<VkSurfaceFormatKHR> formats(formatscount);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatscount, formats.data());
+
+  surfaceformat = formats[0];
+
+  if (surfaceformat.format == VK_FORMAT_UNDEFINED)
+    surfaceformat.format = VK_FORMAT_B8G8R8A8_UNORM;
+
+  //
+  // Swap Chain
+  //
+
+  bool vsync = true;
+  uint32_t desiredimages = 3;
+
+  VkSurfaceCapabilitiesKHR surfacecapabilities;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
+
+  if (surfacecapabilities.maxImageCount > 0 && desiredimages > surfacecapabilities.maxImageCount)
+    desiredimages = surfacecapabilities.maxImageCount;
+
+  uint32_t presentmodescount = 0;
+  vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentmodescount, nullptr);
+
+  vector<VkPresentModeKHR> presentmodes(presentmodescount);
+  vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentmodescount, presentmodes.data());
+
+  VkPresentModeKHR presentmode = VK_PRESENT_MODE_FIFO_KHR;
+  for(size_t i = 0; i < presentmodescount; ++i)
+  {
+    if ((vsync && presentmodes[i] == VK_PRESENT_MODE_MAILBOX_KHR) || (!vsync && presentmodes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR))
+    {
+      presentmode = presentmodes[i];
+      break;
+    }
+  }
+
+  VkSurfaceTransformFlagBitsKHR pretransform = (surfacecapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : surfacecapabilities.currentTransform;
+
+  VkSwapchainCreateInfoKHR swapchaininfo = {};
+  swapchaininfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  swapchaininfo.surface = surface;
+  swapchaininfo.minImageCount = desiredimages;
+  swapchaininfo.imageFormat = surfaceformat.format;
+  swapchaininfo.imageColorSpace = surfaceformat.colorSpace;
+  swapchaininfo.imageExtent = surfacecapabilities.currentExtent;
+  swapchaininfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  swapchaininfo.preTransform = pretransform;
+  swapchaininfo.imageArrayLayers = 1;
+  swapchaininfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  swapchaininfo.queueFamilyIndexCount = 0;
+  swapchaininfo.pQueueFamilyIndices = nullptr;
+  swapchaininfo.presentMode = presentmode;
+  swapchaininfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+  swapchaininfo.oldSwapchain = VK_NULL_HANDLE;
+  swapchaininfo.clipped = true;
+
+  if (vkCreateSwapchainKHR(device, &swapchaininfo, nullptr, &swapchain) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateSwapchainKHR failed");
+
+  uint32_t imagescount = 0;
+  vkGetSwapchainImagesKHR(device, swapchain, &imagescount, nullptr);
+
+  if (extent<decltype(presentimages)>::value < imagescount)
+    throw runtime_error("Vulkan vkGetSwapchainImagesKHR failed");
+
+  vkGetSwapchainImagesKHR(device, swapchain, &imagescount, presentimages);
+
+  //
+  // Present Images
+  //
+
+  VkCommandBufferAllocateInfo setupbufferinfo = {};
+  setupbufferinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  setupbufferinfo.commandPool = vulkan.commandpool;
+  setupbufferinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  setupbufferinfo.commandBufferCount = 1;
+
+  VkCommandBuffer setupbuffer;
+  if (vkAllocateCommandBuffers(vulkan.device, &setupbufferinfo, &setupbuffer) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkAllocateCommandBuffers failed");
+
+  VkCommandBufferBeginInfo begininfo = {};
+  begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+  if (vkBeginCommandBuffer(setupbuffer, &begininfo) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkBeginCommandBuffer failed");
+
+  for (size_t i = 0; i < imagescount; ++i)
+  {
+    VkImageMemoryBarrier memorybarrier = {};
+    memorybarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    memorybarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    memorybarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    memorybarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    memorybarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    memorybarrier.image = presentimages[i];
+    memorybarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+    VkPipelineStageFlags srcstage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags dststage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    vkCmdPipelineBarrier(setupbuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &memorybarrier);
+  }
+
+  vkEndCommandBuffer(setupbuffer);
+
+  VkSubmitInfo submitinfo = {};
+  submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitinfo.commandBufferCount = 1;
+  submitinfo.pCommandBuffers = &setupbuffer;
+
+  vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
+
+  vkQueueWaitIdle(vulkan.queue);
+
+  vkFreeCommandBuffers(vulkan.device, vulkan.commandpool, 1, &setupbuffer);
+
+  //
+  // Chain Semaphores
+  //
+
+  VkSemaphoreCreateInfo semaphoreinfo = {};
+  semaphoreinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  semaphoreinfo.flags = 0;
+
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &acquirecomplete) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateSemaphore failed");
+
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &rendercomplete) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateSemaphore failed");
+}
+
+
+//|//////////////////// Vulkan::destroy /////////////////////////////////////
+void Vulkan::destroy()
+{
+  vkDeviceWaitIdle(device);
+
+  vkDestroySemaphore(device, acquirecomplete, nullptr);
+  vkDestroySemaphore(device, rendercomplete, nullptr);
+
+  vkDestroyCommandPool(device, commandpool, nullptr);
+
+  vkDestroySwapchainKHR(device, swapchain, nullptr);
+
+  vkDestroySurfaceKHR(instance, surface, nullptr);
+
+#ifndef NDEBUG
+  auto VkDestroyDebugReportCallback = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+
+  VkDestroyDebugReportCallback(instance, debugreportcallback, nullptr);
+#endif
+
+  vkDestroyDevice(device, nullptr);
+
+  vkDestroyInstance(instance, nullptr);
+}
+
+
+//|//////////////////// Vulkan::acquire /////////////////////////////////////
+void Vulkan::acquire()
+{
+  vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquirecomplete, VK_NULL_HANDLE, &imageindex);
+}
+
+
+//|//////////////////// Vulkan::present /////////////////////////////////////
+void Vulkan::present()
+{
+  VkPresentInfoKHR presentinfo = {};
+  presentinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  presentinfo.swapchainCount = 1;
+  presentinfo.pSwapchains = &swapchain;
+  presentinfo.pImageIndices = &imageindex;
+  presentinfo.waitSemaphoreCount = 1;
+  presentinfo.pWaitSemaphores = &rendercomplete;
+
+  vkQueuePresentKHR(queue, &presentinfo);
+}
+
+
 //|---------------------- Window --------------------------------------------
 //|--------------------------------------------------------------------------
 
 struct Window
 {
   void init(HINSTANCE hinstance, Game *gameptr);
+
+  void show();
 
   int width = 960;
   int height = 540;
@@ -255,7 +649,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_PAINT:
-      window.game->render(0, 0, window.width, window.height);
+      vulkan.acquire();
+      window.game->render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
+      vulkan.present();
       break;
 
     case WM_SIZE:
@@ -293,14 +689,25 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
   if (!RegisterClassEx(&winclass))
     throw runtime_error("Error registering window class");
 
-  RECT rect = { 0, 0, width, height };
-  AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+  DWORD dwstyle = WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+  DWORD dwexstyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 
-  hwnd = CreateWindowEx(0, "DatumTest", "Datum Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SYSMENU, 100, 100, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hinstance, NULL);
+  RECT rect = { 0, 0, width, height };
+  AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, dwexstyle);
+
+  hwnd = CreateWindowEx(dwexstyle, "DatumTest", "Datum Test", dwstyle, CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hinstance, NULL);
 
   if (!hwnd)
     throw runtime_error("Error creating window");
 }
+
+
+//|//////////////////// Window::show ////////////////////////////////////////
+void Window::show()
+{
+  ShowWindow(hwnd, SW_SHOW);
+}
+
 
 
 //|---------------------- main ----------------------------------------------
@@ -314,9 +721,13 @@ int main(int argc, char *args[])
   {
     Game game;
 
-    game.init();
-
     window.init(GetModuleHandle(NULL), &game);
+
+    vulkan.init(GetModuleHandle(NULL), window.hwnd);
+
+    window.show();
+
+    game.init(vulkan.physicaldevice, vulkan.device);
 
     thread updatethread([&]() {
 
@@ -351,6 +762,8 @@ int main(int argc, char *args[])
     }
 
     updatethread.join();
+
+    vulkan.destroy();
   }
   catch(const exception &e)
   {

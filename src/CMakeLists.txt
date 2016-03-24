@@ -2,8 +2,8 @@
 # datum
 #
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -ffast-math")
 
@@ -11,6 +11,7 @@ add_definitions(-DWIN32_LEAN_AND_MEAN)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 set(SRCS ${SRCS} platform.h)
 set(SRCS ${SRCS} memory.h)
@@ -28,10 +29,13 @@ set(SRCS ${SRCS} corepack.h)
 set(SRCS ${SRCS} assetpack.h)
 set(SRCS ${SRCS} asset.h asset.cpp)
 set(SRCS ${SRCS} debug.h debug.cpp)
+set(SRCS ${SRCS} renderer/camera.h renderer/camera.cpp)
+set(SRCS ${SRCS} renderer/renderer.h renderer/renderer.cpp)
+set(SRCS ${SRCS} renderer/vulkan.h renderer/vulkan.cpp)
 
 add_library(datum STATIC ${SRCS})
 
-target_link_libraries(datum leap)
+target_link_libraries(datum leap vulkan)
 
 #
 # install

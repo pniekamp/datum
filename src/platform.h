@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vulkan/vulkan.h>
 
 namespace DatumPlatform
 {
@@ -86,6 +87,16 @@ namespace DatumPlatform
     };
 
 
+    //|---------------------- RenderDevice --------------------------------------
+    //|--------------------------------------------------------------------------
+
+    struct RenderDevice
+    {
+      VkPhysicalDevice physicaldevice;
+      VkDevice device;
+    };
+
+
     //|---------------------- Viewport ------------------------------------------
     //|--------------------------------------------------------------------------
 
@@ -95,6 +106,10 @@ namespace DatumPlatform
       int y;
       int width;
       int height;
+
+      VkImage image;
+      VkSemaphore aquirecomplete;
+      VkSemaphore rendercomplete;
     };
 
 
@@ -106,6 +121,11 @@ namespace DatumPlatform
       GameMemory gamememory;
       GameMemory gamescratchmemory;
       GameMemory renderscratchmemory;
+
+      // device
+
+      virtual RenderDevice render_device() = 0;
+
 
       // data access
 

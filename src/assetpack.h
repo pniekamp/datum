@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include "platform.h"
+#include <cstdint>
+#include <functional>
+#include <cstring>
 
 #pragma pack(push, 1)
 

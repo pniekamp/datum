@@ -1,0 +1,377 @@
+//
+// Datum - vulkan interface
+//
+
+//
+// Copyright (c) 2016 Peter Niekamp
+//
+
+#include "vulkan.h"
+#include "debug.h"
+
+using namespace std;
+using namespace lml;
+
+namespace vulkan
+{
+
+  //|---------------------- VulkanDevice ------------------------------------
+  //|------------------------------------------------------------------------
+
+  ///////////////////////// initialise_vulkan_device ////////////////////////
+  void initialise_vulkan_device(VulkanDevice *vulkan, VkPhysicalDevice physicaldevice, VkDevice device)
+  {
+    vulkan->physicaldevice = physicaldevice;
+
+    vkGetPhysicalDeviceProperties(vulkan->physicaldevice, &vulkan->physicaldeviceproperties);
+
+    vkGetPhysicalDeviceMemoryProperties(vulkan->physicaldevice, &vulkan->physicaldevicememoryproperties);
+
+    vulkan->device = device;
+
+    uint32_t queuecount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(vulkan->physicaldevice, &queuecount, nullptr);
+
+    assert(queuecount < 16);
+
+    VkQueueFamilyProperties queueproperties[16];
+    vkGetPhysicalDeviceQueueFamilyProperties(vulkan->physicaldevice, &queuecount, queueproperties);
+
+    uint32_t queueindex = 0;
+    while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+      ++queueindex;
+
+    vkGetDeviceQueue(vulkan->device, queueindex, 0, &vulkan->queue);
+  }
+
+  ///////////////////////// create_fence ////////////////////////////////////
+  Fence create_fence(VulkanDevice const &vulkan, VkFenceCreateFlags flags)
+  {
+    VkFenceCreateInfo fenceinfo = {};
+    fenceinfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceinfo.flags = flags;
+
+    VkFence fence;
+    if (vkCreateFence(vulkan.device, &fenceinfo, nullptr, &fence) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateFence failed");
+
+    return { fence, { vulkan.device } };
+  }
+
+  ///////////////////////// wait ////////////////////////////////////////////
+  void wait(VulkanDevice const &vulkan, VkFence fence)
+  {
+    vkWaitForFences(vulkan.device, 1, &fence, VK_TRUE, UINT64_MAX);
+
+    vkResetFences(vulkan.device, 1, &fence);
+  }
+
+
+  ///////////////////////// signal //////////////////////////////////////////
+  void signal(VulkanDevice const &vulkan, VkFence fence)
+  {
+    vkQueueSubmit(vulkan.queue, 0, nullptr, fence);
+  }
+
+
+  ///////////////////////// create_commandpool //////////////////////////////
+  CommandPool create_commandpool(VulkanDevice const &vulkan, VkCommandPoolCreateFlags flags)
+  {
+    uint32_t queuecount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(vulkan.physicaldevice, &queuecount, nullptr);
+
+    VkQueueFamilyProperties queueproperties[16];
+    vkGetPhysicalDeviceQueueFamilyProperties(vulkan.physicaldevice, &queuecount, queueproperties);
+
+    uint32_t queueindex = 0;
+    while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+      ++queueindex;
+
+    VkCommandPoolCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createinfo.flags = flags;
+    createinfo.queueFamilyIndex = queueindex;
+
+    VkCommandPool commandpool;
+    if (vkCreateCommandPool(vulkan.device, &createinfo, nullptr, &commandpool) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateCommandPool failed");
+
+    return { commandpool, { vulkan.device } };
+  }
+
+
+  ///////////////////////// allocate_commandbuffer //////////////////////////
+  CommandBuffer allocate_commandbuffer(VulkanDevice const &vulkan, VkCommandPool pool, VkCommandBufferLevel level)
+  {
+    VkCommandBufferAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocateinfo.commandPool = pool;
+    allocateinfo.level = level;
+    allocateinfo.commandBufferCount = 1;
+
+    VkCommandBuffer buffer;
+    if (vkAllocateCommandBuffers(vulkan.device, &allocateinfo, &buffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateCommandBuffers failed");
+
+    return { buffer, { vulkan.device, pool } };
+  }
+
+
+  ///////////////////////// begin_commandbuffer /////////////////////////////
+  void begin(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkCommandBufferUsageFlags flags)
+  {
+    VkCommandBufferBeginInfo begininfo = {};
+    begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begininfo.flags = flags;
+
+    vkBeginCommandBuffer(buffer, &begininfo);
+  }
+
+
+  ///////////////////////// end_commandbuffer ///////////////////////////////
+  void end(VulkanDevice const &vulkan, VkCommandBuffer buffer)
+  {
+    vkEndCommandBuffer(buffer);
+  }
+
+
+  ///////////////////////// submit_commandbuffer ////////////////////////////
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkPipelineStageFlags flags, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence)
+  {
+    VkSubmitInfo submitinfo = {};
+    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.pWaitDstStageMask = &flags;
+    submitinfo.waitSemaphoreCount = 1;
+    submitinfo.pWaitSemaphores = &waitsemaphore;
+    submitinfo.commandBufferCount = 1;
+    submitinfo.pCommandBuffers = &buffer;
+    submitinfo.signalSemaphoreCount = 1;
+    submitinfo.pSignalSemaphores = &signalsemaphore;
+
+    vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
+  }
+
+
+  ///////////////////////// cmd_transition_aquire ///////////////////////////
+  void transition_aquire(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image)
+  {
+    VkImageMemoryBarrier imagebarrier = {};
+    imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imagebarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    imagebarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    imagebarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    imagebarrier.image = image;
+    imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+    vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+  }
+
+
+  ///////////////////////// cmd_transition_present //////////////////////////
+  void transition_present(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image)
+  {
+    VkImageMemoryBarrier imagebarrier = {};
+    imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imagebarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    imagebarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    imagebarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    imagebarrier.image = image;
+    imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+    vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+  }
+
+
+  ///////////////////////// cmd_clear ///////////////////////////////////////
+  void clear(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image, Color4 const &color)
+  {
+    VkClearColorValue clearcolor;
+    clearcolor.float32[0] = color.r;
+    clearcolor.float32[1] = color.g;
+    clearcolor.float32[2] = color.b;
+    clearcolor.float32[3] = color.a;
+
+    VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+    vkCmdClearColorImage(buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearcolor, 1, &subresourcerange);
+  }
+
+} // namespace vulkan
+
+/*
+void setimagelayout(Vulkan &vulkan, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
+{
+  VkCommandBufferAllocateInfo setupbufferinfo = {};
+  setupbufferinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  setupbufferinfo.commandPool = vulkan.commandpool;
+  setupbufferinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  setupbufferinfo.commandBufferCount = 1;
+
+  VkCommandBuffer setupbuffer;
+  if (vkAllocateCommandBuffers(vulkan.device, &setupbufferinfo, &setupbuffer) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkAllocateCommandBuffers failed");
+
+  VkCommandBufferBeginInfo begininfo = {};
+  begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+  if (vkBeginCommandBuffer(setupbuffer, &begininfo) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkBeginCommandBuffer failed");
+
+  VkImageMemoryBarrier memorybarrier = {};
+  memorybarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  memorybarrier.pNext = NULL;
+  memorybarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  memorybarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  memorybarrier.oldLayout = oldlayout;
+  memorybarrier.newLayout = newlayout;
+  memorybarrier.image = image;
+  memorybarrier.subresourceRange = subresourcerange;
+
+  if (newlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    memorybarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+  VkPipelineStageFlags srcstage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+  VkPipelineStageFlags dststage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+  vkCmdPipelineBarrier(setupbuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &memorybarrier);
+
+  vkEndCommandBuffer(setupbuffer);
+
+  VkSubmitInfo submitinfo = {};
+  submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitinfo.commandBufferCount = 1;
+  submitinfo.pCommandBuffers = &setupbuffer;
+
+  vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
+
+  vkQueueWaitIdle(vulkan.queue);
+
+  vkFreeCommandBuffers(vulkan.device, vulkan.commandpool, 1, &setupbuffer);
+}
+
+void Vulkan::pre()
+{
+  VkSurfaceCapabilitiesKHR surfacecapabilities;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
+
+  //
+  // Depth Attachment
+  //
+
+  VkImageCreateInfo depthinfo = {};
+  depthinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  depthinfo.pNext = NULL;
+  depthinfo.imageType = VK_IMAGE_TYPE_2D;
+  depthinfo.format = VK_FORMAT_D32_SFLOAT;
+  depthinfo.extent = { surfacecapabilities.currentExtent.width, surfacecapabilities.currentExtent.height, 1 };
+  depthinfo.mipLevels = 1;
+  depthinfo.arrayLayers = 1;
+  depthinfo.samples = VK_SAMPLE_COUNT_1_BIT;
+  depthinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+  depthinfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+  depthinfo.flags = 0;
+
+  VkFormatProperties depthformatproperties;
+  vkGetPhysicalDeviceFormatProperties(physicaldevice, depthinfo.format, &depthformatproperties);
+
+  if ((depthformatproperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
+    throw runtime_error("Vulkan vkGetPhysicalDeviceFormatProperties failed");
+
+  if (vkCreateImage(device, &depthinfo, nullptr, &depth) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateImage failed");
+
+  VkMemoryRequirements depthmemoryrequirements;
+  vkGetImageMemoryRequirements(device, depth, &depthmemoryrequirements);
+
+  VkMemoryAllocateInfo memoryinfo = {};
+  memoryinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  memoryinfo.pNext = NULL;
+  memoryinfo.allocationSize = 0;
+  memoryinfo.memoryTypeIndex = 0;
+  memoryinfo.allocationSize = depthmemoryrequirements.size;
+
+  for (uint32_t i = 0; i < 32; i++)
+  {
+    if ((depthmemoryrequirements.memoryTypeBits >> i) & 1)
+    {
+      if ((physicaldevicememoryproperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+      {
+        memoryinfo.memoryTypeIndex = i;
+        break;
+      }
+    }
+  }
+
+  VkDeviceMemory depthmemory;
+  if (vkAllocateMemory(device, &memoryinfo, nullptr, &depthmemory) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkAllocateMemory failed");
+
+  if (vkBindImageMemory(device, depth, depthmemory, 0) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkBindImageMemory failed");
+
+  setimagelayout(*this, depth, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+
+  ///
+
+  uint32_t imagescount = 0;
+  vkGetSwapchainImagesKHR(device, swapchain, &imagescount, nullptr);
+
+  vector<VkImageView> imageviews(imagescount);
+
+  for (size_t i = 0; i < imagescount; ++i)
+  {
+    VkImageViewCreateInfo imageviewinfo = {};
+    imageviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageviewinfo.pNext = NULL;
+    imageviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageviewinfo.format = surfaceformat.format;
+    imageviewinfo.flags = 0;
+    imageviewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+    imageviewinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageviewinfo.subresourceRange.baseMipLevel = 0;
+    imageviewinfo.subresourceRange.levelCount = 1;
+    imageviewinfo.subresourceRange.baseArrayLayer = 0;
+    imageviewinfo.subresourceRange.layerCount = 1;
+    imageviewinfo.image = presentimages[i];
+
+    if (vkCreateImageView(device, &imageviewinfo, nullptr, &imageviews[i]) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateImageView failed");
+  }
+
+  VkImageViewCreateInfo depthviewinfo = {};
+  depthviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  depthviewinfo.pNext = NULL;
+  depthviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  depthviewinfo.format = depthinfo.format;
+  depthviewinfo.flags = 0;
+  depthviewinfo.subresourceRange = {};
+  depthviewinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+  depthviewinfo.subresourceRange.baseMipLevel = 0;
+  depthviewinfo.subresourceRange.levelCount = 1;
+  depthviewinfo.subresourceRange.baseArrayLayer = 0;
+  depthviewinfo.subresourceRange.layerCount = 1;
+  depthviewinfo.image = depth;
+
+  VkImageView depthview;
+  if (vkCreateImageView(device, &depthviewinfo, nullptr, &depthview) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateImageView failed");
+
+  ///
+
+  VkCommandBufferAllocateInfo drawbufferinfo = {};
+  drawbufferinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  drawbufferinfo.commandPool = commandpool;
+  drawbufferinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  drawbufferinfo.commandBufferCount = 1;
+
+  vkAllocateCommandBuffers(device, &drawbufferinfo, &drawbuffer);
+}
+*/
+
+

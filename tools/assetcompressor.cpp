@@ -7,7 +7,7 @@
 //
 
 #include <QGuiApplication>
-#include <QFile>
+#include <cstdio>
 #include <fstream>
 #include "assetpacker.h"
 
@@ -145,8 +145,8 @@ void compress(const char *path)
   fin.close();
   fout.close();
 
-  QFile::remove(path);
-  QFile::rename("tmp.pack", path);
+  remove(path);
+  rename("tmp.pack", path);
 }
 
 

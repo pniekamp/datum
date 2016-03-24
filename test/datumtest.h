@@ -7,6 +7,7 @@
 #include "datum/platform.h"
 #include "datum/asset.h"
 #include "datum/math.h"
+#include "datum/renderer.h"
 
 
 //|---------------------- GameState -----------------------------------------
@@ -26,7 +27,13 @@ struct GameState
 
   float time = 0;
 
+  Camera camera;
+
+  float lastmousex, lastmousey, lastmousez;
+
   AssetManager assets;
+
+  RendererContext renderercontext;
 };
 
 

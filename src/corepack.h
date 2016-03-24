@@ -20,6 +20,8 @@ namespace CoreAsset
     homo_cube,
     unit_cone,
     unit_sphere,
+    sprite_vert,
+    sprite_frag,
     debug_font,
   };
 }

@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "platform.h"
-#include "memory.h"
+#include "datum/platform.h"
+#include "datum/memory.h"
 #include "leap/threadcontrol.h"
 #include <vector>
 

@@ -42,6 +42,30 @@ else(LEAP_INCLUDE AND LEAP_LIBRARIES)
 endif(LEAP_INCLUDE AND LEAP_LIBRARIES)
 
 #
+# vulkan
+#
+
+if(WIN32)
+  find_path(VULKAN_INCLUDE vulkan/vulkan.h PATH_SUFFIXES ../include)
+  find_library(VULKAN_LIBRARIES NAMES vulkan-1 vulkan)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
+endif(WIN32)
+
+if(UNIX)
+  find_path(VULKAN_INCLUDE vulkan/vulkan.h)
+  find_library(VULKAN_LIBRARIES NAMES libvulkan.so)
+  find_package(XCB REQUIRED)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_XCB_KHR")
+endif(UNIX)
+
+add_library(vulkan STATIC IMPORTED)
+set_property(TARGET vulkan PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VULKAN_INCLUDE})
+set_property(TARGET vulkan PROPERTY IMPORTED_LOCATION ${VULKAN_LIBRARIES})
+
+message(STATUS ${VULKAN_INCLUDE})
+message(STATUS ${VULKAN_LIBRARIES})
+
+#
 # datum
 #
 
