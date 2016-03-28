@@ -93,6 +93,7 @@ namespace DatumPlatform
     struct RenderDevice
     {
       VkPhysicalDevice physicaldevice;
+
       VkDevice device;
     };
 

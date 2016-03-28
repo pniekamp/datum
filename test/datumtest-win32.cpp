@@ -257,9 +257,10 @@ struct Vulkan
 {
   void init(HINSTANCE hinstance, HWND hwnd);
 
+  void resize();
+
   void acquire();
   void present();
-  void testdraw();
 
   void destroy();
 
@@ -274,10 +275,14 @@ struct Vulkan
   VkSurfaceFormatKHR surfaceformat;
 
   VkSwapchainKHR swapchain;
+  VkSwapchainCreateInfoKHR swapchaininfo;
 
   VkCommandPool commandpool;
 
   VkImage presentimages[3];
+
+  VkRenderPass renderpass;
+  VkFramebuffer framebuffers[3];
 
   VkSemaphore rendercomplete;
   VkSemaphore acquirecomplete;
@@ -368,7 +373,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   deviceinfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   deviceinfo.queueCreateInfoCount = 1;
   deviceinfo.pQueueCreateInfos = &queueinfo;
-  deviceinfo.pEnabledFeatures = NULL;
+  deviceinfo.pEnabledFeatures = nullptr;
   deviceinfo.enabledExtensionCount = std::extent<decltype(deviceextensions)>::value;
   deviceinfo.ppEnabledExtensionNames = deviceextensions;
   deviceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;;
@@ -478,14 +483,14 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 
   VkSurfaceTransformFlagBitsKHR pretransform = (surfacecapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : surfacecapabilities.currentTransform;
 
-  VkSwapchainCreateInfoKHR swapchaininfo = {};
+  swapchaininfo = {};
   swapchaininfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   swapchaininfo.surface = surface;
   swapchaininfo.minImageCount = desiredimages;
   swapchaininfo.imageFormat = surfaceformat.format;
   swapchaininfo.imageColorSpace = surfaceformat.colorSpace;
   swapchaininfo.imageExtent = surfacecapabilities.currentExtent;
-  swapchaininfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  swapchaininfo.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
   swapchaininfo.preTransform = pretransform;
   swapchaininfo.imageArrayLayers = 1;
   swapchaininfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -513,12 +518,12 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 
   VkCommandBufferAllocateInfo setupbufferinfo = {};
   setupbufferinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  setupbufferinfo.commandPool = vulkan.commandpool;
+  setupbufferinfo.commandPool = commandpool;
   setupbufferinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   setupbufferinfo.commandBufferCount = 1;
 
   VkCommandBuffer setupbuffer;
-  if (vkAllocateCommandBuffers(vulkan.device, &setupbufferinfo, &setupbuffer) != VK_SUCCESS)
+  if (vkAllocateCommandBuffers(device, &setupbufferinfo, &setupbuffer) != VK_SUCCESS)
     throw runtime_error("Vulkan vkAllocateCommandBuffers failed");
 
   VkCommandBufferBeginInfo begininfo = {};
@@ -538,10 +543,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
     memorybarrier.image = presentimages[i];
     memorybarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    VkPipelineStageFlags srcstage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    VkPipelineStageFlags dststage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-
-    vkCmdPipelineBarrier(setupbuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &memorybarrier);
+    vkCmdPipelineBarrier(setupbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &memorybarrier);
   }
 
   vkEndCommandBuffer(setupbuffer);
@@ -551,11 +553,11 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   submitinfo.commandBufferCount = 1;
   submitinfo.pCommandBuffers = &setupbuffer;
 
-  vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
+  vkQueueSubmit(queue, 1, &submitinfo, VK_NULL_HANDLE);
 
-  vkQueueWaitIdle(vulkan.queue);
+  vkQueueWaitIdle(queue);
 
-  vkFreeCommandBuffers(vulkan.device, vulkan.commandpool, 1, &setupbuffer);
+  vkFreeCommandBuffers(device, commandpool, 1, &setupbuffer);
 
   //
   // Chain Semaphores
@@ -596,6 +598,73 @@ void Vulkan::destroy()
   vkDestroyDevice(device, nullptr);
 
   vkDestroyInstance(instance, nullptr);
+}
+
+
+//|//////////////////// Vulkan::resize //////////////////////////////////////
+void Vulkan::resize()
+{
+  VkSurfaceCapabilitiesKHR surfacecapabilities;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
+
+  if (swapchaininfo.imageExtent.width != surfacecapabilities.currentExtent.width || swapchaininfo.imageExtent.height != surfacecapabilities.currentExtent.height)
+  {
+    swapchaininfo.imageExtent = surfacecapabilities.currentExtent;
+    swapchaininfo.oldSwapchain = swapchain;
+
+    if (vkCreateSwapchainKHR(device, &swapchaininfo, nullptr, &swapchain) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateSwapchainKHR failed");
+
+    vkDeviceWaitIdle(device);
+    vkDestroySwapchainKHR(device, swapchaininfo.oldSwapchain, nullptr);
+
+    uint32_t imagescount = 0;
+    vkGetSwapchainImagesKHR(device, swapchain, &imagescount, nullptr);
+    vkGetSwapchainImagesKHR(device, swapchain, &imagescount, presentimages);
+
+    VkCommandBufferAllocateInfo setupbufferinfo = {};
+    setupbufferinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    setupbufferinfo.commandPool = commandpool;
+    setupbufferinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    setupbufferinfo.commandBufferCount = 1;
+
+    VkCommandBuffer setupbuffer;
+    if (vkAllocateCommandBuffers(device, &setupbufferinfo, &setupbuffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateCommandBuffers failed");
+
+    VkCommandBufferBeginInfo begininfo = {};
+    begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(setupbuffer, &begininfo) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBeginCommandBuffer failed");
+
+    for (size_t i = 0; i < imagescount; ++i)
+    {
+      VkImageMemoryBarrier memorybarrier = {};
+      memorybarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      memorybarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      memorybarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      memorybarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      memorybarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+      memorybarrier.image = presentimages[i];
+      memorybarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+      vkCmdPipelineBarrier(setupbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &memorybarrier);
+    }
+
+    vkEndCommandBuffer(setupbuffer);
+
+    VkSubmitInfo submitinfo = {};
+    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.commandBufferCount = 1;
+    submitinfo.pCommandBuffers = &setupbuffer;
+
+    vkQueueSubmit(queue, 1, &submitinfo, VK_NULL_HANDLE);
+
+    vkQueueWaitIdle(queue);
+
+    vkFreeCommandBuffers(device, commandpool, 1, &setupbuffer);
+  }
 }
 
 
@@ -655,8 +724,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SIZE:
-      window.width = lParam & 0xffff;
-      window.height = lParam & 0xffff0000 >> 16;
+      window.width = (lParam & 0xffff);
+      window.height = (lParam & 0xffff0000) >> 16;
+      vulkan.resize();
       break;
 
     default:
@@ -682,7 +752,7 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
   winclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
   winclass.hCursor = LoadCursor(NULL, IDC_ARROW);
   winclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-  winclass.lpszMenuName = NULL;
+  winclass.lpszMenuName = nullptr;
   winclass.lpszClassName = "DatumTest";
   winclass.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
 

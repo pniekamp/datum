@@ -43,7 +43,6 @@ namespace
   const size_t Frames = 3;
   const size_t MaxThreads = 16;
   const size_t MaxBlocks = 512;
-  const size_t MaxOpenBlocks = 48;
 
   unsigned long long g_blockbeg;
   unsigned long long g_blockend;
@@ -136,7 +135,7 @@ namespace
     g_blockend = g_debuglog[(lastframes[0] + tail) % extentof(g_debuglog)].timestamp;
 
     size_t opencount[MaxThreads] = {};
-    size_t openblocks[MaxThreads][MaxOpenBlocks];
+    size_t openblocks[MaxThreads][48];
 
     for(size_t i = lastframes[Frames]; i < lastframes[0]; ++i)
     {

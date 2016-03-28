@@ -12,6 +12,15 @@ find_package(Qt5Gui REQUIRED)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 #
+# embed
+#
+
+add_executable(assetembed assetembed.cpp)
+
+target_link_libraries(assetembed leap Qt5::Gui)
+
+
+#
 # assetbuilder
 #
 

@@ -3,6 +3,7 @@
 //
 
 #include "datumtest.h"
+#include "fallback.h"
 #include "datum/debug.h"
 
 using namespace std;
@@ -29,6 +30,9 @@ void datumtest_init(PlatformInterface &platform)
   initialise_asset_system(platform, state.assets);
 
   state.assets.load(platform, "core.pack");
+
+//  while (!prepare_render_context(platform, state.renderercontext, &state.assets))
+//    ;
 
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 }
@@ -69,7 +73,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   GameState &state = *static_cast<GameState*>(platform.gamememory.data);
 
   if (!prepare_render_context(platform, state.renderercontext, &state.assets))
+  {
+    render_fallback(state.renderercontext, viewport, embed::loading.data, embed::loading.width, embed::loading.height);
     return;
+  }
 
   BEGIN_TIMED_BLOCK(Render, Color3(0.0, 0.2, 1.0))
 

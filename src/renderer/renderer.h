@@ -131,10 +131,16 @@ struct RendererContext
 
   vulkan::VulkanDevice device;
 
-  vulkan::Fence framefences[3];
+  vulkan::Fence framefence;
 
   vulkan::CommandPool commandpool;
-  vulkan::CommandBuffer commandbuffers[3];
+  vulkan::CommandBuffer commandbuffer;
+
+  vulkan::RenderPass renderpass;
+
+  vulkan::Image colorbuffer;
+  vulkan::ImageView colorbufferview;
+  vulkan::FrameBuffer framebuffer;
 
   int fbowidth, fboheight;
 
@@ -167,6 +173,9 @@ struct RenderParams
 
 // Prepare
 bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RendererContext &context, AssetManager *assets);
+
+// Fallback
+void render_fallback(RendererContext &context, DatumPlatform::Viewport const &viewport, void *bitmap = nullptr, int width = 0, int height = 0);
 
 // Render
 void render(RendererContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params);

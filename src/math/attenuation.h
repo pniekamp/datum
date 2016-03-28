@@ -22,13 +22,13 @@ namespace lml
   {
     public:
       Attenuation() = default;
-      constexpr Attenuation(float exponent, float linear, float constant);
+      constexpr Attenuation(float quadratic, float linear, float constant);
 
     union
     {
       struct
       {
-        float exponent;
+        float quadratic;
         float linear;
         float constant;
       };
@@ -38,7 +38,7 @@ namespace lml
 
   //|///////////////////// Attenuation::Constructor /////////////////////////
   constexpr Attenuation::Attenuation(float exponent, float linear, float constant)
-    : exponent(exponent), linear(linear), constant(constant)
+    : quadratic(exponent), linear(linear), constant(constant)
   {
   }
 
@@ -46,10 +46,10 @@ namespace lml
   //|///////////////////// Attenuation range ////////////////////////////////
   inline float range(Attenuation const &attenuation, float intensity)
   {
-    auto exponent = attenuation.exponent;
+    auto quadratic = attenuation.quadratic;
     auto linear = attenuation.linear;
     auto constant = attenuation.constant;
 
-    return (-linear + sqrt(linear*linear - 4*exponent*(constant - 256*intensity))) / (2*exponent);
+    return (-linear + sqrt(linear*linear - 4*quadratic*(constant - 256*intensity))) / (2*quadratic);
   }
 }

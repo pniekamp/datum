@@ -89,6 +89,102 @@ void *PushBuffer::push(Renderable::Type type, size_t size, size_t alignment)
 namespace
 {
 
+  ///////////////////////// prepare_render_pipeline /////////////////////////
+  bool prepare_render_pipeline(RendererContext &context, int width, int height)
+  {
+    if (context.fbowidth != width || context.fboheight != height)
+    {
+//      int width = viewport.width;
+//      int height = min((int)(viewport.width / camera.aspect()), viewport.height);
+
+      //
+      // Color Buffer
+      //
+
+      VkImageCreateInfo colorbufferinfo = {};
+      colorbufferinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      colorbufferinfo.imageType = VK_IMAGE_TYPE_2D;
+      colorbufferinfo.format = VK_FORMAT_B8G8R8A8_UNORM;
+      colorbufferinfo.extent.width = width;
+      colorbufferinfo.extent.height = height;
+      colorbufferinfo.extent.depth = 1;
+      colorbufferinfo.mipLevels = 1;
+      colorbufferinfo.arrayLayers = 1;
+      colorbufferinfo.samples = VK_SAMPLE_COUNT_1_BIT;
+      colorbufferinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+      colorbufferinfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+      colorbufferinfo.flags = 0;
+
+      context.colorbuffer = create_image(context.device, colorbufferinfo);
+
+      setimagelayout(context.device, context.colorbuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+      //
+      // Render Pass
+      //
+
+      VkAttachmentDescription attachments[1] = {};
+      attachments[0].format = colorbufferinfo.format;
+      attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+      attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+      VkAttachmentReference colorbufferreference = {};
+      colorbufferreference.attachment = 0;
+      colorbufferreference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+      VkSubpassDescription subpass = {};
+      subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+      subpass.colorAttachmentCount = 1;
+      subpass.pColorAttachments = &colorbufferreference;
+
+      VkRenderPassCreateInfo renderpassinfo = {};
+      renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+      renderpassinfo.attachmentCount = 1;
+      renderpassinfo.pAttachments = attachments;
+      renderpassinfo.subpassCount = 1;
+      renderpassinfo.pSubpasses = &subpass;
+      renderpassinfo.dependencyCount = 0;
+      renderpassinfo.pDependencies = nullptr;
+
+      context.renderpass = create_renderpass(context.device, renderpassinfo);
+
+      //
+      // Frame Buffer
+      //
+
+      VkImageViewCreateInfo colorbufferviewinfo = {};
+      colorbufferviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      colorbufferviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      colorbufferviewinfo.format = colorbufferinfo.format;
+      colorbufferviewinfo.flags = 0;
+      colorbufferviewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+      colorbufferviewinfo.image = context.colorbuffer;
+
+      context.colorbufferview = create_imageview(context.device, colorbufferviewinfo);
+
+      VkFramebufferCreateInfo framebufferinfo = {};
+      framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      framebufferinfo.renderPass = context.renderpass;
+      framebufferinfo.attachmentCount = 1;
+      framebufferinfo.pAttachments = context.colorbufferview.data();
+      framebufferinfo.width = width;
+      framebufferinfo.height = height;
+      framebufferinfo.layers = 1;
+
+      context.framebuffer = create_framebuffer(context.device, framebufferinfo);
+
+      context.fbowidth = width;
+      context.fboheight = height;
+
+      vkResetCommandBuffer(context.commandbuffer, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+    }
+
+    return true;
+  }
+
 } // namespace
 
 
@@ -108,23 +204,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
 
     initialise_vulkan_device(&context.device, renderdevice.physicaldevice, renderdevice.device);
 
-    // Frame Fences
-
-    for(auto &fence: context.framefences)
-    {
-      fence = create_fence(context.device, VK_FENCE_CREATE_SIGNALED_BIT);
-    }
-
-    // Primary Command Pool
+    context.framefence = create_fence(context.device, VK_FENCE_CREATE_SIGNALED_BIT);
 
     context.commandpool = create_commandpool(context.device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    // Primary Command Buffers
-
-    for(auto &commandbuffer : context.commandbuffers)
-    {
-      commandbuffer = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    }
+    context.commandbuffer = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
   }
 
   context.frame = 0;
@@ -138,26 +222,89 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
 }
 
 
+///////////////////////// render_fallback ///////////////////////////////////
+void render_fallback(RendererContext &context, DatumPlatform::Viewport const &viewport, void *bitmap, int width, int height)
+{
+  Buffer src;
+
+  if (bitmap)
+  {
+    VkBufferCreateInfo bufferinfo = {};
+    bufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferinfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bufferinfo.size = width * height * sizeof(uint32_t);
+
+    src = create_buffer(context.device, bufferinfo);
+
+    memcpy(map_memory(context.device, src, 0, bufferinfo.size), bitmap, bufferinfo.size);
+  }
+
+  wait(context.device, context.framefence);
+
+  begin(context.device, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  transition_aquire(context.device, context.commandbuffer, viewport.image);
+
+  clear(context.device, context.commandbuffer, viewport.image, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+
+  if (bitmap)
+  {
+    blit(context.device, context.commandbuffer, src, width, height, viewport.image, (viewport.width - width)/2, (viewport.height - height)/2, width, height);
+  }
+
+  transition_present(context.device, context.commandbuffer, viewport.image);
+
+  end(context.device, context.commandbuffer);
+
+  submit(context.device, context.commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
+
+  vkWaitForFences(context.device, 1, context.framefence.data(), VK_TRUE, UINT64_MAX);
+
+  ++context.frame;
+}
+
+
 ///////////////////////// render ////////////////////////////////////////////
 void render(RendererContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
 {
-  auto frameindex = context.frame % extentof(context.commandbuffers);
+  prepare_render_pipeline(context, viewport.width, viewport.height);
 
-  auto &buffer = context.commandbuffers[frameindex];
+  wait(context.device, context.framefence);
 
-  wait(context.device, context.framefences[frameindex]);
+  begin(context.device, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  begin(context.device, buffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+///
+  VkClearValue clearvalues[1];
+  clearvalues[0].color = { 1.0f, 0.0f, 0.0f, 1.0f };
 
-  transition_aquire(context.device, buffer, viewport.image);
+  VkRenderPassBeginInfo renderpassbegininfo = {};
+  renderpassbegininfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderpassbegininfo.renderPass = context.renderpass;
+  renderpassbegininfo.renderArea.offset.x = 0;
+  renderpassbegininfo.renderArea.offset.y = 0;
+  renderpassbegininfo.renderArea.extent.width = context.fbowidth;
+  renderpassbegininfo.renderArea.extent.height = context.fboheight;
+  renderpassbegininfo.clearValueCount = 1;
+  renderpassbegininfo.pClearValues = clearvalues;
+  renderpassbegininfo.framebuffer = context.framebuffer;
 
-  clear(context.device, buffer, viewport.image, Color4(0.5f + 0.5f*sin(context.frame * 0.0001), 0.5f + 0.5f*cos(context.frame * 0.0002), 0.5f + 0.5f*sin(context.frame * 0.0003), 1.0f));
+  vkCmdBeginRenderPass(context.commandbuffer, &renderpassbegininfo, VK_SUBPASS_CONTENTS_INLINE);
 
-  transition_present(context.device, buffer, viewport.image);
+  vkCmdEndRenderPass(context.commandbuffer);
+///
 
-  end(context.device, buffer);
+  transition_aquire(context.device, context.commandbuffer, viewport.image);
 
-  submit(context.device, buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, viewport.aquirecomplete, viewport.rendercomplete, context.framefences[frameindex]);
+//  clear(context.device, context.commandbuffer, viewport.image, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+
+  blit(context.device, context.commandbuffer, context.colorbuffer, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y);
+//  blit(context.device, context.commandbuffer, context.colorbuffer, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_LINEAR);
+
+  transition_present(context.device, context.commandbuffer, viewport.image);
+
+  end(context.device, context.commandbuffer);
+
+  submit(context.device, context.commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
 
   ++context.frame;
 }

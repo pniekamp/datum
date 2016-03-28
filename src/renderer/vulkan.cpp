@@ -44,35 +44,6 @@ namespace vulkan
     vkGetDeviceQueue(vulkan->device, queueindex, 0, &vulkan->queue);
   }
 
-  ///////////////////////// create_fence ////////////////////////////////////
-  Fence create_fence(VulkanDevice const &vulkan, VkFenceCreateFlags flags)
-  {
-    VkFenceCreateInfo fenceinfo = {};
-    fenceinfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceinfo.flags = flags;
-
-    VkFence fence;
-    if (vkCreateFence(vulkan.device, &fenceinfo, nullptr, &fence) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkCreateFence failed");
-
-    return { fence, { vulkan.device } };
-  }
-
-  ///////////////////////// wait ////////////////////////////////////////////
-  void wait(VulkanDevice const &vulkan, VkFence fence)
-  {
-    vkWaitForFences(vulkan.device, 1, &fence, VK_TRUE, UINT64_MAX);
-
-    vkResetFences(vulkan.device, 1, &fence);
-  }
-
-
-  ///////////////////////// signal //////////////////////////////////////////
-  void signal(VulkanDevice const &vulkan, VkFence fence)
-  {
-    vkQueueSubmit(vulkan.queue, 0, nullptr, fence);
-  }
-
 
   ///////////////////////// create_commandpool //////////////////////////////
   CommandPool create_commandpool(VulkanDevice const &vulkan, VkCommandPoolCreateFlags flags)
@@ -100,6 +71,162 @@ namespace vulkan
   }
 
 
+  ///////////////////////// create_renderpass ///////////////////////////////
+  RenderPass create_renderpass(VulkanDevice const &vulkan, VkRenderPassCreateInfo const &createinfo)
+  {
+    VkRenderPass renderpass;
+
+    if (vkCreateRenderPass(vulkan.device, &createinfo, nullptr, &renderpass) != VK_SUCCESS)
+        throw runtime_error("Vulkan vkCreateRenderPass failed");
+
+    return { renderpass, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_framebuffer ///////////////////////////////
+  FrameBuffer create_framebuffer(VulkanDevice const &vulkan, VkFramebufferCreateInfo const &createinfo)
+  {
+    VkFramebuffer framebuffer;
+
+    if (vkCreateFramebuffer(vulkan.device, &createinfo, nullptr, &framebuffer) != VK_SUCCESS)
+        throw runtime_error("Vulkan vkCreateFrameBuffer failed");
+
+    return { framebuffer, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_image ////////////////////////////////////
+  Image create_image(VulkanDevice const &vulkan, VkImageCreateInfo const &createinfo)
+  {
+    VkImage image;
+
+    if (vkCreateImage(vulkan.device, &createinfo, nullptr, &image) != VK_SUCCESS)
+        throw runtime_error("Vulkan vkCreateImage failed");
+
+    VkMemoryRequirements memoryrequirements;
+    vkGetImageMemoryRequirements(vulkan.device, image, &memoryrequirements);
+
+    VkMemoryAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateinfo.memoryTypeIndex = 0;
+    allocateinfo.allocationSize = memoryrequirements.size;
+
+    for (uint32_t i = 0; i < 32; i++)
+    {
+      if ((memoryrequirements.memoryTypeBits >> i) & 1)
+      {
+        if ((vulkan.physicaldevicememoryproperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+        {
+          allocateinfo.memoryTypeIndex = i;
+          break;
+        }
+      }
+    }
+
+    VkDeviceMemory memory;
+    if (vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, &memory) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateMemory failed");
+
+    if (vkBindImageMemory(vulkan.device, image, memory, 0) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindImageMemory failed");
+
+    return { image, { vulkan.device, memory } };
+  }
+
+
+  ///////////////////////// create_imageview ////////////////////////////////
+  ImageView create_imageview(VulkanDevice const &vulkan, VkImageViewCreateInfo const &createinfo)
+  {
+    VkImageView imageview;
+
+    if (vkCreateImageView(vulkan.device, &createinfo, nullptr, &imageview) != VK_SUCCESS)
+        throw runtime_error("Vulkan vkCreateImageView failed");
+
+    return { imageview, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_buffer ///////////////////////////////////
+  Buffer create_buffer(VulkanDevice const &vulkan, VkBufferCreateInfo const &createinfo)
+  {
+    VkBuffer buffer;
+
+    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &buffer) != VK_SUCCESS)
+        throw runtime_error("Vulkan vkCreateBuffer failed");
+
+    VkMemoryRequirements memoryrequirements;
+    vkGetBufferMemoryRequirements(vulkan.device, buffer, &memoryrequirements);
+
+    VkMemoryAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateinfo.memoryTypeIndex = 0;
+    allocateinfo.allocationSize = memoryrequirements.size;
+
+    for (uint32_t i = 0; i < 32; i++)
+    {
+      if ((memoryrequirements.memoryTypeBits >> i) & 1)
+      {
+        if ((vulkan.physicaldevicememoryproperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
+        {
+          allocateinfo.memoryTypeIndex = i;
+          break;
+        }
+      }
+    }
+
+    VkDeviceMemory memory;
+    if (vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, &memory) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateMemory failed");
+
+    if (vkBindBufferMemory(vulkan.device, buffer, memory, 0) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
+
+    return { buffer, { vulkan.device, memory } };
+  }
+
+
+  ///////////////////////// map_memory //////////////////////////////////////
+  Memory map_memory(VulkanDevice const &vulkan, Buffer &buffer, VkDeviceSize offset, VkDeviceSize size)
+  {
+    void *data = nullptr;
+
+    vkMapMemory(vulkan.device, buffer.deleter()->memory, offset, size, 0, &data);
+
+    return { data, { vulkan.device, buffer.deleter()->memory } };
+  }
+
+
+  ///////////////////////// create_fence ////////////////////////////////////
+  Fence create_fence(VulkanDevice const &vulkan, VkFenceCreateFlags flags)
+  {
+    VkFenceCreateInfo fenceinfo = {};
+    fenceinfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceinfo.flags = flags;
+
+    VkFence fence;
+    if (vkCreateFence(vulkan.device, &fenceinfo, nullptr, &fence) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateFence failed");
+
+    return { fence, { vulkan.device } };
+  }
+
+
+  ///////////////////////// wait ////////////////////////////////////////////
+  void wait(VulkanDevice const &vulkan, VkFence fence)
+  {
+    vkWaitForFences(vulkan.device, 1, &fence, VK_TRUE, UINT64_MAX);
+
+    vkResetFences(vulkan.device, 1, &fence);
+  }
+
+
+  ///////////////////////// signal //////////////////////////////////////////
+  void signal(VulkanDevice const &vulkan, VkFence fence)
+  {
+    vkQueueSubmit(vulkan.queue, 0, nullptr, fence);
+  }
+
+
   ///////////////////////// allocate_commandbuffer //////////////////////////
   CommandBuffer allocate_commandbuffer(VulkanDevice const &vulkan, VkCommandPool pool, VkCommandBufferLevel level)
   {
@@ -117,7 +244,7 @@ namespace vulkan
   }
 
 
-  ///////////////////////// begin_commandbuffer /////////////////////////////
+  ///////////////////////// begin ///////////////////////////////////////////
   void begin(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkCommandBufferUsageFlags flags)
   {
     VkCommandBufferBeginInfo begininfo = {};
@@ -128,14 +255,26 @@ namespace vulkan
   }
 
 
-  ///////////////////////// end_commandbuffer ///////////////////////////////
+  ///////////////////////// end /////////////////////////////////////////////
   void end(VulkanDevice const &vulkan, VkCommandBuffer buffer)
   {
     vkEndCommandBuffer(buffer);
   }
 
 
-  ///////////////////////// submit_commandbuffer ////////////////////////////
+  ///////////////////////// submit //////////////////////////////////////////
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkPipelineStageFlags flags)
+  {
+    VkSubmitInfo submitinfo = {};
+    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.pWaitDstStageMask = &flags;
+    submitinfo.commandBufferCount = 1;
+    submitinfo.pCommandBuffers = &buffer;
+
+    vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
+  }
+
+  ///////////////////////// submit //////////////////////////////////////////
   void submit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkPipelineStageFlags flags, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence)
   {
     VkSubmitInfo submitinfo = {};
@@ -152,17 +291,17 @@ namespace vulkan
   }
 
 
-  ///////////////////////// cmd_transition_aquire ///////////////////////////
+  ///////////////////////// transition_aquire ///////////////////////////////
   void transition_aquire(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image)
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imagebarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    imagebarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    imagebarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    imagebarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    imagebarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    imagebarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     imagebarrier.image = image;
     imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
@@ -170,16 +309,16 @@ namespace vulkan
   }
 
 
-  ///////////////////////// cmd_transition_present //////////////////////////
+  ///////////////////////// transition_present //////////////////////////////
   void transition_present(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image)
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imagebarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    imagebarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    imagebarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    imagebarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     imagebarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     imagebarrier.image = image;
     imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
@@ -188,7 +327,7 @@ namespace vulkan
   }
 
 
-  ///////////////////////// cmd_clear ///////////////////////////////////////
+  ///////////////////////// clear ///////////////////////////////////////////
   void clear(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image, Color4 const &color)
   {
     VkClearColorValue clearcolor;
@@ -202,58 +341,128 @@ namespace vulkan
     vkCmdClearColorImage(buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearcolor, 1, &subresourcerange);
   }
 
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy)
+  {
+    VkImageCopy imagecopy = {};
+
+    imagecopy.srcOffset.x = sx;
+    imagecopy.srcOffset.y = sy;
+    imagecopy.srcOffset.z = 0;
+    imagecopy.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0,  0, 1 };
+
+    imagecopy.dstOffset.x = dx;
+    imagecopy.dstOffset.y = dy;
+    imagecopy.dstOffset.z = 1;
+    imagecopy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+
+    imagecopy.extent.width = sw;
+    imagecopy.extent.height = sh;
+    imagecopy.extent.depth = 1;
+
+    vkCmdCopyImage(buffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imagecopy);
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter)
+  {
+    VkImageBlit imageblit = {};
+
+    imageblit.srcOffsets[0].x = sx;
+    imageblit.srcOffsets[0].y = sy;
+    imageblit.srcOffsets[0].z = 0;
+    imageblit.srcOffsets[1].x = sw + sx;
+    imageblit.srcOffsets[1].y = sh + sy;
+    imageblit.srcOffsets[1].z = 1;
+    imageblit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0,  0, 1 };
+
+    imageblit.dstOffsets[0].x = dx;
+    imageblit.dstOffsets[0].y = dy;
+    imageblit.dstOffsets[0].z = 0;
+    imageblit.dstOffsets[1].x = dw + dx;
+    imageblit.dstOffsets[1].y = dh + dy;
+    imageblit.dstOffsets[1].z = 1;
+    imageblit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+
+    vkCmdBlitImage(buffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageblit, filter);
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkBuffer src, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh)
+  {
+    VkBufferImageCopy buffercopy = {};
+
+    buffercopy.bufferRowLength = sw;
+    buffercopy.bufferImageHeight = sh;
+
+    buffercopy.imageOffset.x = dx;
+    buffercopy.imageOffset.y = dy;
+    buffercopy.imageOffset.z = 1;
+    buffercopy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+
+    buffercopy.imageExtent.width = dw;
+    buffercopy.imageExtent.height = dh;
+    buffercopy.imageExtent.depth = 1;
+
+    vkCmdCopyBufferToImage(buffer, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffercopy);
+  }
+
+
+  ///////////////////////// setimagelayout //////////////////////////////////
+  void setimagelayout(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
+  {
+    VkImageMemoryBarrier imagebarrier = {};
+    imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.oldLayout = oldlayout;
+    imagebarrier.newLayout = newlayout;
+    imagebarrier.image = image;
+    imagebarrier.subresourceRange = subresourcerange;
+
+    if (oldlayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+      imagebarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+      imagebarrier.dstAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+      imagebarrier.dstAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+      imagebarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+      imagebarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+
+    vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+  }
+
+  ///////////////////////// setimagelayout //////////////////////////////////
+  void setimagelayout(VulkanDevice const &vulkan, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
+  {
+    CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+
+    CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    setimagelayout(vulkan, setupbuffer, image, oldlayout, newlayout, subresourcerange);
+
+    end(vulkan, setupbuffer);
+
+    submit(vulkan, setupbuffer);
+
+    vkQueueWaitIdle(vulkan.queue);
+  }
+
 } // namespace vulkan
 
+
 /*
-void setimagelayout(Vulkan &vulkan, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
-{
-  VkCommandBufferAllocateInfo setupbufferinfo = {};
-  setupbufferinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  setupbufferinfo.commandPool = vulkan.commandpool;
-  setupbufferinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  setupbufferinfo.commandBufferCount = 1;
-
-  VkCommandBuffer setupbuffer;
-  if (vkAllocateCommandBuffers(vulkan.device, &setupbufferinfo, &setupbuffer) != VK_SUCCESS)
-    throw runtime_error("Vulkan vkAllocateCommandBuffers failed");
-
-  VkCommandBufferBeginInfo begininfo = {};
-  begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-  if (vkBeginCommandBuffer(setupbuffer, &begininfo) != VK_SUCCESS)
-    throw runtime_error("Vulkan vkBeginCommandBuffer failed");
-
-  VkImageMemoryBarrier memorybarrier = {};
-  memorybarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  memorybarrier.pNext = NULL;
-  memorybarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  memorybarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  memorybarrier.oldLayout = oldlayout;
-  memorybarrier.newLayout = newlayout;
-  memorybarrier.image = image;
-  memorybarrier.subresourceRange = subresourcerange;
-
-  if (newlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-    memorybarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-  VkPipelineStageFlags srcstage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-  VkPipelineStageFlags dststage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-
-  vkCmdPipelineBarrier(setupbuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &memorybarrier);
-
-  vkEndCommandBuffer(setupbuffer);
-
-  VkSubmitInfo submitinfo = {};
-  submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitinfo.commandBufferCount = 1;
-  submitinfo.pCommandBuffers = &setupbuffer;
-
-  vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
-
-  vkQueueWaitIdle(vulkan.queue);
-
-  vkFreeCommandBuffers(vulkan.device, vulkan.commandpool, 1, &setupbuffer);
-}
 
 void Vulkan::pre()
 {
@@ -266,7 +475,6 @@ void Vulkan::pre()
 
   VkImageCreateInfo depthinfo = {};
   depthinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  depthinfo.pNext = NULL;
   depthinfo.imageType = VK_IMAGE_TYPE_2D;
   depthinfo.format = VK_FORMAT_D32_SFLOAT;
   depthinfo.extent = { surfacecapabilities.currentExtent.width, surfacecapabilities.currentExtent.height, 1 };
@@ -291,7 +499,6 @@ void Vulkan::pre()
 
   VkMemoryAllocateInfo memoryinfo = {};
   memoryinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  memoryinfo.pNext = NULL;
   memoryinfo.allocationSize = 0;
   memoryinfo.memoryTypeIndex = 0;
   memoryinfo.allocationSize = depthmemoryrequirements.size;
@@ -328,7 +535,6 @@ void Vulkan::pre()
   {
     VkImageViewCreateInfo imageviewinfo = {};
     imageviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    imageviewinfo.pNext = NULL;
     imageviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     imageviewinfo.format = surfaceformat.format;
     imageviewinfo.flags = 0;
@@ -346,7 +552,6 @@ void Vulkan::pre()
 
   VkImageViewCreateInfo depthviewinfo = {};
   depthviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  depthviewinfo.pNext = NULL;
   depthviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
   depthviewinfo.format = depthinfo.format;
   depthviewinfo.flags = 0;
