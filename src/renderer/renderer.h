@@ -134,13 +134,36 @@ struct RendererContext
   vulkan::Fence framefence;
 
   vulkan::CommandPool commandpool;
-  vulkan::CommandBuffer commandbuffer;
+  vulkan::CommandBuffer commandbuffers[2];
+
+  vulkan::DescriptorPool descriptorpool;
+
+  vulkan::DescriptorSetLayout scenesetlayout;
+  vulkan::DescriptorSet sceneset;
+
+  vulkan::DescriptorSetLayout materialsetlayout;
+  vulkan::DescriptorSet materialset;
+
+  vulkan::DescriptorSetLayout modelsetlayout;
+  vulkan::DescriptorSet modelset;
+
+  vulkan::PipelineLayout pipelinelayout;
+
+  vulkan::PipelineCache pipelinecache;
 
   vulkan::RenderPass renderpass;
 
   vulkan::Image colorbuffer;
   vulkan::ImageView colorbufferview;
   vulkan::FrameBuffer framebuffer;
+
+  vulkan::VertexAttribute vertexattributes[4];
+
+  vulkan::VertexBuffer unitquad;
+
+  vulkan::TransferBuffer transferbuffer;
+
+  vulkan::Pipeline spritepipeline;
 
   int fbowidth, fboheight;
 
@@ -149,11 +172,6 @@ struct RendererContext
   size_t frame;
   lml::Vec3 camerapos;
   lml::Quaternion3f camerarot;
-  lml::Matrix4f proj;
-  lml::Matrix4f invproj;
-  lml::Matrix4f view;
-  lml::Matrix4f invview;
-  lml::Matrix4f worldview;
 
   lml::Matrix4f prevview;
 };

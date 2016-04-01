@@ -98,20 +98,20 @@ double clock_frequency();
     g_debuglog[entry].timestamp = __rdtsc();                                          \
   }
 
-#define STAT \
-  auto stat_start = __rdtsc();
+#define BEGIN_STAT_BLOCK(name) \
+  auto stat_start_##name = __rdtsc();
 
-#define STAT_END \
+#define END_STAT_BLOCK(name) \
   {                                                                                   \
     static int stat_count = 0;                                                        \
     static double stat_time = 0;                                                      \
                                                                                       \
     auto stat_end = __rdtsc();                                                        \
-    stat_time += (stat_end - stat_start) / clock_frequency();                         \
+    stat_time += (stat_end - stat_start_##name) / clock_frequency();                         \
     stat_count += 1;                                                                  \
     if (stat_time > 1.0)                                                              \
     {                                                                                 \
-      std::cout << 1000 * stat_time / stat_count << "ms" << std::endl;                \
+      std::cout << #name << ": " << 1000 * stat_time / stat_count << "ms" << std::endl;                \
       stat_count = 0;                                                                 \
       stat_time = 0.0;                                                                \
     }                                                                                 \

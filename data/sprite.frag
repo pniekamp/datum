@@ -1,6 +1,6 @@
 #version 450 core
 
-out vec4 fragcolor;
+layout (location = 0) out vec4 fragcolor;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

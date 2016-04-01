@@ -41,7 +41,31 @@ namespace vulkan
     while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
       ++queueindex;
 
-    vkGetDeviceQueue(vulkan->device, queueindex, 0, &vulkan->queue);
+    vkGetDeviceQueue(vulkan->device, queueindex, 0, &vulkan->queue);   
+  }
+
+
+  ///////////////////////// allocate_memory /////////////////////////////////
+  VkResult allocate_memory(VulkanDevice const &vulkan, VkMemoryRequirements const &requirements, VkMemoryPropertyFlags properties, VkDeviceMemory *memory)
+  {
+    VkMemoryAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateinfo.memoryTypeIndex = 0;
+    allocateinfo.allocationSize = requirements.size;
+
+    for (uint32_t i = 0; i < 32; i++)
+    {
+      if ((requirements.memoryTypeBits >> i) & 1)
+      {
+        if ((vulkan.physicaldevicememoryproperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+          allocateinfo.memoryTypeIndex = i;
+          break;
+        }
+      }
+    }
+
+    return vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, memory);
   }
 
 
@@ -71,13 +95,91 @@ namespace vulkan
   }
 
 
+  ///////////////////////// create_descriptorsetlayout //////////////////////
+  DescriptorSetLayout create_descriptorsetlayout(VulkanDevice const &vulkan, VkDescriptorSetLayoutCreateInfo const &createinfo)
+  {
+    VkDescriptorSetLayout descriptorsetlayout;
+
+    if (vkCreateDescriptorSetLayout(vulkan.device, &createinfo, nullptr, &descriptorsetlayout) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateDescriptorSetLayout failed");
+
+    return { descriptorsetlayout, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_pipelinelayout ///////////////////////////
+  PipelineLayout create_pipelinelayout(VulkanDevice const &vulkan, VkPipelineLayoutCreateInfo const &createinfo)
+  {
+    VkPipelineLayout pipelinelayout;
+
+    if (vkCreatePipelineLayout(vulkan.device, &createinfo, nullptr, &pipelinelayout) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreatePipelineLayout failed");
+
+    return { pipelinelayout, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_pipeline /////////////////////////////////
+  Pipeline create_pipeline(VulkanDevice const &vulkan, VkPipelineCache cache, VkGraphicsPipelineCreateInfo const &createinfo)
+  {
+    VkPipeline pipeline;
+
+    if (vkCreateGraphicsPipelines(vulkan.device, cache, 1, &createinfo, nullptr, &pipeline) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateGraphicsPipelines failed");
+
+    return { pipeline, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_pipelinecache ////////////////////////////
+  PipelineCache create_pipelinecache(VulkanDevice const &vulkan, VkPipelineCacheCreateInfo const &createinfo)
+  {
+    VkPipelineCache pipelinecache;
+
+    if (vkCreatePipelineCache(vulkan.device, &createinfo, nullptr, &pipelinecache) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreatePipelineCache failed");
+
+    return { pipelinecache, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_descriptorpool ///////////////////////////
+  DescriptorPool create_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPoolCreateInfo const &createinfo)
+  {
+    VkDescriptorPool descriptorpool;
+
+    if (vkCreateDescriptorPool(vulkan.device, &createinfo, nullptr, &descriptorpool) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateDescriptorPool failed");
+
+    return { descriptorpool, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_shadermodule /////////////////////////////
+  ShaderModule create_shadermodule(VulkanDevice const &vulkan, const void *code, size_t size)
+  {
+    VkShaderModuleCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createinfo.codeSize = size;
+    createinfo.pCode = (uint32_t const *)code;
+    createinfo.flags = 0;
+
+    VkShaderModule shadermodule;
+
+    if (vkCreateShaderModule(vulkan.device, &createinfo, nullptr, &shadermodule) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateShaderModule failed");
+
+    return { shadermodule, { vulkan.device } };
+  }
+
+
   ///////////////////////// create_renderpass ///////////////////////////////
   RenderPass create_renderpass(VulkanDevice const &vulkan, VkRenderPassCreateInfo const &createinfo)
   {
     VkRenderPass renderpass;
 
     if (vkCreateRenderPass(vulkan.device, &createinfo, nullptr, &renderpass) != VK_SUCCESS)
-        throw runtime_error("Vulkan vkCreateRenderPass failed");
+      throw runtime_error("Vulkan vkCreateRenderPass failed");
 
     return { renderpass, { vulkan.device } };
   }
@@ -89,7 +191,7 @@ namespace vulkan
     VkFramebuffer framebuffer;
 
     if (vkCreateFramebuffer(vulkan.device, &createinfo, nullptr, &framebuffer) != VK_SUCCESS)
-        throw runtime_error("Vulkan vkCreateFrameBuffer failed");
+      throw runtime_error("Vulkan vkCreateFrameBuffer failed");
 
     return { framebuffer, { vulkan.device } };
   }
@@ -101,30 +203,13 @@ namespace vulkan
     VkImage image;
 
     if (vkCreateImage(vulkan.device, &createinfo, nullptr, &image) != VK_SUCCESS)
-        throw runtime_error("Vulkan vkCreateImage failed");
+      throw runtime_error("Vulkan vkCreateImage failed");
 
     VkMemoryRequirements memoryrequirements;
     vkGetImageMemoryRequirements(vulkan.device, image, &memoryrequirements);
 
-    VkMemoryAllocateInfo allocateinfo = {};
-    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocateinfo.memoryTypeIndex = 0;
-    allocateinfo.allocationSize = memoryrequirements.size;
-
-    for (uint32_t i = 0; i < 32; i++)
-    {
-      if ((memoryrequirements.memoryTypeBits >> i) & 1)
-      {
-        if ((vulkan.physicaldevicememoryproperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
-        {
-          allocateinfo.memoryTypeIndex = i;
-          break;
-        }
-      }
-    }
-
     VkDeviceMemory memory;
-    if (vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, &memory) != VK_SUCCESS)
+    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
       throw runtime_error("Vulkan vkAllocateMemory failed");
 
     if (vkBindImageMemory(vulkan.device, image, memory, 0) != VK_SUCCESS)
@@ -140,59 +225,113 @@ namespace vulkan
     VkImageView imageview;
 
     if (vkCreateImageView(vulkan.device, &createinfo, nullptr, &imageview) != VK_SUCCESS)
-        throw runtime_error("Vulkan vkCreateImageView failed");
+      throw runtime_error("Vulkan vkCreateImageView failed");
 
     return { imageview, { vulkan.device } };
   }
 
 
-  ///////////////////////// create_buffer ///////////////////////////////////
-  Buffer create_buffer(VulkanDevice const &vulkan, VkBufferCreateInfo const &createinfo)
+  ///////////////////////// create_transferbuffer ///////////////////////////
+  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size)
   {
-    VkBuffer buffer;
+    VkBufferCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    createinfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    createinfo.size = size;
 
-    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &buffer) != VK_SUCCESS)
-        throw runtime_error("Vulkan vkCreateBuffer failed");
+    VkBuffer transferbuffer;
+    vkCreateBuffer(vulkan.device, &createinfo, nullptr, &transferbuffer);
 
     VkMemoryRequirements memoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, buffer, &memoryrequirements);
-
-    VkMemoryAllocateInfo allocateinfo = {};
-    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocateinfo.memoryTypeIndex = 0;
-    allocateinfo.allocationSize = memoryrequirements.size;
-
-    for (uint32_t i = 0; i < 32; i++)
-    {
-      if ((memoryrequirements.memoryTypeBits >> i) & 1)
-      {
-        if ((vulkan.physicaldevicememoryproperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
-        {
-          allocateinfo.memoryTypeIndex = i;
-          break;
-        }
-      }
-    }
+    vkGetBufferMemoryRequirements(vulkan.device, transferbuffer, &memoryrequirements);
 
     VkDeviceMemory memory;
-    if (vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, &memory) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkAllocateMemory failed");
+    allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory);
 
-    if (vkBindBufferMemory(vulkan.device, buffer, memory, 0) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkBindBufferMemory failed");
+    vkBindBufferMemory(vulkan.device, transferbuffer, memory, 0);
 
-    return { buffer, { vulkan.device, memory } };
+    return { size, { transferbuffer, { vulkan.device } }, { memory, { vulkan.device } } };
+  }
+
+
+  ///////////////////////// create_vertexbuffer /////////////////////////////
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, const void *vertices, size_t vertexcount, size_t vertexsize)
+  {
+    VkBufferCreateInfo vertexbufferinfo = {};
+    vertexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    vertexbufferinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    vertexbufferinfo.size = vertexcount * vertexsize;
+
+    VkBuffer vertexbuffer;
+    vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer);
+
+    VkMemoryRequirements memoryrequirements;
+    vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer, &memoryrequirements);
+
+    VkDeviceMemory memory;
+    allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory);
+
+    vkBindBufferMemory(vulkan.device, vertexbuffer, memory, 0);
+
+    memcpy(map_memory(vulkan, memory, 0, vertexbufferinfo.size), vertices, vertexbufferinfo.size);
+
+    return { vertexcount, { vertexbuffer, { vulkan.device } }, 0, { }, { memory, { vulkan.device } } };
+  }
+
+
+  ///////////////////////// create_vertexbuffer /////////////////////////////
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, const void *vertices, size_t vertexcount, size_t vertexsize, const void *indices, size_t indexcount, size_t indexsize)
+  {
+    VkBufferCreateInfo vertexbufferinfo = {};
+    vertexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    vertexbufferinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    vertexbufferinfo.size = vertexcount * vertexsize;
+
+    VkBuffer vertexbuffer;
+    vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer);
+
+    VkMemoryRequirements vertexmemoryrequirements;
+    vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer, &vertexmemoryrequirements);
+
+    VkBufferCreateInfo indexbufferinfo = {};
+    indexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    indexbufferinfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    indexbufferinfo.size = indexcount * indexsize;
+
+    VkBuffer indexbuffer;
+    vkCreateBuffer(vulkan.device, &indexbufferinfo, nullptr, &indexbuffer);
+
+    VkMemoryRequirements indexmemoryrequirements;
+    vkGetBufferMemoryRequirements(vulkan.device, indexbuffer, &indexmemoryrequirements);
+
+    VkDeviceSize padding = indexmemoryrequirements.alignment - (vertexmemoryrequirements.size % indexmemoryrequirements.alignment);
+
+    VkMemoryRequirements memoryrequirements;
+    memoryrequirements.alignment = vertexmemoryrequirements.alignment;
+    memoryrequirements.memoryTypeBits = vertexmemoryrequirements.memoryTypeBits & indexmemoryrequirements.memoryTypeBits;
+    memoryrequirements.size = vertexmemoryrequirements.size + padding + indexmemoryrequirements.size;
+
+    VkDeviceMemory memory;
+    allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory);
+
+    vkBindBufferMemory(vulkan.device, vertexbuffer, memory, 0);
+    vkBindBufferMemory(vulkan.device, indexbuffer, memory, vertexmemoryrequirements.size + padding);
+
+    memcpy(map_memory(vulkan, memory, 0, vertexbufferinfo.size), vertices, vertexbufferinfo.size);
+    memcpy(map_memory(vulkan, memory, vertexmemoryrequirements.size + padding, indexbufferinfo.size), indices, indexbufferinfo.size);
+
+    return { vertexcount, { vertexbuffer, { vulkan.device } }, indexcount, { indexbuffer, { vulkan.device } }, { memory, { vulkan.device } } };
   }
 
 
   ///////////////////////// map_memory //////////////////////////////////////
-  Memory map_memory(VulkanDevice const &vulkan, Buffer &buffer, VkDeviceSize offset, VkDeviceSize size)
+  Memory map_memory(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size)
   {
     void *data = nullptr;
 
-    vkMapMemory(vulkan.device, buffer.deleter()->memory, offset, size, 0, &data);
+    vkMapMemory(vulkan.device, memory, offset, size, 0, &data);
 
-    return { data, { vulkan.device, buffer.deleter()->memory } };
+    return { data, { vulkan.device, memory } };
   }
 
 
@@ -227,6 +366,38 @@ namespace vulkan
   }
 
 
+  ///////////////////////// allocate_descriptorset //////////////////////////
+  DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type)
+  {
+    VkDescriptorSetAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocateinfo.descriptorPool = pool;
+    allocateinfo.descriptorSetCount = 1;
+    allocateinfo.pSetLayouts = &layout;
+
+    VkDescriptorSet descriptorset;
+    if (vkAllocateDescriptorSets(vulkan.device, &allocateinfo, &descriptorset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateDescriptorSets failed");
+
+    VkDescriptorBufferInfo bufferinfo = {};
+    bufferinfo.buffer = buffer;
+    bufferinfo.offset = offset;
+    bufferinfo.range = size;
+
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = 0;
+    writeset.descriptorCount = 1;
+    writeset.descriptorType = type;
+    writeset.pBufferInfo = &bufferinfo;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+
+    return { descriptorset, { vulkan.device, pool } };
+  }
+
+
   ///////////////////////// allocate_commandbuffer //////////////////////////
   CommandBuffer allocate_commandbuffer(VulkanDevice const &vulkan, VkCommandPool pool, VkCommandBufferLevel level)
   {
@@ -236,46 +407,46 @@ namespace vulkan
     allocateinfo.level = level;
     allocateinfo.commandBufferCount = 1;
 
-    VkCommandBuffer buffer;
-    if (vkAllocateCommandBuffers(vulkan.device, &allocateinfo, &buffer) != VK_SUCCESS)
+    VkCommandBuffer commandbuffer;
+    if (vkAllocateCommandBuffers(vulkan.device, &allocateinfo, &commandbuffer) != VK_SUCCESS)
       throw runtime_error("Vulkan vkAllocateCommandBuffers failed");
 
-    return { buffer, { vulkan.device, pool } };
+    return { commandbuffer, { vulkan.device, pool } };
   }
 
 
   ///////////////////////// begin ///////////////////////////////////////////
-  void begin(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkCommandBufferUsageFlags flags)
+  void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferUsageFlags flags)
   {
     VkCommandBufferBeginInfo begininfo = {};
     begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begininfo.flags = flags;
 
-    vkBeginCommandBuffer(buffer, &begininfo);
+    vkBeginCommandBuffer(commandbuffer, &begininfo);
   }
 
 
   ///////////////////////// end /////////////////////////////////////////////
-  void end(VulkanDevice const &vulkan, VkCommandBuffer buffer)
+  void end(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer)
   {
-    vkEndCommandBuffer(buffer);
+    vkEndCommandBuffer(commandbuffer);
   }
 
 
   ///////////////////////// submit //////////////////////////////////////////
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkPipelineStageFlags flags)
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkPipelineStageFlags flags)
   {
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitinfo.pWaitDstStageMask = &flags;
     submitinfo.commandBufferCount = 1;
-    submitinfo.pCommandBuffers = &buffer;
+    submitinfo.pCommandBuffers = &commandbuffer;
 
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
   }
 
   ///////////////////////// submit //////////////////////////////////////////
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkPipelineStageFlags flags, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence)
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkPipelineStageFlags flags, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence)
   {
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -283,7 +454,7 @@ namespace vulkan
     submitinfo.waitSemaphoreCount = 1;
     submitinfo.pWaitSemaphores = &waitsemaphore;
     submitinfo.commandBufferCount = 1;
-    submitinfo.pCommandBuffers = &buffer;
+    submitinfo.pCommandBuffers = &commandbuffer;
     submitinfo.signalSemaphoreCount = 1;
     submitinfo.pSignalSemaphores = &signalsemaphore;
 
@@ -292,7 +463,7 @@ namespace vulkan
 
 
   ///////////////////////// transition_aquire ///////////////////////////////
-  void transition_aquire(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image)
+  void transition_aquire(VkCommandBuffer commandbuffer, VkImage image)
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -305,12 +476,12 @@ namespace vulkan
     imagebarrier.image = image;
     imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
   }
 
 
   ///////////////////////// transition_present //////////////////////////////
-  void transition_present(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image)
+  void transition_present(VkCommandBuffer commandbuffer, VkImage image)
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -323,12 +494,12 @@ namespace vulkan
     imagebarrier.image = image;
     imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
   }
 
 
   ///////////////////////// clear ///////////////////////////////////////////
-  void clear(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image, Color4 const &color)
+  void clear(VkCommandBuffer commandbuffer, VkImage image, Color4 const &color)
   {
     VkClearColorValue clearcolor;
     clearcolor.float32[0] = color.r;
@@ -338,12 +509,19 @@ namespace vulkan
 
     VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    vkCmdClearColorImage(buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearcolor, 1, &subresourcerange);
+    vkCmdClearColorImage(commandbuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearcolor, 1, &subresourcerange);
+  }
+
+
+  ///////////////////////// update //////////////////////////////////////////
+  void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, void const *data)
+  {
+    vkCmdUpdateBuffer(commandbuffer, buffer, offset, size, (uint32_t const *)data);
   }
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy)
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy)
   {
     VkImageCopy imagecopy = {};
 
@@ -361,12 +539,12 @@ namespace vulkan
     imagecopy.extent.height = sh;
     imagecopy.extent.depth = 1;
 
-    vkCmdCopyImage(buffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imagecopy);
+    vkCmdCopyImage(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imagecopy);
   }
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter)
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter)
   {
     VkImageBlit imageblit = {};
 
@@ -386,15 +564,16 @@ namespace vulkan
     imageblit.dstOffsets[1].z = 1;
     imageblit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
-    vkCmdBlitImage(buffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageblit, filter);
+    vkCmdBlitImage(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageblit, filter);
   }
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkBuffer src, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh)
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh)
   {
     VkBufferImageCopy buffercopy = {};
 
+    buffercopy.bufferOffset = offset;
     buffercopy.bufferRowLength = sw;
     buffercopy.bufferImageHeight = sh;
 
@@ -407,12 +586,12 @@ namespace vulkan
     buffercopy.imageExtent.height = dh;
     buffercopy.imageExtent.depth = 1;
 
-    vkCmdCopyBufferToImage(buffer, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffercopy);
+    vkCmdCopyBufferToImage(commandbuffer, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffercopy);
   }
 
 
   ///////////////////////// setimagelayout //////////////////////////////////
-  void setimagelayout(VulkanDevice const &vulkan, VkCommandBuffer buffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
+  void setimagelayout(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -438,7 +617,7 @@ namespace vulkan
     if (newlayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
       imagebarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
 
-    vkCmdPipelineBarrier(buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
   }
 
   ///////////////////////// setimagelayout //////////////////////////////////
@@ -450,13 +629,89 @@ namespace vulkan
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    setimagelayout(vulkan, setupbuffer, image, oldlayout, newlayout, subresourcerange);
+    setimagelayout(setupbuffer, image, oldlayout, newlayout, subresourcerange);
 
     end(vulkan, setupbuffer);
 
     submit(vulkan, setupbuffer);
 
     vkQueueWaitIdle(vulkan.queue);
+  }
+
+
+  ///////////////////////// beginpass ///////////////////////////////////////
+  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, Color4 const &clearcolor)
+  {
+    VkClearValue clearvalues[1];
+    clearvalues[0].color = { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a };
+
+    VkRenderPassBeginInfo renderpassinfo = {};
+    renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderpassinfo.renderPass = renderpass;
+    renderpassinfo.framebuffer = framebuffer;
+    renderpassinfo.renderArea.offset.x = x;
+    renderpassinfo.renderArea.offset.y = y;
+    renderpassinfo.renderArea.extent.width = width;
+    renderpassinfo.renderArea.extent.height = height;
+    renderpassinfo.clearValueCount = 1;
+    renderpassinfo.pClearValues = clearvalues;
+
+    vkCmdBeginRenderPass(commandbuffer, &renderpassinfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    VkViewport viewport = {};
+    viewport.x = x;
+    viewport.y = y;
+    viewport.width = width;
+    viewport.height = height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    vkCmdSetViewport(commandbuffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset.x = x;
+    scissor.offset.y = y;
+    scissor.extent.width = width;
+    scissor.extent.height = height;
+
+    vkCmdSetScissor(commandbuffer, 0, 1, &scissor);
+  }
+
+
+  ///////////////////////// endpass /////////////////////////////////////////
+  void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass)
+  {
+    vkCmdEndRenderPass(commandbuffer);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresourse(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint)
+  {
+    vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 0, nullptr);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresourse(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint)
+  {
+    vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 1, &offset);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresourse(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint)
+  {
+    vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresourse(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer)
+  {
+    VkDeviceSize offsets[] = { 0 };
+
+    vkCmdBindVertexBuffers(commandbuffer, 0, 1, vertexbuffer.vertices.data(), offsets);
   }
 
 } // namespace vulkan

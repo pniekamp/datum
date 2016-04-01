@@ -39,7 +39,23 @@ enum ShaderLocation
   vertex_normal = 2,
   vertex_tangent = 3,
 
+  viewset = 0,
+  modelset = 1,
 };
+
+struct SceneSet
+{
+  Matrix4f proj;
+  Matrix4f invproj;
+  Matrix4f view;
+  Matrix4f invview;
+
+  Matrix4f worldview;
+};
+
+constexpr int kPushConstantSize = 64;
+constexpr int kUniformBufferSize = 65536;
+constexpr int kTransferBufferSize = 16*1024*1024;
 
 
 //|---------------------- PushBuffer ----------------------------------------
@@ -90,7 +106,7 @@ namespace
 {
 
   ///////////////////////// prepare_render_pipeline /////////////////////////
-  bool prepare_render_pipeline(RendererContext &context, int width, int height)
+  bool prepare_framebuffer(RendererContext &context, int width, int height)
   {
     if (context.fbowidth != width || context.fboheight != height)
     {
@@ -120,38 +136,6 @@ namespace
       setimagelayout(context.device, context.colorbuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
       //
-      // Render Pass
-      //
-
-      VkAttachmentDescription attachments[1] = {};
-      attachments[0].format = colorbufferinfo.format;
-      attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-      attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-
-      VkAttachmentReference colorbufferreference = {};
-      colorbufferreference.attachment = 0;
-      colorbufferreference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-      VkSubpassDescription subpass = {};
-      subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-      subpass.colorAttachmentCount = 1;
-      subpass.pColorAttachments = &colorbufferreference;
-
-      VkRenderPassCreateInfo renderpassinfo = {};
-      renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-      renderpassinfo.attachmentCount = 1;
-      renderpassinfo.pAttachments = attachments;
-      renderpassinfo.subpassCount = 1;
-      renderpassinfo.pSubpasses = &subpass;
-      renderpassinfo.dependencyCount = 0;
-      renderpassinfo.pDependencies = nullptr;
-
-      context.renderpass = create_renderpass(context.device, renderpassinfo);
-
-      //
       // Frame Buffer
       //
 
@@ -179,7 +163,8 @@ namespace
       context.fbowidth = width;
       context.fboheight = height;
 
-      vkResetCommandBuffer(context.commandbuffer, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+      vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+      vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
     }
 
     return true;
@@ -208,7 +193,279 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
 
     context.commandpool = create_commandpool(context.device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    context.commandbuffer = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    context.commandbuffers[0] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    context.commandbuffers[1] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    assert(kPushConstantSize <= context.device.physicaldeviceproperties.limits.maxPushConstantsSize);
+    assert(kUniformBufferSize <= context.device.physicaldeviceproperties.limits.maxUniformBufferRange);
+
+    // DescriptorPool
+
+    VkDescriptorPoolSize typecounts[2] = {};
+    typecounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    typecounts[0].descriptorCount = 1;
+    typecounts[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    typecounts[1].descriptorCount = 1;
+
+    VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
+    descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    descriptorpoolinfo.maxSets = 2;
+    descriptorpoolinfo.poolSizeCount = extentof(typecounts);
+    descriptorpoolinfo.pPoolSizes = typecounts;
+
+    context.descriptorpool = create_descriptorpool(context.device, descriptorpoolinfo);
+
+    // PipelineCache
+
+    VkPipelineCacheCreateInfo pipelinecacheinfo = {};
+    pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+
+    context.pipelinecache = create_pipelinecache(context.device, pipelinecacheinfo);
+
+    // Transfer Buffer
+
+    context.transferbuffer = create_transferbuffer(context.device, kTransferBufferSize);
+  }
+
+  if (context.pipelinelayout == 0)
+  {
+    // Vertex Attribute Array
+
+    context.vertexattributes[0].location = ShaderLocation::vertex_position;
+    context.vertexattributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    context.vertexattributes[0].offset = VertexLayout::position_offset;
+
+    context.vertexattributes[1].location = ShaderLocation::vertex_texcoord;
+    context.vertexattributes[1].format = VK_FORMAT_R32G32_SFLOAT;
+    context.vertexattributes[1].offset = VertexLayout::texcoord_offset;
+
+    context.vertexattributes[2].location = ShaderLocation::vertex_normal;
+    context.vertexattributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+    context.vertexattributes[2].offset = VertexLayout::normal_offset;
+
+    context.vertexattributes[3].location = ShaderLocation::vertex_tangent;
+    context.vertexattributes[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+    context.vertexattributes[3].offset = VertexLayout::tangent_offset;
+  }
+
+  if (context.sceneset == 0)
+  {
+    // View Set
+
+    VkDescriptorSetLayoutBinding bindings[1] = {};
+    bindings[0].binding = 0;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bindings[0].descriptorCount = 1;
+
+    VkDescriptorSetLayoutCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createinfo.bindingCount = extentof(bindings);
+    createinfo.pBindings = bindings;
+
+    context.scenesetlayout = create_descriptorsetlayout(context.device, createinfo);
+
+    context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  }
+
+  if (context.modelset == 0)
+  {
+    // Model Set
+
+    VkDescriptorSetLayoutBinding bindings[1] = {};
+    bindings[0].binding = 0;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    bindings[0].descriptorCount = 1;
+
+    VkDescriptorSetLayoutCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createinfo.bindingCount = extentof(bindings);
+    createinfo.pBindings = bindings;
+
+    context.modelsetlayout = create_descriptorsetlayout(context.device, createinfo);
+
+    context.modelset = allocate_descriptorset(context.device, context.descriptorpool, context.modelsetlayout, context.transferbuffer, 0, kUniformBufferSize, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
+  }
+
+  if (context.pipelinelayout == 0)
+  {
+    // PipelineLayout
+
+    VkPushConstantRange constants[1] = {};
+    constants[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    constants[0].offset = 0;
+    constants[0].size = kPushConstantSize;
+
+    VkDescriptorSetLayout layouts[2] = {};
+    layouts[0] = context.scenesetlayout;
+    layouts[1] = context.modelsetlayout;
+
+    VkPipelineLayoutCreateInfo pipelinelayoutinfo = {};
+    pipelinelayoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelinelayoutinfo.pushConstantRangeCount = extentof(constants);
+    pipelinelayoutinfo.pPushConstantRanges = constants;
+    pipelinelayoutinfo.setLayoutCount = extentof(layouts);
+    pipelinelayoutinfo.pSetLayouts = layouts;
+
+    context.pipelinelayout = create_pipelinelayout(context.device, pipelinelayoutinfo);
+  }
+
+  if (context.renderpass == 0)
+  {
+    //
+    // Render Pass
+    //
+
+    VkAttachmentDescription attachments[1] = {};
+    attachments[0].format = VK_FORMAT_B8G8R8A8_UNORM;
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+    VkAttachmentReference colorbufferreference = {};
+    colorbufferreference.attachment = 0;
+    colorbufferreference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorbufferreference;
+
+    VkRenderPassCreateInfo renderpassinfo = {};
+    renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderpassinfo.attachmentCount = 1;
+    renderpassinfo.pAttachments = attachments;
+    renderpassinfo.subpassCount = 1;
+    renderpassinfo.pSubpasses = &subpass;
+    renderpassinfo.dependencyCount = 0;
+    renderpassinfo.pDependencies = nullptr;
+
+    context.renderpass = create_renderpass(context.device, renderpassinfo);
+  }
+
+  if (context.unitquad == 0)
+  {
+    auto mesh = assets->find(CoreAsset::unit_quad);
+
+    if (!mesh)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto bits = assets->request(platform, mesh);
+
+    if (!bits)
+      return false;
+
+    context.unitquad = create_vertexbuffer(context.device, bits, mesh->vertexcount, sizeof(PackVertex));
+  }
+
+  if (context.spritepipeline == 0)
+  {
+    //
+    // Sprite Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::sprite_vert);
+    auto fs = assets->find(CoreAsset::sprite_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_CLOCKWISE;
+
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
+    blendattachments[0].blendEnable = VK_TRUE;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorblend = {};
+    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorblend.attachmentCount = 1;
+    colorblend.pAttachments = blendattachments;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.renderpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pColorBlendState = &colorblend;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.spritepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
   context.frame = 0;
@@ -225,86 +482,87 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
 ///////////////////////// render_fallback ///////////////////////////////////
 void render_fallback(RendererContext &context, DatumPlatform::Viewport const &viewport, void *bitmap, int width, int height)
 {
-  Buffer src;
-
-  if (bitmap)
-  {
-    VkBufferCreateInfo bufferinfo = {};
-    bufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferinfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    bufferinfo.size = width * height * sizeof(uint32_t);
-
-    src = create_buffer(context.device, bufferinfo);
-
-    memcpy(map_memory(context.device, src, 0, bufferinfo.size), bitmap, bufferinfo.size);
-  }
+  CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
   wait(context.device, context.framefence);
 
-  begin(context.device, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  transition_aquire(context.device, context.commandbuffer, viewport.image);
+  transition_aquire(commandbuffer, viewport.image);
 
-  clear(context.device, context.commandbuffer, viewport.image, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+  clear(commandbuffer, viewport.image, Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
   if (bitmap)
   {
-    blit(context.device, context.commandbuffer, src, width, height, viewport.image, (viewport.width - width)/2, (viewport.height - height)/2, width, height);
+    size_t size = width * height * sizeof(uint32_t);
+
+    memcpy(map_memory<void*>(context.device, context.transferbuffer, 0, size), bitmap, size);
+
+    blit(commandbuffer, context.transferbuffer, 0, width, height, viewport.image, (viewport.width - width)/2, (viewport.height - height)/2, width, height);
   }
 
-  transition_present(context.device, context.commandbuffer, viewport.image);
+  transition_present(commandbuffer, viewport.image);
 
-  end(context.device, context.commandbuffer);
+  end(context.device, commandbuffer);
 
-  submit(context.device, context.commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
-
-  vkWaitForFences(context.device, 1, context.framefence.data(), VK_TRUE, UINT64_MAX);
-
-  ++context.frame;
+  submit(context.device, commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
 }
 
 
 ///////////////////////// render ////////////////////////////////////////////
 void render(RendererContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
 {
-  prepare_render_pipeline(context, viewport.width, viewport.height);
+  prepare_framebuffer(context, viewport.width, viewport.height);
+
+  CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
+
+  SceneSet scene;
+  scene.proj = OrthographicProjection((float)viewport.x, (float)viewport.y, (float)(viewport.x + viewport.width), (float)(viewport.y + viewport.height), 0.0f, 1000.0f);
+  scene.invproj = inverse(scene.proj);
+  scene.view = IdentityMatrix<float, 4>();
+  scene.invview = inverse(scene.view);
+  scene.worldview = scene.proj * scene.view;
+
+  begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  update(commandbuffer, context.transferbuffer, 0, sizeof(scene), &scene);
+
+  //
+  // Sprite
+  //
+
+  beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+
+  bindresourse(commandbuffer, context.sceneset, context.pipelinelayout, ShaderLocation::viewset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  bindresourse(commandbuffer, context.spritepipeline, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  bindresourse(commandbuffer, context.unitquad);
+
+  for(int i = 0; i < 100000; ++i)
+  {
+    bindresourse(commandbuffer, context.modelset, context.pipelinelayout, ShaderLocation::modelset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    vkCmdDraw(commandbuffer, context.unitquad.vertexcount, 1, 0, 0);
+  }
+
+  endpass(commandbuffer, context.renderpass);
+
+  //
+  // Blit
+  //
+
+  transition_aquire(commandbuffer, viewport.image);
+
+  blit(commandbuffer, context.colorbuffer, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y);
+
+  transition_present(commandbuffer, viewport.image);
+
+  end(context.device, commandbuffer);
 
   wait(context.device, context.framefence);
 
-  begin(context.device, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-///
-  VkClearValue clearvalues[1];
-  clearvalues[0].color = { 1.0f, 0.0f, 0.0f, 1.0f };
-
-  VkRenderPassBeginInfo renderpassbegininfo = {};
-  renderpassbegininfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderpassbegininfo.renderPass = context.renderpass;
-  renderpassbegininfo.renderArea.offset.x = 0;
-  renderpassbegininfo.renderArea.offset.y = 0;
-  renderpassbegininfo.renderArea.extent.width = context.fbowidth;
-  renderpassbegininfo.renderArea.extent.height = context.fboheight;
-  renderpassbegininfo.clearValueCount = 1;
-  renderpassbegininfo.pClearValues = clearvalues;
-  renderpassbegininfo.framebuffer = context.framebuffer;
-
-  vkCmdBeginRenderPass(context.commandbuffer, &renderpassbegininfo, VK_SUBPASS_CONTENTS_INLINE);
-
-  vkCmdEndRenderPass(context.commandbuffer);
-///
-
-  transition_aquire(context.device, context.commandbuffer, viewport.image);
-
-//  clear(context.device, context.commandbuffer, viewport.image, Color4(0.0f, 0.0f, 0.0f, 1.0f));
-
-  blit(context.device, context.commandbuffer, context.colorbuffer, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y);
-//  blit(context.device, context.commandbuffer, context.colorbuffer, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_LINEAR);
-
-  transition_present(context.device, context.commandbuffer, viewport.image);
-
-  end(context.device, context.commandbuffer);
-
-  submit(context.device, context.commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.device, commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
 
   ++context.frame;
 }

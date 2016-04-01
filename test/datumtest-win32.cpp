@@ -253,6 +253,10 @@ void Game::terminate()
 //|---------------------- Vulkan --------------------------------------------
 //|--------------------------------------------------------------------------
 
+#ifndef NDEBUG
+#define VALIDATION 0
+#endif
+
 struct Vulkan
 {
   void init(HINSTANCE hinstance, HWND hwnd);
@@ -305,9 +309,9 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   appinfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appinfo.pApplicationName = "Datum Test";
   appinfo.pEngineName = "Datum";
-  appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 3);
+  appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 5);
 
-#ifdef NDEBUG
+#if !VALIDATION
   const char *validationlayers[] = { };
   const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
 #else
@@ -388,7 +392,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 
   vkGetDeviceQueue(device, queueindex, 0, &queue);
 
-#ifndef NDEBUG
+#if VALIDATION
 
   //
   // Debug
@@ -589,7 +593,7 @@ void Vulkan::destroy()
 
   vkDestroySurfaceKHR(instance, surface, nullptr);
 
-#ifndef NDEBUG
+#if VALIDATION
   auto VkDestroyDebugReportCallback = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
 
   VkDestroyDebugReportCallback(instance, debugreportcallback, nullptr);
