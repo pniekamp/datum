@@ -311,13 +311,13 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   appinfo.pEngineName = "Datum";
   appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 5);
 
-#if !VALIDATION
+#if VALIDATION
+  const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+//  const char *validationlayers[] = { "VK_LAYER_GOOGLE_threading", "VK_LAYER_LUNARG_mem_tracker", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_draw_state", "VK_LAYER_LUNARG_param_checker", "VK_LAYER_LUNARG_swapchain", "VK_LAYER_LUNARG_device_limits", "VK_LAYER_LUNARG_image", "VK_LAYER_GOOGLE_unique_objects" };
+  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
+#else
   const char *validationlayers[] = { };
   const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
-#else
-  const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
-//  const char *validationlayers[] = { /*"VK_LAYER_GOOGLE_threading",*/ "VK_LAYER_LUNARG_mem_tracker", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_draw_state", "VK_LAYER_LUNARG_param_checker", "VK_LAYER_LUNARG_swapchain", "VK_LAYER_LUNARG_device_limits", "VK_LAYER_LUNARG_image", "VK_LAYER_GOOGLE_unique_objects" };
-  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
 #endif
 
   VkInstanceCreateInfo instanceinfo = {};

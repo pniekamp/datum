@@ -12,7 +12,7 @@
 using namespace std;
 using namespace lml;
 
-namespace vulkan
+namespace Vulkan
 {
 
   //|---------------------- VulkanDevice ------------------------------------
@@ -398,6 +398,13 @@ namespace vulkan
   }
 
 
+  ///////////////////////// reset_descriptorpool ////////////////////////////
+  void reset_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPool descriptorpool)
+  {
+    vkResetDescriptorPool(vulkan.device, descriptorpool, 0);
+  }
+
+
   ///////////////////////// allocate_commandbuffer //////////////////////////
   CommandBuffer allocate_commandbuffer(VulkanDevice const &vulkan, VkCommandPool pool, VkCommandBufferLevel level)
   {
@@ -415,11 +422,30 @@ namespace vulkan
   }
 
 
+  ///////////////////////// reset_commandpool ///////////////////////////////
+  void reset_commandpool(VulkanDevice const &vulkan, VkCommandPool commandpool)
+  {
+    vkResetCommandPool(vulkan.device, commandpool, 0);
+  }
+
+
   ///////////////////////// begin ///////////////////////////////////////////
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferUsageFlags flags)
   {
     VkCommandBufferBeginInfo begininfo = {};
     begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begininfo.flags = flags;
+
+    vkBeginCommandBuffer(commandbuffer, &begininfo);
+  }
+
+
+  ///////////////////////// begin ///////////////////////////////////////////
+  void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferInheritanceInfo const &inheritanceinfo, VkCommandBufferUsageFlags flags)
+  {
+    VkCommandBufferBeginInfo begininfo = {};
+    begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begininfo.pInheritanceInfo = &inheritanceinfo;
     begininfo.flags = flags;
 
     vkBeginCommandBuffer(commandbuffer, &begininfo);
@@ -462,8 +488,8 @@ namespace vulkan
   }
 
 
-  ///////////////////////// transition_aquire ///////////////////////////////
-  void transition_aquire(VkCommandBuffer commandbuffer, VkImage image)
+  ///////////////////////// transition_acquire //////////////////////////////
+  void transition_acquire(VkCommandBuffer commandbuffer, VkImage image)
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -656,7 +682,42 @@ namespace vulkan
     renderpassinfo.clearValueCount = 1;
     renderpassinfo.pClearValues = clearvalues;
 
-    vkCmdBeginRenderPass(commandbuffer, &renderpassinfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandbuffer, &renderpassinfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+  }
+
+
+  ///////////////////////// endpass /////////////////////////////////////////
+  void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass)
+  {
+    vkCmdEndRenderPass(commandbuffer);
+  }
+
+
+  ///////////////////////// execute /////////////////////////////////////////
+  void execute(VkCommandBuffer commandbuffer, VkCommandBuffer buffer)
+  {
+    vkCmdExecuteCommands(commandbuffer, 1, &buffer);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint)
+  {
+    vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 0, nullptr);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint)
+  {
+    vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 1, &offset);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint)
+  {
+    vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
 
     VkViewport viewport = {};
     viewport.x = x;
@@ -678,40 +739,19 @@ namespace vulkan
   }
 
 
-  ///////////////////////// endpass /////////////////////////////////////////
-  void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass)
-  {
-    vkCmdEndRenderPass(commandbuffer);
-  }
-
-
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresourse(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint)
-  {
-    vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 0, nullptr);
-  }
-
-
-  ///////////////////////// bind ////////////////////////////////////////////
-  void bindresourse(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint)
-  {
-    vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 1, &offset);
-  }
-
-
-  ///////////////////////// bind ////////////////////////////////////////////
-  void bindresourse(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint)
-  {
-    vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
-  }
-
-
-  ///////////////////////// bind ////////////////////////////////////////////
-  void bindresourse(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer)
+  void bindresource(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer)
   {
     VkDeviceSize offsets[] = { 0 };
 
     vkCmdBindVertexBuffers(commandbuffer, 0, 1, vertexbuffer.vertices.data(), offsets);
+  }
+
+
+  ///////////////////////// draw ////////////////////////////////////////////
+  void draw(VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t instancecount, uint32_t firstvertex, uint32_t firstinstance)
+  {
+    vkCmdDraw(commandbuffer, vertexcount, instancecount, firstvertex, firstinstance);
   }
 
 } // namespace vulkan

@@ -59,7 +59,7 @@ int main(int argc, char **argv)
   cout << "// Embeded Assets" << endl;
   cout << "//" << endl;
   cout << endl;
-  cout << "namespace embed" << endl;
+  cout << "namespace embeded" << endl;
   cout << "{" << endl;
 
   try

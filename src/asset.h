@@ -98,7 +98,7 @@ class AssetManager
 
   public:
 
-    uintptr_t aquire_barrier();
+    uintptr_t acquire_barrier();
 
     void release_barrier(uintptr_t barrier);
 
@@ -157,7 +157,7 @@ class AssetManager
 
     Slot *m_head;
 
-    Slot *aquire_slot(std::size_t size);
+    Slot *acquire_slot(std::size_t size);
 
     Slot *touch_slot(Slot *slot);
 
@@ -174,7 +174,7 @@ struct asset_guard
   asset_guard(AssetManager *assets)
     : m_assets(assets)
   {
-    m_barrier = m_assets->aquire_barrier();
+    m_barrier = m_assets->acquire_barrier();
   }
 
   ~asset_guard()

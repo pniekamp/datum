@@ -257,8 +257,8 @@ Asset const *AssetManager::find(size_t id) const
 }
 
 
-///////////////////////// AssetManager::aquire_slot /////////////////////////
-AssetManager::Slot *AssetManager::aquire_slot(size_t size)
+///////////////////////// AssetManager::acquire_slot ////////////////////////
+AssetManager::Slot *AssetManager::acquire_slot(size_t size)
 {
   auto bytes = ((size + sizeof(Slot) - 1)/alignof(Slot) + 1) * alignof(Slot);
 
@@ -360,7 +360,7 @@ void const *AssetManager::request(DatumPlatform::PlatformInterface &platform, As
 
   if (!slot)
   {
-    slot = aquire_slot(assetex->datasize);
+    slot = acquire_slot(assetex->datasize);
 
     if (slot)
     {
@@ -383,12 +383,12 @@ void const *AssetManager::request(DatumPlatform::PlatformInterface &platform, As
 }
 
 
-///////////////////////// AssetManager::aquire_barrier //////////////////////
-uintptr_t AssetManager::aquire_barrier()
+///////////////////////// AssetManager::acquire_barrier /////////////////////
+uintptr_t AssetManager::acquire_barrier()
 {
   leap::threadlib::SyncLock lock(m_mutex);
 
-  auto slot = aquire_slot(0);
+  auto slot = acquire_slot(0);
 
   if (slot)
   {

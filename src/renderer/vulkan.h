@@ -12,7 +12,7 @@
 #include <vulkan/vulkan.h>
 #include <tuple>
 
-namespace vulkan
+namespace Vulkan
 {
 
   //|---------------------- VulkanDevice --------------------------------------
@@ -66,6 +66,8 @@ namespace vulkan
 
         return *this;
       }
+
+      Handle release() { Handle handle = *this; std::get<0>(m_t) = 0; return handle; }
 
       Handle const *data() const { return &std::get<0>(m_t); }
 
@@ -307,15 +309,20 @@ namespace vulkan
 
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
 
+  void reset_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPool descriptorpool);
+
   CommandBuffer allocate_commandbuffer(VulkanDevice const &vulkan, VkCommandPool pool, VkCommandBufferLevel level);
 
+  void reset_commandpool(VulkanDevice const &vulkan, VkCommandPool commandpool);
+
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferUsageFlags flags);
+  void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferInheritanceInfo const &inheritanceinfo, VkCommandBufferUsageFlags flags);
   void end(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);
 
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkPipelineStageFlags flags = 0);
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkPipelineStageFlags flags, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence);
 
-  void transition_aquire(VkCommandBuffer commandbuffer, VkImage image);
+  void transition_acquire(VkCommandBuffer commandbuffer, VkImage image);
   void transition_present(VkCommandBuffer commandbuffer, VkImage image);
 
   void clear(VkCommandBuffer commandbuffer, VkImage image, lml::Color4 const &color);
@@ -333,11 +340,15 @@ namespace vulkan
   void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, lml::Color4 const &clearcolor);
   void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
 
-  void bindresourse(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint);
-  void bindresourse(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint);
+  void execute(VkCommandBuffer commandbuffer, VkCommandBuffer buffer);
 
-  void bindresourse(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint);
+  void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint);
+  void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint);
 
-  void bindresourse(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer);
+  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint);
+
+  void bindresource(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer);
+
+  void draw(VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t instancecount, uint32_t firstvertex = 0, uint32_t firstinstance = 0);
 
 } // namespace

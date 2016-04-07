@@ -22,6 +22,8 @@ using namespace DatumPlatform;
 DebugLogEntry g_debuglog[4096];
 std::atomic<size_t> g_debuglogtail;
 
+DebugStatistics g_debugstatistics = {};
+
 namespace
 {
   bool g_visible = false;

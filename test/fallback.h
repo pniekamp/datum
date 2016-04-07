@@ -2,7 +2,7 @@
 // Embeded Assets
 //
 
-namespace embed
+namespace embeded
 {
   // loading.png
   struct

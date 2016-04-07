@@ -33,7 +33,27 @@ struct GameState
 
   AssetManager assets;
 
-  RendererContext renderercontext;
+  ResourceManager resources;
+
+  RenderContext rendercontext;
+
+  // Render Frames
+
+  struct RenderFrame
+  {
+    float time;
+
+    Camera camera;
+
+    SpriteList sprites;
+
+    size_t resourcetoken;
+
+  } renderframes[3];
+
+  RenderFrame *readframe;
+  RenderFrame *writeframe;
+  std::atomic<RenderFrame*> readyframe;
 };
 
 

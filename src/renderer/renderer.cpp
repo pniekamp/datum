@@ -7,6 +7,7 @@
 //
 
 #include "renderer.h"
+#include "commandlist.h"
 #include "corepack.h"
 #include "assetpack.h"
 #include "leap/util.h"
@@ -18,8 +19,9 @@
 
 using namespace std;
 using namespace lml;
-using namespace vulkan;
+using namespace Vulkan;
 using namespace DatumPlatform;
+using leap::alignto;
 using leap::extentof;
 
 enum VertexLayout
@@ -39,7 +41,7 @@ enum ShaderLocation
   vertex_normal = 2,
   vertex_tangent = 3,
 
-  viewset = 0,
+  sceneset = 0,
   modelset = 1,
 };
 
@@ -54,8 +56,7 @@ struct SceneSet
 };
 
 constexpr int kPushConstantSize = 64;
-constexpr int kUniformBufferSize = 65536;
-constexpr int kTransferBufferSize = 16*1024*1024;
+constexpr int kTransferBufferSize = 64*1024;
 
 
 //|---------------------- PushBuffer ----------------------------------------
@@ -106,7 +107,7 @@ namespace
 {
 
   ///////////////////////// prepare_render_pipeline /////////////////////////
-  bool prepare_framebuffer(RendererContext &context, int width, int height)
+  bool prepare_framebuffer(RenderContext &context, int width, int height)
   {
     if (context.fbowidth != width || context.fboheight != height)
     {
@@ -174,7 +175,7 @@ namespace
 
 
 ///////////////////////// prepare_render_context ////////////////////////////
-bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RendererContext &context, AssetManager *assets)
+bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets)
 {
   if (context.initialised)
     return true;
@@ -197,19 +198,18 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
     context.commandbuffers[1] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     assert(kPushConstantSize <= context.device.physicaldeviceproperties.limits.maxPushConstantsSize);
-    assert(kUniformBufferSize <= context.device.physicaldeviceproperties.limits.maxUniformBufferRange);
 
     // DescriptorPool
 
     VkDescriptorPoolSize typecounts[2] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     typecounts[0].descriptorCount = 1;
-    typecounts[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    typecounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     typecounts[1].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptorpoolinfo.maxSets = 2;
+    descriptorpoolinfo.maxSets = accumulate(begin(typecounts), end(typecounts), 0, [](int i, auto &k) { return i += k.descriptorCount; });
     descriptorpoolinfo.poolSizeCount = extentof(typecounts);
     descriptorpoolinfo.pPoolSizes = typecounts;
 
@@ -248,9 +248,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
     context.vertexattributes[3].offset = VertexLayout::tangent_offset;
   }
 
-  if (context.sceneset == 0)
+  if (context.scenesetlayout == 0)
   {
-    // View Set
+    // Scene Set
 
     VkDescriptorSetLayoutBinding bindings[1] = {};
     bindings[0].binding = 0;
@@ -268,14 +268,32 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
     context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   }
 
-  if (context.modelset == 0)
+  if (context.materialsetlayout == 0)
+  {
+    // Material Set
+
+    VkDescriptorSetLayoutBinding bindings[1] = {};
+    bindings[0].binding = 0;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    bindings[0].descriptorCount = 1;
+
+    VkDescriptorSetLayoutCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createinfo.bindingCount = extentof(bindings);
+    createinfo.pBindings = bindings;
+
+    context.materialsetlayout = create_descriptorsetlayout(context.device, createinfo);
+  }
+
+  if (context.modelsetlayout == 0)
   {
     // Model Set
 
     VkDescriptorSetLayoutBinding bindings[1] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
@@ -284,8 +302,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
     createinfo.pBindings = bindings;
 
     context.modelsetlayout = create_descriptorsetlayout(context.device, createinfo);
-
-    context.modelset = allocate_descriptorset(context.device, context.descriptorpool, context.modelsetlayout, context.transferbuffer, 0, kUniformBufferSize, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
   }
 
   if (context.pipelinelayout == 0)
@@ -468,6 +484,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
     context.spritepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
+  if (!initialise_resource_pool(context.resourcepool, context))
+    return false;
+
   context.frame = 0;
 
   context.fbowidth = 0;
@@ -480,21 +499,25 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, Renderer
 
 
 ///////////////////////// render_fallback ///////////////////////////////////
-void render_fallback(RendererContext &context, DatumPlatform::Viewport const &viewport, void *bitmap, int width, int height)
+void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap, int width, int height)
 {
+  assert(!context.initialised);
+
   CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
   wait(context.device, context.framefence);
 
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  transition_aquire(commandbuffer, viewport.image);
+  transition_acquire(commandbuffer, viewport.image);
 
   clear(commandbuffer, viewport.image, Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
   if (bitmap)
   {
     size_t size = width * height * sizeof(uint32_t);
+
+    assert(size < kTransferBufferSize);
 
     memcpy(map_memory<void*>(context.device, context.transferbuffer, 0, size), bitmap, size);
 
@@ -510,7 +533,7 @@ void render_fallback(RendererContext &context, DatumPlatform::Viewport const &vi
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render(RendererContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
+void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
 {
   prepare_framebuffer(context, viewport.width, viewport.height);
 
@@ -533,17 +556,17 @@ void render(RendererContext &context, DatumPlatform::Viewport const &viewport, C
 
   beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
-  bindresourse(commandbuffer, context.sceneset, context.pipelinelayout, ShaderLocation::viewset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-  bindresourse(commandbuffer, context.spritepipeline, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-  bindresourse(commandbuffer, context.unitquad);
-
-  for(int i = 0; i < 100000; ++i)
+  for(auto &renderable : renderables)
   {
-    bindresourse(commandbuffer, context.modelset, context.pipelinelayout, ShaderLocation::modelset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    switch (renderable.type)
+    {
+      case Renderable::Type::Rects:
+        execute(commandbuffer, *renderable_cast<Renderable::Rects>(&renderable)->commandlist);
+        break;
 
-    vkCmdDraw(commandbuffer, context.unitquad.vertexcount, 1, 0, 0);
+      default:
+        break;
+    }
   }
 
   endpass(commandbuffer, context.renderpass);
@@ -552,7 +575,7 @@ void render(RendererContext &context, DatumPlatform::Viewport const &viewport, C
   // Blit
   //
 
-  transition_aquire(commandbuffer, viewport.image);
+  transition_acquire(commandbuffer, viewport.image);
 
   blit(commandbuffer, context.colorbuffer, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y);
 

@@ -127,7 +127,7 @@ class FreeList
 
     FreeList() = default;
 
-    void *aquire(std::size_t bytes, std::size_t alignment);
+    void *acquire(std::size_t bytes, std::size_t alignment);
 
     void release(void * const ptr, std::size_t bytes);
 
@@ -150,8 +150,8 @@ class FreeList
 };
 
 
-///////////////////////// Freelist::aquire //////////////////////////////////
-inline void *FreeList::aquire(std::size_t bytes, std::size_t alignment)
+///////////////////////// Freelist::acquire /////////////////////////////////
+inline void *FreeList::acquire(std::size_t bytes, std::size_t alignment)
 {
   void *entry = m_freelist;
   void **into = &m_freelist;
@@ -247,7 +247,7 @@ StackAllocatorWithFreelist<T, alignment>::StackAllocatorWithFreelist(StackAlloca
 template<typename T, std::size_t alignment>
 T *StackAllocatorWithFreelist<T, alignment>::allocate(std::size_t n)
 {
-  auto result = m_freelist->aquire(n*sizeof(T), alignment);
+  auto result = m_freelist->acquire(n*sizeof(T), alignment);
 
   if (!result)
   {

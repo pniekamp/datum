@@ -13,6 +13,8 @@
 #include "datum/asset.h"
 #include "camera.h"
 #include "vulkan.h"
+#include "resourcepool.h"
+#include "commandlist.h"
 #include <tuple>
 
 
@@ -22,6 +24,7 @@ namespace Renderable
   enum class Type : uint16_t
   {
     Clear,
+    Rects,
   };
 
   using Vec2 = lml::Vec2;
@@ -31,6 +34,13 @@ namespace Renderable
   using Color4 = lml::Color4;
   using Attenuation = lml::Attenuation;
   using Transform = lml::Transform;
+
+  struct Rects
+  {
+    static const Type type = Type::Rects;
+
+    CommandList const *commandlist;
+  };
 }
 
 
@@ -122,50 +132,49 @@ T const *renderable_cast(PushBuffer::Header const *header)
 //|---------------------- Renderer ------------------------------------------
 //|--------------------------------------------------------------------------
 
-struct RendererContext
+struct RenderContext
 {
-  RendererContext()
+  RenderContext()
     : initialised(false)
   {
   }
 
-  vulkan::VulkanDevice device;
+  Vulkan::VulkanDevice device;
 
-  vulkan::Fence framefence;
+  Vulkan::Fence framefence;
 
-  vulkan::CommandPool commandpool;
-  vulkan::CommandBuffer commandbuffers[2];
+  Vulkan::CommandPool commandpool;
+  Vulkan::CommandBuffer commandbuffers[2];
 
-  vulkan::DescriptorPool descriptorpool;
+  Vulkan::DescriptorPool descriptorpool;
 
-  vulkan::DescriptorSetLayout scenesetlayout;
-  vulkan::DescriptorSet sceneset;
+  Vulkan::DescriptorSetLayout scenesetlayout;
+  Vulkan::DescriptorSetLayout materialsetlayout;
+  Vulkan::DescriptorSetLayout modelsetlayout;
 
-  vulkan::DescriptorSetLayout materialsetlayout;
-  vulkan::DescriptorSet materialset;
+  Vulkan::DescriptorSet sceneset;
 
-  vulkan::DescriptorSetLayout modelsetlayout;
-  vulkan::DescriptorSet modelset;
+  Vulkan::PipelineLayout pipelinelayout;
 
-  vulkan::PipelineLayout pipelinelayout;
+  Vulkan::PipelineCache pipelinecache;
 
-  vulkan::PipelineCache pipelinecache;
+  Vulkan::RenderPass renderpass;
 
-  vulkan::RenderPass renderpass;
+  Vulkan::Image colorbuffer;
+  Vulkan::ImageView colorbufferview;
+  Vulkan::FrameBuffer framebuffer;
 
-  vulkan::Image colorbuffer;
-  vulkan::ImageView colorbufferview;
-  vulkan::FrameBuffer framebuffer;
+  Vulkan::VertexAttribute vertexattributes[4];
 
-  vulkan::VertexAttribute vertexattributes[4];
+  Vulkan::VertexBuffer unitquad;
 
-  vulkan::VertexBuffer unitquad;
+  Vulkan::TransferBuffer transferbuffer;
 
-  vulkan::TransferBuffer transferbuffer;
-
-  vulkan::Pipeline spritepipeline;
+  Vulkan::Pipeline spritepipeline;
 
   int fbowidth, fboheight;
+
+  ResourcePool resourcepool;
 
   bool initialised;
 
@@ -190,10 +199,10 @@ struct RenderParams
 
 
 // Prepare
-bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RendererContext &context, AssetManager *assets);
+bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets);
 
 // Fallback
-void render_fallback(RendererContext &context, DatumPlatform::Viewport const &viewport, void *bitmap = nullptr, int width = 0, int height = 0);
+void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap = nullptr, int width = 0, int height = 0);
 
 // Render
-void render(RendererContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params);
+void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params);

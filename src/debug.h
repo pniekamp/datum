@@ -39,6 +39,10 @@ inline void operator delete(void *ptr, size_t) noexcept
   assert(false);
 }
 
+//
+// Timing
+//
+
 struct DebugInfoBlock
 {
   const char *name;
@@ -107,15 +111,57 @@ double clock_frequency();
     static double stat_time = 0;                                                      \
                                                                                       \
     auto stat_end = __rdtsc();                                                        \
-    stat_time += (stat_end - stat_start_##name) / clock_frequency();                         \
+    stat_time += (stat_end - stat_start_##name) / clock_frequency();                  \
     stat_count += 1;                                                                  \
     if (stat_time > 1.0)                                                              \
     {                                                                                 \
-      std::cout << #name << ": " << 1000 * stat_time / stat_count << "ms" << std::endl;                \
+      std::cout << #name << ": " << 1000 * stat_time / stat_count << "ms" << std::endl; \
       stat_count = 0;                                                                 \
       stat_time = 0.0;                                                                \
     }                                                                                 \
   }
+
+//
+// Statistics
+//
+
+struct DebugStatistics
+{
+  std::atomic<size_t> lumpsused;
+  std::atomic<size_t> lumpscapacity;
+  std::atomic<size_t> storageused;
+  std::atomic<size_t> storagecapacity;
+
+  std::atomic<size_t> resourceslotsused;
+  std::atomic<size_t> resourceslotscapacity;
+  std::atomic<size_t> resourceblockssused;
+  std::atomic<size_t> resourceblockscapacity;
+};
+
+extern DebugStatistics g_debugstatistics;
+
+#define RESOURCE_SET(name, count) g_debugstatistics.name += count;
+#define RESOURCE_ACQUIRE(name, count) g_debugstatistics.name += count;
+#define RESOURCE_RELEASE(name, count) g_debugstatistics.name -= count;
+#define STATISTIC_HIT(name, count) g_debugstatistics.name += count;
+
+//
+// Logging
+//
+
+#define LOG_ONCE(msg) \
+  {                                                                                   \
+    static bool logged = false;                                                       \
+    if (!logged)                                                                      \
+    {                                                                                 \
+      std::cout << msg << std::endl;                                                  \
+      logged = true;                                                                  \
+    }                                                                                 \
+  }
+
+//
+// Interface
+//
 
 void update_debug_overlay(class DatumPlatform::GameInput const &input);
 //void render_debug_overlay(class RenderList &renderlist, class DatumPlatform::Viewport const &viewport, class Font const *font);
@@ -126,6 +172,13 @@ void update_debug_overlay(class DatumPlatform::GameInput const &input);
 #define BEGIN_FRAME(...)
 #define BEGIN_TIMED_BLOCK(...)
 #define END_TIMED_BLOCK(...)
+#define BEGIN_STAT_BLOCK(...)
+#define END_STAT_BLOCK(...)
+#define RESOURCE_SET(...)
+#define RESOURCE_ACQUIRE(...)
+#define RESOURCE_RELEASE(...)
+#define STATISTIC_HIT(...)
+#define LOG_ONCE(...)
 #define update_debug_overlay(...)
 #define push_debug_overlay(...)
 #endif
