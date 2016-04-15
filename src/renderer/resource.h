@@ -10,14 +10,8 @@
 
 #include "datum/platform.h"
 #include "datum/asset.h"
+#include "vulkan.h"
 #include <vector>
-
-class Font;
-class Mesh;
-class Material;
-class Texture;
-class Sprite;
-class SpriteSheet;
 
 
 //|---------------------- ResourceManager -----------------------------------
@@ -36,7 +30,8 @@ class ResourceManager
   public:
 
     // initialise resource storage
-    void initialise(std::size_t slabsize);
+    void initialise_slab(size_t slabsize);
+    void initialise_device(VkPhysicalDevice physicaldevice, VkDevice device, int queueinstance, size_t buffersize, size_t maxbuffersize);
 
     // token
     size_t token();
@@ -80,37 +75,70 @@ class ResourceManager
 
     struct Slot
     {
-      alignas(16) char data[32];
+      alignas(16) char data[128];
     };
 
-    struct Block
-    {
-      Slot *start;
-      Slot *finish;
-    };
+    Slot *m_slots;
 
-    Slot *m_data;
+    void *acquire_slot(size_t size);
+    void release_slot(void *slot, size_t size);
 
-    std::vector<Block, StackAllocator<Block>> m_blocks;
+    size_t m_slathead;
 
-    void *acquire_slot(std::size_t size);
-    void release_slot(void *slot, std::size_t size);
+    std::vector<bool, StackAllocator<>> m_slat;
 
   private:
 
     template<typename T>
     T get_slothandle(void *slot)
     {
-      return reinterpret_cast<T>(m_slothandles[reinterpret_cast<Slot*>(slot) - m_data]);
+      return reinterpret_cast<T>(m_slothandles[reinterpret_cast<Slot*>(slot) - m_slots]);
     }
 
     template<typename T>
     void set_slothandle(void *slot, T const &handle)
     {
-      m_slothandles[reinterpret_cast<Slot*>(slot) - m_data] = reinterpret_cast<uintptr_t>(handle);
+      m_slothandles[reinterpret_cast<Slot*>(slot) - m_slots] = reinterpret_cast<uintptr_t>(handle);
     }
 
     std::vector<uintptr_t, StackAllocator<>> m_slothandles;
+
+  public:
+
+    struct TransferLump
+    {
+      Vulkan::Fence fence;
+      Vulkan::CommandPool commandpool;
+      Vulkan::CommandBuffer commandbuffer;
+      Vulkan::TransferBuffer transferbuffer;
+
+      void *transfermemory;
+    };
+
+  private:
+
+    Vulkan::VulkanDevice vulkan;
+
+    struct Buffer
+    {
+      VkDeviceSize offset, used, size;
+
+      TransferLump transferlump;
+
+      Buffer *next;
+
+      uint8_t data[];
+    };
+
+    Buffer *m_buffers;
+
+    size_t m_buffersallocated, m_minallocation, m_maxallocation;
+
+    TransferLump const *acquire_lump(size_t size);
+
+    void release_lump(TransferLump const *lump);
+
+    void submit_transfer(TransferLump const *lump);
 
   private:
 
@@ -210,4 +238,4 @@ class unique_resource
 
 
 // Initialise
-bool initialise_resource_system(DatumPlatform::PlatformInterface &platform, ResourceManager &resourcemanager);
+bool initialise_resource_system(DatumPlatform::PlatformInterface &platform, ResourceManager &resourcemanager, size_t slabsize, size_t buffersize, size_t maxbuffersize);

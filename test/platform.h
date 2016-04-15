@@ -55,7 +55,7 @@ namespace DatumPlatform
     public:
       InputBuffer();
 
-      void register_mousemove(float x, float y);
+      void register_mousemove(int x, int y);
       void register_mousepress(GameInput::MouseButton button);
       void register_mouserelease(GameInput::MouseButton button);
 

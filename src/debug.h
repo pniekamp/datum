@@ -127,15 +127,15 @@ double clock_frequency();
 
 struct DebugStatistics
 {
-  std::atomic<size_t> lumpsused;
-  std::atomic<size_t> lumpscapacity;
-  std::atomic<size_t> storageused;
-  std::atomic<size_t> storagecapacity;
+  std::atomic<size_t> renderlumpsused;
+  std::atomic<size_t> renderlumpscapacity;
+  std::atomic<size_t> renderstorageused;
+  std::atomic<size_t> renderstoragecapacity;
 
   std::atomic<size_t> resourceslotsused;
   std::atomic<size_t> resourceslotscapacity;
-  std::atomic<size_t> resourceblockssused;
-  std::atomic<size_t> resourceblockscapacity;
+  std::atomic<size_t> resourcebufferused;
+  std::atomic<size_t> resourcebuffercapacity;
 };
 
 extern DebugStatistics g_debugstatistics;

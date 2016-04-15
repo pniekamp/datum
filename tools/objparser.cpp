@@ -26,91 +26,94 @@ using namespace leap;
 
 float gScale = 1.0f;
 
-
-vector<string> seperate(string const &str, const char *delimiters = " \t\r\n")
+namespace
 {
-  vector<string> result;
 
-  size_t i = 0;
-  size_t j = 0;
-
-  while (j != string::npos)
+  vector<string> seperate(string const &str, const char *delimiters = " \t\r\n")
   {
-    j = str.find_first_of(delimiters, i);
+    vector<string> result;
 
-    result.push_back(str.substr(i, j-i));
+    size_t i = 0;
+    size_t j = 0;
 
-    i = j + 1;
+    while (j != string::npos)
+    {
+      j = str.find_first_of(delimiters, i);
+
+      result.push_back(str.substr(i, j-i));
+
+      i = j + 1;
+    }
+
+    return result;
   }
 
-  return result;
-}
 
-
-void calculatetangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
-{
-  vector<Vec3> tan1(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
-  vector<Vec3> tan2(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
-
-  for(size_t i = 0; i < indices.size(); i += 3)
+  void calculatetangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
   {
-    auto &v1 = vertices[indices[i+0]];
-    auto &v2 = vertices[indices[i+1]];
-    auto &v3 = vertices[indices[i+2]];
+    vector<Vec3> tan1(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
+    vector<Vec3> tan2(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
 
-    auto x1 = v2.position[0] - v1.position[0];
-    auto x2 = v3.position[0] - v1.position[0];
-    auto y1 = v2.position[1] - v1.position[1];
-    auto y2 = v3.position[1] - v1.position[1];
-    auto z1 = v2.position[2] - v1.position[2];
-    auto z2 = v3.position[2] - v1.position[2];
-
-    auto s1 = v2.texcoord[0] - v1.texcoord[0];
-    auto s2 = v3.texcoord[0] - v1.texcoord[0];
-    auto t1 = v2.texcoord[1] - v1.texcoord[1];
-    auto t2 = v3.texcoord[1] - v1.texcoord[1];
-
-    auto r = s1 * t2 - s2 * t1;
-
-    if (r != 0)
+    for(size_t i = 0; i < indices.size(); i += 3)
     {
-      auto sdir = Vec3(t2 * x1 - t1 * x2, t2 * y1 - t1 * y2, t2 * z1 - t1 * z2)/r;
-      auto tdir = Vec3(s1 * x2 - s2 * x1, s1 * y2 - s2 * y1, s1 * z2 - s2 * z1)/r;
+      auto &v1 = vertices[indices[i+0]];
+      auto &v2 = vertices[indices[i+1]];
+      auto &v3 = vertices[indices[i+2]];
 
-      auto uvarea = area(Vec2(v1.texcoord[0], v1.texcoord[1]), Vec2(v2.texcoord[0], v2.texcoord[1]), Vec2(v3.texcoord[0], v3.texcoord[1]));
+      auto x1 = v2.position[0] - v1.position[0];
+      auto x2 = v3.position[0] - v1.position[0];
+      auto y1 = v2.position[1] - v1.position[1];
+      auto y2 = v3.position[1] - v1.position[1];
+      auto z1 = v2.position[2] - v1.position[2];
+      auto z2 = v3.position[2] - v1.position[2];
 
-      tan1[indices[i+0]] += sdir * uvarea;
-      tan1[indices[i+1]] += sdir * uvarea;
-      tan1[indices[i+2]] += sdir * uvarea;
+      auto s1 = v2.texcoord[0] - v1.texcoord[0];
+      auto s2 = v3.texcoord[0] - v1.texcoord[0];
+      auto t1 = v2.texcoord[1] - v1.texcoord[1];
+      auto t2 = v3.texcoord[1] - v1.texcoord[1];
 
-      tan2[indices[i+0]] += tdir * uvarea;
-      tan2[indices[i+1]] += tdir * uvarea;
-      tan2[indices[i+2]] += tdir * uvarea;
+      auto r = s1 * t2 - s2 * t1;
+
+      if (r != 0)
+      {
+        auto sdir = Vec3(t2 * x1 - t1 * x2, t2 * y1 - t1 * y2, t2 * z1 - t1 * z2)/r;
+        auto tdir = Vec3(s1 * x2 - s2 * x1, s1 * y2 - s2 * y1, s1 * z2 - s2 * z1)/r;
+
+        auto uvarea = area(Vec2(v1.texcoord[0], v1.texcoord[1]), Vec2(v2.texcoord[0], v2.texcoord[1]), Vec2(v3.texcoord[0], v3.texcoord[1]));
+
+        tan1[indices[i+0]] += sdir * uvarea;
+        tan1[indices[i+1]] += sdir * uvarea;
+        tan1[indices[i+2]] += sdir * uvarea;
+
+        tan2[indices[i+0]] += tdir * uvarea;
+        tan2[indices[i+1]] += tdir * uvarea;
+        tan2[indices[i+2]] += tdir * uvarea;
+      }
+    }
+
+    for(size_t i = 0; i < vertices.size(); ++i)
+    {
+      auto normal = Vec3(vertices[i].normal[0], vertices[i].normal[1], vertices[i].normal[2]);
+
+      if (normsqr(tan1[i]) == 0)
+        tan1[i] = cross(normal, Vec3(vertices[i].normal[1], -vertices[i].normal[2], vertices[i].normal[0]));
+
+      if (normsqr(tan2[i]) == 0)
+        tan2[i] = cross(normal, tan1[i]);
+
+      if (normsqr(tan1[i] - normal * dot(normal, tan1[i])) == 0)
+        tan1[i] = cross(normal, tan2[i]);
+
+      auto tangent = normalise(tan1[i] - normal * dot(normal, tan1[i]));
+
+      vertices[i].tangent[0] = tangent.x;
+      vertices[i].tangent[1] = tangent.y;
+      vertices[i].tangent[2] = tangent.z;
+      vertices[i].tangent[3] = (dot(cross(normal, tan1[i]), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
     }
   }
 
-  for(size_t i = 0; i < vertices.size(); ++i)
-  {
-    auto normal = Vec3(vertices[i].normal[0], vertices[i].normal[1], vertices[i].normal[2]);
-
-    if (normsqr(tan1[i]) == 0)
-      tan1[i] = cross(normal, Vec3(vertices[i].normal[1], -vertices[i].normal[2], vertices[i].normal[0]));
-
-    if (normsqr(tan2[i]) == 0)
-      tan2[i] = cross(normal, tan1[i]);
-
-    if (normsqr(tan1[i] - normal * dot(normal, tan1[i])) == 0)
-      tan1[i] = cross(normal, tan2[i]);
-
-    auto tangent = normalise(tan1[i] - normal * dot(normal, tan1[i]));
-
-    vertices[i].tangent[0] = tangent.x;
-    vertices[i].tangent[1] = tangent.y;
-    vertices[i].tangent[2] = tangent.z;
-    vertices[i].tangent[3] = (dot(cross(normal, tan1[i]), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
-  }
 }
-
 
 uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, string const &mask)
 {
@@ -140,9 +143,20 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
     }
   }
 
-  image = image.mirrored();
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
 
-  write_imag_asset(fout, id, image.width(), image.height(), 1, image.bits(), 0.0f, 0.0f);
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_srgb_a(0.5, width, height, layers, levels, payload.data());
+
+  image_compress_bc3(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -182,9 +196,20 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
     }
   }
 
-  image = image.mirrored();
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
 
-  write_imag_asset(fout, id, image.width(), image.height(), 1, image.bits(), 0.0f, 0.0f);
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_srgb(width, height, layers, levels, payload.data());
+
+  image_compress_bc3(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -227,9 +252,18 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
     }
   }
 
-  image = image.mirrored();
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
 
-  write_imag_asset(fout, id, image.width(), image.height(), 1, image.bits(), 0.0f, 0.0f);
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_rgb(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }

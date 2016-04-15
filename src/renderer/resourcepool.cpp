@@ -30,37 +30,39 @@ namespace
 
 
 ///////////////////////// ResourcePool::initialise //////////////////////////
-void ResourcePool::initialise(VulkanDevice const &device)
+void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, int queueinstance, size_t storagesize)
 {
-  vulkan = device;
-
-  m_transferbuffer = create_transferbuffer(vulkan, kStorageBufferSize);
+  initialise_vulkan_device(&vulkan, physicaldevice, device, queueinstance);
 
   VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
 
-  VkDeviceSize slotsize = kStorageBufferSize / kStorageBufferSlots;
+  VkDeviceSize slotsize = alignto(storagesize / kStorageBufferSlots - alignment + 1, alignment);
 
   assert(slotsize > alignment);
   assert(alignment >= alignof(max_align_t));
-  assert(kStorageBufferSize < vulkan.physicaldeviceproperties.limits.maxStorageBufferRange);
+  assert(storagesize < vulkan.physicaldeviceproperties.limits.maxStorageBufferRange);
 
   m_storagehead = 0;
 
+  m_transferbuffer = create_transferbuffer(vulkan, slotsize * kStorageBufferSlots);
+
+  m_transfermemory = map_memory<uint8_t>(vulkan, m_transferbuffer, 0, m_transferbuffer.size);
+
   for(size_t i = 0; i < kStorageBufferSlots; ++i)
   {
-    m_storagebuffers[i].base = alignto(i * slotsize, alignment);
-    m_storagebuffers[i].size = slotsize - alignment;
+    m_storagebuffers[i].base = i * slotsize;
+    m_storagebuffers[i].size = slotsize;
     m_storagebuffers[i].used = 0;
     m_storagebuffers[i].buffer = m_transferbuffer;
 
     m_storagebuffers[i].refcount = 0;
   }
 
-  m_transfermemory = map_memory<uint8_t*>(vulkan, m_transferbuffer, 0, kStorageBufferSize);
-
-  VkDescriptorPoolSize typecounts[1] = {};
+  VkDescriptorPoolSize typecounts[2] = {};
   typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
   typecounts[0].descriptorCount = kDescriptorSetSlots;
+  typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  typecounts[1].descriptorCount = kDescriptorSetSlots;
 
   VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
   descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -77,10 +79,10 @@ void ResourcePool::initialise(VulkanDevice const &device)
     m_lumps[i].descriptorpool = create_descriptorpool(vulkan, descriptorpoolinfo);
   }
 
-  RESOURCE_SET(lumpsused, 0)
-  RESOURCE_SET(lumpscapacity, kResourceLumpCount)
-  RESOURCE_SET(storageused, 0)
-  RESOURCE_SET(storagecapacity, slotsize * kStorageBufferSlots)
+  RESOURCE_SET(renderlumpsused, 0)
+  RESOURCE_SET(renderlumpscapacity, kResourceLumpCount)
+  RESOURCE_SET(renderstorageused, 0)
+  RESOURCE_SET(renderstoragecapacity, slotsize * kStorageBufferSlots)
 
   m_initialised = true;
 }
@@ -112,7 +114,7 @@ ResourcePool::ResourceLump const *ResourcePool::aquire_lump()
 
     if (lump.lock.test_and_set(std::memory_order_acquire) == false)
     {
-      RESOURCE_ACQUIRE(lumpsused, 1)
+      RESOURCE_ACQUIRE(renderlumpsused, 1)
 
       return &lump;
     }
@@ -131,7 +133,7 @@ void ResourcePool::release_lump(ResourceLump const *lumphandle)
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  RESOURCE_RELEASE(lumpsused, 1)
+  RESOURCE_RELEASE(renderlumpsused, 1)
 
   reset_storagepool(lump.storagepool);
   reset_commandpool(vulkan, lump.commandpool);
@@ -154,7 +156,7 @@ ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump con
 
 
 ///////////////////////// ResourcePool::acquire_storage /////////////////////
-ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump const *lumphandle, VkDeviceSize required)
+ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump const *lumphandle, size_t required)
 {
   assert(lumphandle);
   assert(m_initialised);
@@ -172,18 +174,18 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
     {
       if (buffer.refcount == 0)
       {
-        RESOURCE_RELEASE(storageused, buffer.used)
+        RESOURCE_RELEASE(renderstorageused, buffer.used)
 
         buffer.used = 0;
       }
 
       if (buffer.used + required < buffer.size)
       {
-        RESOURCE_ACQUIRE(storageused, buffer.size - buffer.used)
-
         lump.storagepool.buffers[lump.storagepool.count++] = &buffer;
 
         buffer.refcount += 1;
+
+        RESOURCE_ACQUIRE(renderstorageused, buffer.size - buffer.used)
 
         m_storagehead = i;
 
@@ -204,11 +206,11 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
 
 
 ///////////////////////// ResourcePool::release_storage ///////////////////////////////
-void ResourcePool::release_storagebuffer(StorageBuffer const &storage, VkDeviceSize used)
+void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t used)
 {
   StorageSlot &buffer = m_storagebuffers[storage.storagebuffer - m_storagebuffers];
 
-  RESOURCE_RELEASE(storageused, buffer.size - buffer.used - used)
+  RESOURCE_RELEASE(renderstorageused, buffer.size - buffer.used - used)
 
   VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
 
@@ -231,9 +233,11 @@ ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump con
 
 
 ///////////////////////// initialise_resource_pool //////////////////////////
-bool initialise_resource_pool(ResourcePool &resourcepool, RenderContext const &context)
+bool initialise_resource_pool(DatumPlatform::PlatformInterface &platform, ResourcePool &resourcepool, size_t storagesize)
 {
-  resourcepool.initialise(context.device);
+  auto renderdevice = platform.render_device();
+
+  resourcepool.initialise(renderdevice.physicaldevice, renderdevice.device, 0, storagesize);
 
   return true;
 }

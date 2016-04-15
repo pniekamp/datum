@@ -42,7 +42,10 @@ enum ShaderLocation
   vertex_tangent = 3,
 
   sceneset = 0,
-  modelset = 1,
+  materialset = 1,
+  modelset = 2,
+
+  albedomap = 1,
 };
 
 struct SceneSet
@@ -63,7 +66,7 @@ constexpr int kTransferBufferSize = 64*1024;
 //|--------------------------------------------------------------------------
 
 ///////////////////////// PushBuffer::Constructor ///////////////////////////
-PushBuffer::PushBuffer(allocator_type const &allocator, std::size_t slabsize)
+PushBuffer::PushBuffer(allocator_type const &allocator, size_t slabsize)
 {
   m_slabsize = slabsize;
   m_slab = allocate<char, alignof(Header)>(allocator, m_slabsize);
@@ -121,7 +124,7 @@ namespace
       VkImageCreateInfo colorbufferinfo = {};
       colorbufferinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       colorbufferinfo.imageType = VK_IMAGE_TYPE_2D;
-      colorbufferinfo.format = VK_FORMAT_B8G8R8A8_UNORM;
+      colorbufferinfo.format = VK_FORMAT_B8G8R8A8_SRGB;
       colorbufferinfo.extent.width = width;
       colorbufferinfo.extent.height = height;
       colorbufferinfo.extent.depth = 1;
@@ -171,6 +174,13 @@ namespace
     return true;
   }
 
+  ///////////////////////// draw_sprites ////////////////////////////////////
+  void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
+  {
+    execute(commandbuffer, *sprites.spritelist);
+  }
+
+
 } // namespace
 
 
@@ -188,7 +198,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     auto renderdevice = platform.render_device();
 
-    initialise_vulkan_device(&context.device, renderdevice.physicaldevice, renderdevice.device);
+    initialise_vulkan_device(&context.device, renderdevice.physicaldevice, renderdevice.device, 0);
 
     context.framefence = create_fence(context.device, VK_FENCE_CREATE_SIGNALED_BIT);
 
@@ -272,11 +282,15 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Material Set
 
-    VkDescriptorSetLayoutBinding bindings[1] = {};
+    VkDescriptorSetLayoutBinding bindings[2] = {};
     bindings[0].binding = 0;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
+    bindings[1].binding = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[1].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -313,9 +327,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     constants[0].offset = 0;
     constants[0].size = kPushConstantSize;
 
-    VkDescriptorSetLayout layouts[2] = {};
+    VkDescriptorSetLayout layouts[3] = {};
     layouts[0] = context.scenesetlayout;
-    layouts[1] = context.modelsetlayout;
+    layouts[1] = context.materialsetlayout;
+    layouts[2] = context.modelsetlayout;
 
     VkPipelineLayoutCreateInfo pipelinelayoutinfo = {};
     pipelinelayoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -362,6 +377,23 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.renderpass = create_renderpass(context.device, renderpassinfo);
   }
 
+  if (context.whitediffuse == 0)
+  {
+    auto image = assets->find(CoreAsset::white_diffuse);
+
+    if (!image)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto bits = assets->request(platform, image);
+
+    if (!bits)
+      return false;    
+
+    context.whitediffuse = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
+  }
+
   if (context.unitquad == 0)
   {
     auto mesh = assets->find(CoreAsset::unit_quad);
@@ -376,7 +408,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.unitquad = create_vertexbuffer(context.device, bits, mesh->vertexcount, sizeof(PackVertex));
+    context.unitquad = create_vertexbuffer(context.device, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
   }
 
   if (context.spritepipeline == 0)
@@ -420,8 +452,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkPipelineRasterizationStateCreateInfo rasterization = {};
     rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterization.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterization.cullMode = VK_CULL_MODE_NONE;
 
     VkPipelineColorBlendAttachmentState blendattachments[1] = {};
     blendattachments[0].blendEnable = VK_TRUE;
@@ -455,19 +486,16 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.pDynamicStates = dynamicstates;
 
     VkPipelineShaderStageCreateInfo shaders[2] = {};
-
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
     shaders[0].pName = "main";
-
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[1].module = fsmodule;
     shaders[1].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
-
     pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineinfo.layout = context.pipelinelayout;
     pipelineinfo.renderPass = context.renderpass;
@@ -483,9 +511,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     context.spritepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
-
-  if (!initialise_resource_pool(context.resourcepool, context))
-    return false;
 
   context.frame = 0;
 
@@ -528,7 +553,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
   end(context.device, commandbuffer);
 
-  submit(context.device, commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.device, commandbuffer, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
 }
 
 
@@ -560,8 +585,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   {
     switch (renderable.type)
     {
-      case Renderable::Type::Rects:
-        execute(commandbuffer, *renderable_cast<Renderable::Rects>(&renderable)->commandlist);
+      case Renderable::Type::Sprites:
+        draw_sprites(context, commandbuffer, *renderable_cast<Renderable::Sprites>(&renderable));
         break;
 
       default:
@@ -585,7 +610,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   wait(context.device, context.framefence);
 
-  submit(context.device, commandbuffer, 0, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.device, commandbuffer, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
 
   ++context.frame;
 }

@@ -33,6 +33,7 @@ struct Asset
       int width;
       int height;
       int layers;
+      int levels;
       float alignx;
       float aligny;
     };
@@ -85,7 +86,7 @@ class AssetManager
   public:
 
     // initialise asset storage
-    void initialise(std::size_t maxcount, std::size_t slabsize);
+    void initialise(size_t maxcount, size_t slabsize);
 
     // load asset pack
     Asset const *load(DatumPlatform::PlatformInterface &platform, const char *identifier);
@@ -124,7 +125,7 @@ class AssetManager
       File *file;
 
       uint64_t datapos;
-      std::size_t datasize;
+      size_t datasize;
 
       Slot *slot;
     };
@@ -145,7 +146,7 @@ class AssetManager
 
       AssetEx *asset;
 
-      std::size_t size;
+      size_t size;
 
       Slot *after;
 
@@ -157,7 +158,7 @@ class AssetManager
 
     Slot *m_head;
 
-    Slot *acquire_slot(std::size_t size);
+    Slot *acquire_slot(size_t size);
 
     Slot *touch_slot(Slot *slot);
 
@@ -189,4 +190,4 @@ struct asset_guard
 };
 
 // Initialise
-bool initialise_asset_system(DatumPlatform::PlatformInterface &platform, AssetManager &assetmanager);
+bool initialise_asset_system(DatumPlatform::PlatformInterface &platform, AssetManager &assetmanager, size_t slotcount, size_t slabsize);

@@ -23,89 +23,92 @@ using namespace std;
 using namespace lml;
 using namespace leap;
 
-
-vector<string> seperate(string const &str, const char *delimiters = " \t\r\n")
+namespace
 {
-  vector<string> result;
-
-  size_t i = 0;
-  size_t j = 0;
-
-  while (j != string::npos)
+  vector<string> seperate(string const &str, const char *delimiters = " \t\r\n")
   {
-    j = str.find_first_of(delimiters, i);
+    vector<string> result;
 
-    result.push_back(str.substr(i, j-i));
+    size_t i = 0;
+    size_t j = 0;
 
-    i = j + 1;
+    while (j != string::npos)
+    {
+      j = str.find_first_of(delimiters, i);
+
+      result.push_back(str.substr(i, j-i));
+
+      i = j + 1;
+    }
+
+    return result;
   }
 
-  return result;
-}
 
-
-void calculatetangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
-{
-  vector<Vec3> tan1(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
-  vector<Vec3> tan2(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
-
-  for(size_t i = 0; i < indices.size(); i += 3)
+  void calculatetangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
   {
-    auto &v1 = vertices[indices[i+0]];
-    auto &v2 = vertices[indices[i+1]];
-    auto &v3 = vertices[indices[i+2]];
+    vector<Vec3> tan1(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
+    vector<Vec3> tan2(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
 
-    auto x1 = v2.position[0] - v1.position[0];
-    auto x2 = v3.position[0] - v1.position[0];
-    auto y1 = v2.position[1] - v1.position[1];
-    auto y2 = v3.position[1] - v1.position[1];
-    auto z1 = v2.position[2] - v1.position[2];
-    auto z2 = v3.position[2] - v1.position[2];
-
-    auto s1 = v2.texcoord[0] - v1.texcoord[0];
-    auto s2 = v3.texcoord[0] - v1.texcoord[0];
-    auto t1 = v2.texcoord[1] - v1.texcoord[1];
-    auto t2 = v3.texcoord[1] - v1.texcoord[1];
-
-    auto r = s1 * t2 - s2 * t1;
-
-    if (r != 0)
+    for(size_t i = 0; i < indices.size(); i += 3)
     {
-      auto sdir = Vec3(t2 * x1 - t1 * x2, t2 * y1 - t1 * y2, t2 * z1 - t1 * z2)/r;
-      auto tdir = Vec3(s1 * x2 - s2 * x1, s1 * y2 - s2 * y1, s1 * z2 - s2 * z1)/r;
+      auto &v1 = vertices[indices[i+0]];
+      auto &v2 = vertices[indices[i+1]];
+      auto &v3 = vertices[indices[i+2]];
 
-      auto uvarea = area(Vec2(v1.texcoord[0], v1.texcoord[1]), Vec2(v2.texcoord[0], v2.texcoord[1]), Vec2(v3.texcoord[0], v3.texcoord[1]));
+      auto x1 = v2.position[0] - v1.position[0];
+      auto x2 = v3.position[0] - v1.position[0];
+      auto y1 = v2.position[1] - v1.position[1];
+      auto y2 = v3.position[1] - v1.position[1];
+      auto z1 = v2.position[2] - v1.position[2];
+      auto z2 = v3.position[2] - v1.position[2];
 
-      tan1[indices[i+0]] += sdir * uvarea;
-      tan1[indices[i+1]] += sdir * uvarea;
-      tan1[indices[i+2]] += sdir * uvarea;
+      auto s1 = v2.texcoord[0] - v1.texcoord[0];
+      auto s2 = v3.texcoord[0] - v1.texcoord[0];
+      auto t1 = v2.texcoord[1] - v1.texcoord[1];
+      auto t2 = v3.texcoord[1] - v1.texcoord[1];
 
-      tan2[indices[i+0]] += tdir * uvarea;
-      tan2[indices[i+1]] += tdir * uvarea;
-      tan2[indices[i+2]] += tdir * uvarea;
+      auto r = s1 * t2 - s2 * t1;
+
+      if (r != 0)
+      {
+        auto sdir = Vec3(t2 * x1 - t1 * x2, t2 * y1 - t1 * y2, t2 * z1 - t1 * z2)/r;
+        auto tdir = Vec3(s1 * x2 - s2 * x1, s1 * y2 - s2 * y1, s1 * z2 - s2 * z1)/r;
+
+        auto uvarea = area(Vec2(v1.texcoord[0], v1.texcoord[1]), Vec2(v2.texcoord[0], v2.texcoord[1]), Vec2(v3.texcoord[0], v3.texcoord[1]));
+
+        tan1[indices[i+0]] += sdir * uvarea;
+        tan1[indices[i+1]] += sdir * uvarea;
+        tan1[indices[i+2]] += sdir * uvarea;
+
+        tan2[indices[i+0]] += tdir * uvarea;
+        tan2[indices[i+1]] += tdir * uvarea;
+        tan2[indices[i+2]] += tdir * uvarea;
+      }
+    }
+
+    for(size_t i = 0; i < vertices.size(); ++i)
+    {
+      auto normal = Vec3(vertices[i].normal[0], vertices[i].normal[1], vertices[i].normal[2]);
+
+      if (normsqr(tan1[i]) == 0)
+        tan1[i] = cross(normal, Vec3(vertices[i].normal[1], -vertices[i].normal[2], vertices[i].normal[0]));
+
+      if (normsqr(tan2[i]) == 0)
+        tan2[i] = cross(normal, tan1[i]);
+
+      if (normsqr(tan1[i] - normal * dot(normal, tan1[i])) == 0)
+        tan1[i] = cross(normal, tan2[i]);
+
+      auto tangent = normalise(tan1[i] - normal * dot(normal, tan1[i]));
+
+      vertices[i].tangent[0] = tangent.x;
+      vertices[i].tangent[1] = tangent.y;
+      vertices[i].tangent[2] = tangent.z;
+      vertices[i].tangent[3] = (dot(cross(normal, tan1[i]), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
     }
   }
 
-  for(size_t i = 0; i < vertices.size(); ++i)
-  {
-    auto normal = Vec3(vertices[i].normal[0], vertices[i].normal[1], vertices[i].normal[2]);
-
-    if (normsqr(tan1[i]) == 0)
-      tan1[i] = cross(normal, Vec3(vertices[i].normal[1], -vertices[i].normal[2], vertices[i].normal[0]));
-
-    if (normsqr(tan2[i]) == 0)
-      tan2[i] = cross(normal, tan1[i]);
-
-    if (normsqr(tan1[i] - normal * dot(normal, tan1[i])) == 0)
-      tan1[i] = cross(normal, tan2[i]);
-
-    auto tangent = normalise(tan1[i] - normal * dot(normal, tan1[i]));
-
-    vertices[i].tangent[0] = tangent.x;
-    vertices[i].tangent[1] = tangent.y;
-    vertices[i].tangent[2] = tangent.z;
-    vertices[i].tangent[3] = (dot(cross(normal, tan1[i]), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
-  }
 }
 
 
@@ -144,42 +147,58 @@ uint32_t write_shader_asset(ostream &fout, uint32_t id, string const &path)
 }
 
 
-uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &layers, float alignx = 0.5f, float aligny = 0.5f)
+uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path, float alignx = 0.5f, float aligny = 0.5f)
 {
-  int width = layers.front().width();
-  int height = layers.front().height();
-  int depth = layers.size();
+  QImage image(path.c_str());
 
-  size_t datasize = 0;
+  if (image.isNull())
+    throw runtime_error("Failed to load image - " + path);
 
-  vector<char> payload(width * height * depth * sizeof(uint32_t));
+  image = image.convertToFormat(QImage::Format_ARGB32);
 
-  for(size_t i = 0; i < layers.size(); i++)
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = 1;
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), alignx, aligny);
+
+  cout << "  " << path << endl;
+
+  return id + 1;
+}
+
+uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &images, float alignx = 0.5f, float aligny = 0.5f)
+{
+  int width = images.front().width();
+  int height = images.front().height();
+  int layers = images.size();
+  int levels = min(4, image_maxlevels(width, height));
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  char *dst = payload.data() + sizeof(PackImagePayload);
+  for(size_t i = 0; i < images.size(); i++)
   {
-    QImage image = layers[i].convertToFormat(QImage::Format_ARGB32);
+    QImage image = images[i].convertToFormat(QImage::Format_ARGB32);
 
-    // Pre-Multiply Alpha
-    for(int y = 0; y < image.height(); ++y)
-    {
-      for(int x = 0; x < image.width(); ++x)
-      {
-        auto r = qRed(image.pixel(x, y))/255.0;
-        auto g = qGreen(image.pixel(x, y))/255.0;
-        auto b = qBlue(image.pixel(x, y))/255.0;
-        auto a = qAlpha(image.pixel(x, y))/255.0;
+    if (image.width() != width || image.height() != height)
+      throw runtime_error("Layers with differing dimensions");
 
-        image.setPixel(x, y, qRgba(pow(pow(r, 2.2) * a, 1/2.2)*255, pow(pow(g, 2.2) * a, 1/2.2)*255, pow(pow(b, 2.2) * a, 1/2.2)*255, a*255));
-      }
-    }
+    memcpy(dst, image.bits(), image.byteCount());
 
-    image = image.mirrored();
-
-    memcpy(payload.data() + datasize, image.bits(), image.byteCount());
-
-    datasize += image.byteCount();
+    dst += image.byteCount();
   }
 
-  write_imag_asset(fout, id, width, height, depth, payload.data(), alignx, aligny);
+  image_buildmips_srgb(width, height, layers, levels, payload.data());
+
+  image_premultiply_srgb(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), alignx, aligny);
 
   return id + 1;
 }
@@ -215,7 +234,7 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, floa
 }
 
 
-uint32_t write_texture_asset(ostream &fout, uint32_t id, string const &path)
+uint32_t write_albedomap_asset(ostream &fout, uint32_t id, string const &path)
 {
   QImage image(path.c_str());
 
@@ -224,9 +243,78 @@ uint32_t write_texture_asset(ostream &fout, uint32_t id, string const &path)
 
   image = image.convertToFormat(QImage::Format_ARGB32);
 
-  image = image.mirrored();
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
 
-  write_imag_asset(fout, id, image.width(), image.height(), 1, image.bits(), 0.0f, 0.0f);
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_srgb_a(0.5, width, height, layers, levels, payload.data());
+
+  image_compress_bc3(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+
+  cout << "  " << path << endl;
+
+  return id + 1;
+}
+
+
+uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
+{
+  QImage image(path.c_str());
+
+  if (image.isNull())
+    throw runtime_error("Failed to load image - " + path);
+
+  image = image.convertToFormat(QImage::Format_ARGB32);
+
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_srgb(width, height, layers, levels, payload.data());
+
+  image_compress_bc3(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+
+  cout << "  " << path << endl;
+
+  return id + 1;
+}
+
+
+uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
+{
+  QImage image(path.c_str());
+
+  if (image.isNull())
+    throw runtime_error("Failed to load image - " + path);
+
+  image = image.convertToFormat(QImage::Format_ARGB32);
+
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_rgb(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
   cout << "  " << path << endl;
 
@@ -332,13 +420,13 @@ uint32_t write_material_asset(ostream &fout, uint32_t id, Color3 albedocolor, st
   write_matl_asset(fout, id, albedocolor, albedomapid, specularintensity, specularexponent, specularmapid, normalmapid);
 
   if (albedomapid)
-    write_texture_asset(fout, albedomapid, albedomap);
+    write_albedomap_asset(fout, albedomapid, albedomap);
 
   if (specularmapid)
-    write_texture_asset(fout, specularmapid, specularmap);
+    write_specularmap_asset(fout, specularmapid, specularmap);
 
   if (normalmapid)
-    write_texture_asset(fout, normalmapid, normalmap);
+    write_normalmap_asset(fout, normalmapid, normalmap);
 
   return id + 1 + mapid;
 }
@@ -463,8 +551,8 @@ void write_core()
 
   write_catalog_asset(fout, CoreAsset::catalog);
 
-  write_texture_asset(fout, CoreAsset::white_diffuse, "../../data/white.png");
-  write_texture_asset(fout, CoreAsset::nominal_normal, "../../data/normal.png");
+  write_image_asset(fout, CoreAsset::white_diffuse, "../../data/white.png");
+  write_image_asset(fout, CoreAsset::nominal_normal, "../../data/normal.png");
 
   write_mesh_asset(fout, CoreAsset::unit_quad, { { 0.0, 1.0, 0.0, 0.0, 1.0 }, { 0.0, 0.0, 0.0, 0.0, 0.0 }, { 1.0, 1.0, 0.0, 1.0, 1.0 }, { 1.0, 0.0, 0.0, 1.0, 0.0 } }, { 0, 1, 2, 2, 1, 3 });
   write_mesh_asset(fout, CoreAsset::unit_cube, { { 0.0, 0.0, 1.0 }, { 1.0, 0.0, 1.0 }, { 1.0, 1.0, 1.0 }, { 0.0, 1.0, 1.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 0.0, 0.0 }, { 1.0, 1.0, 0.0 }, { 0.0, 1.0, 0.0 } }, { 0, 1, 2, 2, 3, 0, 1, 5, 6, 6, 2, 1, 5, 4, 7, 7, 6, 5, 4, 0, 3, 3, 7, 4, 3, 2, 6, 6, 7, 3, 4, 5, 1, 1, 0, 4 });
@@ -474,6 +562,8 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");
+
+  write_sprite_asset(fout, CoreAsset::test_image, "../../data/testimage.png");
 
   write_font_asset(fout, CoreAsset::debug_font, "Comic Sans MS", 10);
 

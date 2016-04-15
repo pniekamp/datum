@@ -24,7 +24,7 @@ namespace Renderable
   enum class Type : uint16_t
   {
     Clear,
-    Rects,
+    Sprites,
   };
 
   using Vec2 = lml::Vec2;
@@ -35,11 +35,11 @@ namespace Renderable
   using Attenuation = lml::Attenuation;
   using Transform = lml::Transform;
 
-  struct Rects
+  struct Sprites
   {
-    static const Type type = Type::Rects;
+    static const Type type = Type::Sprites;
 
-    CommandList const *commandlist;
+    CommandList const *spritelist;
   };
 }
 
@@ -84,7 +84,7 @@ class PushBuffer
 
     typedef StackAllocator<> allocator_type;
 
-    PushBuffer(allocator_type const &allocator, std::size_t slabsize);
+    PushBuffer(allocator_type const &allocator, size_t slabsize);
 
     PushBuffer(PushBuffer const &other) = delete;
 
@@ -109,11 +109,11 @@ class PushBuffer
 
   protected:
 
-    void *push(Renderable::Type type, std::size_t size, std::size_t alignment);
+    void *push(Renderable::Type type, size_t size, size_t alignment);
 
   private:
 
-    std::size_t m_slabsize;
+    size_t m_slabsize;
 
     void *m_slab;
     void *m_tail;
@@ -124,7 +124,7 @@ T const *renderable_cast(PushBuffer::Header const *header)
 {
   assert(T::type == header->type);
 
-  return reinterpret_cast<T const *>((reinterpret_cast<std::size_t>(header + 1) + alignof(T) - 1) & -alignof(T));
+  return reinterpret_cast<T const *>(((size_t)(header + 1) + alignof(T) - 1) & -alignof(T));
 }
 
 
@@ -145,6 +145,8 @@ struct RenderContext
 
   Vulkan::CommandPool commandpool;
   Vulkan::CommandBuffer commandbuffers[2];
+
+  Vulkan::TransferBuffer transferbuffer;
 
   Vulkan::DescriptorPool descriptorpool;
 
@@ -168,7 +170,7 @@ struct RenderContext
 
   Vulkan::VertexBuffer unitquad;
 
-  Vulkan::TransferBuffer transferbuffer;
+  Vulkan::Texture whitediffuse;
 
   Vulkan::Pipeline spritepipeline;
 

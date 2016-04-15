@@ -30,10 +30,10 @@ AssetManager::AssetManager(allocator_type const &allocator)
 
 
 ///////////////////////// AssetManager::initialise //////////////////////////
-void AssetManager::initialise(std::size_t maxcount, std::size_t slabsize)
+void AssetManager::initialise(size_t slotcount, size_t slabsize)
 {
   m_files.reserve(256);
-  m_assets.reserve(maxcount);
+  m_assets.reserve(slotcount);
 
   m_head = new(allocate<char, alignof(Slot)>(m_allocator, slabsize)) Slot;
 
@@ -43,7 +43,7 @@ void AssetManager::initialise(std::size_t maxcount, std::size_t slabsize)
   m_head->next = m_head;
   m_head->state = Slot::State::Empty;
 
-  cout << "Asset Storage: " << maxcount << ", " << slabsize / 1024 / 1024 << " MiB" << endl;
+  cout << "Asset Storage: " << slotcount / 1024 << "k, " << slabsize / 1024 / 1024 << " MiB" << endl;
 }
 
 
@@ -136,9 +136,10 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.width = imag.width;
             asset.height = imag.height;
             asset.layers = imag.layers;
+            asset.levels = imag.levels;
             asset.alignx = imag.alignx;
             asset.aligny = imag.aligny;
-            asset.datasize = imag.width * imag.height * imag.layers * sizeof(uint32_t);
+            asset.datasize = imag.datasize;
             asset.datapos = imag.dataoffset;
 
             break;
@@ -486,9 +487,9 @@ void AssetManager::background_loader(DatumPlatform::PlatformInterface &platform,
 
 
 ///////////////////////// initialise_asset_system ///////////////////////////
-bool initialise_asset_system(DatumPlatform::PlatformInterface &platform, AssetManager &assetmanager)
+bool initialise_asset_system(DatumPlatform::PlatformInterface &platform, AssetManager &assetmanager, size_t slotcount, size_t slabsize)
 {
-  assetmanager.initialise(65535, 128*1024*1024);
+  assetmanager.initialise(slotcount, slabsize);
 
   return true;
 }

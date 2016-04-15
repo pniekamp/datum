@@ -72,12 +72,12 @@ namespace DatumPlatform
 
 
   ///////////////////////// InputBuffer::register_mousemove /////////////////
-  void InputBuffer::register_mousemove(float x, float y)
+  void InputBuffer::register_mousemove(int x, int y)
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::MouseMoveX, (int)(x*10) });
-    m_events.push_back({ EventType::MouseMoveY, (int)(y*10) });
+    m_events.push_back({ EventType::MouseMoveX, x });
+    m_events.push_back({ EventType::MouseMoveY, y });
   }
 
 
@@ -148,11 +148,11 @@ namespace DatumPlatform
           break;
 
         case EventType::MouseMoveX:
-          m_input.mousex = evt.data / 10.0f;
+          m_input.mousex = evt.data;
           break;
 
         case EventType::MouseMoveY:
-          m_input.mousey = evt.data / 10.0f;
+          m_input.mousey = evt.data;
           break;
 
         case EventType::MouseMoveZ:

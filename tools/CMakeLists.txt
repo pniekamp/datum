@@ -24,7 +24,7 @@ target_link_libraries(assetembed leap Qt5::Gui)
 # assetbuilder
 #
 
-add_executable(assetbuilder atlaspacker.h assetpacker.h assetpacker.cpp assetbuilder.cpp glslang.h glslang.cpp)
+add_executable(assetbuilder atlaspacker.h assetpacker.h assetpacker.cpp bc3.h bc3.cpp assetbuilder.cpp glslang.h glslang.cpp)
 
 target_link_libraries(assetbuilder leap Qt5::Gui)
 
@@ -33,7 +33,7 @@ target_link_libraries(assetbuilder leap Qt5::Gui)
 # assetcompressor
 #
 
-add_executable(assetcompressor assetpacker.h assetpacker.cpp assetcompressor.cpp)
+add_executable(assetcompressor assetpacker.h assetpacker.cpp bc3.h bc3.cpp assetcompressor.cpp)
 
 target_link_libraries(assetcompressor leap Qt5::Gui)
 
@@ -42,7 +42,7 @@ target_link_libraries(assetcompressor leap Qt5::Gui)
 # objparser
 #
 
-add_executable(objparser assetpacker.h assetpacker.cpp objparser.cpp)
+add_executable(objparser assetpacker.h assetpacker.cpp bc3.h bc3.cpp objparser.cpp)
 
 target_link_libraries(objparser leap Qt5::Gui)
 

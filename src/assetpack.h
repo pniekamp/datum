@@ -52,14 +52,19 @@ struct PackImageHeader
   uint32_t width;
   uint32_t height;
   uint32_t layers;
+  uint32_t levels;
   float alignx;
   float aligny;
+  uint32_t datasize;
   uint64_t dataoffset;
 };
 
 struct PackImagePayload
 {
-// uint32_t image[height][width];
+  enum { none = 0, bc3 = 3 };
+
+  uint32_t compression;
+// uint32_t image[levels][layers][height][width];
 };
 
 struct PackFontHeader

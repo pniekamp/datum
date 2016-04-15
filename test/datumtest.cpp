@@ -31,14 +31,18 @@ void datumtest_init(PlatformInterface &platform)
 
   assert(&state == platform.gamememory.data);
 
-  initialise_asset_system(platform, state.assets);
+  initialise_asset_system(platform, state.assets, 64*1024, 128*1024*1024);
 
-  initialise_resource_system(platform, state.resources);
+  initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024);
+
+  initialise_resource_pool(platform, state.rendercontext.resourcepool, 16*1024*1024);
 
   state.assets.load(platform, "core.pack");
 
 //  while (!prepare_render_context(platform, state.rendercontext, &state.assets))
 //    ;
+
+  state.testsprite = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image));
 
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 }
@@ -68,26 +72,30 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.writeframe->time = state.time;
   state.writeframe->camera = state.camera;
 
-  BEGIN_STAT_BLOCK(build)
-
+///
   SpriteList::BuildState buildstate;
 
   if (state.writeframe->sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
-    float count = 15.0f;
-    float radius = 150.0f;
+    state.writeframe->sprites.push_rect(buildstate, Vec2(10, 10), Rect2({0,0}, {100, 100}), Color4(1, 0, 0, 1));
+    state.writeframe->sprites.push_rect(buildstate, Vec2(120, 10), Rect2({0,0}, {33, 33}), Color4(1, 0, 1, 1));
+    state.writeframe->sprites.push_rect(buildstate, Vec2(160, 10), Rect2({0,0}, {33, 33}), Color4(1, 1, 0, 1));
+    state.writeframe->sprites.push_rect(buildstate, Vec2(5, 15), Rect2({0,0}, {200, 40}), Color4(0, 1, 1, 0.4));
 
-    for(float angle = 0.0f; angle < 2*pi<float>(); angle += pi<float>()/count)
-    {
-      Vec2 position = Vec2(960/2, 540/2) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
+    state.writeframe->sprites.push_line(buildstate, Vec2(5, 5), Vec2(200, 150), Color4(1, 1, 1, 1));
+    state.writeframe->sprites.push_line(buildstate, Vec2(5, 5), Vec2(200, 200), Color4(1, 1, 1, 1));
+    state.writeframe->sprites.push_line(buildstate, Vec2(5, 200), Vec2(200, 5), Color4(1, 1, 1, 0.5), 20);
 
-      state.writeframe->sprites.push_sprite(buildstate, position, Rect2({0, -5}, {25, 5}), angle + state.time);
-    }
+    state.writeframe->sprites.push_rect_outline(buildstate, Vec2(300, 300), Rect2({0,0}, {300, 200}), Color4(1, 1, 1, 0.5), 20);
+    state.writeframe->sprites.push_rect_outline(buildstate, Vec2(300, 300), Rect2({0,0}, {300, 200}), -1.2f, Color4(1, 1, 1, 0.5), 20);
+
+    state.writeframe->sprites.push_sprite(buildstate, Vec2(600, 200), 281.0f, state.time, state.testsprite);
+
+    state.writeframe->sprites.push_rect(buildstate, Vec2(600, 200), Rect2({ -5, -5 }, { 5, 5 }), Color4(1, 0, 1, 1));
 
     state.writeframe->sprites.finalise(buildstate);
   }
-
-  END_STAT_BLOCK(build)
+///
 
   state.writeframe->resourcetoken = state.resources.token();
 
@@ -112,10 +120,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     return;
   }
 
-  if (state.readframe->time < state.readyframe.load()->time)
-  {
-    state.readframe = state.readyframe.exchange(state.readframe);
-  }
+  while (state.readyframe.load()->time <= state.readframe->time)
+    ;
+
+  state.readframe = state.readyframe.exchange(state.readframe);
 
   BEGIN_TIMED_BLOCK(Render, Color3(0.0, 0.2, 1.0))
 
@@ -125,22 +133,24 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   if (state.readframe->sprites)
   {
-    auto entry = pushbuffer.push<Renderable::Rects>();
+    auto entry = pushbuffer.push<Renderable::Sprites>();
 
     if (entry)
     {
-      entry->commandlist = state.readframe->sprites;
+      entry->spritelist = state.readframe->sprites;
     }
   }
 
-///
+#ifdef DEBUG
   if (state.rendercontext.frame % 600 == 0)
   {
-    cout << g_debugstatistics.resourceslotsused << " / " << g_debugstatistics.resourceslotscapacity << " , " << g_debugstatistics.resourceblockssused << " / " << g_debugstatistics.resourceblockscapacity << "  ";
-    cout << g_debugstatistics.storageused << " / " << g_debugstatistics.storagecapacity << " , "  << g_debugstatistics.lumpsused << " / " << g_debugstatistics.lumpscapacity << "  ";
+    cout << "Slots: " << g_debugstatistics.resourceslotsused << " / " << g_debugstatistics.resourceslotscapacity << "  ";
+    cout << "Buffers: " << g_debugstatistics.resourcebufferused << " / " << g_debugstatistics.resourcebuffercapacity << "  ";
+    cout << "Storage: " << g_debugstatistics.renderstorageused << " / " << g_debugstatistics.renderstoragecapacity << "  ";
+    cout << "Lumps: " << g_debugstatistics.renderlumpsused << " / " << g_debugstatistics.renderlumpscapacity << "  ";
     cout << endl;
   }
-///
+#endif
 
   RenderParams renderparams;
   renderparams.skyboxblend = 0.9;//abs(sin(0.01*state.time));

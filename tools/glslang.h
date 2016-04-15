@@ -2,6 +2,8 @@
 // Datum - glsl utils
 //
 
+#pragma once
+
 #include <vector>
 #include <string>
 

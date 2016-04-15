@@ -26,13 +26,17 @@ enum RenderPasses
 enum ShaderLocation
 {
   sceneset = 0,
-  modelset = 1,
+  materialset = 1,
+  modelset = 2,
+
+  albedomap = 1,
 };
 
 struct MaterialSet
 {
-  Vec4 texcoords;
   Color4 tint;
+
+  Vec4 texcoords;
 };
 
 struct ModelSet
@@ -84,57 +88,220 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 }
 
 
-///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(SpriteList::BuildState &state, lml::Vec2 xbasis, lml::Vec2 ybasis, lml::Vec2 position)
+///////////////////////// SpriteList::push_material /////////////////////////
+void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture, lml::Vec4 const &texcoords, lml::Color4 const &tint)
 {
   assert(state.commandlist);
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.modelset.capacity() < state.offset + sizeof(ModelSet))
+  if (state.texture != texture || state.materialset.capacity() < state.materialoffset + sizeof(MaterialSet))
   {
-    if (state.modelset)
-      commandlist.release(state.modelset, state.offset);
+    if (state.materialset)
+      commandlist.release(state.materialset, state.materialoffset);
 
-    state.offset = 0;
-    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet));
+    state.materialoffset = 0;
+    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaterialSet));
+
+    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, texture);
+
+    state.texture = texture;
   }
 
-  if (state.offset + sizeof(ModelSet) <= state.modelset.capacity())
+  if (state.materialoffset + sizeof(MaterialSet) <= state.materialset.capacity())
   {
-    auto modelset = state.modelset.memory<ModelSet>(state.offset);
+    auto materialset = state.materialset.memory<MaterialSet>(state.materialoffset);
 
-    modelset->xbasis = xbasis;
-    modelset->ybasis = ybasis;
-    modelset->position = Vec4(position, 0, 1);
+    materialset->tint = tint;
+    materialset->texcoords = texcoords;
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, state.offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, state.materialoffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
+    state.materialoffset = alignto(state.materialoffset + sizeof(MaterialSet), state.materialset.alignment());
 
-    state.offset = alignto(state.offset + sizeof(ModelSet), state.modelset.alignment());
+    state.tint = tint;
+    state.texcoords = texcoords;
   }
 }
 
 
-///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(SpriteList::BuildState &state, Vec2 const &position, Rect2 const &rect)
+///////////////////////// SpriteList::push_model ////////////////////////////
+void SpriteList::push_model(SpriteList::BuildState &state, lml::Vec2 xbasis, lml::Vec2 ybasis, lml::Vec2 position, float layer)
+{
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+
+  if (state.modelset.capacity() < state.modeloffset + sizeof(ModelSet))
+  {
+    if (state.modelset)
+      commandlist.release(state.modelset, state.modeloffset);
+
+    state.modeloffset = 0;
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet));
+  }
+
+  if (state.modeloffset + sizeof(ModelSet) <= state.modelset.capacity())
+  {
+    auto modelset = state.modelset.memory<ModelSet>(state.modeloffset);
+
+    modelset->xbasis = xbasis;
+    modelset->ybasis = ybasis;
+    modelset->position = Vec4(position, layer, 1);
+
+    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, state.modeloffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
+
+    state.modeloffset = alignto(state.modeloffset + sizeof(ModelSet), state.modelset.alignment());
+  }
+}
+
+
+///////////////////////// SpriteList::push_model ////////////////////////////
+void SpriteList::push_model(SpriteList::BuildState &state, Vec2 const &position, Rect2 const &rect, float layer)
 {  
   auto xbasis = Vec2(rect.max.x - rect.min.x, 0);
   auto ybasis = Vec2(0, rect.max.y - rect.min.y);
 
-  push_sprite(state, xbasis, ybasis, position + rect.min);
+  push_model(state, xbasis, ybasis, position + rect.min, layer);
 }
 
 
-///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(SpriteList::BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation)
+///////////////////////// SpriteList::push_model ////////////////////////////
+void SpriteList::push_model(SpriteList::BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, float layer)
 {
   auto xbasis = rotate(Vec2(rect.max.x - rect.min.x, 0), rotation);
   auto ybasis = rotate(Vec2(0, rect.max.y - rect.min.y), rotation);
 
-  push_sprite(state, xbasis, ybasis, position + rotate(rect.min, rotation));
+  push_model(state, xbasis, ybasis, position + rotate(rect.min, rotation), layer);
+}
+
+
+///////////////////////// SpriteList::push_line /////////////////////////////
+void SpriteList::push_line(BuildState &state, lml::Vec2 const &a, lml::Vec2 const &b, lml::Color4 const &color, float thickness)
+{
+  push_rect(state, a, Rect2({ 0, -0.5f*thickness }, { norm(b - a), +0.5f*thickness }), theta(b - a), color);
+}
+
+
+///////////////////////// SpriteList::push_rect /////////////////////////////
+void SpriteList::push_rect(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, lml::Color4 const &color)
+{
+  if (state.texture != state.context->whitediffuse || state.tint != color)
+  {
+    push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
+  }
+
+  push_model(state, position, rect, 0);
+}
+
+
+///////////////////////// SpriteList::push_rect /////////////////////////////
+void SpriteList::push_rect(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, float rotation, lml::Color4 const &color)
+{
+  if (state.texture != state.context->whitediffuse || state.tint != color)
+  {
+    push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
+  }
+
+  push_model(state, position, rect, rotation, 0);
+}
+
+
+///////////////////////// SpriteList::push_rect_outline /////////////////////
+void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, lml::Color4 const &color, float thickness)
+{
+  push_rect(state, position, Rect2({ rect.min.x - 0.5f*thickness, rect.min.y - 0.5f*thickness }, { rect.max.x + 0.5f*thickness, rect.min.y + 0.5f*thickness }), color);
+  push_rect(state, position, Rect2({ rect.min.x - 0.5f*thickness, rect.min.y + 0.5f*thickness }, { rect.min.x + 0.5f*thickness, rect.max.y - 0.5f*thickness }), color);
+  push_rect(state, position, Rect2({ rect.max.x - 0.5f*thickness, rect.min.y + 0.5f*thickness }, { rect.max.x + 0.5f*thickness, rect.max.y - 0.5f*thickness }), color);
+  push_rect(state, position, Rect2({ rect.max.x + 0.5f*thickness, rect.max.y + 0.5f*thickness }, { rect.min.x - 0.5f*thickness, rect.max.y - 0.5f*thickness }), color);
+}
+
+
+///////////////////////// SpriteList::push_rect_outline /////////////////////
+void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, float rotation, lml::Color4 const &color, float thickness)
+{
+  auto a = position + rotate(Vec2(rect.min.x - 0.5*thickness, rect.min.y), rotation);
+  auto b = position + rotate(Vec2(rect.max.x + 0.5*thickness, rect.min.y), rotation);
+  auto c = position + rotate(Vec2(rect.max.x, rect.min.y + 0.5*thickness), rotation);
+  auto d = position + rotate(Vec2(rect.max.x, rect.max.y - 0.5*thickness), rotation);
+  auto e = position + rotate(Vec2(rect.max.x + 0.5*thickness, rect.max.y), rotation);
+  auto f = position + rotate(Vec2(rect.min.x - 0.5*thickness, rect.max.y), rotation);
+  auto g = position + rotate(Vec2(rect.min.x, rect.max.y - 0.5*thickness), rotation);
+  auto h = position + rotate(Vec2(rect.min.x, rect.min.y + 0.5*thickness), rotation);
+
+  push_line(state, a, b, color, thickness);
+  push_line(state, c, d, color, thickness);
+  push_line(state, e, f, color, thickness);
+  push_line(state, g, h, color, thickness);
+}
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, Sprite const *sprite, lml::Color4 const &tint)
+{
+  push_sprite(state, position, size, sprite, 0, tint);
+}
+
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, Sprite const *sprite, float layer, lml::Color4 const &tint)
+{
+  if (!sprite)
+    return;
+
+  if (!sprite->ready())
+  {
+    state.resources->request(*state.platform, sprite);
+
+    if (!sprite->ready())
+      return;
+  }
+
+  if (state.texture != sprite->atlas->texture || state.texcoords != sprite->extent || state.tint != tint)
+  {
+    push_material(state, sprite->atlas->texture, sprite->extent, tint);
+  }
+
+  auto dim = Vec2(size * sprite->aspect, size);
+  auto align = Vec2(sprite->align.x * dim.x, sprite->align.y * dim.y);
+
+  push_model(state, position, Rect2(-align, dim - align), layer);
+}
+
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, lml::Color4 const &tint)
+{
+    push_sprite(state, position, size, rotation, sprite, 0, tint);
+}
+
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, float layer, lml::Color4 const &tint)
+{
+  if (!sprite)
+    return;
+
+  if (!sprite->ready())
+  {
+    state.resources->request(*state.platform, sprite);
+
+    if (!sprite->ready())
+      return;
+  }
+
+  if (state.texture != sprite->atlas->texture || state.texcoords != sprite->extent || state.tint != tint)
+  {
+    push_material(state, sprite->atlas->texture, sprite->extent, tint);
+  }
+
+  auto dim = Vec2(size * sprite->aspect, size);
+  auto align = Vec2(sprite->align.x * dim.x, sprite->align.y * dim.y);
+
+  push_model(state, position, Rect2(-align, dim - align), rotation, layer);
 }
 
 
@@ -146,7 +313,10 @@ void SpriteList::finalise(BuildState &state)
   auto &commandlist = *state.commandlist;
 
   if (state.modelset)
-    commandlist.release(state.modelset, state.offset);
+    commandlist.release(state.modelset, state.modeloffset);
+
+  if (state.materialset)
+    commandlist.release(state.materialset, state.materialoffset);
 
   state.commandlist->end();
 

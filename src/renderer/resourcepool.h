@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "datum/platform.h"
 #include "vulkan.h"
 #include <atomic>
 
@@ -71,17 +72,16 @@ class ResourcePool
       std::atomic_flag lock = ATOMIC_FLAG_INIT;
     };
 
-    static constexpr int kStorageBufferSize = 16*1024*1024;
     static constexpr int kStorageBufferSlots = 256;
-    static constexpr int kCommandBufferSlots = 64;
+    static constexpr int kCommandBufferSlots = 128;
     static constexpr int kDescriptorSetSlots = 512;
-    static constexpr int kResourceLumpCount = 32;
+    static constexpr int kResourceLumpCount = 64;
 
   public:
 
     // initialise resource pool
 
-    void initialise(Vulkan::VulkanDevice const &device);
+    void initialise(VkPhysicalDevice physicaldevice, VkDevice device, int queueinstance, size_t storagesize);
 
     // lump
 
@@ -95,9 +95,9 @@ class ResourcePool
 
     // storage buffers
 
-    StorageBuffer acquire_storagebuffer(ResourceLump const *lump, VkDeviceSize required);
+    StorageBuffer acquire_storagebuffer(ResourceLump const *lump, size_t required);
 
-    void release_storagebuffer(StorageBuffer const &storage, VkDeviceSize used);
+    void release_storagebuffer(StorageBuffer const &storage, size_t used);
 
     // descriptor sets
 
@@ -123,4 +123,5 @@ class ResourcePool
 };
 
 // Initialise
-bool initialise_resource_pool(ResourcePool &resourcepool, class RenderContext const &context);
+bool initialise_resource_pool(DatumPlatform::PlatformInterface &platform, ResourcePool &resourcepool, size_t storagesize);
+

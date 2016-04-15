@@ -22,6 +22,7 @@ namespace CoreAsset
     unit_sphere,
     sprite_vert,
     sprite_frag,
+    test_image,
     debug_font,
   };
 }

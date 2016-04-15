@@ -66,6 +66,7 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
   ofstream(tmpname) << text << "\n";
 
   system(string("glslangValidator.exe -V -o tmp.spv " + tmpname).c_str());
+  system(string("spirv-remap --do-everything --input tmp.spv -o .").c_str());
 
   remove(tmpname.c_str());
 

@@ -26,7 +26,7 @@ class Platform : public PlatformInterface
 
     Platform();
 
-    void initialise(RenderDevice const &renderdevice, std::size_t gamememorysize);
+    void initialise(RenderDevice const &renderdevice, size_t gamememorysize);
 
   public:
 
@@ -39,7 +39,7 @@ class Platform : public PlatformInterface
 
     virtual handle_t open_handle(const char *identifier) override;
 
-    virtual void read_handle(handle_t handle, uint64_t position, void *buffer, std::size_t n) override;
+    virtual void read_handle(handle_t handle, uint64_t position, void *buffer, size_t n) override;
 
     virtual void close_handle(handle_t handle) override;
 
@@ -79,7 +79,7 @@ Platform::Platform()
 
 
 ///////////////////////// Platform::initialise //////////////////////////////
-void Platform::initialise(RenderDevice const &renderdevice, std::size_t gamememorysize)
+void Platform::initialise(RenderDevice const &renderdevice, size_t gamememorysize)
 {
   m_renderdevice = renderdevice;
 
@@ -254,7 +254,7 @@ void Game::terminate()
 //|--------------------------------------------------------------------------
 
 #ifndef NDEBUG
-#define VALIDATION 0
+#define VALIDATION 1
 #endif
 
 struct Vulkan
@@ -368,7 +368,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   VkDeviceQueueCreateInfo queueinfo = {};
   queueinfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
   queueinfo.queueFamilyIndex = queueindex;
-  queueinfo.queueCount = 1;
+  queueinfo.queueCount = 2;
   queueinfo.pQueuePriorities = queuepriorities.data();
 
   const char* deviceextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

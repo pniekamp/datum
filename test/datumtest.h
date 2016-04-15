@@ -37,6 +37,8 @@ struct GameState
 
   RenderContext rendercontext;
 
+  Sprite const *testsprite;
+
   // Render Frames
 
   struct RenderFrame
