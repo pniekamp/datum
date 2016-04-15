@@ -149,7 +149,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, lml::Vec2 xbasis, lml
 
     modelset->xbasis = xbasis;
     modelset->ybasis = ybasis;
-    modelset->position = Vec4(position, layer, 1);
+    modelset->position = Vec4(position, floor(layer), 1);
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, state.modeloffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -302,6 +302,60 @@ void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float
   auto align = Vec2(sprite->align.x * dim.x, sprite->align.y * dim.y);
 
   push_model(state, position, Rect2(-align, dim - align), rotation, layer);
+}
+
+
+///////////////////////// SpriteList::push_text /////////////////////////////
+void SpriteList::push_text(BuildState &state, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint)
+{
+  if (!font)
+    return;
+
+  if (!font->ready())
+  {
+    state.resources->request(*state.platform, font);
+
+    if (!font->ready())
+      return;
+  }
+
+  auto scale = size / font->height();
+
+  auto cursor = position;
+
+  uint32_t othercodepoint = 0;
+
+  for(const char *ch = str; *ch; ++ch)
+  {
+    uint32_t codepoint = *ch;
+
+    if (codepoint >= (size_t)font->glyphcount)
+      codepoint = 0;
+
+    cursor.x += scale * font->width(othercodepoint, codepoint);
+
+    auto xbasis = scale * Vec2(font->dimension[codepoint].x, 0);
+    auto ybasis = scale * Vec2(0, font->dimension[codepoint].y);
+
+    push_material(state, font->glyphs->texture, font->texcoords[codepoint], tint);
+
+    push_model(state, xbasis, ybasis, cursor - scale * font->alignment[codepoint], 0);
+
+    othercodepoint = codepoint;
+  }
+}
+
+
+///////////////////////// SpriteList::push_scissor //////////////////////////
+void SpriteList::push_scissor(BuildState &state, lml::Rect2 const &cliprect)
+{
+  VkRect2D scissor = {};
+  scissor.offset.x = cliprect.min.x;
+  scissor.offset.y = cliprect.min.y;
+  scissor.extent.width = cliprect.max.x - cliprect.min.x;
+  scissor.extent.height = cliprect.max.y - cliprect.min.y;
+
+  vkCmdSetScissor(*state.commandlist, 0, 1, &scissor);
 }
 
 

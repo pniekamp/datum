@@ -160,7 +160,8 @@ void ResourceManager::update<Texture>(Texture const *texture)
 
   submit_transfer(lump);
 
-  test(vulkan, lump->fence, UINT64_MAX);
+  while (!test(vulkan, lump->fence))
+    ;
 }
 
 template<>
@@ -261,7 +262,7 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
 
           submit_transfer(lump);
 
-          slot->state = Texture::State::Bliting;
+          slot->state = Texture::State::Waiting;
         }
         else
           slot->state = Texture::State::Empty;
@@ -273,11 +274,11 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
       slot->state = Texture::State::Empty;
   }
 
-  Texture::State bliting = Texture::State::Bliting;
+  Texture::State waiting = Texture::State::Waiting;
 
-  if (slot->state.compare_exchange_strong(bliting, Texture::State::Waiting))
+  if (slot->state.compare_exchange_strong(waiting, Texture::State::Testing))
   {
-    if (test(vulkan, slot->transferlump->fence, 0))
+    if (test(vulkan, slot->transferlump->fence))
     {
       release_lump(slot->transferlump);
 
@@ -286,7 +287,7 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
       slot->state = Texture::State::Ready;
     }
     else
-      slot->state = Texture::State::Bliting;
+      slot->state = Texture::State::Waiting;
   }
 }
 

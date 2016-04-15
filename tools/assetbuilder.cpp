@@ -234,6 +234,31 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, floa
 }
 
 
+uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, int count, float alignx = 0.5f, float aligny = 0.5f)
+{
+  QImage sheet(path.c_str());
+
+  if (sheet.isNull())
+    throw runtime_error("Failed to load image - " + path);
+
+  vector<QImage> layers;
+
+  int width = sheet.width() / count;
+  int height = sheet.height();
+
+  for(int i = 0; i < sheet.width(); i += width)
+  {
+    layers.push_back(sheet.copy(i, 0, width, height));
+  }
+
+  write_sprite_asset(fout, id, layers, alignx, aligny);
+
+  cout << "  " << path << endl;
+
+  return id + 1;
+}
+
+
 uint32_t write_albedomap_asset(ostream &fout, uint32_t id, string const &path)
 {
   QImage image(path.c_str());
@@ -471,7 +496,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
     assert(position);
 
     xtable[codepoint] = position->x;
-    ytable[codepoint] = packer.height - position->y - position->height;
+    ytable[codepoint] = position->y;
     widthtable[codepoint] = position->width;
     heighttable[codepoint] = position->height;
     offsetxtable[codepoint] = 1;
@@ -562,6 +587,8 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");
+
+  write_sprite_asset(fout, CoreAsset::loader_image, "../../data/loader.png", 8);
 
   write_sprite_asset(fout, CoreAsset::test_image, "../../data/testimage.png");
 

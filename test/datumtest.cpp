@@ -39,8 +39,9 @@ void datumtest_init(PlatformInterface &platform)
 
   state.assets.load(platform, "core.pack");
 
-//  while (!prepare_render_context(platform, state.rendercontext, &state.assets))
-//    ;
+  state.loader = state.resources.create<Sprite>(state.assets.find(CoreAsset::loader_image));
+
+  state.debugfont = state.resources.create<Font>(state.assets.find(CoreAsset::debug_font));
 
   state.testsprite = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image));
 
@@ -116,7 +117,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   if (!prepare_render_context(platform, state.rendercontext, &state.assets))
   {
-    render_fallback(state.rendercontext, viewport, embeded::loading.data, embeded::loading.width, embeded::loading.height);
+    render_fallback(state.rendercontext, viewport, embeded::logo.data, embeded::logo.width, embeded::logo.height);
     return;
   }
 
@@ -140,6 +141,30 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       entry->spritelist = state.readframe->sprites;
     }
   }
+
+///
+  SpriteList overlay;
+  SpriteList::BuildState buildstate;
+
+  if (overlay.begin(buildstate, platform, state.rendercontext, &state.resources))
+  {
+    overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
+
+    overlay.push_text(buildstate, Vec2(10, 400), state.debugfont->height(), state.debugfont, "Test Hello World WylT");
+
+    overlay.finalise(buildstate);
+  }
+
+  if (overlay)
+  {
+    auto entry = pushbuffer.push<Renderable::Sprites>();
+
+    if (entry)
+    {
+      entry->spritelist = overlay;
+    }
+  }
+///
 
 #ifdef DEBUG
   if (state.rendercontext.frame % 600 == 0)

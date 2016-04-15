@@ -49,8 +49,8 @@ class Texture
     {
       Empty,
       Loading,
-      Bliting,
       Waiting,
+      Testing,
       Ready,
     };
 

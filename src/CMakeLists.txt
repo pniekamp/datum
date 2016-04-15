@@ -36,6 +36,7 @@ set(SRCS ${SRCS} renderer/commandlist.h renderer/commandlist.cpp)
 set(SRCS ${SRCS} renderer/spritelist.h renderer/spritelist.cpp)
 set(SRCS ${SRCS} renderer/texture.h renderer/texture.cpp)
 set(SRCS ${SRCS} renderer/sprite.h renderer/sprite.cpp)
+set(SRCS ${SRCS} renderer/font.h renderer/font.cpp)
 set(SRCS ${SRCS} renderer/renderer.h renderer/renderer.cpp)
 set(SRCS ${SRCS} renderer/vulkan.h renderer/vulkan.cpp)
 

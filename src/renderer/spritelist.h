@@ -11,6 +11,7 @@
 #include "renderer.h"
 #include "commandlist.h"
 #include "sprite.h"
+#include "font.h"
 #include <utility>
 
 
@@ -65,6 +66,10 @@ class SpriteList
     void push_sprite(BuildState &state, lml::Vec2 const &position, float size, Sprite const *sprite, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
     void push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
     void push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+
+    void push_text(BuildState &state, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+
+    void push_scissor(BuildState &state, lml::Rect2 const &cliprect);
 
     void finalise(BuildState &state);
 

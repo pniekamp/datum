@@ -31,6 +31,9 @@ struct GameState
 
   float lastmousex, lastmousey, lastmousez;
 
+  Sprite const *loader;
+  Font const *debugfont;
+
   AssetManager assets;
 
   ResourceManager resources;

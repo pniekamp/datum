@@ -602,9 +602,9 @@ namespace Vulkan
 
 
   ///////////////////////// test ////////////////////////////////////////////
-  bool test(VulkanDevice const &vulkan, VkFence fence, uint64_t timeout)
+  bool test(VulkanDevice const &vulkan, VkFence fence)
   {
-    return (vkWaitForFences(vulkan.device, 1, &fence, VK_TRUE, timeout) != VK_TIMEOUT);
+    return (vkGetFenceStatus(vulkan.device, fence) == VK_SUCCESS);
   }
 
 

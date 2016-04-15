@@ -155,7 +155,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.descent = font.descent;
             asset.leading = font.leading;
             asset.glyphcount = font.glyphcount;
-            asset.datasize = 6*font.glyphcount*sizeof(uint16_t) + font.glyphcount*font.glyphcount*sizeof(uint8_t);
+            asset.datasize = sizeof(PackFontPayload) + 6*font.glyphcount*sizeof(uint16_t) + font.glyphcount*font.glyphcount*sizeof(uint8_t);
             asset.datapos = font.dataoffset;
 
             break;

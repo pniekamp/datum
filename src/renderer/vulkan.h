@@ -342,7 +342,7 @@ namespace Vulkan
   Fence create_fence(VulkanDevice const &vulkan, VkFenceCreateFlags flags = 0);
 
   void wait(VulkanDevice const &vulkan, VkFence fence);
-  bool test(VulkanDevice const &vulkan, VkFence fence, uint64_t timeout);
+  bool test(VulkanDevice const &vulkan, VkFence fence);
   void signal(VulkanDevice const &vulkan, VkFence fence);
 
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);

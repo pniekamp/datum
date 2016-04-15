@@ -183,29 +183,26 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 
       if (buffer->used + bytes <= buffer->size)
       {
-        if (buffer->used != 0)
-        {
-          buffer = new((uint8_t*)buffer + buffer->used) Buffer;
+        buffer = new((uint8_t*)buffer + buffer->used) Buffer;
 
-          buffer->size = (*into)->size - (*into)->used;
-          buffer->offset = (*into)->offset + (*into)->used;
+        buffer->size = (*into)->size - (*into)->used;
+        buffer->offset = (*into)->offset + (*into)->used;
 
-          buffer->used = bytes;
-          buffer->transferlump.fence = create_fence(vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
-          buffer->transferlump.commandpool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-          buffer->transferlump.commandbuffer = allocate_commandbuffer(vulkan, buffer->transferlump.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-          buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + kBufferAlignment, bytes);
-          buffer->transferlump.transfermemory = (uint8_t*)buffer + kBufferAlignment;
+        buffer->used = bytes;
+        buffer->transferlump.fence = create_fence(vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
+        buffer->transferlump.commandpool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+        buffer->transferlump.commandbuffer = allocate_commandbuffer(vulkan, buffer->transferlump.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + kBufferAlignment, size);
+        buffer->transferlump.transfermemory = (uint8_t*)buffer + kBufferAlignment;
 
-          buffer->next = (*into)->next;
+        buffer->next = (*into)->next;
 
-          (*into)->size = (*into)->used;
-          (*into)->next = buffer;
-        }
+        (*into)->size = (*into)->used;
+        (*into)->next = buffer;
 
         RESOURCE_ACQUIRE(resourcebufferused, bytes)
 
-        return &buffer->transferlump;;
+        return &buffer->transferlump;
       }
 
       into = &buffer->next;
@@ -216,7 +213,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
     {
       TransferBuffer transferbuffer = create_transferbuffer(vulkan, max(bytes + kBufferAlignment, m_minallocation));
 
-      buffer = new(map_memory<Buffer>(vulkan, transferbuffer, 0, transferbuffer.size)) Buffer;
+      buffer = new(map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size).release()) Buffer;
 
       buffer->size = transferbuffer.size;
       buffer->offset = 0;
@@ -265,6 +262,8 @@ void ResourceManager::release_lump(TransferLump const *lump)
 
     if (buffer->offset == 0 && buffer->size == buffer->transferlump.transferbuffer.size && m_buffersallocated > m_minallocation)
     {
+      m_buffersallocated -= buffer->size;
+
       buffer->~Buffer();
 
       RESOURCE_RELEASE(resourcebuffercapacity, buffer->size)
