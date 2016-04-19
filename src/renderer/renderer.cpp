@@ -114,8 +114,8 @@ namespace
   {
     if (context.fbowidth != width || context.fboheight != height)
     {
-//      int width = viewport.width;
-//      int height = min((int)(viewport.width / camera.aspect()), viewport.height);
+      if (width == 0 || height == 0)
+        return false;
 
       //
       // Color Buffer
@@ -235,6 +235,18 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     // Transfer Buffer
 
     context.transferbuffer = create_transferbuffer(context.device, kTransferBufferSize);
+  }
+
+  if (context.timingquerypool == 0)
+  {
+    // Timing QueryPool
+
+    VkQueryPoolCreateInfo querypoolinfo = {};
+    querypoolinfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+    querypoolinfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    querypoolinfo.queryCount = 16;
+
+    context.timingquerypool = create_querypool(context.device, querypoolinfo);
   }
 
   if (context.pipelinelayout == 0)
@@ -573,6 +585,10 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
+  reset_querypool(commandbuffer, context.timingquerypool, 0, 1);
+
+  querytimestamp(commandbuffer, context.timingquerypool, 0);
+
   update(commandbuffer, context.transferbuffer, 0, sizeof(scene), &scene);
 
   //
@@ -596,6 +612,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.renderpass);
 
+  querytimestamp(commandbuffer, context.timingquerypool, 1);
+
   //
   // Blit
   //
@@ -608,7 +626,24 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   end(context.device, commandbuffer);
 
+  //
+  // Submit
+  //
+
+  BEGIN_TIMED_BLOCK(Wait, Color3(0.1, 0.1, 0.1))
+
   wait(context.device, context.framefence);
+
+  END_TIMED_BLOCK(Wait)
+
+  // Timing Queries
+
+  uint64_t timings[16];
+  retreive_querypool(context.device, context.timingquerypool, 0, 2, timings);
+
+  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[0], timings[1])
+
+  GPU_SUBMIT();
 
   submit(context.device, commandbuffer, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
 

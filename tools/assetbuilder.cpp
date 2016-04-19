@@ -457,9 +457,9 @@ uint32_t write_material_asset(ostream &fout, uint32_t id, Color3 albedocolor, st
 }
 
 
-uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, int size)
+uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, int size, int weight)
 {
-  QFont font(fontname.c_str(), size);
+  QFont font(fontname.c_str(), size, weight);
 
   QFontMetrics tm(font);
 
@@ -491,7 +491,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
   for(int codepoint = 33; codepoint < count; ++codepoint)
   {
-    auto position = packer.insert(codepoint, tm.width(QChar(codepoint))+2, tm.height()+2);
+    auto position = packer.insert(codepoint, tm.width(QChar(codepoint))+12, tm.height()+2);
 
     assert(position);
 
@@ -500,7 +500,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
     widthtable[codepoint] = position->width;
     heighttable[codepoint] = position->height;
     offsetxtable[codepoint] = 1;
-    offsetytable[codepoint] = 1 + tm.descent();
+    offsetytable[codepoint] = 1 + tm.ascent();
   }
 
   for(int codepoint = 0; codepoint < count; ++codepoint)
@@ -592,7 +592,7 @@ void write_core()
 
   write_sprite_asset(fout, CoreAsset::test_image, "../../data/testimage.png");
 
-  write_font_asset(fout, CoreAsset::debug_font, "Comic Sans MS", 10);
+  write_font_asset(fout, CoreAsset::debug_font, "Comic Sans MS", 10, 50);
 
   write_chunk(fout, "HEND", 0, nullptr);
 

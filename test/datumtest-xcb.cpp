@@ -4,8 +4,6 @@
 
 #include "platform.h"
 #include "leap/pathstring.h"
-#include <windows.h>
-#include <windowsx.h>
 #include <vulkan/vulkan.h>
 #include <iostream>
 
@@ -260,7 +258,7 @@ void Game::terminate()
 
 struct Vulkan
 {
-  void init(HINSTANCE hinstance, HWND hwnd);
+  void init(xcb_connection_t *connection, xcb_window_t window);
 
   void resize();
 
@@ -300,7 +298,7 @@ struct Vulkan
 
 
 //|//////////////////// Vulkan::init ////////////////////////////////////////
-void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
+void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
 {
   //
   // Instance, Device & Queue
@@ -315,10 +313,10 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 #if VALIDATION
   const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
 //  const char *validationlayers[] = { "VK_LAYER_GOOGLE_threading", "VK_LAYER_LUNARG_mem_tracker", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_draw_state", "VK_LAYER_LUNARG_param_checker", "VK_LAYER_LUNARG_swapchain", "VK_LAYER_LUNARG_device_limits", "VK_LAYER_LUNARG_image", "VK_LAYER_GOOGLE_unique_objects" };
-  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
+  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
 #else
   const char *validationlayers[] = { };
-  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+  const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_XCB_SURFACE_EXTENSION_NAME };
 #endif
 
   VkInstanceCreateInfo instanceinfo = {};
@@ -432,12 +430,12 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   // Surface
   //
 
-  VkWin32SurfaceCreateInfoKHR surfaceinfo = {};
-  surfaceinfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-  surfaceinfo.hinstance = hinstance;
-  surfaceinfo.hwnd = hwnd;
+  VkXcbSurfaceCreateInfoKHR surfaceinfo = {};
+  surfaceinfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+  surfaceinfo.connection = connection;
+  surfaceinfo.window = window;
 
-  if (vkCreateWin32SurfaceKHR(instance, &surfaceinfo, nullptr, &surface) != VK_SUCCESS)
+  if (vkCreateXcbSurfaceKHR(instance, &surfaceinfo, nullptr, &surface) != VK_SUCCESS)
     throw runtime_error("Vulkan vkCreateWin32SurfaceKHR failed");
 
   VkBool32 surfacesupport = VK_FALSE;
@@ -703,14 +701,16 @@ void Vulkan::present()
 
 struct Window
 {
-  void init(HINSTANCE hinstance, Game *gameptr);
+  void init(Game *gameptr);
 
-  void keypress(UINT msg, WPARAM wParam, LPARAM lParam);
-  void keyrelease(UINT msg, WPARAM wParam, LPARAM lParam);
+  void handle_event(xcb_generic_event_t const *event);
 
-  void mousepress(UINT msg, WPARAM wParam, LPARAM lParam);
-  void mouserelease(UINT msg, WPARAM wParam, LPARAM lParam);
-  void mousemove(UINT msg, WPARAM wParam, LPARAM lParam);
+  void keypress(xcb_key_press_event_t const *event);
+  void keyrelease(xcb_key_release_event_t const *event);
+
+  void mousepress(xcb_button_press_event_t const *event);
+  void mouserelease(xcb_button_release_event_t const *event);
+  void mousemove(xcb_motion_notify_event_t const *event);
 
   void show();
 
@@ -719,378 +719,250 @@ struct Window
 
   Game *game;
 
-  HWND hwnd;
+  xcb_connection_t *connection;
+  xcb_screen_t *screen;
+  xcb_window_t window;
+
+  xcb_intern_atom_reply_t *wm_protocols;
+  xcb_intern_atom_reply_t *wm_delete_window;
+
+  xcb_cursor_t normalcursor;
+  xcb_cursor_t blankcursor;
 
   bool mousepressed;
   int mousex, mousey;
   int deltamousex, deltamousey;
 
+  uint8_t keysym[255];
+
 } window;
 
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+//|//////////////////// Window::init ////////////////////////////////////////
+void Window::init(Game *gameptr)
 {
-  switch (uMsg)
+  game = gameptr;
+
+//  mousepressed = false;
+
+  int scn;
+  connection = xcb_connect(nullptr, &scn);
+  if (!connection)
+    throw runtime_error("Error creating xcb connection");
+
+  auto setup = xcb_get_setup(connection);
+
+  auto iter = xcb_setup_roots_iterator(setup);
+  while (scn-- > 0)
+    xcb_screen_next(&iter);
+
+  screen = iter.data;
+
+  window = xcb_generate_id(connection);
+
+  auto value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+
+  uint32_t value_list[32] = {};
+  value_list[0] = screen->black_pixel;
+  value_list[1] = XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+
+  xcb_create_window(connection, XCB_COPY_FROM_PARENT, window, screen->root, 0, 0, width, height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual, value_mask, value_list);
+
+  auto utf8_string = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, 1, 11, "UTF8_STRING"), 0);
+  auto _net_wm_name = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, 1, 12, "_NET_WM_NAME"), 0);
+
+  xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, _net_wm_name->atom, utf8_string->atom, 8, 9, "DatumTest");
+
+  wm_protocols = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, 1, 12, "WM_PROTOCOLS"), 0);
+
+  wm_delete_window = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, 0, 16, "WM_DELETE_WINDOW"), 0);
+
+  xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, wm_protocols->atom, 4, 32, 1, &wm_delete_window->atom);
+
+  free(wm_protocols);
+
+  normalcursor = XCB_CURSOR_NONE;
+
+  blankcursor = xcb_generate_id(connection);
+
+  auto pixmap = xcb_generate_id(connection);
+
+  xcb_create_pixmap(connection, 1, pixmap, screen->root, 1, 1);
+
+  xcb_create_cursor(connection, blankcursor, pixmap, pixmap, 0, 0, 0, 0, 0, 0, 0, 0);
+
+  xcb_map_window(connection, window);
+
+  if (!window)
+    throw runtime_error("Error creating window");
+
+  keysym[9] = KB_KEY_ESCAPE;
+  keysym[23] = KB_KEY_TAB;
+  keysym[36] = KB_KEY_ENTER;
+  keysym[65] = KB_KEY_SPACE;
+  keysym[64] = KB_KEY_LEFT_ALT;  keysym[108] = KB_KEY_RIGHT_ALT;
+  keysym[50] = KB_KEY_LEFT_SHIFT;  keysym[62] = KB_KEY_RIGHT_SHIFT;
+  keysym[37] = KB_KEY_LEFT_CONTROL;  keysym[105] = KB_KEY_RIGHT_CONTROL;
+  keysym[67] = KB_KEY_F1;  keysym[68] = KB_KEY_F2;  keysym[69] = KB_KEY_F3;  keysym[70] = KB_KEY_F4;  keysym[71] = KB_KEY_F5;  keysym[72] = KB_KEY_F6;  keysym[73] = KB_KEY_F7;  keysym[74] = KB_KEY_F8;  keysym[75] = KB_KEY_F9;  keysym[76] = KB_KEY_F10;
+  keysym[10] = '1';  keysym[11] = '2';  keysym[12] = '3';  keysym[13] = '4';  keysym[14] = '5';  keysym[15] = '6';  keysym[16] = '7';  keysym[17] = '8';  keysym[18] = '9';  keysym[19] = '0';  keysym[20] = '-';  keysym[21] = '=';  keysym[22] = KB_KEY_BACKSPACE;
+  keysym[24] = 'Q';  keysym[25] = 'W';  keysym[26] = 'E';  keysym[27] = 'R';  keysym[28] = 'T';  keysym[29] = 'Y';  keysym[30] = 'U';  keysym[31] = 'I';  keysym[32] = 'O';  keysym[33] = 'P';  keysym[34] = '[';  keysym[35] = ']';  keysym[36] = '\\';
+  keysym[38] = 'A';  keysym[39] = 'S';  keysym[40] = 'D';  keysym[41] = 'F';  keysym[42] = 'G';  keysym[43] = 'H';  keysym[44] = 'J';  keysym[45] = 'K';  keysym[46] = 'L';  keysym[47] = ':';  keysym[48] = '\'';
+  keysym[52] = 'Z';  keysym[53] = 'X';  keysym[54] = 'C';  keysym[55] = 'V';  keysym[56] = 'B';  keysym[57] = 'N';  keysym[58] = 'M';  keysym[59] = ',';  keysym[60] = '.';  keysym[61] = '/';
+  keysym[90] = KB_KEY_NUMPAD0;  keysym[87] = KB_KEY_NUMPAD1;  keysym[88] = KB_KEY_NUMPAD2;  keysym[89] = KB_KEY_NUMPAD3;  keysym[83] = KB_KEY_NUMPAD4;  keysym[84] = KB_KEY_NUMPAD5;  keysym[85] = KB_KEY_NUMPAD6;  keysym[79] = KB_KEY_NUMPAD7;  keysym[80] = KB_KEY_NUMPAD8;  keysym[81] = KB_KEY_NUMPAD9;
+
+  xcb_flush(connection);
+}
+
+
+//|//////////////////// Window::handle_event ////////////////////////////////
+void Window::handle_event(xcb_generic_event_t const *event)
+{
+  switch (event->response_type & 0x7f)
   {
-    case WM_CLOSE:
-      window.game->terminate();
+    case XCB_CLIENT_MESSAGE:
+      if (reinterpret_cast<xcb_client_message_event_t const *>(event)->data.data32[0] == wm_delete_window->atom)
+        game->terminate();
       break;
 
-    case WM_PAINT:
-      vulkan.acquire();
-      window.game->render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
-      vulkan.present();
-      break;
-
-    case WM_SIZE:
-      window.width = (lParam & 0xffff);
-      window.height = (lParam & 0xffff0000) >> 16;
+    case XCB_CONFIGURE_NOTIFY:
+      width = reinterpret_cast<xcb_configure_notify_event_t const *>(event)->width;
+      height = reinterpret_cast<xcb_configure_notify_event_t const *>(event)->height;
       vulkan.resize();
       break;
 
-    case WM_KEYDOWN:
-    case WM_SYSKEYDOWN:
-      window.keypress(uMsg, wParam, lParam);
-      return 0;
-
-    case WM_KEYUP:
-    case WM_SYSKEYUP:
-      window.keyrelease(uMsg, wParam, lParam);
-      return 0;
-
-    case WM_LBUTTONDOWN:
-    case WM_RBUTTONDOWN:
-    case WM_MBUTTONDOWN:
-    case WM_XBUTTONDOWN:
-      window.mousepress(uMsg, wParam, lParam);
+    case XCB_KEY_PRESS:
+      keypress(reinterpret_cast<xcb_key_press_event_t const *>(event));
       break;
 
-    case WM_LBUTTONUP:
-    case WM_RBUTTONUP:
-    case WM_MBUTTONUP:
-    case WM_XBUTTONUP:
-      window.mouserelease(uMsg, wParam, lParam);
+    case XCB_KEY_RELEASE:
+      keyrelease(reinterpret_cast<xcb_key_release_event_t const *>(event));
       break;
 
-    case WM_MOUSEMOVE:
-      window.mousemove(uMsg, wParam, lParam);
+    case XCB_BUTTON_PRESS:
+      mousepress(reinterpret_cast<xcb_button_press_event_t const *>(event));
       break;
 
-    case WM_KILLFOCUS:
-      window.mousepressed = false;
-      window.game->inputbuffer().release_all();
+    case XCB_BUTTON_RELEASE:
+      mouserelease(reinterpret_cast<xcb_button_release_event_t const *>(event));
+      break;
+
+    case XCB_MOTION_NOTIFY:
+      mousemove(reinterpret_cast<xcb_motion_notify_event_t const *>(event));
       break;
 
     default:
       break;
   }
-
-  return DefWindowProc(hWnd, uMsg, wParam, lParam);
-}
-
-
-//|//////////////////// Window::init ////////////////////////////////////////
-void Window::init(HINSTANCE hinstance, Game *gameptr)
-{
-  game = gameptr;
-
-  mousepressed = false;
-
-  WNDCLASSEX winclass;
-  winclass.cbSize = sizeof(WNDCLASSEX);
-  winclass.style = CS_HREDRAW | CS_VREDRAW;
-  winclass.lpfnWndProc = WndProc;
-  winclass.cbClsExtra = 0;
-  winclass.cbWndExtra = 0;
-  winclass.hInstance = hinstance;
-  winclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-  winclass.hCursor = LoadCursor(NULL, IDC_ARROW);
-  winclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-  winclass.lpszMenuName = nullptr;
-  winclass.lpszClassName = "DatumTest";
-  winclass.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
-
-  if (!RegisterClassEx(&winclass))
-    throw runtime_error("Error registering window class");
-
-  DWORD dwstyle = WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-  DWORD dwexstyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
-
-  RECT rect = { 0, 0, width, height };
-  AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, dwexstyle);
-
-  hwnd = CreateWindowEx(dwexstyle, "DatumTest", "Datum Test", dwstyle, CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hinstance, NULL);
-
-  if (!hwnd)
-    throw runtime_error("Error creating window");
 }
 
 
 //|//////////////////// Window::keypress ////////////////////////////////////
-void Window::keypress(UINT msg, WPARAM wParam, LPARAM lParam)
+void Window::keypress(xcb_key_press_event_t const *event)
 {
-  int key = wParam;
-
-  if (lParam & (1 << 30))
-    return;
-
-  switch(key)
-  {
-    case VK_SHIFT:
-      game->inputbuffer().register_keypress((MapVirtualKey((lParam & 0x00ff0000) >> 16, MAPVK_VSC_TO_VK_EX) == VK_RSHIFT) ? KB_KEY_RIGHT_SHIFT : KB_KEY_LEFT_SHIFT);
-      break;
-
-    case VK_CONTROL:
-      game->inputbuffer().register_keypress((lParam & 0x01000000) ? KB_KEY_RIGHT_CONTROL : KB_KEY_LEFT_CONTROL);
-      break;
-
-    case VK_MENU:
-      game->inputbuffer().register_keypress((lParam & 0x01000000) ? KB_KEY_RIGHT_ALT : KB_KEY_LEFT_ALT);
-      break;
-
-    case VK_RETURN:
-      game->inputbuffer().register_keypress(KB_KEY_ENTER);
-      break;
-
-    case VK_BACK:
-      game->inputbuffer().register_keypress(KB_KEY_BACKSPACE);
-      break;
-
-    case VK_TAB:
-      game->inputbuffer().register_keypress(KB_KEY_TAB);
-      break;
-
-    case VK_F1:
-      game->inputbuffer().register_keypress(KB_KEY_F1);
-      break;
-
-    case VK_F2:
-      game->inputbuffer().register_keypress(KB_KEY_F2);
-      break;
-
-    case VK_F3:
-      game->inputbuffer().register_keypress(KB_KEY_F3);
-      break;
-
-    case VK_F4:
-      game->inputbuffer().register_keypress(KB_KEY_F4);
-      break;
-
-    case VK_F5:
-      game->inputbuffer().register_keypress(KB_KEY_F5);
-      break;
-
-    case VK_F6:
-      game->inputbuffer().register_keypress(KB_KEY_F6);
-      break;
-
-    case VK_F7:
-      game->inputbuffer().register_keypress(KB_KEY_F7);
-      break;
-
-    case VK_F8:
-      game->inputbuffer().register_keypress(KB_KEY_F8);
-      break;
-
-    case VK_F9:
-      game->inputbuffer().register_keypress(KB_KEY_F9);
-      break;
-
-    case VK_F10:
-      game->inputbuffer().register_keypress(KB_KEY_F10);
-      break;
-  }
-
-  if (key >= ' ' && key <= ']')
-  {
-    game->inputbuffer().register_keypress(key);
-  }
+  game->inputbuffer().register_keypress(keysym[event->detail]);
 }
 
 
 //|//////////////////// Window::keyrelease //////////////////////////////////
-void Window::keyrelease(UINT msg, WPARAM wParam, LPARAM lParam)
+void Window::keyrelease(xcb_key_release_event_t const *event)
 {
-  int key = wParam;
-
-  switch(key)
-  {
-    case VK_SHIFT:
-      game->inputbuffer().register_keyrelease(KB_KEY_SHIFT);
-      break;
-
-    case VK_CONTROL:
-      game->inputbuffer().register_keyrelease(KB_KEY_CONTROL);
-      break;
-
-    case VK_MENU:
-      game->inputbuffer().register_keyrelease(KB_KEY_ALT);
-      break;
-
-    case VK_RETURN:
-      game->inputbuffer().register_keyrelease(KB_KEY_ENTER);
-      break;
-
-    case VK_BACK:
-      game->inputbuffer().register_keyrelease(KB_KEY_BACKSPACE);
-      break;
-
-    case VK_TAB:
-      game->inputbuffer().register_keyrelease(KB_KEY_TAB);
-      break;
-
-    case VK_F1:
-      game->inputbuffer().register_keyrelease(KB_KEY_F1);
-      break;
-
-    case VK_F2:
-      game->inputbuffer().register_keyrelease(KB_KEY_F2);
-      break;
-
-    case VK_F3:
-      game->inputbuffer().register_keyrelease(KB_KEY_F3);
-      break;
-
-    case VK_F4:
-      game->inputbuffer().register_keyrelease(KB_KEY_F4);
-      break;
-
-    case VK_F5:
-      game->inputbuffer().register_keyrelease(KB_KEY_F5);
-      break;
-
-    case VK_F6:
-      game->inputbuffer().register_keyrelease(KB_KEY_F6);
-      break;
-
-    case VK_F7:
-      game->inputbuffer().register_keyrelease(KB_KEY_F7);
-      break;
-
-    case VK_F8:
-      game->inputbuffer().register_keyrelease(KB_KEY_F8);
-      break;
-
-    case VK_F9:
-      game->inputbuffer().register_keyrelease(KB_KEY_F9);
-      break;
-
-    case VK_F10:
-      game->inputbuffer().register_keyrelease(KB_KEY_F10);
-      break;
-  }
-
-  if (key >= ' ' && key <= ']')
-  {
-    game->inputbuffer().register_keyrelease(key);
-  }
+  game->inputbuffer().register_keyrelease(keysym[event->detail]);
 }
 
 
 //|//////////////////// Window::mousepress //////////////////////////////////
-void Window::mousepress(UINT msg, WPARAM wParam, LPARAM lParam)
+void Window::mousepress(xcb_button_press_event_t const *event)
 {
-  switch(msg)
+  switch(event->detail)
   {
-    case WM_LBUTTONDOWN:
+    case 1:
       game->inputbuffer().register_mousepress(GameInput::MouseLeft);
       break;
 
-    case WM_RBUTTONDOWN:
+    case 2:
       game->inputbuffer().register_mousepress(GameInput::MouseRight);
       break;
 
-    case WM_MBUTTONDOWN:
+    case 3:
       game->inputbuffer().register_mousepress(GameInput::MouseMiddle);
       break;
   }
 
-  mousex = GET_X_LPARAM(lParam);
-  mousey = GET_Y_LPARAM(lParam);
+  mousex = event->event_x;
+  mousey = event->event_y;
 
   game->inputbuffer().register_mousemove(mousex, mousey);
 
-  SetCursor(NULL);
+  xcb_change_window_attributes(connection, window, XCB_CW_CURSOR, &blankcursor);
 
-  POINT pos = { width/2, height/2 };
+  xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, width/2, height/2);
 
-  ClientToScreen(hwnd, &pos);
-
-  SetCursorPos(pos.x, pos.y);
-
-  SetCapture(hwnd);
+  xcb_flush(connection);
 
   mousepressed = true;
 }
 
 
 //|//////////////////// Window::mouserelease ////////////////////////////////
-void Window::mouserelease(UINT msg, WPARAM wParam, LPARAM lParam)
+void Window::mouserelease(xcb_button_release_event_t const *event)
 {
-  switch(msg)
+  switch(event->detail)
   {
-    case WM_LBUTTONDOWN:
+    case 1:
       game->inputbuffer().register_mouserelease(GameInput::MouseLeft);
       break;
 
-    case WM_RBUTTONDOWN:
+    case 2:
       game->inputbuffer().register_mouserelease(GameInput::MouseRight);
       break;
 
-    case WM_MBUTTONDOWN:
+    case 3:
       game->inputbuffer().register_mouserelease(GameInput::MouseMiddle);
       break;
   }
 
   game->inputbuffer().register_mousemove(mousex, mousey);
 
-  POINT pos = { mousex, mousey };
+  xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, mousex, mousey);
 
-  ClientToScreen(hwnd, &pos);
+  xcb_change_window_attributes(connection, window, XCB_CW_CURSOR, &normalcursor);
 
-  SetCursorPos(pos.x, pos.y);
-
-  SetCursor(LoadCursor(NULL, IDC_ARROW));
-
-  ReleaseCapture();
+  xcb_flush(connection);
 
   mousepressed = false;
 }
 
 
 //|//////////////////// Window::mousemove ///////////////////////////////////
-void Window::mousemove(UINT msg, WPARAM wParam, LPARAM lParam)
+void Window::mousemove(xcb_motion_notify_event_t const *event)
 {
   if (mousepressed)
   {
-    deltamousex += GET_X_LPARAM(lParam) - width/2;
-    deltamousey += GET_Y_LPARAM(lParam) - height/2;
+    deltamousex += event->event_x - width/2;
+    deltamousey += event->event_y - height/2;
 
-    if (GET_X_LPARAM(lParam) != width/2 || GET_Y_LPARAM(lParam) != height/2)
+    if (event->event_x != width/2 || event->event_y != height/2)
     {
-      POINT pos = { width/2, height/2 };
-
-      ClientToScreen(hwnd, &pos);
-
-      SetCursorPos(pos.x, pos.y);
+      xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, width/2, height/2);
+      xcb_flush(connection);
     }
   }
   else
   {
     deltamousex = 0;
     deltamousey = 0;
-    mousex = GET_X_LPARAM(lParam);
-    mousey = GET_Y_LPARAM(lParam);
+    mousex = event->event_x;
+    mousey = event->event_y;
   }
 
   game->inputbuffer().register_mousemove(mousex + deltamousex, mousey + deltamousey);
 }
 
 
+
 //|//////////////////// Window::show ////////////////////////////////////////
 void Window::show()
 {
-  ShowWindow(hwnd, SW_SHOW);
 }
 
 
@@ -1106,9 +978,9 @@ int main(int argc, char *args[])
   {
     Game game;
 
-    window.init(GetModuleHandle(NULL), &game);
+    window.init(&game);
 
-    vulkan.init(GetModuleHandle(NULL), window.hwnd);
+    vulkan.init(window.connection, window.window);
 
     window.show();
 
@@ -1135,16 +1007,17 @@ int main(int argc, char *args[])
 
     while (game.running())
     {
-      MSG msg;
-
-      if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+      if (xcb_generic_event_t *event = xcb_poll_for_event(window.connection))
       {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        window.handle_event(event);
+
+        free(event);
       }
       else
       {
-        RedrawWindow(window.hwnd, NULL, NULL, RDW_INTERNALPAINT);
+        vulkan.acquire();
+        game.render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
+        vulkan.present();
       }
     }
 

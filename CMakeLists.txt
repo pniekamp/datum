@@ -54,13 +54,15 @@ endif(WIN32)
 if(UNIX)
   find_path(VULKAN_INCLUDE vulkan/vulkan.h)
   find_library(VULKAN_LIBRARIES NAMES libvulkan.so)
-  find_package(XCB REQUIRED)
+  find_path(XCB_INCLUDE_DIRS xcb/xcb.h PATH_SUFFIXES xcb)
+  find_library(XCB_LIBRARIES xcb)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_XCB_KHR")
 endif(UNIX)
 
 add_library(vulkan STATIC IMPORTED)
 set_property(TARGET vulkan PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VULKAN_INCLUDE})
 set_property(TARGET vulkan PROPERTY IMPORTED_LOCATION ${VULKAN_LIBRARIES})
+
 
 message(STATUS ${VULKAN_INCLUDE})
 message(STATUS ${VULKAN_LIBRARIES})

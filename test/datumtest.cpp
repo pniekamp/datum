@@ -130,17 +130,9 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   auto &camera = state.readframe->camera;
 
-  PushBuffer pushbuffer(platform.renderscratchmemory, 8*1024*1024);
+  RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
-  if (state.readframe->sprites)
-  {
-    auto entry = pushbuffer.push<Renderable::Sprites>();
-
-    if (entry)
-    {
-      entry->spritelist = state.readframe->sprites;
-    }
-  }
+  renderlist.push_sprites(state.readframe->sprites);
 
 ///
   SpriteList overlay;
@@ -150,20 +142,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   {
     overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
 
-    overlay.push_text(buildstate, Vec2(10, 400), state.debugfont->height(), state.debugfont, "Test Hello World WylT");
-
     overlay.finalise(buildstate);
   }
 
-  if (overlay)
-  {
-    auto entry = pushbuffer.push<Renderable::Sprites>();
-
-    if (entry)
-    {
-      entry->spritelist = overlay;
-    }
-  }
+  renderlist.push_sprites(overlay);
 ///
 
 #ifdef DEBUG
@@ -183,7 +165,9 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.sunintensity = Color3(renderparams.skyboxblend, renderparams.skyboxblend, renderparams.skyboxblend);
   renderparams.skyboxorientation = Quaternion3f(Vector3(0.0f, 1.0f, 0.0f), 0.1*state.time);
 
-  render(state.rendercontext, viewport, camera, pushbuffer, renderparams);
+  render_debug_overlay(platform, state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);
+
+  render(state.rendercontext, viewport, camera, renderlist, renderparams);
 
   state.resources.release(state.readframe->resourcetoken);
 

@@ -8,6 +8,7 @@
 
 #include "debug.h"
 #include "math/vec.h"
+#include "renderer/spritelist.h"
 #include "leap/util.h"
 #include <algorithm>
 #include <sys/time.h>
@@ -30,9 +31,13 @@ namespace
 
   bool g_running = false;
 
+  bool g_displayfps = true;
+  bool g_displayblocktiming = true;
+  bool g_displaygputiming = true;
+  bool g_displayfpsgraph = true;
+
   Vec2 g_mousepos;
 
-/*
   // Frame Timing
 
   unsigned long long g_frametime;
@@ -42,7 +47,7 @@ namespace
 
   // Block Timing
 
-  const size_t Frames = 3;
+  const size_t Frames = 4;
   const size_t MaxThreads = 16;
   const size_t MaxBlocks = 512;
 
@@ -119,6 +124,7 @@ namespace
 
     sort(begin(threads), end(threads), std::greater<>());
 
+
     //
     // Frame Timing
     //
@@ -127,6 +133,7 @@ namespace
 
     g_fpshistory[g_fpshistorytail++ % extentof(g_fpshistory)] = g_frametime / clock_frequency();
 
+
     //
     // Block Timing
     //
@@ -134,7 +141,7 @@ namespace
     memset(g_threads, 0, sizeof(g_threads));
 
     g_blockbeg = g_debuglog[(lastframes[Frames] + tail) % extentof(g_debuglog)].timestamp;
-    g_blockend = g_debuglog[(lastframes[0] + tail) % extentof(g_debuglog)].timestamp;
+    g_blockend = g_debuglog[(lastframes[1] + tail) % extentof(g_debuglog)].timestamp;
 
     size_t opencount[MaxThreads] = {};
     size_t openblocks[MaxThreads][48];
@@ -178,6 +185,7 @@ namespace
       }
     }
 
+
     //
     // Gpu Timing
     //
@@ -190,7 +198,7 @@ namespace
     {
       auto entry = g_debuglog[(i + tail) % extentof(g_debuglog)];
 
-      if (entry.type == DebugLogEntry::FrameMarker)
+      if (entry.type == DebugLogEntry::GpuSubmit)
       {
         basetime = entry.timestamp;
       }
@@ -213,31 +221,37 @@ namespace
 
 
   ///////////////////////// push_debug_overlay //////////////////////////////
-  void push_debug_overlay(RenderList &renderlist, Viewport const &viewport, Font const *font, bool fps, bool blocktiming, bool gputiming, bool fpsgraph, bool gpumemory)
+  void push_debug_overlay(DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font)
   {
     BEGIN_TIMED_BLOCK(DebugOverlay, Color3(1.0, 0.0, 0.0))
 
-    Vec3 origin(-0.5f*viewport.width + 5.0f, 0.5f*viewport.height - 5.0f, 0.0f);
+    SpriteList overlay;
+    SpriteList::BuildState buildstate;
+
+    if (!overlay.begin(buildstate, platform, context, resources))
+      return;
+
+    auto cursor = Vec2(5.0f, 5.0f);
 
     //
     // Frame Timing
     //
 
-    if (fps)
+    if (g_displayfps)
     {
       char buffer[128];
       snprintf(buffer, sizeof(buffer), "%f (%.0f fps)", g_frametime / clock_frequency(), clock_frequency() / g_frametime + 0.5);
 
-      renderlist.push_text(origin + Vec3(0.0f, -font->ascent, 0.0f), font->height(), font, buffer);
+      overlay.push_text(buildstate, cursor + Vec2(0, font->ascent), font->height(), font, buffer);
 
-      origin += Vec3(0.0f, -21.0f, 0.0f);
+      cursor += Vec2(0.0f, font->lineheight());
     }
 
     //
     // Block Timing
     //
 
-    if (blocktiming)
+    if (g_displayblocktiming)
     {
       const float BarDepth = 4.0f;
       const float BarHeight = 6.0f;
@@ -245,14 +259,14 @@ namespace
       const float TimingsWidth = viewport.width - 20.0f;
       const float TimingsHeight = 100.0f;
 
-      Vec3 labelorigin = origin + Vec3(5.0f, -2.0f, 0.0f);
-      Vec3 timingsorigin = origin + Vec3(LabelWidth, -5.0f, 0.0f);
+      Vec2 labelorigin = cursor + Vec2(5.0f, 5.0f);
+      Vec2 timingsorigin = cursor + Vec2(LabelWidth, 5.0f);
 
-      renderlist.push_rect(origin, Rect2({0.0f, -TimingsHeight}, {viewport.width - 10.0f, 0.0f}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
+      overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, TimingsHeight}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
 
       float scale = (TimingsWidth - LabelWidth)/(g_blockend - g_blockbeg);
 
-      Vec3 tippos;
+      Vec2 tippos;
       Thread::Block const *tipblk = nullptr;
 
       for(size_t i = 0; i < extentof(g_threads); ++i)
@@ -265,6 +279,9 @@ namespace
           {
             auto &block = g_threads[i].blocks[k];
 
+            if (block.beg == 0 || block.end == 0)
+              continue;
+
             auto beg = block.beg - g_blockbeg;
             auto end = block.end - g_blockbeg;
 
@@ -273,13 +290,13 @@ namespace
               totaltime += end - beg;
             }
 
-            Rect2 bar({ beg * scale, -BarHeight*block.level - 8.0f }, { end * scale, -BarHeight*block.level });
+            Rect2 barrect({ beg * scale, BarHeight*block.level }, { end * scale, BarHeight*block.level + 8.0f });
 
-            renderlist.push_rect(timingsorigin, bar, block.info->color);
+            overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
 
-            if (contains(Rect2(timingsorigin.xy + bar.min, timingsorigin.xy + bar.max), g_mousepos))
+            if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), g_mousepos))
             {
-              tippos = Vec3(timingsorigin.x + bar.min.x, timingsorigin.y + bar.max.y, 0.0f);
+              tippos = Vec2(floor(timingsorigin.x + barrect.min.x), floor(timingsorigin.y + barrect.min.y));
               tipblk = &block;
             }
           }
@@ -287,10 +304,10 @@ namespace
           char buffer[128];
           snprintf(buffer, sizeof(buffer), "%s (%f)", g_threads[i].blocks[0].info->name, totaltime / Frames / clock_frequency());
 
-          renderlist.push_text(labelorigin + Vec3(0.0f, -font->ascent, 0.0f), font->height(), font, buffer);
+          overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
 
-          labelorigin.y -= BarDepth * BarHeight;
-          timingsorigin.y -= BarDepth * BarHeight;
+          labelorigin.y += BarDepth * BarHeight;
+          timingsorigin.y += BarDepth * BarHeight;
         }
       }
 
@@ -299,14 +316,14 @@ namespace
         char buffer[128];
         snprintf(buffer, sizeof(buffer), "%s (%f)", tipblk->info->name, (tipblk->end - tipblk->beg) / clock_frequency());
 
-        renderlist.push_text(tippos, font->height(), font, buffer);
+        overlay.push_text(buildstate, tippos, font->height(), font, buffer);
       }
 
       //
       // Gpu Timing
       //
 
-      if (gputiming)
+      if (g_displaygputiming)
       {
         Gpu::Block const *tipblk = nullptr;
 
@@ -318,18 +335,21 @@ namespace
           {
             auto &block = g_gpu.blocks[k];
 
+            if (block.beg == 0 || block.end == 0)
+              continue;
+
             auto beg = block.beg - g_blockbeg;
             auto end = block.end - g_blockbeg;
 
             totaltime += end - beg;
 
-            Rect2 bar({ beg * scale, -8.0f }, { end * scale, 0.0 });
+            Rect2 barrect({ beg * scale, 0.0f }, { end * scale, 8.0 });
 
-            renderlist.push_rect(timingsorigin, bar, block.info->color);
+            overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
 
-            if (contains(Rect2(timingsorigin.xy + bar.min, timingsorigin.xy + bar.max), g_mousepos))
+            if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), g_mousepos))
             {
-              tippos = Vec3(timingsorigin.x + bar.min.x, timingsorigin.y + bar.max.y, 0.0f);
+              tippos = timingsorigin + barrect.min;
               tipblk = &block;
             }
           }
@@ -337,10 +357,10 @@ namespace
           char buffer[128];
           snprintf(buffer, sizeof(buffer), "GPU (%f)", totaltime / Frames / clock_frequency());
 
-          renderlist.push_text(labelorigin + Vec3(0.0f, -font->ascent, 0.0f), font->height(), font, buffer);
+          overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
 
-          labelorigin.y -= BarDepth * BarHeight;
-          timingsorigin.y -= BarDepth * BarHeight;
+          labelorigin.y += BarDepth * BarHeight;
+          timingsorigin.y += BarDepth * BarHeight;
         }
 
         if (tipblk)
@@ -348,23 +368,23 @@ namespace
           char buffer[128];
           snprintf(buffer, sizeof(buffer), "%s (%f)", tipblk->info->name, (tipblk->end - tipblk->beg) / clock_frequency());
 
-          renderlist.push_text(tippos, font->height(), font, buffer);
+          overlay.push_text(buildstate, tippos, font->height(), font, buffer);
         }
       }
 
-      origin += Vec3(0.0f, -TimingsHeight - 4.0f, 0.0f);
+      cursor += Vec2(0.0f, TimingsHeight + 4.0f);
     }
 
     //
     // FPS Graph
     //
 
-    if (fpsgraph)
+    if (g_displayfpsgraph)
     {
       const float GraphHeight = 80.0f;
       const float FpsScale = GraphHeight / (1.0f/15.0f);
 
-      renderlist.push_rect(origin, Rect2({0.0f, -GraphHeight}, {viewport.width - 10.0f, 0.0f}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
+      overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, GraphHeight}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
 
       size_t base = max(g_fpshistorytail, (size_t)viewport.width) - viewport.width - 11;
 
@@ -373,41 +393,24 @@ namespace
         auto a = g_fpshistory[(base + i - 1) % extentof(g_fpshistory)] * FpsScale;
         auto b = g_fpshistory[(base + i) % extentof(g_fpshistory)] * FpsScale;
 
-        renderlist.push_line(origin + Vec3(i, -GraphHeight+a, 0.0f), origin + Vec3(i+1, -GraphHeight+b, 0.0f), Color4(0.5, 0.8, 0.5, 1.0));
+        overlay.push_line(buildstate, cursor + Vec2(i, GraphHeight-a), cursor + Vec2(i+1, GraphHeight-b), Color4(0.5, 0.8, 0.5, 1.0));
       }
 
-      origin += Vec3(0.0f, -GraphHeight - 4.0f, 0.0f);
+      cursor += Vec2(0.0f, GraphHeight + 4.0f);
     }
 
-    //
-    // Memory
-    //
+    overlay.finalise(buildstate);
 
-    if (gpumemory)
+    auto entry = pushbuffer.push<Renderable::Sprites>();
+
+    if (entry)
     {
-      if (GLEW_NVX_gpu_memory_info)
-      {
-        int dedicated = 0;
-        glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, &dedicated);
-
-        int total = 0;
-        glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, &total);
-
-        int available = 0;
-        glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &available);
-
-        char buffer[512];
-        snprintf(buffer, sizeof(buffer), "Dedicated: %0.2fGb, total %0.2fGb, avail: %0.2fGb\n", float(dedicated) / (1024.0f * 1024.0f), float(total) / (1024.0f * 1024.0f), float(available) / (1024.0f * 1024.0f));
-
-        renderlist.push_text(origin + Vec3(0.0f, -font->ascent, 0.0f), font->height(), font, buffer);
-
-        origin += Vec3(0.0f, -21.0f, 0.0f);
-      }
+      entry->spritelist = overlay;
     }
 
     END_TIMED_BLOCK(DebugOverlay)
   }
-*/
+
 }
 
 
@@ -459,12 +462,25 @@ void update_debug_overlay(GameInput const &input)
       g_visible = g_running = true;
   }
 
+  if (g_visible)
+  {
+    if (input.keys[KB_KEY_F2].pressed())
+    {
+      g_displayfpsgraph = !g_displayfpsgraph;
+    }
+
+    if (input.keys[KB_KEY_F3].pressed())
+    {
+      g_displayblocktiming = g_displaygputiming = !g_displayblocktiming;
+    }
+  }
+
   g_mousepos = Vec2(input.mousex, input.mousey);
 }
 
-/*
+
 ///////////////////////// render_debug_overlay //////////////////////////////
-void render_debug_overlay(RenderList &renderlist, Viewport const &viewport, Font const *font)
+void render_debug_overlay(DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font)
 {
   if (g_running)
   {
@@ -473,9 +489,9 @@ void render_debug_overlay(RenderList &renderlist, Viewport const &viewport, Font
 
   if (g_visible)
   {
-    push_debug_overlay(renderlist, viewport, font, true, true, true, true, true);
+    push_debug_overlay(platform, context, resources, pushbuffer, viewport, font);
   }
 }
-*/
+
 #endif
 

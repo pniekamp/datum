@@ -100,7 +100,7 @@ namespace DatumPlatform
 
 
   ///////////////////////// InputBuffer::register_keydown ///////////////////
-  void InputBuffer::register_keydown(int key)
+  void InputBuffer::register_keypress(int key)
   {
     lock_guard<mutex> lock(m_mutex);
 
@@ -109,11 +109,22 @@ namespace DatumPlatform
 
 
   ///////////////////////// InputBuffer::register_keyup /////////////////////
-  void InputBuffer::register_keyup(int key)
+  void InputBuffer::register_keyrelease(int key)
   {
     lock_guard<mutex> lock(m_mutex);
 
     m_events.push_back({ EventType::KeyUp, key });
+  }
+
+
+  ///////////////////////// InputBuffer::release_all ////////////////////////
+  void InputBuffer::release_all()
+  {
+    lock_guard<mutex> lock(m_mutex);
+
+    m_input = {};
+
+    m_events.clear();
   }
 
 

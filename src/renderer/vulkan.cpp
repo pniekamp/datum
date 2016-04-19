@@ -566,6 +566,42 @@ namespace Vulkan
   }
 
 
+  ///////////////////////// create_querypool ////////////////////////////////
+  QueryPool create_querypool(VulkanDevice const &vulkan, VkQueryPoolCreateInfo const &createinfo)
+  {
+    VkQueryPool querypool;
+    if (vkCreateQueryPool(vulkan.device, &createinfo, nullptr, &querypool) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateQueryPool failed");
+
+    if (createinfo.queryType == VK_QUERY_TYPE_TIMESTAMP)
+    {
+      CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+
+      CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+      begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+      for(size_t i = 0; i < createinfo.queryCount; ++i)
+        querytimestamp(setupbuffer, querypool, i);
+
+      end(vulkan, setupbuffer);
+
+      submit(vulkan, setupbuffer);
+
+      vkQueueWaitIdle(vulkan.queue);
+    }
+
+    return { querypool, { vulkan.device } };
+  }
+
+
+  ///////////////////////// retreive_querypool //////////////////////////////
+  void retreive_querypool(VulkanDevice const &vulkan, VkQueryPool querypool, uint32_t first, uint32_t count, uint64_t *results)
+  {
+    vkGetQueryPoolResults(vulkan.device, querypool, first, count, count*sizeof(uint64_t), results, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+  }
+
+
   ///////////////////////// map_memory //////////////////////////////////////
   Memory map_memory(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size)
   {
@@ -966,6 +1002,34 @@ namespace Vulkan
     submit(vulkan, setupbuffer);
 
     vkQueueWaitIdle(vulkan.queue);
+  }
+
+
+  ///////////////////////// reset_querypool /////////////////////////////////
+  void reset_querypool(VkCommandBuffer commandbuffer, VkQueryPool querypool, uint32_t first, uint32_t count)
+  {
+    vkCmdResetQueryPool(commandbuffer, querypool, first, count);
+  }
+
+
+  ///////////////////////// querytimestamp //////////////////////////////////
+  void querytimestamp(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query)
+  {
+    vkCmdWriteTimestamp(commandbuffer, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, pool, query);
+  }
+
+
+  ///////////////////////// beginquery //////////////////////////////////////
+  void beginquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query, VkQueryControlFlags flags)
+  {
+    vkCmdBeginQuery(commandbuffer, pool, query, flags);
+  }
+
+
+  ///////////////////////// endquery ////////////////////////////////////////
+  void endquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query)
+  {
+    vkCmdEndQuery(commandbuffer, pool, query);
   }
 
 

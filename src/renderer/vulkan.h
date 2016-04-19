@@ -91,7 +91,7 @@ namespace Vulkan
   {
     VkDevice device;
 
-    void operator()(VkCommandPool pool) { vkDestroyCommandPool(device, pool, nullptr); }
+    void operator()(VkCommandPool commandpool) { vkDestroyCommandPool(device, commandpool, nullptr); }
   };
 
   using CommandPool = VulkanResource<VkCommandPool, CommandPoolDeleter>;
@@ -105,6 +105,15 @@ namespace Vulkan
   };
 
   using CommandBuffer = VulkanResource<VkCommandBuffer, CommandBufferDeleter>;
+
+  struct QueryPoolDeleter
+  {
+    VkDevice device;
+
+    void operator()(VkQueryPool querypool) { vkDestroyQueryPool(device, querypool, nullptr); }
+  };
+
+  using QueryPool = VulkanResource<VkQueryPool, QueryPoolDeleter>;
 
   struct DescriptorSetLayoutDeleter
   {
@@ -334,6 +343,10 @@ namespace Vulkan
   void update_texture(VkCommandBuffer commandbuffer, TransferBuffer const &imagebuffer, Texture &texture);
   void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture, void const *bits);
 
+  QueryPool create_querypool(VulkanDevice const &vulkan, VkQueryPoolCreateInfo const &createinfo);
+
+  void retreive_querypool(VulkanDevice const &vulkan, VkQueryPool querypool, uint32_t first, uint32_t count, uint64_t *results);
+
   Memory map_memory(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size);
 
   template<typename View>
@@ -380,6 +393,13 @@ namespace Vulkan
 
   void setimagelayout(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
   void setimagelayout(VulkanDevice const &vulkan, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
+
+  void reset_querypool(VkCommandBuffer commandbuffer, VkQueryPool querypool, uint32_t first, uint32_t count);
+
+  void querytimestamp(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query);
+
+  void beginquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query, VkQueryControlFlags flags);
+  void endquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query);
 
   void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, lml::Color4 const &clearcolor);
   void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);

@@ -150,6 +150,8 @@ struct RenderContext
 
   Vulkan::DescriptorPool descriptorpool;
 
+  Vulkan::QueryPool timingquerypool;
+
   Vulkan::DescriptorSetLayout scenesetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;

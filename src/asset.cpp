@@ -355,19 +355,19 @@ void const *AssetManager::request(DatumPlatform::PlatformInterface &platform, As
 
   leap::threadlib::SyncLock lock(m_mutex);
 
-  auto assetex = static_cast<AssetEx*>(const_cast<Asset*>(asset));
+  auto &assetex = m_assets[static_cast<AssetEx const *>(asset) - m_assets.data()];
 
-  auto &slot = assetex->slot;
+  auto &slot = assetex.slot;
 
   if (!slot)
   {
-    slot = acquire_slot(assetex->datasize);
+    slot = acquire_slot(assetex.datasize);
 
     if (slot)
     {
       slot->state = Slot::State::Loading;
 
-      slot->asset = assetex;
+      slot->asset = &assetex;
 
       platform.submit_work(background_loader, this, slot);
     }

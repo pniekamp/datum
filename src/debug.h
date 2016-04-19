@@ -18,7 +18,6 @@
 
 #ifdef DEBUG
 #include <atomic>
-#include <intrin.h>
 #include <thread>
 #include "math/color.h"
 
@@ -59,6 +58,7 @@ struct DebugLogEntry
     FrameMarker,
     EnterBlock,
     ExitBlock,
+    GpuSubmit,
     GpuBlock,
   };
 
@@ -100,6 +100,26 @@ double clock_frequency();
     g_debuglog[entry].type = DebugLogEntry::ExitBlock;                                \
     g_debuglog[entry].thread = std::this_thread::get_id();                            \
     g_debuglog[entry].timestamp = __rdtsc();                                          \
+  }
+
+
+#define GPU_SUBMIT() \
+  {                                                                                   \
+    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].info = nullptr;                                                 \
+    g_debuglog[entry].type = DebugLogEntry::GpuSubmit;                                \
+    g_debuglog[entry].thread = std::this_thread::get_id();                            \
+    g_debuglog[entry].timestamp = __rdtsc();                                          \
+  }
+
+#define GPU_TIMED_BLOCK(name, color, start, finish) \
+  {                                                                                   \
+    static const DebugInfoBlock blockinfo = { #name, __FILE__, __LINE__, color};      \
+    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].info = &blockinfo;                                              \
+    g_debuglog[entry].type = DebugLogEntry::GpuBlock;                                 \
+    g_debuglog[entry].thread = std::this_thread::get_id();                            \
+    g_debuglog[entry].timestamp = finish - start;                                     \
   }
 
 #define BEGIN_STAT_BLOCK(name) \
@@ -164,7 +184,7 @@ extern DebugStatistics g_debugstatistics;
 //
 
 void update_debug_overlay(class DatumPlatform::GameInput const &input);
-//void render_debug_overlay(class RenderList &renderlist, class DatumPlatform::Viewport const &viewport, class Font const *font);
+void render_debug_overlay(DatumPlatform::PlatformInterface &platform, class RenderContext &context, class ResourceManager *resources, class PushBuffer &pushbuffer, class DatumPlatform::Viewport const &viewport, class Font const *font);
 
 #endif
 
@@ -172,6 +192,8 @@ void update_debug_overlay(class DatumPlatform::GameInput const &input);
 #define BEGIN_FRAME(...)
 #define BEGIN_TIMED_BLOCK(...)
 #define END_TIMED_BLOCK(...)
+#define GPU_SUBMIT(...)
+#define GPU_TIMED_BLOCK(...)
 #define BEGIN_STAT_BLOCK(...)
 #define END_STAT_BLOCK(...)
 #define RESOURCE_SET(...)
@@ -180,5 +202,5 @@ void update_debug_overlay(class DatumPlatform::GameInput const &input);
 #define STATISTIC_HIT(...)
 #define LOG_ONCE(...)
 #define update_debug_overlay(...)
-#define push_debug_overlay(...)
+#define render_debug_overlay(...)
 #endif

@@ -104,9 +104,12 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
     state.materialoffset = 0;
     state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaterialSet));
 
-    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, texture);
+    if (state.materialset)
+    {
+      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, texture);
 
-    state.texture = texture;
+      state.texture = texture;
+    }
   }
 
   if (state.materialoffset + sizeof(MaterialSet) <= state.materialset.capacity())
@@ -224,19 +227,15 @@ void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position,
 ///////////////////////// SpriteList::push_rect_outline /////////////////////
 void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, float rotation, lml::Color4 const &color, float thickness)
 {
-  auto a = position + rotate(Vec2(rect.min.x - 0.5*thickness, rect.min.y), rotation);
-  auto b = position + rotate(Vec2(rect.max.x + 0.5*thickness, rect.min.y), rotation);
-  auto c = position + rotate(Vec2(rect.max.x, rect.min.y + 0.5*thickness), rotation);
-  auto d = position + rotate(Vec2(rect.max.x, rect.max.y - 0.5*thickness), rotation);
-  auto e = position + rotate(Vec2(rect.max.x + 0.5*thickness, rect.max.y), rotation);
-  auto f = position + rotate(Vec2(rect.min.x - 0.5*thickness, rect.max.y), rotation);
-  auto g = position + rotate(Vec2(rect.min.x, rect.max.y - 0.5*thickness), rotation);
-  auto h = position + rotate(Vec2(rect.min.x, rect.min.y + 0.5*thickness), rotation);
+  auto a = position + rotate(Vec2(rect.min.x, rect.min.y), rotation);
+  auto b = position + rotate(Vec2(rect.max.x, rect.min.y), rotation);
+  auto c = position + rotate(Vec2(rect.max.x, rect.max.y), rotation);
+  auto d = position + rotate(Vec2(rect.min.x, rect.max.y), rotation);
 
   push_line(state, a, b, color, thickness);
+  push_line(state, b, c, color, thickness);
   push_line(state, c, d, color, thickness);
-  push_line(state, e, f, color, thickness);
-  push_line(state, g, h, color, thickness);
+  push_line(state, d, a, color, thickness);
 }
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
@@ -275,7 +274,7 @@ void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
 void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, lml::Color4 const &tint)
 {
-    push_sprite(state, position, size, rotation, sprite, 0, tint);
+  push_sprite(state, position, size, rotation, sprite, 0, tint);
 }
 
 

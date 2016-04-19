@@ -5,3 +5,4 @@
 #include "../../src/renderer/texture.h"
 #include "../../src/renderer/sprite.h"
 #include "../../src/renderer/font.h"
+#include "../../src/renderlist.h"

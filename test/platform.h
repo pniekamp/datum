@@ -59,8 +59,10 @@ namespace DatumPlatform
       void register_mousepress(GameInput::MouseButton button);
       void register_mouserelease(GameInput::MouseButton button);
 
-      void register_keydown(int key);
-      void register_keyup(int key);
+      void register_keypress(int key);
+      void register_keyrelease(int key);
+
+      void release_all();
 
     public:
 
