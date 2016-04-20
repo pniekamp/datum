@@ -624,6 +624,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   transition_present(commandbuffer, viewport.image);
 
+  querytimestamp(commandbuffer, context.timingquerypool, 2);
+
   end(context.device, commandbuffer);
 
   //
@@ -639,9 +641,10 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.device, context.timingquerypool, 0, 2, timings);
+  retreive_querypool(context.device, context.timingquerypool, 0, 3, timings);
 
   GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[0], timings[1])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[1], timings[2])
 
   GPU_SUBMIT();
 

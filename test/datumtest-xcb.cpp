@@ -285,7 +285,6 @@ struct Vulkan
   VkImage presentimages[3];
 
   VkRenderPass renderpass;
-  VkFramebuffer framebuffers[3];
 
   VkSemaphore rendercomplete;
   VkSemaphore acquirecomplete;
@@ -308,7 +307,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   appinfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appinfo.pApplicationName = "Datum Test";
   appinfo.pEngineName = "Datum";
-  appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 5);
+  appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 8);
 
 #if VALIDATION
   const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };

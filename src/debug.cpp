@@ -49,7 +49,7 @@ namespace
 
   const size_t Frames = 4;
   const size_t MaxThreads = 16;
-  const size_t MaxBlocks = 512;
+  const size_t MaxBlocks = 1024;
 
   unsigned long long g_blockbeg;
   unsigned long long g_blockend;
@@ -92,13 +92,14 @@ namespace
   {
     size_t tail = g_debuglogtail;
 
-    size_t lastframes[5] = {};
+    size_t lastframes[6] = {};
     for(size_t i = 0; i < extentof(g_debuglog); ++i)
     {
       auto &entry = g_debuglog[(i + tail) % extentof(g_debuglog)];
 
       if (entry.type == DebugLogEntry::FrameMarker)
       {
+        lastframes[5] = lastframes[4];
         lastframes[4] = lastframes[3];
         lastframes[3] = lastframes[2];
         lastframes[2] = lastframes[1];
@@ -141,12 +142,12 @@ namespace
     memset(g_threads, 0, sizeof(g_threads));
 
     g_blockbeg = g_debuglog[(lastframes[Frames] + tail) % extentof(g_debuglog)].timestamp;
-    g_blockend = g_debuglog[(lastframes[1] + tail) % extentof(g_debuglog)].timestamp;
+    g_blockend = g_debuglog[(lastframes[0] + tail) % extentof(g_debuglog)].timestamp;
 
     size_t opencount[MaxThreads] = {};
     size_t openblocks[MaxThreads][48];
 
-    for(size_t i = lastframes[Frames]; i < lastframes[0]; ++i)
+    for(size_t i = lastframes[Frames+1]; i < lastframes[0]; ++i)
     {
       auto entry = g_debuglog[(i + tail) % extentof(g_debuglog)];
 
@@ -194,7 +195,7 @@ namespace
 
     unsigned long long basetime = 0;
 
-    for(size_t i = lastframes[Frames]; i < lastframes[0]; ++i)
+    for(size_t i = lastframes[Frames+1]; i < lastframes[0]; ++i)
     {
       auto entry = g_debuglog[(i + tail) % extentof(g_debuglog)];
 
@@ -259,8 +260,8 @@ namespace
       const float TimingsWidth = viewport.width - 20.0f;
       const float TimingsHeight = 100.0f;
 
-      Vec2 labelorigin = cursor + Vec2(5.0f, 5.0f);
-      Vec2 timingsorigin = cursor + Vec2(LabelWidth, 5.0f);
+      Vec2 labelorigin = cursor + Vec2(5.0f, 2.0f);
+      Vec2 timingsorigin = cursor + Vec2(LabelWidth, 6.0f);
 
       overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, TimingsHeight}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
 
@@ -271,6 +272,8 @@ namespace
 
       for(size_t i = 0; i < extentof(g_threads); ++i)
       {
+        int totalcount = 0;
+
         if (g_threads[i].count != 0)
         {
           unsigned long long totaltime = 0;
@@ -279,15 +282,16 @@ namespace
           {
             auto &block = g_threads[i].blocks[k];
 
-            if (block.beg == 0 || block.end == 0)
+            if (block.end < g_blockbeg || block.beg > g_blockend)
               continue;
 
-            auto beg = block.beg - g_blockbeg;
-            auto end = block.end - g_blockbeg;
+            auto beg = max(block.beg, g_blockbeg) - g_blockbeg;
+            auto end = min(block.end, g_blockend) - g_blockbeg;
 
             if (block.level == 0)
             {
-              totaltime += end - beg;
+              totaltime += block.end - block.beg;
+              totalcount += 1;
             }
 
             Rect2 barrect({ beg * scale, BarHeight*block.level }, { end * scale, BarHeight*block.level + 8.0f });
@@ -302,7 +306,7 @@ namespace
           }
 
           char buffer[128];
-          snprintf(buffer, sizeof(buffer), "%s (%f)", g_threads[i].blocks[0].info->name, totaltime / Frames / clock_frequency());
+          snprintf(buffer, sizeof(buffer), "%s (%f)", g_threads[i].blocks[0].info->name, totaltime / max(totalcount, 1) / clock_frequency());
 
           overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
 
@@ -335,13 +339,13 @@ namespace
           {
             auto &block = g_gpu.blocks[k];
 
-            if (block.beg == 0 || block.end == 0)
+            if (block.end < g_blockbeg || block.beg > g_blockend)
               continue;
 
-            auto beg = block.beg - g_blockbeg;
-            auto end = block.end - g_blockbeg;
+            auto beg = max(block.beg, g_blockbeg) - g_blockbeg;
+            auto end = min(block.end, g_blockend) - g_blockbeg;
 
-            totaltime += end - beg;
+            totaltime += block.end - block.beg;
 
             Rect2 barrect({ beg * scale, 0.0f }, { end * scale, 8.0 });
 

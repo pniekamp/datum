@@ -78,21 +78,15 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   if (state.writeframe->sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
-    state.writeframe->sprites.push_rect(buildstate, Vec2(10, 10), Rect2({0,0}, {100, 100}), Color4(1, 0, 0, 1));
-    state.writeframe->sprites.push_rect(buildstate, Vec2(120, 10), Rect2({0,0}, {33, 33}), Color4(1, 0, 1, 1));
-    state.writeframe->sprites.push_rect(buildstate, Vec2(160, 10), Rect2({0,0}, {33, 33}), Color4(1, 1, 0, 1));
-    state.writeframe->sprites.push_rect(buildstate, Vec2(5, 15), Rect2({0,0}, {200, 40}), Color4(0, 1, 1, 0.4));
+    float count = 15.0f;
+    float radius = 150.0f;
 
-    state.writeframe->sprites.push_line(buildstate, Vec2(5, 5), Vec2(200, 150), Color4(1, 1, 1, 1));
-    state.writeframe->sprites.push_line(buildstate, Vec2(5, 5), Vec2(200, 200), Color4(1, 1, 1, 1));
-    state.writeframe->sprites.push_line(buildstate, Vec2(5, 200), Vec2(200, 5), Color4(1, 1, 1, 0.5), 20);
+    for(float angle = 0.0f; angle < 2*pi<float>(); angle += pi<float>()/count)
+    {
+      Vec2 position = Vec2(960/2, 540/2) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
 
-    state.writeframe->sprites.push_rect_outline(buildstate, Vec2(300, 300), Rect2({0,0}, {300, 200}), Color4(1, 1, 1, 0.5), 20);
-    state.writeframe->sprites.push_rect_outline(buildstate, Vec2(300, 300), Rect2({0,0}, {300, 200}), -1.2f, Color4(1, 1, 1, 0.5), 20);
-
-    state.writeframe->sprites.push_sprite(buildstate, Vec2(600, 200), 281.0f, state.time, state.testsprite);
-
-    state.writeframe->sprites.push_rect(buildstate, Vec2(600, 200), Rect2({ -5, -5 }, { 5, 5 }), Color4(1, 0, 1, 1));
+      state.writeframe->sprites.push_rect(buildstate, position, Rect2({0, -5}, {25, 5}), angle + state.time, Color4(1, 0, 0, 1));
+    }
 
     state.writeframe->sprites.finalise(buildstate);
   }

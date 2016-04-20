@@ -796,7 +796,7 @@ namespace Vulkan
   ///////////////////////// submit //////////////////////////////////////////
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence)
   {
-    VkPipelineStageFlags waitdststagemask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    VkPipelineStageFlags waitdststagemask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
