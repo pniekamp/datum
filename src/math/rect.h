@@ -9,7 +9,7 @@
 #pragma once
 
 #include "vec.h"
-#include "leap/lml/bound.h"
+#include <leap/lml/bound.h>
 
 namespace lml
 {
@@ -27,6 +27,9 @@ namespace lml
 
       Vec2 centre() const { return (min + max)/2; }
       Vec2 halfdim() const { return (max - min)/2; }
+
+      float width() const { return (max.x - min.x); }
+      float height() const { return (max.y - min.y); }
 
       Vec2 min;
       Vec2 max;
@@ -51,6 +54,10 @@ namespace lml
 
       Vec3 centre() const { return (min + max)/2; }
       Vec3 halfdim() const { return (max - min)/2; }
+
+      float width() const { return (max.x - min.x); }
+      float height() const { return (max.y - min.y); }
+      float depth() const { return (max.z - min.z); }
 
       Vec3 min;
       Vec3 max;

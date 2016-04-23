@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "datum/platform.h"
+#include "datum.h"
 #include "datum/memory.h"
-#include "leap/threadcontrol.h"
+#include <leap/threadcontrol.h>
 #include <vector>
 
 

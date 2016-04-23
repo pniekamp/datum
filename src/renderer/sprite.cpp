@@ -74,7 +74,7 @@ Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, lml::Rect2 e
   sprite->layers = atlas->layers;
   sprite->aspect = (float)sprite->width / (float)sprite->height;
   sprite->align = align;
-  sprite->extent = Vec4(extent.min.x, extent.min.y, extent.max.x - extent.min.x, extent.max.y - extent.min.y);;
+  sprite->extent = Vec4(extent.min.x, extent.min.y, extent.max.x - extent.min.x, extent.max.y - extent.min.y);
 
   sprite->atlas = atlas;
 

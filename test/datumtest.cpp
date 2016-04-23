@@ -14,7 +14,8 @@ using namespace DatumPlatform;
 ///////////////////////// GameState::Constructor ////////////////////////////
 GameState::GameState(StackAllocator<> const &allocator)
   : assets(allocator),
-    resources(&assets, allocator)
+    resources(&assets, allocator),
+    scene(allocator)
 {
   readframe = &renderframes[0];
   writeframe = &renderframes[1];
@@ -36,6 +37,10 @@ void datumtest_init(PlatformInterface &platform)
   initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024);
 
   initialise_resource_pool(platform, state.rendercontext.resourcepool, 16*1024*1024);
+
+  state.scene.initialise_component_storage<NameComponent>();
+  state.scene.initialise_component_storage<TransformComponent>();
+  state.scene.initialise_component_storage<SpriteComponent>();
 
   state.assets.load(platform, "core.pack");
 
@@ -79,13 +84,13 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   if (state.writeframe->sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
     float count = 15.0f;
-    float radius = 150.0f;
+    float radius = 0.2f;
 
     for(float angle = 0.0f; angle < 2*pi<float>(); angle += pi<float>()/count)
     {
-      Vec2 position = Vec2(960/2, 540/2) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
+      Vec2 position = Vec2(0.5, 0.5) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
 
-      state.writeframe->sprites.push_rect(buildstate, position, Rect2({0, -5}, {25, 5}), angle + state.time, Color4(1, 0, 0, 1));
+      state.writeframe->sprites.push_rect(buildstate, position, Rect2({0, -0.008}, {0.05, 0.008}), angle + state.time, Color4(1, 0, 0, 1));
     }
 
     state.writeframe->sprites.finalise(buildstate);
@@ -126,7 +131,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
-  renderlist.push_sprites(state.readframe->sprites);
+  renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
 ///
   SpriteList overlay;
@@ -136,10 +141,13 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   {
     overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
 
+//    for(int i = 0; i < 50000; ++i)
+      overlay.push_rect(buildstate, Vec2(10, 200), Rect2({0,0}, {50,50}), Color4(1, 1, 1, 1));
+
     overlay.finalise(buildstate);
   }
 
-  renderlist.push_sprites(overlay);
+  renderlist.push_sprites(viewport, overlay);
 ///
 
 #ifdef DEBUG
@@ -149,6 +157,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     cout << "Buffers: " << g_debugstatistics.resourcebufferused << " / " << g_debugstatistics.resourcebuffercapacity << "  ";
     cout << "Storage: " << g_debugstatistics.renderstorageused << " / " << g_debugstatistics.renderstoragecapacity << "  ";
     cout << "Lumps: " << g_debugstatistics.renderlumpsused << " / " << g_debugstatistics.renderlumpscapacity << "  ";
+    cout << "Entities: " << g_debugstatistics.entityslotsused << " / " << g_debugstatistics.entityslotscapacity << "  ";
     cout << endl;
   }
 #endif

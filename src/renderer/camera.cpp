@@ -7,7 +7,7 @@
 //
 
 #include "camera.h"
-#include "leap/lml/matrixconstants.h"
+#include <leap/lml/matrixconstants.h>
 #include "debug.h"
 
 using namespace std;
@@ -106,7 +106,7 @@ void Camera::lookat(Vec3 const &target, Vec3 const &up)
 
 
 ///////////////////////// Camera::offset ////////////////////////////////////
-void Camera::offset(lml::Vec3 const &translation)
+void Camera::offset(Vec3 const &translation)
 {
   m_transform = m_transform * Transform::translation(translation);
 }

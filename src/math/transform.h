@@ -9,7 +9,7 @@
 #pragma once
 
 #include "vec.h"
-#include "leap/lml/quaternion.h"
+#include <leap/lml/quaternion.h>
 
 namespace lml
 {

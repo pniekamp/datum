@@ -3,7 +3,7 @@
 //
 
 #include "platform.h"
-#include "leap/pathstring.h"
+#include <leap/pathstring.h>
 #include <windows.h>
 #include <windowsx.h>
 #include <vulkan/vulkan.h>
@@ -724,6 +724,8 @@ struct Window
   int mousex, mousey;
   int deltamousex, deltamousey;
 
+  uint8_t keysym[256];
+
 } window;
 
 
@@ -822,13 +824,28 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
 
   if (!hwnd)
     throw runtime_error("Error creating window");
+
+  keysym[VK_ESCAPE] = KB_KEY_ESCAPE;
+  keysym[VK_TAB] = KB_KEY_TAB;
+  keysym[VK_RETURN] = KB_KEY_ENTER;
+  keysym[VK_SPACE] = KB_KEY_SPACE;
+  keysym[VK_MENU] = KB_KEY_ALT;
+  keysym[VK_SHIFT] = KB_KEY_SHIFT;
+  keysym[VK_CONTROL] = KB_KEY_CONTROL;
+  keysym[VK_LEFT] = KB_KEY_LEFT; keysym[VK_DOWN] = KB_KEY_DOWN; keysym[VK_RIGHT] = KB_KEY_RIGHT; keysym[VK_UP] = KB_KEY_UP;
+  keysym[VK_F1] = KB_KEY_F1;  keysym[VK_F2] = KB_KEY_F2;  keysym[VK_F3] = KB_KEY_F3;  keysym[VK_F4] = KB_KEY_F4;  keysym[VK_F5] = KB_KEY_F5;  keysym[VK_F6] = KB_KEY_F6;  keysym[VK_F7] = KB_KEY_F7;  keysym[VK_F8] = KB_KEY_F8;  keysym[VK_F9] = KB_KEY_F9;  keysym[VK_F10] = KB_KEY_F10;
+  keysym['1'] = '1';  keysym['2'] = '2';  keysym['3'] = '3';  keysym['4'] = '4';  keysym['5'] = '5';  keysym['6'] = '6';  keysym['7'] = '7';  keysym['8'] = '8';  keysym['9'] = '9';  keysym['0'] = '0';  keysym['-'] = '-';  keysym['='] = '=';  keysym[VK_BACK] = KB_KEY_BACKSPACE;
+  keysym['Q'] = 'Q';  keysym['W'] = 'W';  keysym['E'] = 'E';  keysym['R'] = 'R';  keysym['T'] = 'T';  keysym['Y'] = 'Y';  keysym['U'] = 'U';  keysym['I'] = 'I';  keysym['O'] = 'O';  keysym['P'] = 'P';  keysym['['] = '[';  keysym[']'] = ']';  keysym['\\'] = '\\';
+  keysym['A'] = 'A';  keysym['S'] = 'S';  keysym['D'] = 'D';  keysym['F'] = 'F';  keysym['G'] = 'G';  keysym['H'] = 'H';  keysym['J'] = 'J';  keysym['K'] = 'K';  keysym['L'] = 'L';  keysym[':'] = ':';  keysym['\''] = '\'';
+  keysym['Z'] = 'Z';  keysym['X'] = 'X';  keysym['C'] = 'C';  keysym['V'] = 'V';  keysym['B'] = 'B';  keysym['N'] = 'N';  keysym['M'] = 'M';  keysym[','] = ',';  keysym['.'] = '.';  keysym['/'] = '/';
+  keysym[VK_NUMPAD0] = KB_KEY_NUMPAD0;  keysym[VK_NUMPAD1] = KB_KEY_NUMPAD1;  keysym[VK_NUMPAD2] = KB_KEY_NUMPAD2;  keysym[VK_NUMPAD3] = KB_KEY_NUMPAD3;  keysym[VK_NUMPAD4] = KB_KEY_NUMPAD4;  keysym[VK_NUMPAD5] = KB_KEY_NUMPAD5;  keysym[VK_NUMPAD6] = KB_KEY_NUMPAD6;  keysym[VK_NUMPAD7] = KB_KEY_NUMPAD7;  keysym[VK_NUMPAD8] = KB_KEY_NUMPAD8;  keysym[VK_NUMPAD9] = KB_KEY_NUMPAD9;
 }
 
 
 //|//////////////////// Window::keypress ////////////////////////////////////
 void Window::keypress(UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  int key = wParam;
+  uint8_t key = wParam;
 
   if (lParam & (1 << 30))
     return;
@@ -847,62 +864,9 @@ void Window::keypress(UINT msg, WPARAM wParam, LPARAM lParam)
       game->inputbuffer().register_keypress((lParam & 0x01000000) ? KB_KEY_RIGHT_ALT : KB_KEY_LEFT_ALT);
       break;
 
-    case VK_RETURN:
-      game->inputbuffer().register_keypress(KB_KEY_ENTER);
+    default:
+      game->inputbuffer().register_keypress(keysym[key]);
       break;
-
-    case VK_BACK:
-      game->inputbuffer().register_keypress(KB_KEY_BACKSPACE);
-      break;
-
-    case VK_TAB:
-      game->inputbuffer().register_keypress(KB_KEY_TAB);
-      break;
-
-    case VK_F1:
-      game->inputbuffer().register_keypress(KB_KEY_F1);
-      break;
-
-    case VK_F2:
-      game->inputbuffer().register_keypress(KB_KEY_F2);
-      break;
-
-    case VK_F3:
-      game->inputbuffer().register_keypress(KB_KEY_F3);
-      break;
-
-    case VK_F4:
-      game->inputbuffer().register_keypress(KB_KEY_F4);
-      break;
-
-    case VK_F5:
-      game->inputbuffer().register_keypress(KB_KEY_F5);
-      break;
-
-    case VK_F6:
-      game->inputbuffer().register_keypress(KB_KEY_F6);
-      break;
-
-    case VK_F7:
-      game->inputbuffer().register_keypress(KB_KEY_F7);
-      break;
-
-    case VK_F8:
-      game->inputbuffer().register_keypress(KB_KEY_F8);
-      break;
-
-    case VK_F9:
-      game->inputbuffer().register_keypress(KB_KEY_F9);
-      break;
-
-    case VK_F10:
-      game->inputbuffer().register_keypress(KB_KEY_F10);
-      break;
-  }
-
-  if (key >= ' ' && key <= ']')
-  {
-    game->inputbuffer().register_keypress(key);
   }
 }
 
@@ -910,79 +874,9 @@ void Window::keypress(UINT msg, WPARAM wParam, LPARAM lParam)
 //|//////////////////// Window::keyrelease //////////////////////////////////
 void Window::keyrelease(UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  int key = wParam;
+  uint8_t key = wParam;
 
-  switch(key)
-  {
-    case VK_SHIFT:
-      game->inputbuffer().register_keyrelease(KB_KEY_SHIFT);
-      break;
-
-    case VK_CONTROL:
-      game->inputbuffer().register_keyrelease(KB_KEY_CONTROL);
-      break;
-
-    case VK_MENU:
-      game->inputbuffer().register_keyrelease(KB_KEY_ALT);
-      break;
-
-    case VK_RETURN:
-      game->inputbuffer().register_keyrelease(KB_KEY_ENTER);
-      break;
-
-    case VK_BACK:
-      game->inputbuffer().register_keyrelease(KB_KEY_BACKSPACE);
-      break;
-
-    case VK_TAB:
-      game->inputbuffer().register_keyrelease(KB_KEY_TAB);
-      break;
-
-    case VK_F1:
-      game->inputbuffer().register_keyrelease(KB_KEY_F1);
-      break;
-
-    case VK_F2:
-      game->inputbuffer().register_keyrelease(KB_KEY_F2);
-      break;
-
-    case VK_F3:
-      game->inputbuffer().register_keyrelease(KB_KEY_F3);
-      break;
-
-    case VK_F4:
-      game->inputbuffer().register_keyrelease(KB_KEY_F4);
-      break;
-
-    case VK_F5:
-      game->inputbuffer().register_keyrelease(KB_KEY_F5);
-      break;
-
-    case VK_F6:
-      game->inputbuffer().register_keyrelease(KB_KEY_F6);
-      break;
-
-    case VK_F7:
-      game->inputbuffer().register_keyrelease(KB_KEY_F7);
-      break;
-
-    case VK_F8:
-      game->inputbuffer().register_keyrelease(KB_KEY_F8);
-      break;
-
-    case VK_F9:
-      game->inputbuffer().register_keyrelease(KB_KEY_F9);
-      break;
-
-    case VK_F10:
-      game->inputbuffer().register_keyrelease(KB_KEY_F10);
-      break;
-  }
-
-  if (key >= ' ' && key <= ']')
-  {
-    game->inputbuffer().register_keyrelease(key);
-  }
+  game->inputbuffer().register_keyrelease(keysym[key]);
 }
 
 

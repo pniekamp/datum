@@ -8,7 +8,7 @@
 
 #include "resourcepool.h"
 #include "renderer.h"
-#include "leap/util.h"
+#include <leap.h>
 #include "debug.h"
 
 using namespace std;
@@ -38,9 +38,9 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
 
   VkDeviceSize slotsize = alignto(storagesize / kStorageBufferSlots - alignment + 1, alignment);
 
-  assert(slotsize > alignment);
+  assert(slotsize >= alignment);
   assert(alignment >= alignof(max_align_t));
-  assert(storagesize < vulkan.physicaldeviceproperties.limits.maxStorageBufferRange);
+  assert(slotsize <= vulkan.physicaldeviceproperties.limits.maxStorageBufferRange);
 
   m_storagehead = 0;
 
@@ -179,7 +179,7 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
         buffer.used = 0;
       }
 
-      if (buffer.used + required < buffer.size)
+      if (buffer.used + required < buffer.size && lump.storagepool.count < extentof(lump.storagepool.buffers))
       {
         lump.storagepool.buffers[lump.storagepool.count++] = &buffer;
 

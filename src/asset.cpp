@@ -8,7 +8,7 @@
 
 #include "asset.h"
 #include "assetpack.h"
-#include "leap/lz4.h"
+#include <leap/lz4.h>
 #include "debug.h"
 #include <algorithm>
 

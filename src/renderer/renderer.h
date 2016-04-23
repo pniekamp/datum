@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "datum/platform.h"
+#include "datum.h"
 #include "datum/math.h"
 #include "datum/asset.h"
 #include "camera.h"
@@ -30,6 +30,7 @@ namespace Renderable
   using Vec2 = lml::Vec2;
   using Vec3 = lml::Vec3;
   using Vec4 = lml::Vec4;
+  using Rect2 = lml::Rect2;
   using Color3 = lml::Color3;
   using Color4 = lml::Color4;
   using Attenuation = lml::Attenuation;
@@ -38,6 +39,8 @@ namespace Renderable
   struct Sprites
   {
     static const Type type = Type::Sprites;
+
+    Rect2 viewport;
 
     CommandList const *spritelist;
   };
@@ -183,8 +186,9 @@ struct RenderContext
   bool initialised;
 
   size_t frame;
-  lml::Vec3 camerapos;
-  lml::Quaternion3f camerarot;
+
+  std::atomic<size_t> offset;
+  Vulkan::MemoryView<uint8_t> transfermemory;
 
   lml::Matrix4f prevview;
 };

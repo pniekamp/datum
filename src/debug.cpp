@@ -9,7 +9,7 @@
 #include "debug.h"
 #include "math/vec.h"
 #include "renderer/spritelist.h"
-#include "leap/util.h"
+#include <leap.h>
 #include <algorithm>
 #include <sys/time.h>
 
@@ -92,13 +92,15 @@ namespace
   {
     size_t tail = g_debuglogtail;
 
-    size_t lastframes[6] = {};
+    size_t lastframes[8] = {};
     for(size_t i = 0; i < extentof(g_debuglog); ++i)
     {
       auto &entry = g_debuglog[(i + tail) % extentof(g_debuglog)];
 
       if (entry.type == DebugLogEntry::FrameMarker)
       {
+        lastframes[7] = lastframes[6];
+        lastframes[6] = lastframes[5];
         lastframes[5] = lastframes[4];
         lastframes[4] = lastframes[3];
         lastframes[3] = lastframes[2];
@@ -141,13 +143,13 @@ namespace
 
     memset(g_threads, 0, sizeof(g_threads));
 
-    g_blockbeg = g_debuglog[(lastframes[Frames] + tail) % extentof(g_debuglog)].timestamp;
-    g_blockend = g_debuglog[(lastframes[0] + tail) % extentof(g_debuglog)].timestamp;
+    g_blockbeg = g_debuglog[(lastframes[Frames+1] + tail) % extentof(g_debuglog)].timestamp;
+    g_blockend = g_debuglog[(lastframes[1] + tail) % extentof(g_debuglog)].timestamp;
 
     size_t opencount[MaxThreads] = {};
     size_t openblocks[MaxThreads][48];
 
-    for(size_t i = lastframes[Frames+1]; i < lastframes[0]; ++i)
+    for(size_t i = lastframes[Frames+2]; i < lastframes[0]; ++i)
     {
       auto entry = g_debuglog[(i + tail) % extentof(g_debuglog)];
 
@@ -195,7 +197,7 @@ namespace
 
     unsigned long long basetime = 0;
 
-    for(size_t i = lastframes[Frames+1]; i < lastframes[0]; ++i)
+    for(size_t i = lastframes[Frames+2]; i < lastframes[0]; ++i)
     {
       auto entry = g_debuglog[(i + tail) % extentof(g_debuglog)];
 
@@ -409,6 +411,7 @@ namespace
 
     if (entry)
     {
+      entry->viewport = Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height));
       entry->spritelist = overlay;
     }
 

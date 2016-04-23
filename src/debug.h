@@ -21,19 +21,19 @@
 #include <thread>
 #include "math/color.h"
 
-inline void *operator new(std::size_t)
+inline __attribute__((always_inline)) void *operator new(std::size_t)
 {
   assert(false);
 
   throw std::bad_alloc();
 }
 
-inline void operator delete(void *ptr) noexcept
+inline __attribute__((always_inline)) void operator delete(void *ptr) noexcept
 {
   assert(false);
 }
 
-inline void operator delete(void *ptr, size_t) noexcept
+inline __attribute__((always_inline)) void operator delete(void *ptr, size_t) noexcept
 {
   assert(false);
 }
@@ -156,6 +156,9 @@ struct DebugStatistics
   std::atomic<size_t> resourceslotscapacity;
   std::atomic<size_t> resourcebufferused;
   std::atomic<size_t> resourcebuffercapacity;
+
+  std::atomic<size_t> entityslotsused;
+  std::atomic<size_t> entityslotscapacity;
 };
 
 extern DebugStatistics g_debugstatistics;

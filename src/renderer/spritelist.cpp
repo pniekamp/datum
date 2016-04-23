@@ -8,7 +8,8 @@
 
 #include "spritelist.h"
 #include "renderer.h"
-#include "leap/lml/matrix.h"
+#include <leap/lml/matrix.h>
+#include <leap/lml/matrixconstants.h>
 #include "debug.h"
 
 using namespace std;
@@ -32,6 +33,11 @@ enum ShaderLocation
   albedomap = 1,
 };
 
+struct SceneSet
+{
+  Matrix4f worldview;
+};
+
 struct MaterialSet
 {
   Color4 tint;
@@ -45,6 +51,18 @@ struct ModelSet
   Vec2 ybasis;
   Vec4 position;
 };
+
+
+///////////////////////// draw_sprites //////////////////////////////////////
+void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
+{
+  SceneSet scene;
+  scene.worldview = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
+
+  memcpy(context.transfermemory + sprites.spritelist->transferoffset, &scene, sizeof(SceneSet));
+
+  execute(commandbuffer, *sprites.spritelist);
+}
 
 
 //|---------------------- SpriteList ----------------------------------------
@@ -68,7 +86,7 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context, context.framebuffer, context.renderpass, RenderPasses::spritepass))
+  if (!commandlist->begin(context, context.framebuffer, context.renderpass, RenderPasses::spritepass, sizeof(SceneSet)))
   {
     resources->destroy(commandlist);
     return false;
@@ -76,7 +94,7 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 
   bindresource(*commandlist, context.spritepipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, commandlist->transferoffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindresource(*commandlist, context.unitquad);
 

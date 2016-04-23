@@ -61,7 +61,7 @@ class CommandList
       return *this;
     }
 
-    bool begin(class RenderContext &context, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass);
+    bool begin(class RenderContext &context, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, size_t transferreservation);
 
     Descriptor acquire(VkDescriptorSetLayout layout, VkDeviceSize size);
 
@@ -70,6 +70,8 @@ class CommandList
     void end();
 
   public:
+
+    VkDeviceSize transferoffset;
 
     operator VkCommandBuffer() const { return m_commandbuffer; }
 

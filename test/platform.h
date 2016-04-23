@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "datum/platform.h"
+#include "datum.h"
 #include <vector>
 #include <thread>
 #include <deque>

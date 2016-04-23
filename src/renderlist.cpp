@@ -25,7 +25,7 @@ RenderList::RenderList(allocator_type const &allocator, std::size_t slabsize)
 
 
 ///////////////////////// RenderList::push_sprites //////////////////////////
-void RenderList::push_sprites(SpriteList const &sprites)
+void RenderList::push_sprites(lml::Rect2 const &viewport, SpriteList const &sprites)
 {
   if (sprites)
   {
@@ -33,7 +33,15 @@ void RenderList::push_sprites(SpriteList const &sprites)
 
     if (entry)
     {
+      entry->viewport = viewport;
       entry->spritelist = sprites;
     }
   }
+}
+
+
+///////////////////////// RenderList::push_sprites //////////////////////////
+void RenderList::push_sprites(DatumPlatform::Viewport const &viewport, SpriteList const &sprites)
+{
+  push_sprites(Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height)), sprites);
 }

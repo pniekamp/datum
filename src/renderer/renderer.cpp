@@ -10,8 +10,7 @@
 #include "commandlist.h"
 #include "corepack.h"
 #include "assetpack.h"
-#include "leap/util.h"
-#include "leap/lml/matrixconstants.h"
+#include <leap.h>
 #include <vector>
 #include <limits>
 #include <algorithm>
@@ -48,18 +47,9 @@ enum ShaderLocation
   albedomap = 1,
 };
 
-struct SceneSet
-{
-  Matrix4f proj;
-  Matrix4f invproj;
-  Matrix4f view;
-  Matrix4f invview;
-
-  Matrix4f worldview;
-};
-
-constexpr int kPushConstantSize = 64;
-constexpr int kTransferBufferSize = 64*1024;
+constexpr size_t kPushConstantSize = 64;
+constexpr size_t kTransferBufferSize = 64*1024;
+constexpr size_t kTransferReservationSize = 1024;
 
 
 //|---------------------- PushBuffer ----------------------------------------
@@ -174,14 +164,23 @@ namespace
     return true;
   }
 
-  ///////////////////////// draw_sprites ////////////////////////////////////
-  void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
-  {
-    execute(commandbuffer, *sprites.spritelist);
-  }
-
-
 } // namespace
+
+
+///////////////////////// transfer_reservation //////////////////////////////
+size_t transfer_reservation(RenderContext &context, size_t required)
+{
+  assert(required <= kTransferReservationSize);
+
+  auto bytes = alignto(required, context.device.physicaldeviceproperties.limits.minUniformBufferOffsetAlignment);
+
+  size_t offset = context.offset.load(std::memory_order_relaxed);
+
+  while (!context.offset.compare_exchange_weak(offset, (offset + kTransferReservationSize < context.transferbuffer.size) ? offset + bytes : bytes))
+    ;
+
+  return (offset + kTransferReservationSize < context.transferbuffer.size) ? offset : 0;
+}
 
 
 ///////////////////////// prepare_render_context ////////////////////////////
@@ -212,7 +211,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     // DescriptorPool
 
     VkDescriptorPoolSize typecounts[2] = {};
-    typecounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    typecounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     typecounts[0].descriptorCount = 1;
     typecounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     typecounts[1].descriptorCount = 1;
@@ -277,7 +276,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkDescriptorSetLayoutBinding bindings[1] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
@@ -287,7 +286,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     context.scenesetlayout = create_descriptorsetlayout(context.device, createinfo);
 
-    context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, kTransferReservationSize, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
   }
 
   if (context.materialsetlayout == 0)
@@ -524,6 +523,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.spritepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
+  context.offset = 0;
+  context.transfermemory = map_memory<uint8_t>(context.device, context.transferbuffer, 0, context.transferbuffer.size);
+
   context.frame = 0;
 
   context.fbowidth = 0;
@@ -533,6 +535,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
   return true;
 }
+
+
+///////////////////////// draw_sprites //////////////////////////////////////
+extern void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites);
 
 
 ///////////////////////// render_fallback ///////////////////////////////////
@@ -576,20 +582,11 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
-  SceneSet scene;
-  scene.proj = OrthographicProjection((float)viewport.x, (float)viewport.y, (float)(viewport.x + viewport.width), (float)(viewport.y + viewport.height), 0.0f, 1000.0f);
-  scene.invproj = inverse(scene.proj);
-  scene.view = IdentityMatrix<float, 4>();
-  scene.invview = inverse(scene.view);
-  scene.worldview = scene.proj * scene.view;
-
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   reset_querypool(commandbuffer, context.timingquerypool, 0, 1);
 
   querytimestamp(commandbuffer, context.timingquerypool, 0);
-
-  update(commandbuffer, context.transferbuffer, 0, sizeof(scene), &scene);
 
   //
   // Sprite

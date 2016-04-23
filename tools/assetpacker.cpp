@@ -8,7 +8,7 @@
 
 #include "assetpacker.h"
 #include "datum/math.h"
-#include "leap/lz4.h"
+#include <leap/lz4.h>
 #include "bc3.h"
 #include <cassert>
 

@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "datum/platform.h"
+#include "datum.h"
 #include "datum/asset.h"
 #include "datum/math.h"
+#include "datum/scene.h"
 #include "datum/renderer.h"
 
 
@@ -39,6 +40,8 @@ struct GameState
   ResourceManager resources;
 
   RenderContext rendercontext;
+
+  Scene scene;
 
   Sprite const *testsprite;
 

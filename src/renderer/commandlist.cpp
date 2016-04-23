@@ -13,6 +13,10 @@
 
 using namespace std;
 using namespace Vulkan;
+using leap::alignto;
+using leap::extentof;
+
+extern size_t transfer_reservation(RenderContext &context, size_t required);
 
 
 //|---------------------- CommandList ---------------------------------------
@@ -38,7 +42,7 @@ CommandList::~CommandList()
 
 
 ///////////////////////// CommandList::begin //////////////////////////////
-bool CommandList::begin(RenderContext &context, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass)
+bool CommandList::begin(RenderContext &context, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, size_t transferreservation)
 {
   this->context = &context;
 
@@ -46,6 +50,8 @@ bool CommandList::begin(RenderContext &context, VkFramebuffer framebuffer, VkRen
 
   if (!m_resourcelump)
     return false;
+
+  transferoffset = transfer_reservation(context, transferreservation);
 
   m_commandbuffer = context.resourcepool.acquire_commandbuffer(m_resourcelump).commandbuffer;
 

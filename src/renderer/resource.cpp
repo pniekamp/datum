@@ -9,7 +9,7 @@
 #include "resource.h"
 #include "assetpack.h"
 #include "vulkan.h"
-#include "leap/util.h"
+#include <leap.h>
 #include <algorithm>
 #include <memory>
 #include "debug.h"

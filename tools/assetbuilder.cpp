@@ -17,7 +17,7 @@
 #include "glslang.h"
 #include "assetpacker.h"
 #include "atlaspacker.h"
-#include "leap/util.h"
+#include <leap.h>
 
 using namespace std;
 using namespace lml;
@@ -194,9 +194,9 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &im
     dst += image.byteCount();
   }
 
-  image_buildmips_srgb(width, height, layers, levels, payload.data());
-
   image_premultiply_srgb(width, height, layers, levels, payload.data());
+
+  image_buildmips_srgb(width, height, layers, levels, payload.data());
 
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), alignx, aligny);
 

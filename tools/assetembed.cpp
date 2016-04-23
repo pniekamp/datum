@@ -10,7 +10,7 @@
 #include <QImage>
 #include <QFileInfo>
 #include <iostream>
-#include "leap/util.h"
+#include <leap.h>
 
 using namespace std;
 using namespace leap;

@@ -5,16 +5,11 @@ layout(location=1) in vec2 vertex_texcoord;
 
 layout(std140, set=0, binding=0) uniform SceneSet 
 {
-  layout(row_major) mat4 proj;
-  layout(row_major) mat4 invproj;
-  layout(row_major) mat4 view;
-  layout(row_major) mat4 invview;
-  
   layout(row_major) mat4 worldview;
 
 } scene;
 
-layout(std140, set=1, binding=0) buffer MaterialSet 
+layout(std430, set=1, binding=0) buffer MaterialSet 
 {
   vec4 tint;
   vec4 texcoords;

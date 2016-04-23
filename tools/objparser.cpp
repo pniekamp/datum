@@ -16,9 +16,9 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#include <leap.h>
+#include <leap/pathstring.h>
 #include "assetpacker.h"
-#include "leap/pathstring.h"
-#include "leap/util.h"
 
 using namespace std;
 using namespace lml;
