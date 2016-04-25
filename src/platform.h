@@ -63,16 +63,16 @@ namespace DatumPlatform
     {
       enum MouseButton
       {
-        MouseLeft,
-        MouseRight,
-        MouseMiddle,
+        Left,
+        Right,
+        Middle,
       };
 
       enum Modifiers
       {
-        ModifierShift = 0x01,
-        ModifierControl = 0x02,
-        ModifierAlt = 0x04,
+        Shift = 0x01,
+        Control = 0x02,
+        Alt = 0x04,
       };
 
       long modifiers;

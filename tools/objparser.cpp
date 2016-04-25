@@ -122,8 +122,6 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
 
-  image = image.convertToFormat(QImage::Format_ARGB32);
-
   if (mask != "")
   {
     QImage alpha(mask.c_str());
@@ -142,6 +140,8 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
       }
     }
   }
+
+  image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
 
   int width = image.width();
   int height = image.height();
@@ -169,8 +169,6 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
 
-  image = image.convertToFormat(QImage::Format_ARGB32);
-
   if (base != "")
   {
     QImage albedo(base.c_str());
@@ -195,6 +193,8 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
       }
     }
   }
+
+  image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
 
   int width = image.width();
   int height = image.height();
@@ -221,8 +221,6 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
 
   if (src.isNull())
     throw runtime_error("Failed to load image - " + path);
-
-  src = src.convertToFormat(QImage::Format_ARGB32);
 
   QImage image = src;
 
@@ -251,6 +249,8 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
       image.setPixel(x, y, qRgba((0.5f*normal.x+0.5f)*255, (0.5f*normal.y+0.5f)*255, (0.5f*normal.z+0.5f)*255, 255));
     }
   }
+
+  image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
 
   int width = image.width();
   int height = image.height();

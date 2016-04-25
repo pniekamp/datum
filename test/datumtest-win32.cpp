@@ -720,8 +720,9 @@ struct Window
 
   HWND hwnd;
 
-  bool mousepressed;
+  bool mousewrap;
   int mousex, mousey;
+  int lastmousex, lastmousey;
   int deltamousex, deltamousey;
 
   uint8_t keysym[256];
@@ -778,7 +779,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_KILLFOCUS:
-      window.mousepressed = false;
+      window.mousewrap = false;
       window.game->inputbuffer().release_all();
       break;
 
@@ -795,7 +796,7 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
 {
   game = gameptr;
 
-  mousepressed = false;
+  mousewrap = false;
 
   WNDCLASSEX winclass;
   winclass.cbSize = sizeof(WNDCLASSEX);
@@ -886,17 +887,19 @@ void Window::mousepress(UINT msg, WPARAM wParam, LPARAM lParam)
   switch(msg)
   {
     case WM_LBUTTONDOWN:
-      game->inputbuffer().register_mousepress(GameInput::MouseLeft);
+      game->inputbuffer().register_mousepress(GameInput::Left);
       break;
 
     case WM_RBUTTONDOWN:
-      game->inputbuffer().register_mousepress(GameInput::MouseRight);
+      game->inputbuffer().register_mousepress(GameInput::Right);
       break;
 
     case WM_MBUTTONDOWN:
-      game->inputbuffer().register_mousepress(GameInput::MouseMiddle);
+      game->inputbuffer().register_mousepress(GameInput::Middle);
       break;
   }
+
+  mousewrap = true;
 
   mousex = GET_X_LPARAM(lParam);
   mousey = GET_Y_LPARAM(lParam);
@@ -905,15 +908,7 @@ void Window::mousepress(UINT msg, WPARAM wParam, LPARAM lParam)
 
   SetCursor(NULL);
 
-  POINT pos = { width/2, height/2 };
-
-  ClientToScreen(hwnd, &pos);
-
-  SetCursorPos(pos.x, pos.y);
-
   SetCapture(hwnd);
-
-  mousepressed = true;
 }
 
 
@@ -922,20 +917,20 @@ void Window::mouserelease(UINT msg, WPARAM wParam, LPARAM lParam)
 {
   switch(msg)
   {
-    case WM_LBUTTONDOWN:
-      game->inputbuffer().register_mouserelease(GameInput::MouseLeft);
+    case WM_LBUTTONUP:
+      game->inputbuffer().register_mouserelease(GameInput::Left);
       break;
 
-    case WM_RBUTTONDOWN:
-      game->inputbuffer().register_mouserelease(GameInput::MouseRight);
+    case WM_RBUTTONUP:
+      game->inputbuffer().register_mouserelease(GameInput::Right);
       break;
 
-    case WM_MBUTTONDOWN:
-      game->inputbuffer().register_mouserelease(GameInput::MouseMiddle);
+    case WM_MBUTTONUP:
+      game->inputbuffer().register_mouserelease(GameInput::Middle);
       break;
   }
 
-  game->inputbuffer().register_mousemove(mousex, mousey);
+  mousewrap = false;
 
   POINT pos = { mousex, mousey };
 
@@ -946,21 +941,19 @@ void Window::mouserelease(UINT msg, WPARAM wParam, LPARAM lParam)
   SetCursor(LoadCursor(NULL, IDC_ARROW));
 
   ReleaseCapture();
-
-  mousepressed = false;
 }
 
 
 //|//////////////////// Window::mousemove ///////////////////////////////////
 void Window::mousemove(UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  if (mousepressed)
+  if (mousewrap)
   {
-    deltamousex += GET_X_LPARAM(lParam) - width/2;
-    deltamousey += GET_Y_LPARAM(lParam) - height/2;
-
     if (GET_X_LPARAM(lParam) != width/2 || GET_Y_LPARAM(lParam) != height/2)
     {
+      deltamousex += GET_X_LPARAM(lParam) - lastmousex;
+      deltamousey += GET_Y_LPARAM(lParam) - lastmousey;
+
       POINT pos = { width/2, height/2 };
 
       ClientToScreen(hwnd, &pos);
@@ -977,6 +970,9 @@ void Window::mousemove(UINT msg, WPARAM wParam, LPARAM lParam)
   }
 
   game->inputbuffer().register_mousemove(mousex + deltamousex, mousey + deltamousey);
+
+  lastmousex = GET_X_LPARAM(lParam);
+  lastmousey = GET_Y_LPARAM(lParam);
 }
 
 

@@ -28,6 +28,8 @@ class RenderList
     operator PushBuffer &() { return m_buffer; }
     operator PushBuffer const &() const { return m_buffer; }
 
+    void push_meshes(MeshList const &meshes);
+
     void push_sprites(lml::Rect2 const &viewport, SpriteList const &sprites);
     void push_sprites(DatumPlatform::Viewport const &viewport, SpriteList const &sprites);
 

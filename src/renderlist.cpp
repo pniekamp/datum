@@ -24,6 +24,21 @@ RenderList::RenderList(allocator_type const &allocator, std::size_t slabsize)
 }
 
 
+///////////////////////// RenderList::push_meshes ///////////////////////////
+void RenderList::push_meshes(MeshList const &meshes)
+{
+  if (meshes)
+  {
+    auto entry = m_buffer.push<Renderable::Meshes>();
+
+    if (entry)
+    {
+      entry->meshlist = meshes;
+    }
+  }
+}
+
+
 ///////////////////////// RenderList::push_sprites //////////////////////////
 void RenderList::push_sprites(lml::Rect2 const &viewport, SpriteList const &sprites)
 {

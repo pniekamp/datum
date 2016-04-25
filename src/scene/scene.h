@@ -39,7 +39,7 @@ class Scene
 
     struct EntityId
     {
-      size_t id;
+      size_t id = 0;
 
       operator bool() const { return id != 0; }
 

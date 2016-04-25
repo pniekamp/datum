@@ -32,6 +32,7 @@ void main(void)
   mat4 modelworld = { vec4(model.xbasis, 0, 0), vec4(model.ybasis, 0, 0), vec4(0), vec4(model.position.xy, 0, 1) };
 
   texcoord = vec3(material.texcoords.xy + material.texcoords.zw * vertex_texcoord, model.position.z);
+//  texcoord = vec3(material.texcoords.xy + material.texcoords.zw * vec2(vertex_texcoord.s, 1-vertex_texcoord.t), model.position.z);
   
   gl_Position = scene.worldview * modelworld * vec4(vertex_position, 1.0);
 }

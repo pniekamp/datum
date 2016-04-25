@@ -41,6 +41,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.initialise_component_storage<NameComponent>();
   state.scene.initialise_component_storage<TransformComponent>();
   state.scene.initialise_component_storage<SpriteComponent>();
+  state.scene.initialise_component_storage<MeshComponent>();
 
   state.assets.load(platform, "core.pack");
 
@@ -48,7 +49,53 @@ void datumtest_init(PlatformInterface &platform)
 
   state.debugfont = state.resources.create<Font>(state.assets.find(CoreAsset::debug_font));
 
+  state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
+  state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
+
   state.testsprite = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image));
+
+  state.testmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
+
+  state.testmesh = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_quad));
+
+#if 0
+  state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
+#endif
+
+#if 0
+  auto id = state.assets.load(platform, "test.pack")->id;
+
+  auto model = state.scene.get<Model>(state.scene.create<Model>(&state.resources));
+
+  model->add_mesh(state.resources.create<Mesh>(state.assets.find(id + 1))); // floor
+  model->add_mesh(state.resources.create<Mesh>(state.assets.find(id + 2))); // teapot
+  model->add_material(state.resources.create<Material>(state.assets.find(id + 3))); // wood
+  model->add_material(state.resources.create<Material>(state.assets.find(id + 7))); // plastic
+  model->add_texture(state.resources.create<Texture>(state.assets.find(id + 9), Texture::Format::sRGB8_A8)); // plastic specular
+  model->add_texture(state.resources.create<Texture>(state.assets.find(id + 10), Texture::Format::RGBA8)); // plastic normal
+
+  model->add_instance(Transform::translation(0, 0, 0), 0, 0, MeshComponent::Visible | MeshComponent::Static);
+
+  const int NTEAPOTS = 7;
+  const int HALF_NTEAPOTS = NTEAPOTS / 2;
+  for(int x = 0; x < NTEAPOTS; ++x)
+  {
+    for(int z = 0; z < NTEAPOTS; ++z)
+    {
+      Vec3 position = Vec3(2 * (x - HALF_NTEAPOTS), 0.0f, 2 * (z - HALF_NTEAPOTS));
+
+      float rotation = -38.0f * pi<float>()/180;
+
+      Color3 color = Color3(x / (float)NTEAPOTS, 0.3f, z / (float)NTEAPOTS);
+
+      auto material = state.resources.create<Material>(color, (Texture const *)nullptr, Color3(1.0, 1.0, 1.0), 90.0f, model->textures[0], model->textures[1]);
+
+      auto mat = model->add_material(material);
+
+      model->add_instance(Transform::translation(position) * Transform::rotation(Vec3(0, 1, 0), rotation), 1, mat, MeshComponent::Visible);
+    }
+  }
+#endif
 
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 }
@@ -63,11 +110,34 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   state.time += dt;
 
-  if (input.mousebuttons[GameInput::MouseLeft].state == true)
+  if (input.mousebuttons[GameInput::Left].state == true)
   {
     state.camera.yaw(0.0025f * (state.lastmousex - input.mousex), Vec3(0.0f, 1.0f, 0.0f));
-    state.camera.pitch(0.0025f * (input.mousey - state.lastmousey));
+    state.camera.pitch(0.0025f * (state.lastmousey - input.mousey));
   }
+
+  float speed = 0.02;
+
+  if (input.modifiers & GameInput::Shift)
+    speed *= 10;
+
+  if (input.controllers[0].move_up.state == true && !(input.modifiers & GameInput::Control))
+    state.camera.offset(speed*Vec3(0.0f, 0.0f, -1.0f));
+
+  if (input.controllers[0].move_down.state == true && !(input.modifiers & GameInput::Control))
+    state.camera.offset(speed*Vec3(0.0f, 0.0f, 1.0f));
+
+  if (input.controllers[0].move_up.state == true && (input.modifiers & GameInput::Control))
+    state.camera.offset(speed*Vec3(0.0f, 1.0f, 0.0f));
+
+  if (input.controllers[0].move_down.state == true && (input.modifiers & GameInput::Control))
+    state.camera.offset(speed*Vec3(0.0f, -1.0f, 0.0f));
+
+  if (input.controllers[0].move_left.state == true)
+    state.camera.offset(speed*Vec3(-1.0f, 0.0f, 0.0f));
+
+  if (input.controllers[0].move_right.state == true)
+    state.camera.offset(speed*Vec3(+1.0f, 0.0f, 0.0f));
 
   state.lastmousex = input.mousex;
   state.lastmousey = input.mousey;
@@ -78,7 +148,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.writeframe->time = state.time;
   state.writeframe->camera = state.camera;
 
-///
+#if 1
   SpriteList::BuildState buildstate;
 
   if (state.writeframe->sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
@@ -95,7 +165,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
     state.writeframe->sprites.finalise(buildstate);
   }
-///
+#endif
 
   state.writeframe->resourcetoken = state.resources.token();
 
@@ -133,7 +203,30 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
-///
+#if 1
+  MeshList meshes;
+  MeshList::BuildState meshstate;
+
+  if (meshes.begin(meshstate, platform, state.rendercontext, &state.resources))
+  {
+//    meshes.push_mesh(meshstate, Transform::translation(0, 0, -3), state.testmesh, state.testmaterial);
+//    meshes.push_mesh(meshstate, Transform::translation(0, 0, -3 - sin(state.time)), state.unitsphere, state.defaultmaterial);
+
+    for(auto &entity : state.scene.entities<MeshComponent>())
+    {
+      auto instance = state.scene.get_component<MeshComponent>(entity);
+      auto transform = state.scene.get_component<TransformComponent>(entity);
+
+      meshes.push_mesh(meshstate, transform.world(), instance.mesh(), instance.material());
+    }
+
+    meshes.finalise(meshstate);
+  }
+
+  renderlist.push_meshes(meshes);
+#endif
+
+#if 1
   SpriteList overlay;
   SpriteList::BuildState buildstate;
 
@@ -148,7 +241,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   }
 
   renderlist.push_sprites(viewport, overlay);
-///
+#endif
 
 #ifdef DEBUG
   if (state.rendercontext.frame % 600 == 0)

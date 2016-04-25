@@ -118,8 +118,6 @@ Texture const *ResourceManager::create<Texture>(int width, int height, Texture::
   texture->layers = 1;
   texture->format = format;
 
-  texture->memory = (uint32_t*)lump->transfermemory;
-
   wait(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -129,6 +127,8 @@ Texture const *ResourceManager::create<Texture>(int width, int height, Texture::
   end(vulkan, lump->commandbuffer);
 
   submit_transfer(lump);
+
+  texture->memory = (uint32_t*)lump->transfermemory;
 
   texture->state = Texture::State::Ready;
 
@@ -144,7 +144,7 @@ void ResourceManager::update<Texture>(Texture const *texture)
 {
   assert(texture);
   assert(texture->memory);
-  assert(texture->state != Texture::State::Loading);
+  assert(texture->state == Texture::State::Ready);
 
   auto slot = const_cast<Texture*>(texture);
 
@@ -169,7 +169,7 @@ void ResourceManager::update<Texture>(Texture const *texture, void const *bits)
 {
   assert(texture);
   assert(texture->memory);
-  assert(texture->state != Texture::State::Loading);
+  assert(texture->state == Texture::State::Ready);
 
   auto slot = const_cast<Texture*>(texture);
 
@@ -248,13 +248,13 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
         {
           slot->transferlump = lump;
 
-          memcpy(lump->transfermemory, (char*)bits + sizeof(PackImagePayload), lump->transferbuffer.size);
-
           wait(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
           slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat);
+
+          memcpy(lump->transfermemory, (char*)bits + sizeof(PackImagePayload), lump->transferbuffer.size);
 
           update_texture(lump->commandbuffer, lump->transferbuffer, slot->texture);
 

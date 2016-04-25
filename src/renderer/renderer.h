@@ -25,6 +25,7 @@ namespace Renderable
   {
     Clear,
     Sprites,
+    Meshes,
   };
 
   using Vec2 = lml::Vec2;
@@ -43,6 +44,13 @@ namespace Renderable
     Rect2 viewport;
 
     CommandList const *spritelist;
+  };
+
+  struct Meshes
+  {
+    static const Type type = Type::Meshes;
+
+    CommandList const *meshlist;
   };
 }
 
@@ -169,6 +177,8 @@ struct RenderContext
 
   Vulkan::Image colorbuffer;
   Vulkan::ImageView colorbufferview;
+  Vulkan::Image depthbuffer;
+  Vulkan::ImageView depthbufferview;
   Vulkan::FrameBuffer framebuffer;
 
   Vulkan::VertexAttribute vertexattributes[4];
@@ -176,6 +186,9 @@ struct RenderContext
   Vulkan::VertexBuffer unitquad;
 
   Vulkan::Texture whitediffuse;
+  Vulkan::Texture nominalnormal;
+
+  Vulkan::Pipeline geometrypipeline;
 
   Vulkan::Pipeline spritepipeline;
 
@@ -189,6 +202,14 @@ struct RenderContext
 
   std::atomic<size_t> offset;
   Vulkan::MemoryView<uint8_t> transfermemory;
+
+  lml::Vec3 camerapos;
+  lml::Quaternion3f camerarot;
+  lml::Matrix4f proj;
+  lml::Matrix4f invproj;
+  lml::Matrix4f view;
+  lml::Matrix4f invview;
+  lml::Matrix4f worldview;
 
   lml::Matrix4f prevview;
 };

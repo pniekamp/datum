@@ -47,6 +47,12 @@ enum ShaderLocation
   albedomap = 1,
 };
 
+enum RenderPasses
+{
+  geometrypass = 0,
+  spritepass = 1,
+};
+
 constexpr size_t kPushConstantSize = 64;
 constexpr size_t kTransferBufferSize = 64*1024;
 constexpr size_t kTransferReservationSize = 1024;
@@ -130,6 +136,28 @@ namespace
       setimagelayout(context.device, context.colorbuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
       //
+      // Depth Buffer
+      //
+
+      VkImageCreateInfo depthbufferinfo = {};
+      depthbufferinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      depthbufferinfo.imageType = VK_IMAGE_TYPE_2D;
+      depthbufferinfo.format = VK_FORMAT_D32_SFLOAT;
+      depthbufferinfo.extent.width = width;
+      depthbufferinfo.extent.height = height;
+      depthbufferinfo.extent.depth = 1;
+      depthbufferinfo.mipLevels = 1;
+      depthbufferinfo.arrayLayers = 1;
+      depthbufferinfo.samples = VK_SAMPLE_COUNT_1_BIT;
+      depthbufferinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+      depthbufferinfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+      depthbufferinfo.flags = 0;
+
+      context.depthbuffer = create_image(context.device, depthbufferinfo);
+
+      setimagelayout(context.device, context.depthbuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+
+      //
       // Frame Buffer
       //
 
@@ -137,17 +165,29 @@ namespace
       colorbufferviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       colorbufferviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
       colorbufferviewinfo.format = colorbufferinfo.format;
-      colorbufferviewinfo.flags = 0;
       colorbufferviewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
       colorbufferviewinfo.image = context.colorbuffer;
 
       context.colorbufferview = create_imageview(context.device, colorbufferviewinfo);
 
+      VkImageViewCreateInfo depthbufferviewinfo = {};
+      depthbufferviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      depthbufferviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      depthbufferviewinfo.format = depthbufferinfo.format;
+      depthbufferviewinfo.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+      depthbufferviewinfo.image = context.depthbuffer;
+
+      context.depthbufferview = create_imageview(context.device, depthbufferviewinfo);
+
+      VkImageView attachments[2] = {};
+      attachments[0] = context.colorbufferview;
+      attachments[1] = context.depthbufferview;
+
       VkFramebufferCreateInfo framebufferinfo = {};
       framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
       framebufferinfo.renderPass = context.renderpass;
-      framebufferinfo.attachmentCount = 1;
-      framebufferinfo.pAttachments = context.colorbufferview.data();
+      framebufferinfo.attachmentCount = extentof(attachments);
+      framebufferinfo.pAttachments = attachments;
       framebufferinfo.width = width;
       framebufferinfo.height = height;
       framebufferinfo.layers = 1;
@@ -293,7 +333,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Material Set
 
-    VkDescriptorSetLayoutBinding bindings[2] = {};
+    VkDescriptorSetLayoutBinding bindings[4] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
@@ -302,6 +342,14 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[1].descriptorCount = 1;
+    bindings[2].binding = 2;
+    bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[2].descriptorCount = 1;
+    bindings[3].binding = 3;
+    bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[3].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -359,31 +407,54 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     // Render Pass
     //
 
-    VkAttachmentDescription attachments[1] = {};
+    VkAttachmentDescription attachments[2] = {};
     attachments[0].format = VK_FORMAT_B8G8R8A8_UNORM;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    attachments[1].format = VK_FORMAT_D32_SFLOAT;
+    attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    VkAttachmentReference colorbufferreference = {};
-    colorbufferreference.attachment = 0;
-    colorbufferreference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkAttachmentReference colorreference = {};
+    colorreference.attachment = 0;
+    colorreference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorbufferreference;
+    VkAttachmentReference depthreference = {};
+    depthreference.attachment = 1;
+    depthreference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpasses[2] = {};
+    subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpasses[0].colorAttachmentCount = 1;
+    subpasses[0].pColorAttachments = &colorreference;
+    subpasses[0].pDepthStencilAttachment = &depthreference;
+    subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpasses[1].colorAttachmentCount = 1;
+    subpasses[1].pColorAttachments = &colorreference;
+
+    VkSubpassDependency dependencies[1] = {};
+    dependencies[0].srcSubpass = 0;
+    dependencies[0].dstSubpass = 1;
+    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dependencyFlags = 0;
 
     VkRenderPassCreateInfo renderpassinfo = {};
     renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderpassinfo.attachmentCount = 1;
+    renderpassinfo.attachmentCount = extentof(attachments);
     renderpassinfo.pAttachments = attachments;
-    renderpassinfo.subpassCount = 1;
-    renderpassinfo.pSubpasses = &subpass;
-    renderpassinfo.dependencyCount = 0;
-    renderpassinfo.pDependencies = nullptr;
+    renderpassinfo.subpassCount = extentof(subpasses);
+    renderpassinfo.pSubpasses = subpasses;
+    renderpassinfo.dependencyCount = extentof(dependencies);
+    renderpassinfo.pDependencies = dependencies;
 
     context.renderpass = create_renderpass(context.device, renderpassinfo);
   }
@@ -400,9 +471,26 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto bits = assets->request(platform, image);
 
     if (!bits)
-      return false;    
+      return false;
 
     context.whitediffuse = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
+  }
+
+  if (context.nominalnormal == 0)
+  {
+    auto image = assets->find(CoreAsset::nominal_normal);
+
+    if (!image)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto bits = assets->request(platform, image);
+
+    if (!bits)
+      return false;    
+
+    context.nominalnormal = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
   }
 
   if (context.unitquad == 0)
@@ -420,6 +508,110 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
       return false;
 
     context.unitquad = create_vertexbuffer(context.device, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
+  }
+
+  if (context.geometrypipeline == 0)
+  {
+    //
+    // Geometry Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::geometry_vert);
+    auto fs = assets->find(CoreAsset::geometry_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
+    blendattachments[0].blendEnable = VK_FALSE;
+    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorblend = {};
+    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorblend.attachmentCount = 1;
+    colorblend.pAttachments = blendattachments;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.renderpass;
+    pipelineinfo.subpass = RenderPasses::geometrypass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pColorBlendState = &colorblend;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.geometrypipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
   if (context.spritepipeline == 0)
@@ -510,6 +702,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineinfo.layout = context.pipelinelayout;
     pipelineinfo.renderPass = context.renderpass;
+    pipelineinfo.subpass = RenderPasses::spritepass;
     pipelineinfo.pVertexInputState = &vertexinput;
     pipelineinfo.pInputAssemblyState = &inputassembly;
     pipelineinfo.pRasterizationState = &rasterization;
@@ -537,7 +730,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 }
 
 
-///////////////////////// draw_sprites //////////////////////////////////////
+///////////////////////// draw_calls ////////////////////////////////////////
+extern void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes);
 extern void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites);
 
 
@@ -580,6 +774,14 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 {
   prepare_framebuffer(context, viewport.width, viewport.height);
 
+  context.camerapos = camera.position();
+  context.camerarot = camera.rotation();
+  context.proj = camera.proj();
+  context.invproj = inverse(context.proj);
+  context.view = camera.view();
+  context.invview = inverse(context.view);
+  context.worldview = context.proj * context.view;
+
   CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -588,11 +790,38 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   querytimestamp(commandbuffer, context.timingquerypool, 0);
 
+  VkClearValue clearvalues[2];
+  clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[1].depthStencil = { 1, 0 };
+
+  beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
+
+  querytimestamp(commandbuffer, context.timingquerypool, 1);
+
+  //
+  // Geometry
+  //
+
+  for(auto &renderable : renderables)
+  {
+    switch (renderable.type)
+    {
+      case Renderable::Type::Meshes:
+        draw_meshes(context, commandbuffer, *renderable_cast<Renderable::Meshes>(&renderable));
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  querytimestamp(commandbuffer, context.timingquerypool, 2);
+
+  nextsubpass(commandbuffer, context.renderpass);
+
   //
   // Sprite
   //
-
-  beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
   for(auto &renderable : renderables)
   {
@@ -607,9 +836,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     }
   }
 
-  endpass(commandbuffer, context.renderpass);
+  querytimestamp(commandbuffer, context.timingquerypool, 3);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 1);
+  endpass(commandbuffer, context.renderpass);
 
   //
   // Blit
@@ -621,7 +850,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   transition_present(commandbuffer, viewport.image);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 2);
+  querytimestamp(commandbuffer, context.timingquerypool, 4);
 
   end(context.device, commandbuffer);
 
@@ -638,10 +867,12 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.device, context.timingquerypool, 0, 3, timings);
+  retreive_querypool(context.device, context.timingquerypool, 0, 5, timings);
 
-  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[0], timings[1])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[1], timings[2])
+  GPU_TIMED_BLOCK(Setup, Color3(0.0, 0.0, 0.0), timings[0], timings[1])
+  GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])
+  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[2], timings[3])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[3], timings[4])
 
   GPU_SUBMIT();
 

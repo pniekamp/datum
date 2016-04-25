@@ -163,7 +163,7 @@ struct DebugStatistics
 
 extern DebugStatistics g_debugstatistics;
 
-#define RESOURCE_SET(name, count) g_debugstatistics.name += count;
+#define RESOURCE_SET(name, count) g_debugstatistics.name = count;
 #define RESOURCE_ACQUIRE(name, count) g_debugstatistics.name += count;
 #define RESOURCE_RELEASE(name, count) g_debugstatistics.name -= count;
 #define STATISTIC_HIT(name, count) g_debugstatistics.name += count;

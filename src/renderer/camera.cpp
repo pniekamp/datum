@@ -45,7 +45,7 @@ Matrix4f Camera::view() const
 ///////////////////////// Camera::proj //////////////////////////////////////
 Matrix4f Camera::proj() const
 {
-  return PerspectiveProjection(m_fov, m_aspect, m_znear, m_zfar);
+  return PerspectiveProjection(m_fov, m_aspect, m_znear, m_zfar) * ScaleMatrix(Vector4(1.0f, -1.0f, 1.0f, 1.0f));
 }
 
 

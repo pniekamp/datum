@@ -34,6 +34,8 @@ struct GameState
 
   Sprite const *loader;
   Font const *debugfont;
+  Mesh const *unitsphere;
+  Material const *defaultmaterial;
 
   AssetManager assets;
 
@@ -44,6 +46,10 @@ struct GameState
   Scene scene;
 
   Sprite const *testsprite;
+
+  Material const *testmaterial;
+
+  Mesh const *testmesh;
 
   // Render Frames
 

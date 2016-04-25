@@ -21,7 +21,7 @@ using leap::extentof;
 
 enum RenderPasses
 {
-  spritepass = 0,
+  spritepass = 1,
 };
 
 enum ShaderLocation
@@ -56,10 +56,9 @@ struct ModelSet
 ///////////////////////// draw_sprites //////////////////////////////////////
 void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
 {
-  SceneSet scene;
-  scene.worldview = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
+  SceneSet *scene = (SceneSet*)(context.transfermemory + sprites.spritelist->transferoffset);
 
-  memcpy(context.transfermemory + sprites.spritelist->transferoffset, &scene, sizeof(SceneSet));
+  scene->worldview = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
 
   execute(commandbuffer, *sprites.spritelist);
 }

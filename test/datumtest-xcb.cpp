@@ -728,8 +728,9 @@ struct Window
   xcb_cursor_t normalcursor;
   xcb_cursor_t blankcursor;
 
-  bool mousepressed;
+  bool mousewrap;
   int mousex, mousey;
+  int lastmousex, lastmousey;
   int deltamousex, deltamousey;
 
   uint8_t keysym[256];
@@ -742,7 +743,7 @@ void Window::init(Game *gameptr)
 {
   game = gameptr;
 
-//  mousepressed = false;
+  mousewrap = false;
 
   int scn;
   connection = xcb_connect(nullptr, &scn);
@@ -876,17 +877,19 @@ void Window::mousepress(xcb_button_press_event_t const *event)
   switch(event->detail)
   {
     case 1:
-      game->inputbuffer().register_mousepress(GameInput::MouseLeft);
+      game->inputbuffer().register_mousepress(GameInput::Left);
       break;
 
     case 2:
-      game->inputbuffer().register_mousepress(GameInput::MouseRight);
+      game->inputbuffer().register_mousepress(GameInput::Right);
       break;
 
     case 3:
-      game->inputbuffer().register_mousepress(GameInput::MouseMiddle);
+      game->inputbuffer().register_mousepress(GameInput::Middle);
       break;
   }
+
+  mousewrap = true;
 
   mousex = event->event_x;
   mousey = event->event_y;
@@ -895,11 +898,7 @@ void Window::mousepress(xcb_button_press_event_t const *event)
 
   xcb_change_window_attributes(connection, window, XCB_CW_CURSOR, &blankcursor);
 
-  xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, width/2, height/2);
-
   xcb_flush(connection);
-
-  mousepressed = true;
 }
 
 
@@ -909,17 +908,19 @@ void Window::mouserelease(xcb_button_release_event_t const *event)
   switch(event->detail)
   {
     case 1:
-      game->inputbuffer().register_mouserelease(GameInput::MouseLeft);
+      game->inputbuffer().register_mouserelease(GameInput::Left);
       break;
 
     case 2:
-      game->inputbuffer().register_mouserelease(GameInput::MouseRight);
+      game->inputbuffer().register_mouserelease(GameInput::Right);
       break;
 
     case 3:
-      game->inputbuffer().register_mouserelease(GameInput::MouseMiddle);
+      game->inputbuffer().register_mouserelease(GameInput::Middle);
       break;
   }
+
+  mousewrap = false;
 
   game->inputbuffer().register_mousemove(mousex, mousey);
 
@@ -928,22 +929,21 @@ void Window::mouserelease(xcb_button_release_event_t const *event)
   xcb_change_window_attributes(connection, window, XCB_CW_CURSOR, &normalcursor);
 
   xcb_flush(connection);
-
-  mousepressed = false;
 }
 
 
 //|//////////////////// Window::mousemove ///////////////////////////////////
 void Window::mousemove(xcb_motion_notify_event_t const *event)
 {
-  if (mousepressed)
+  if (mousewrap)
   {
-    deltamousex += event->event_x - width/2;
-    deltamousey += event->event_y - height/2;
-
     if (event->event_x != width/2 || event->event_y != height/2)
     {
+      deltamousex += event->event_x - lastmousex;
+      deltamousey += event->event_y - lastmousey;
+
       xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, width/2, height/2);
+
       xcb_flush(connection);
     }
   }
@@ -956,6 +956,9 @@ void Window::mousemove(xcb_motion_notify_event_t const *event)
   }
 
   game->inputbuffer().register_mousemove(mousex + deltamousex, mousey + deltamousey);
+
+  lastmousex = event->event_x;
+  lastmousey = event->event_y;
 }
 
 

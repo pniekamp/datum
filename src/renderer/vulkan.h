@@ -273,13 +273,15 @@ namespace Vulkan
 
   struct VertexBuffer
   {
-    size_t vertexcount;
+    size_t vertexcount, vertexsize;
     VulkanResource<VkBuffer, BufferDeleter> vertices;
 
-    size_t indexcount;
+    size_t indexcount, indexsize;
     VulkanResource<VkBuffer, BufferDeleter> indices;
 
     VkDeviceSize size;
+    VkDeviceSize verticiesoffset;
+    VkDeviceSize indicesoffset;
     VulkanResource<VkDeviceMemory, MemoryDeleter> memory;
 
     operator VkDeviceMemory() const { return memory; }
@@ -330,18 +332,24 @@ namespace Vulkan
   TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
   TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size);
 
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, size_t vertexcount, size_t vertexsize);
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize);
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize);
 
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, size_t vertexcount, size_t vertexsize, size_t indexcount, size_t indexsize);
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize, const void *indices, size_t indexcount, size_t indexsize);
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize, const void *indices, size_t indexcount, size_t indexsize);
 
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format);
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, void const *bits);
-  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, void const *bits);
+  void update_vertexbuffer(VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer);
+  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
+  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
 
-  void update_texture(VkCommandBuffer commandbuffer, TransferBuffer const &imagebuffer, Texture &texture);
-  void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture, void const *bits);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits);
+  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits);
+
+  void update_texture(VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture);
+  void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture, const void *bits);
 
   QueryPool create_querypool(VulkanDevice const &vulkan, VkQueryPoolCreateInfo const &createinfo);
 
@@ -382,7 +390,7 @@ namespace Vulkan
 
   void clear(VkCommandBuffer commandbuffer, VkImage image, lml::Color4 const &clearcolor);
 
-  void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, void const *data);
+  void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data);
 
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy);
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter);
@@ -401,7 +409,8 @@ namespace Vulkan
   void beginquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query, VkQueryControlFlags flags);
   void endquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query);
 
-  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, lml::Color4 const &clearcolor);
+  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, size_t attachments, VkClearValue clearvalues[]);
+  void nextsubpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
   void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
 
   void execute(VkCommandBuffer commandbuffer, VkCommandBuffer buffer);
@@ -413,6 +422,7 @@ namespace Vulkan
 
   void bindresource(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer);
 
-  void draw(VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t instancecount, uint32_t firstvertex = 0, uint32_t firstinstance = 0);
+  void draw(VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t instancecount, uint32_t firstvertex, uint32_t firstinstance);
+  void draw(VkCommandBuffer commandbuffer, uint32_t indexcount, uint32_t instancecount, uint32_t firstindex, int32_t vertexoffset, uint32_t firstinstance);
 
 } // namespace

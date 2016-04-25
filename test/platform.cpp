@@ -24,17 +24,17 @@ namespace
       case KB_KEY_SHIFT:
       case KB_KEY_LEFT_SHIFT:
       case KB_KEY_RIGHT_SHIFT:
-        return DatumPlatform::GameInput::ModifierShift;
+        return DatumPlatform::GameInput::Shift;
 
       case KB_KEY_CONTROL:
       case KB_KEY_LEFT_CONTROL:
       case KB_KEY_RIGHT_CONTROL:
-        return DatumPlatform::GameInput::ModifierControl;
+        return DatumPlatform::GameInput::Control;
 
       case KB_KEY_ALT:
       case KB_KEY_LEFT_ALT:
       case KB_KEY_RIGHT_ALT:
-        return DatumPlatform::GameInput::ModifierAlt;
+        return DatumPlatform::GameInput::Alt;
 
       default:
         return 0;
@@ -134,9 +134,9 @@ namespace DatumPlatform
     lock_guard<mutex> lock(m_mutex);
 
     // Mouse Buttons
-    m_input.mousebuttons[GameInput::MouseLeft].transitions = 0;
-    m_input.mousebuttons[GameInput::MouseRight].transitions = 0;
-    m_input.mousebuttons[GameInput::MouseMiddle].transitions = 0;
+    m_input.mousebuttons[GameInput::Left].transitions = 0;
+    m_input.mousebuttons[GameInput::Right].transitions = 0;
+    m_input.mousebuttons[GameInput::Middle].transitions = 0;
 
     // Keyboard
     for(size_t i = 0; i < std::extent<decltype(m_input.keys)>::value; ++i)
