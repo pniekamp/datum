@@ -166,6 +166,7 @@ struct RenderContext
   Vulkan::DescriptorSetLayout scenesetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;
+  Vulkan::DescriptorSetLayout computelayout;
 
   Vulkan::DescriptorSet sceneset;
 
@@ -173,13 +174,18 @@ struct RenderContext
 
   Vulkan::PipelineCache pipelinecache;
 
+  Vulkan::Texture colorbuffer;
+  Vulkan::Texture albedobuffer;
+  Vulkan::Texture specularbuffer;
+  Vulkan::Texture normalbuffer;
+  Vulkan::Texture depthbuffer;
+  Vulkan::FrameBuffer gbuffer;
+  Vulkan::FrameBuffer framebuffer;
+
+  Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass renderpass;
 
-  Vulkan::Image colorbuffer;
-  Vulkan::ImageView colorbufferview;
-  Vulkan::Image depthbuffer;
-  Vulkan::ImageView depthbufferview;
-  Vulkan::FrameBuffer framebuffer;
+  Vulkan::DescriptorSet lightingset;
 
   Vulkan::VertexAttribute vertexattributes[4];
 
@@ -189,7 +195,7 @@ struct RenderContext
   Vulkan::Texture nominalnormal;
 
   Vulkan::Pipeline geometrypipeline;
-
+  Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline spritepipeline;
 
   int fbowidth, fboheight;

@@ -312,6 +312,7 @@ namespace Vulkan
   PipelineLayout create_pipelinelayout(VulkanDevice const &vulkan, VkPipelineLayoutCreateInfo const &createinfo);
 
   Pipeline create_pipeline(VulkanDevice const &vulkan, VkPipelineCache cache, VkGraphicsPipelineCreateInfo const &createinfo);
+  Pipeline create_pipeline(VulkanDevice const &vulkan, VkPipelineCache cache, VkComputePipelineCreateInfo const &createinfo);
 
   PipelineCache create_pipelinecache(VulkanDevice const &vulkan, VkPipelineCacheCreateInfo const &createinfo);
 
@@ -348,6 +349,8 @@ namespace Vulkan
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits);
   Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits);
 
+  Texture create_attachment(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageUsageFlags usage);
+
   void update_texture(VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture);
   void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture, const void *bits);
 
@@ -367,6 +370,7 @@ namespace Vulkan
   void signal(VulkanDevice const &vulkan, VkFence fence);
 
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
+  DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkImageView writeimage);
 
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler);
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
@@ -389,6 +393,7 @@ namespace Vulkan
   void transition_present(VkCommandBuffer commandbuffer, VkImage image);
 
   void clear(VkCommandBuffer commandbuffer, VkImage image, lml::Color4 const &clearcolor);
+  void clear(VulkanDevice const &vulkan, VkImage image, lml::Color4 const &clearcolor);
 
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data);
 
@@ -418,11 +423,14 @@ namespace Vulkan
   void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint);
   void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint);
 
+  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint);
   void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint);
 
   void bindresource(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer);
 
   void draw(VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t instancecount, uint32_t firstvertex, uint32_t firstinstance);
   void draw(VkCommandBuffer commandbuffer, uint32_t indexcount, uint32_t instancecount, uint32_t firstindex, int32_t vertexoffset, uint32_t firstinstance);
+
+  void dispatch(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t z);
 
 } // namespace

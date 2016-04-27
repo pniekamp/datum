@@ -77,7 +77,7 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
   state.context = &context;
   state.resources = resources;
 
-  if (!context.framebuffer)
+  if (!context.gbuffer)
     return false;
 
   auto commandlist = resources->allocate<CommandList>();
@@ -85,11 +85,13 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context, context.framebuffer, context.renderpass, RenderPasses::geometrypass, sizeof(SceneSet)))
+  if (!commandlist->begin(context, context.gbuffer, context.geometrypass, RenderPasses::geometrypass, sizeof(SceneSet)))
   {
     resources->destroy(commandlist);
     return false;
   }
+
+  state.assetbarrier = resources->assets()->acquire_barrier();
 
   bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -235,4 +237,6 @@ void MeshList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
+
+  state.resources->assets()->release_barrier(state.assetbarrier);
 }

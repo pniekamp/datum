@@ -33,6 +33,8 @@ class SpriteList
       RenderContext *context;
       ResourceManager *resources;
 
+      uintptr_t assetbarrier;
+
       VkDeviceSize materialoffset;
       CommandList::Descriptor materialset;
 

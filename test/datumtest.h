@@ -45,12 +45,6 @@ struct GameState
 
   Scene scene;
 
-  Sprite const *testsprite;
-
-  Material const *testmaterial;
-
-  Mesh const *testmesh;
-
   // Render Frames
 
   struct RenderFrame
@@ -59,6 +53,7 @@ struct GameState
 
     Camera camera;
 
+    MeshList meshes;
     SpriteList sprites;
 
     size_t resourcetoken;

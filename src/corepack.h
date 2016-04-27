@@ -22,6 +22,7 @@ namespace CoreAsset
     unit_sphere,
     geometry_vert,
     geometry_frag,
+    lighting_comp,
     sprite_vert,
     sprite_frag,
     default_material,

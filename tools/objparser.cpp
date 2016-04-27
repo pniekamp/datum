@@ -112,7 +112,6 @@ namespace
       vertices[i].tangent[3] = (dot(cross(normal, tan1[i]), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
     }
   }
-
 }
 
 uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, string const &mask)
@@ -121,6 +120,8 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
 
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
+
+  image = image.convertToFormat(QImage::Format_ARGB32);
 
   if (mask != "")
   {
@@ -141,7 +142,7 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
     }
   }
 
-  image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
+  image = image.mirrored();
 
   int width = image.width();
   int height = image.height();
@@ -169,6 +170,8 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
 
+  image = image.convertToFormat(QImage::Format_ARGB32);
+
   if (base != "")
   {
     QImage albedo(base.c_str());
@@ -194,7 +197,7 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
     }
   }
 
-  image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
+  image = image.mirrored();
 
   int width = image.width();
   int height = image.height();
@@ -222,7 +225,7 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
   if (src.isNull())
     throw runtime_error("Failed to load image - " + path);
 
-  QImage image = src;
+  QImage image = src.convertToFormat(QImage::Format_ARGB32);
 
   for(int y = 0; y < src.height(); ++y)
   {
@@ -250,7 +253,7 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
     }
   }
 
-  image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
+  image = image.mirrored();
 
   int width = image.width();
   int height = image.height();

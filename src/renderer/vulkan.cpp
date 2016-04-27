@@ -38,11 +38,11 @@ namespace Vulkan
     vkGetPhysicalDeviceQueueFamilyProperties(vulkan->physicaldevice, &queuecount, queueproperties);
 
     uint32_t queueindex = 0;
-    while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+    while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)))
       ++queueindex;
 
     if (queueproperties[queueindex].queueCount <= queueinstance)
-      throw runtime_error("Vulkan vkGetDeviceQueue insufficient queues");
+      throw runtime_error("Vulkan vkGetDeviceQueue insufficient or incompatible queues");
 
     vkGetDeviceQueue(vulkan->device, queueindex, queueinstance, &vulkan->queue);
   }
@@ -148,6 +148,18 @@ namespace Vulkan
 
     if (vkCreateGraphicsPipelines(vulkan.device, cache, 1, &createinfo, nullptr, &pipeline) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateGraphicsPipelines failed");
+
+    return { pipeline, { vulkan.device } };
+  }
+
+
+  ///////////////////////// create_pipeline /////////////////////////////////
+  Pipeline create_pipeline(VulkanDevice const &vulkan, VkPipelineCache cache, VkComputePipelineCreateInfo const &createinfo)
+  {
+    VkPipeline pipeline;
+
+    if (vkCreateComputePipelines(vulkan.device, cache, 1, &createinfo, nullptr, &pipeline) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateComputePipelines failed");
 
     return { pipeline, { vulkan.device } };
   }
@@ -458,7 +470,7 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// create_texture //////////////////////////////////
+  ///////////////////////// update_vertexbuffer /////////////////////////////
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices)
   {
     assert(vertexbuffer.size <= transferbuffer.size);
@@ -535,7 +547,7 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// update_texture //////////////////////////////////
+  ///////////////////////// create_texture //////////////////////////////////
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits)
   {
     Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format);
@@ -546,7 +558,7 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// update_texture //////////////////////////////////
+  ///////////////////////// create_texture //////////////////////////////////
   Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
@@ -562,6 +574,63 @@ namespace Vulkan
     submit(vulkan, setupbuffer);
 
     vkQueueWaitIdle(vulkan.queue);
+
+    return texture;
+  }
+
+
+  ///////////////////////// create_attachment ///////////////////////////////
+  Texture create_attachment(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageUsageFlags usage)
+  {
+    Texture texture = {};
+
+    texture.width = width;
+    texture.height = height;
+    texture.layers = layers;
+    texture.levels = levels;
+    texture.format = format;
+
+    VkImageCreateInfo imageinfo = {};
+    imageinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageinfo.imageType = VK_IMAGE_TYPE_2D;
+    imageinfo.format = format;
+    imageinfo.extent.width = width;
+    imageinfo.extent.height = height;
+    imageinfo.extent.depth = 1;
+    imageinfo.mipLevels = levels;
+    imageinfo.arrayLayers = layers;
+    imageinfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageinfo.usage = usage;
+    imageinfo.flags = 0;
+
+    texture.image = create_image(vulkan, imageinfo);
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_NEAREST;
+    samplerinfo.minFilter = VK_FILTER_NEAREST;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.compareOp = VK_COMPARE_OP_NEVER;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = levels;
+    samplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+    texture.sampler = create_sampler(vulkan, samplerinfo);
+
+    VkImageViewCreateInfo viewinfo = {};
+    viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewinfo.format = format;
+    viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+    viewinfo.subresourceRange = { (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT, 0, levels, 0, layers };
+    viewinfo.image = texture.image;
+
+    texture.imageview = create_imageview(vulkan, viewinfo);
 
     return texture;
   }
@@ -715,6 +784,37 @@ namespace Vulkan
     writeset.descriptorCount = 1;
     writeset.descriptorType = type;
     writeset.pBufferInfo = &bufferinfo;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+
+    return { descriptorset, { vulkan.device, pool } };
+  }
+
+
+  ///////////////////////// allocate_descriptorset //////////////////////////
+  DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkImageView writeimage)
+  {
+    VkDescriptorSetAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocateinfo.descriptorPool = pool;
+    allocateinfo.descriptorSetCount = 1;
+    allocateinfo.pSetLayouts = &layout;
+
+    VkDescriptorSet descriptorset;
+    if (vkAllocateDescriptorSets(vulkan.device, &allocateinfo, &descriptorset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateDescriptorSets failed");
+
+    VkDescriptorImageInfo imageinfo = {};
+    imageinfo.imageView = writeimage;
+    imageinfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = 0;
+    writeset.descriptorCount = 1;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    writeset.pImageInfo = &imageinfo;
 
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
 
@@ -898,6 +998,25 @@ namespace Vulkan
   }
 
 
+  ///////////////////////// clear ///////////////////////////////////////////
+  void clear(VulkanDevice const &vulkan, VkImage image, Color4 const &clearcolor)
+  {
+    CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+
+    CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    clear(setupbuffer, image, clearcolor);
+
+    end(vulkan, setupbuffer);
+
+    submit(vulkan, setupbuffer);
+
+    vkQueueWaitIdle(vulkan.queue);
+  }
+
+
   ///////////////////////// update //////////////////////////////////////////
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data)
   {
@@ -1000,6 +1119,9 @@ namespace Vulkan
     imagebarrier.image = image;
     imagebarrier.subresourceRange = subresourcerange;
 
+    if (oldlayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+      imagebarrier.srcAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;
+
     if (oldlayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_TRANSFER_WRITE_BIT;
 
@@ -1008,6 +1130,9 @@ namespace Vulkan
 
     if (oldlayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_SHADER_READ_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+      imagebarrier.dstAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;
 
     if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -1127,6 +1252,13 @@ namespace Vulkan
 
 
   ///////////////////////// bind ////////////////////////////////////////////
+  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint)
+  {
+    vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
   void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
@@ -1185,6 +1317,13 @@ namespace Vulkan
   void draw(VkCommandBuffer commandbuffer, uint32_t indexcount, uint32_t instancecount, uint32_t firstindex, int32_t vertexoffset, uint32_t firstinstance)
   {
     vkCmdDrawIndexed(commandbuffer, indexcount, instancecount,firstindex, vertexoffset, firstinstance);
+  }
+
+
+  ///////////////////////// dispatch ////////////////////////////////////////
+  void dispatch(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t z)
+  {
+    vkCmdDispatch(commandbuffer, x, y, z);
   }
 
 } // namespace vulkan

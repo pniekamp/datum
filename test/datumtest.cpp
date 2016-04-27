@@ -52,51 +52,6 @@ void datumtest_init(PlatformInterface &platform)
   state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
-  state.testsprite = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image));
-
-  state.testmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
-
-  state.testmesh = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_quad));
-
-#if 0
-  state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
-#endif
-
-#if 0
-  auto id = state.assets.load(platform, "test.pack")->id;
-
-  auto model = state.scene.get<Model>(state.scene.create<Model>(&state.resources));
-
-  model->add_mesh(state.resources.create<Mesh>(state.assets.find(id + 1))); // floor
-  model->add_mesh(state.resources.create<Mesh>(state.assets.find(id + 2))); // teapot
-  model->add_material(state.resources.create<Material>(state.assets.find(id + 3))); // wood
-  model->add_material(state.resources.create<Material>(state.assets.find(id + 7))); // plastic
-  model->add_texture(state.resources.create<Texture>(state.assets.find(id + 9), Texture::Format::sRGB8_A8)); // plastic specular
-  model->add_texture(state.resources.create<Texture>(state.assets.find(id + 10), Texture::Format::RGBA8)); // plastic normal
-
-  model->add_instance(Transform::translation(0, 0, 0), 0, 0, MeshComponent::Visible | MeshComponent::Static);
-
-  const int NTEAPOTS = 7;
-  const int HALF_NTEAPOTS = NTEAPOTS / 2;
-  for(int x = 0; x < NTEAPOTS; ++x)
-  {
-    for(int z = 0; z < NTEAPOTS; ++z)
-    {
-      Vec3 position = Vec3(2 * (x - HALF_NTEAPOTS), 0.0f, 2 * (z - HALF_NTEAPOTS));
-
-      float rotation = -38.0f * pi<float>()/180;
-
-      Color3 color = Color3(x / (float)NTEAPOTS, 0.3f, z / (float)NTEAPOTS);
-
-      auto material = state.resources.create<Material>(color, (Texture const *)nullptr, Color3(1.0, 1.0, 1.0), 90.0f, model->textures[0], model->textures[1]);
-
-      auto mat = model->add_material(material);
-
-      model->add_instance(Transform::translation(position) * Transform::rotation(Vec3(0, 1, 0), rotation), 1, mat, MeshComponent::Visible);
-    }
-  }
-#endif
-
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 }
 
@@ -149,21 +104,44 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.writeframe->camera = state.camera;
 
 #if 1
-  SpriteList::BuildState buildstate;
-
-  if (state.writeframe->sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
-    float count = 15.0f;
-    float radius = 0.2f;
+    MeshList::BuildState buildstate;
 
-    for(float angle = 0.0f; angle < 2*pi<float>(); angle += pi<float>()/count)
+    if (state.writeframe->meshes.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      Vec2 position = Vec2(0.5, 0.5) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
+      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(0, 0, -3 - sin(state.time)), state.unitsphere, state.defaultmaterial);
 
-      state.writeframe->sprites.push_rect(buildstate, position, Rect2({0, -0.008}, {0.05, 0.008}), angle + state.time, Color4(1, 0, 0, 1));
+      for(auto &entity : state.scene.entities<MeshComponent>())
+      {
+        auto instance = state.scene.get_component<MeshComponent>(entity);
+        auto transform = state.scene.get_component<TransformComponent>(entity);
+
+        state.writeframe->meshes.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
+      }
+
+      state.writeframe->meshes.finalise(buildstate);
     }
+  }
+#endif
 
-    state.writeframe->sprites.finalise(buildstate);
+#if 1
+  {
+    SpriteList::BuildState buildstate;
+
+    if (state.writeframe->sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      float count = 15.0f;
+      float radius = 0.2f;
+
+      for(float angle = 0.0f; angle < 2*pi<float>(); angle += pi<float>()/count)
+      {
+        Vec2 position = Vec2(0.5, 0.5) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
+
+        state.writeframe->sprites.push_rect(buildstate, position, Rect2({0, -0.008}, {0.05, 0.008}), angle + state.time, Color4(1, 0, 0, 1));
+      }
+
+      state.writeframe->sprites.finalise(buildstate);
+    }
   }
 #endif
 
@@ -201,30 +179,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
+  renderlist.push_meshes(state.readframe->meshes);
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
-
-#if 1
-  MeshList meshes;
-  MeshList::BuildState meshstate;
-
-  if (meshes.begin(meshstate, platform, state.rendercontext, &state.resources))
-  {
-//    meshes.push_mesh(meshstate, Transform::translation(0, 0, -3), state.testmesh, state.testmaterial);
-//    meshes.push_mesh(meshstate, Transform::translation(0, 0, -3 - sin(state.time)), state.unitsphere, state.defaultmaterial);
-
-    for(auto &entity : state.scene.entities<MeshComponent>())
-    {
-      auto instance = state.scene.get_component<MeshComponent>(entity);
-      auto transform = state.scene.get_component<TransformComponent>(entity);
-
-      meshes.push_mesh(meshstate, transform.world(), instance.mesh(), instance.material());
-    }
-
-    meshes.finalise(meshstate);
-  }
-
-  renderlist.push_meshes(meshes);
-#endif
 
 #if 1
   SpriteList overlay;
@@ -233,9 +189,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   if (overlay.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
     overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
-
-//    for(int i = 0; i < 50000; ++i)
-      overlay.push_rect(buildstate, Vec2(10, 200), Rect2({0,0}, {50,50}), Color4(1, 1, 1, 1));
 
     overlay.finalise(buildstate);
   }

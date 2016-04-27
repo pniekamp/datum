@@ -21,7 +21,7 @@ using leap::extentof;
 
 enum RenderPasses
 {
-  spritepass = 1,
+  spritepass = 0,
 };
 
 enum ShaderLocation
@@ -90,6 +90,8 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
     resources->destroy(commandlist);
     return false;
   }
+
+  state.assetbarrier = resources->assets()->acquire_barrier();
 
   bindresource(*commandlist, context.spritepipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -391,4 +393,6 @@ void SpriteList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
+
+  state.resources->assets()->release_barrier(state.assetbarrier);
 }
