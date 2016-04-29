@@ -26,6 +26,7 @@ namespace Renderable
     Clear,
     Sprites,
     Meshes,
+    Lights
   };
 
   using Vec2 = lml::Vec2;
@@ -43,14 +44,21 @@ namespace Renderable
 
     Rect2 viewport;
 
-    CommandList const *spritelist;
+    CommandList const *commandlist;
   };
 
   struct Meshes
   {
     static const Type type = Type::Meshes;
 
-    CommandList const *meshlist;
+    CommandList const *commandlist;
+  };
+
+  struct Lights
+  {
+    static const Type type = Type::Lights;
+
+    CommandList const *commandlist;
   };
 }
 
@@ -164,11 +172,10 @@ struct RenderContext
   Vulkan::QueryPool timingquerypool;
 
   Vulkan::DescriptorSetLayout scenesetlayout;
+  Vulkan::DescriptorSetLayout environmentsetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;
   Vulkan::DescriptorSetLayout computelayout;
-
-  Vulkan::DescriptorSet sceneset;
 
   Vulkan::PipelineLayout pipelinelayout;
 
@@ -185,7 +192,13 @@ struct RenderContext
   Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass renderpass;
 
-  Vulkan::DescriptorSet lightingset;
+  Vulkan::DescriptorSet sceneset;
+
+  size_t lightingbuffersize;
+  size_t lightingbufferoffsets[2];
+  Vulkan::DescriptorSet lightingbuffer;
+
+  Vulkan::DescriptorSet colorbuffertarget;
 
   Vulkan::VertexAttribute vertexattributes[4];
 
@@ -209,16 +222,10 @@ struct RenderContext
   std::atomic<size_t> offset;
   Vulkan::MemoryView<uint8_t> transfermemory;
 
-  lml::Vec3 camerapos;
-  lml::Quaternion3f camerarot;
-  lml::Matrix4f proj;
-  lml::Matrix4f invproj;
-  lml::Matrix4f view;
-  lml::Matrix4f invview;
-  lml::Matrix4f worldview;
-
-  lml::Matrix4f prevview;
+  Camera camera;
+  Camera prevcamera;
 };
+
 
 
 struct RenderParams

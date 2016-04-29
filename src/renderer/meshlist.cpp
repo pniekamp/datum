@@ -27,17 +27,14 @@ enum RenderPasses
 enum ShaderLocation
 {
   sceneset = 0,
-  materialset = 1,
-  modelset = 2,
+  environmentset = 1,
+  materialset = 2,
+  modelset = 3,
+  computeset = 4,
 
   albedomap = 1,
   specularmap = 2,
   normalmap = 3,
-};
-
-struct SceneSet
-{
-  Matrix4f worldview;
 };
 
 struct MaterialSet
@@ -56,11 +53,7 @@ struct ModelSet
 ///////////////////////// draw_meshes ///////////////////////////////////////
 void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes)
 {
-  SceneSet *scene = (SceneSet*)(context.transfermemory + meshes.meshlist->transferoffset);
-
-  scene->worldview = context.worldview;
-
-  execute(commandbuffer, *meshes.meshlist);
+  execute(commandbuffer, meshes.commandlist->commandbuffer());
 }
 
 
@@ -80,12 +73,12 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
   if (!context.gbuffer)
     return false;
 
-  auto commandlist = resources->allocate<CommandList>();
+  auto commandlist = resources->allocate<CommandList>(&context);
 
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context, context.gbuffer, context.geometrypass, RenderPasses::geometrypass, sizeof(SceneSet)))
+  if (!commandlist->begin(context.gbuffer, context.geometrypass, RenderPasses::geometrypass))
   {
     resources->destroy(commandlist);
     return false;
@@ -95,7 +88,7 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
 
   bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, commandlist->transferoffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -132,7 +125,7 @@ void MeshList::push_material(BuildState &state, Material const *material)
       commandlist.release(state.materialset, state.materialoffset);
 
     state.materialoffset = 0;
-    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaterialSet));
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet));
 
     if (state.materialset)
     {
@@ -184,7 +177,7 @@ void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform
       commandlist.release(state.modelset, state.modeloffset);
 
     state.modeloffset = 0;
-    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet));
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet));
   }
 
   if (state.modeloffset + sizeof(ModelSet) <= state.modelset.capacity())

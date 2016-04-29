@@ -123,7 +123,7 @@ void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 n
   specular += pow(specular_intensity(normal, eyevec, -light.direction), specularexponent) * specularcolor * light.intensity * shadowfactor;
 }
 
-/*
+
 ///////////////////////// point_light  //////////////////////////////////////
 void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3 position, vec3 normal, vec3 eyevec, vec3 albedocolor, vec3 specularcolor, float specularexponent)
 { 
@@ -140,8 +140,6 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
   //attenuation *= min(10*light.attenuation.w/abs(light.position.z), 1.0);
   
   diffuse += intensity * light.intensity * albedocolor * attenuation;
-  
+
   specular += pow(specular_intensity(normal, eyevec, lightvec), specularexponent) * specularcolor * light.intensity * attenuation;
 }
-
-*/

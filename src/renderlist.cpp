@@ -33,7 +33,22 @@ void RenderList::push_meshes(MeshList const &meshes)
 
     if (entry)
     {
-      entry->meshlist = meshes;
+      entry->commandlist = meshes.commandlist();
+    }
+  }
+}
+
+
+///////////////////////// RenderList::push_lights ///////////////////////////
+void RenderList::push_lights(LightList const &lights)
+{
+  if (lights)
+  {
+    auto entry = m_buffer.push<Renderable::Lights>();
+
+    if (entry)
+    {
+      entry->commandlist = lights.commandlist();
     }
   }
 }
@@ -49,7 +64,7 @@ void RenderList::push_sprites(lml::Rect2 const &viewport, SpriteList const &spri
     if (entry)
     {
       entry->viewport = viewport;
-      entry->spritelist = sprites;
+      entry->commandlist = sprites.commandlist();
     }
   }
 }

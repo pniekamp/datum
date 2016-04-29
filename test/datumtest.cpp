@@ -38,10 +38,13 @@ void datumtest_init(PlatformInterface &platform)
 
   initialise_resource_pool(platform, state.rendercontext.resourcepool, 16*1024*1024);
 
+  state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
+
   state.scene.initialise_component_storage<NameComponent>();
   state.scene.initialise_component_storage<TransformComponent>();
   state.scene.initialise_component_storage<SpriteComponent>();
   state.scene.initialise_component_storage<MeshComponent>();
+  state.scene.initialise_component_storage<LightComponent>();
 
   state.assets.load(platform, "core.pack");
 
@@ -52,7 +55,7 @@ void datumtest_init(PlatformInterface &platform)
   state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
-  state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
+  state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 }
 
 
@@ -126,6 +129,27 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
 #if 1
   {
+    LightList::BuildState buildstate;
+
+    if (state.writeframe->lights.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      state.writeframe->lights.push_pointlight(buildstate, Vec3(10*sin(0.4*state.time), 1, 2*sin(0.6*state.time)), 5, Color3(1, 0, 1), Attenuation(0, 0, 1));
+
+      for(auto &entity : state.scene.entities<PointLightComponent>())
+      {
+        auto light = state.scene.get_component<PointLightComponent>(entity);
+        auto transform = state.scene.get_component<TransformComponent>(entity);
+
+        state.writeframe->lights.push_pointlight(buildstate, transform.world().translation(), light.range(), light.intensity(), light.attenuation());
+      }
+
+      state.writeframe->lights.finalise(buildstate);
+    }
+  }
+#endif
+
+#if 1
+  {
     SpriteList::BuildState buildstate;
 
     if (state.writeframe->sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
@@ -180,6 +204,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
   renderlist.push_meshes(state.readframe->meshes);
+  renderlist.push_lights(state.readframe->lights);
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
 #if 1

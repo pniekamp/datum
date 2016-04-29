@@ -24,7 +24,7 @@ class CommandList
       public:
 
         template<typename View>
-        View *memory(VkDeviceSize offset) { return (View*)((uint8_t*)m_storage.memory + offset); }
+        View *memory(VkDeviceSize offset = 0) { return (View*)((uint8_t*)m_storage.memory + offset); }
 
         VkDeviceSize capacity() { return m_storage.capacity; }
 
@@ -41,14 +41,16 @@ class CommandList
     };
 
   public:
-    CommandList();
+    CommandList(class RenderContext *context);
     ~CommandList();
 
     CommandList(CommandList const &) = delete;
 
     CommandList(CommandList &&other) noexcept
-      : CommandList()
     {
+      m_resourcelump = 0;
+      m_commandbuffer = 0;
+
       *this = std::move(other);
     }
 
@@ -61,9 +63,9 @@ class CommandList
       return *this;
     }
 
-    bool begin(class RenderContext &context, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, size_t transferreservation);
+    bool begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass);
 
-    Descriptor acquire(VkDescriptorSetLayout layout, VkDeviceSize size);
+    Descriptor acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size);
 
     void release(Descriptor const &descriptor, VkDeviceSize used);
 
@@ -71,13 +73,17 @@ class CommandList
 
   public:
 
-    VkDeviceSize transferoffset;
+    void *lookup(uint32_t set) const { return m_addressmap[set]; }
 
     operator VkCommandBuffer() const { return m_commandbuffer; }
+
+    VkCommandBuffer commandbuffer() const { return m_commandbuffer; }
 
   private:
 
     VkCommandBuffer m_commandbuffer;
+
+    void *m_addressmap[4];
 
     ResourcePool::ResourceLump const *m_resourcelump;
 

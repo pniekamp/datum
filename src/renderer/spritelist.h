@@ -9,6 +9,7 @@
 #pragma once
 
 #include "renderer.h"
+#include "resource.h"
 #include "commandlist.h"
 #include "sprite.h"
 #include "font.h"
@@ -22,7 +23,9 @@ class SpriteList
 {
   public:
 
-    operator CommandList const *() const { return m_commandlist; }
+    operator bool() const { return m_commandlist; }
+
+    CommandList const *commandlist() const { return m_commandlist; }
 
   public:
 

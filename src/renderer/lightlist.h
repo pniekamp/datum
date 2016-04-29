@@ -1,5 +1,5 @@
 //
-// Datum - mesh list
+// Datum - light list
 //
 
 //
@@ -11,15 +11,13 @@
 #include "renderer.h"
 #include "resource.h"
 #include "commandlist.h"
-#include "mesh.h"
-#include "material.h"
 #include <utility>
 
 
-//|---------------------- MeshList ------------------------------------------
+//|---------------------- LightList -----------------------------------------
 //|--------------------------------------------------------------------------
 
-class MeshList
+class LightList
 {
   public:
 
@@ -31,32 +29,17 @@ class MeshList
 
     struct BuildState
     {
-      DatumPlatform::PlatformInterface *platform;
-
       RenderContext *context;
       ResourceManager *resources;
 
-      uintptr_t assetbarrier;
-
-      VkDeviceSize materialoffset;
-      CommandList::Descriptor materialset;
-
-      VkDeviceSize modeloffset;
-      CommandList::Descriptor modelset;
+      void *data;
 
       CommandList *commandlist = nullptr;
-
-      Mesh const *mesh;
-      Material const *material;
     };
 
     bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
 
-    void push_material(BuildState &state, Material const *material);
-
-    void push_mesh(BuildState &state, lml::Transform const &transform, Mesh const *mesh);
-
-    void push_mesh(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material);
+    void push_pointlight(BuildState &state, lml::Vec3 const &position, float range, lml::Color3 const &intensity, lml::Attenuation const &attenuation);
 
     void finalise(BuildState &state);
 

@@ -54,6 +54,7 @@ struct GameState
     Camera camera;
 
     MeshList meshes;
+    LightList lights;
     SpriteList sprites;
 
     size_t resourcetoken;

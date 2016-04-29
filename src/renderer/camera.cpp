@@ -21,6 +21,8 @@ using namespace lml;
 ///////////////////////// Camera::Constructor ///////////////////////////////
 Camera::Camera()
 {
+  m_fov = 60.0f;
+  m_aspect = 1.7777;
   m_transform = Transform::identity();
 }
 

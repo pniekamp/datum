@@ -27,15 +27,17 @@ enum RenderPasses
 enum ShaderLocation
 {
   sceneset = 0,
-  materialset = 1,
-  modelset = 2,
+  environmentset = 1,
+  materialset = 2,
+  modelset = 3,
+  computeset = 4,
 
   albedomap = 1,
 };
 
-struct SceneSet
+struct EnvironmentSet
 {
-  Matrix4f worldview;
+  Matrix4f worldviewport;
 };
 
 struct MaterialSet
@@ -56,11 +58,14 @@ struct ModelSet
 ///////////////////////// draw_sprites //////////////////////////////////////
 void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
 {
-  SceneSet *scene = (SceneSet*)(context.transfermemory + sprites.spritelist->transferoffset);
+  EnvironmentSet *environment = (EnvironmentSet*)sprites.commandlist->lookup(ShaderLocation::environmentset);
 
-  scene->worldview = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
+  if (environment)
+  {
+    environment->worldviewport = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
 
-  execute(commandbuffer, *sprites.spritelist);
+    execute(commandbuffer, sprites.commandlist->commandbuffer());
+  }
 }
 
 
@@ -80,28 +85,37 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
   if (!context.framebuffer)
     return false;
 
-  auto commandlist = resources->allocate<CommandList>();
+  auto commandlist = resources->allocate<CommandList>(&context);
 
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context, context.framebuffer, context.renderpass, RenderPasses::spritepass, sizeof(SceneSet)))
+  if (!commandlist->begin(context.framebuffer, context.renderpass, RenderPasses::spritepass))
   {
     resources->destroy(commandlist);
     return false;
   }
 
-  state.assetbarrier = resources->assets()->acquire_barrier();
-
   bindresource(*commandlist, context.spritepipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, commandlist->transferoffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  auto environmentset = commandlist->acquire(ShaderLocation::environmentset, context.environmentsetlayout, sizeof(EnvironmentSet));
+
+  if (environmentset)
+  {
+    bindresource(*commandlist, environmentset, context.pipelinelayout, ShaderLocation::environmentset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    commandlist->release(environmentset, sizeof(EnvironmentSet));
+  }
 
   bindresource(*commandlist, context.unitquad);
 
   m_commandlist = { resources, commandlist };
 
   state.commandlist = commandlist;
+
+  state.assetbarrier = resources->assets()->acquire_barrier();
 
   return true;
 }
@@ -121,7 +135,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
       commandlist.release(state.materialset, state.materialoffset);
 
     state.materialoffset = 0;
-    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaterialSet));
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet));
 
     if (state.materialset)
     {
@@ -162,7 +176,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, lml::Vec2 xbasis, lml
       commandlist.release(state.modelset, state.modeloffset);
 
     state.modeloffset = 0;
-    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet));
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet));
   }
 
   if (state.modeloffset + sizeof(ModelSet) <= state.modelset.capacity())

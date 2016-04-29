@@ -14,7 +14,7 @@ vec2 project(mat4 proj, vec3 viewpos)
 ///////////////////////// view_depth ////////////////////////////////////////
 float view_depth(mat4 proj, float depth)
 {
-  return proj[3][2] / (2.0 * depth - 1.0 + proj[2][2]);
+  return proj[3][2] / (depth + proj[2][2]);
 }
 
 float view_depth(mat4 proj, ivec2 xy, sampler2D depthmap)

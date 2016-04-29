@@ -5,18 +5,29 @@ layout(location=1) in vec2 vertex_texcoord;
 
 layout(std140, set=0, binding=0) uniform SceneSet 
 {
+  layout(row_major) mat4 proj;
+  layout(row_major) mat4 invproj;
+  layout(row_major) mat4 view;
+  layout(row_major) mat4 invview;
   layout(row_major) mat4 worldview;
+  vec3 camerapos;
 
 } scene;
 
-layout(std430, set=1, binding=0) buffer MaterialSet 
+layout(std430, set=1, binding=0) buffer EnvironmentSet 
+{
+  layout(row_major) mat4 worldviewport;
+
+} environment;
+
+layout(std430, set=2, binding=0) buffer MaterialSet 
 {
   vec4 tint;
   vec4 texcoords;
 
 } material;
 
-layout(std430, set=2, binding=0) buffer ModelSet 
+layout(std430, set=3, binding=0) buffer ModelSet 
 { 
   vec2 xbasis;
   vec2 ybasis;
@@ -32,7 +43,6 @@ void main(void)
   mat4 modelworld = { vec4(model.xbasis, 0, 0), vec4(model.ybasis, 0, 0), vec4(0), vec4(model.position.xy, 0, 1) };
 
   texcoord = vec3(material.texcoords.xy + material.texcoords.zw * vertex_texcoord, model.position.z);
-//  texcoord = vec3(material.texcoords.xy + material.texcoords.zw * vec2(vertex_texcoord.s, 1-vertex_texcoord.t), model.position.z);
   
-  gl_Position = scene.worldview * modelworld * vec4(vertex_position, 1.0);
+  gl_Position = environment.worldviewport * modelworld * vec4(vertex_position, 1.0);
 }

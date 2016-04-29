@@ -412,7 +412,7 @@ namespace
     if (entry)
     {
       entry->viewport = Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height));
-      entry->spritelist = overlay;
+      entry->commandlist = overlay.commandlist();
     }
 
     END_TIMED_BLOCK(DebugOverlay)

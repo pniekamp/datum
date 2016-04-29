@@ -41,7 +41,7 @@ class Camera
 
   public:
 
-    void set_projection(float fov, float aspect, float znear = 0.001f, float zfar = 24000.0f);
+    void set_projection(float fov, float aspect, float znear = 0.1f, float zfar = 24000.0f);
 
   public:
 

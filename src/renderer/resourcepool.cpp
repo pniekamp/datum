@@ -129,7 +129,8 @@ ResourcePool::ResourceLump const *ResourcePool::aquire_lump()
 ///////////////////////// ResourcePool::release_lump ////////////////////////
 void ResourcePool::release_lump(ResourceLump const *lumphandle)
 {
-  assert(lumphandle);
+  assert(m_initialised);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
@@ -146,8 +147,8 @@ void ResourcePool::release_lump(ResourceLump const *lumphandle)
 ///////////////////////// ResourcePool::acquire_commandbuffer ///////////////
 ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump const *lumphandle)
 {
-  assert(lumphandle);
   assert(m_initialised);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
@@ -158,8 +159,8 @@ ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump con
 ///////////////////////// ResourcePool::acquire_storage /////////////////////
 ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump const *lumphandle, size_t required)
 {
-  assert(lumphandle);
   assert(m_initialised);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
   assert(m_lumps[lumphandle - m_lumps].storagepool.count < extent<decltype(StoragePool::buffers)>::value);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
@@ -208,6 +209,9 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
 ///////////////////////// ResourcePool::release_storage ///////////////////////////////
 void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t used)
 {
+  assert(m_initialised);
+  assert(storage.storagebuffer >= m_storagebuffers && storage.storagebuffer - m_storagebuffers < kStorageBufferSlots);
+
   StorageSlot &buffer = m_storagebuffers[storage.storagebuffer - m_storagebuffers];
 
   RESOURCE_RELEASE(renderstorageused, buffer.size - buffer.used - used)
@@ -223,8 +227,9 @@ void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t us
 ///////////////////////// ResourcePool::acquire_descriptorset ///////////////
 ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump const *lumphandle, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
 {
-  assert(lumphandle);
   assert(m_initialised);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
+  assert(m_lumps[lumphandle - m_lumps].storagepool.count < extent<decltype(StoragePool::buffers)>::value);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 

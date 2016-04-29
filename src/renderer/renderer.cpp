@@ -42,9 +42,10 @@ enum ShaderLocation
   vertex_tangent = 3,
 
   sceneset = 0,
-  materialset = 1,
-  modelset = 2,
-  computeset = 3,
+  environmentset = 1,
+  materialset = 2,
+  modelset = 3,
+  computeset = 4,
 
   albedomap = 1,
   specularmap = 2,
@@ -52,9 +53,19 @@ enum ShaderLocation
   depthmap = 4,
 };
 
+struct SceneSet
+{
+  Matrix4f proj;
+  Matrix4f invproj;
+  Matrix4f view;
+  Matrix4f invview;
+  Matrix4f worldview;
+  Vec4 camerapos;
+};
+
 constexpr size_t kPushConstantSize = 64;
 constexpr size_t kTransferBufferSize = 64*1024;
-constexpr size_t kTransferReservationSize = 1024;
+constexpr size_t kLightingBufferSize = 16*1024;
 
 
 //|---------------------- PushBuffer ----------------------------------------
@@ -103,6 +114,21 @@ void *PushBuffer::push(Renderable::Type type, size_t size, size_t alignment)
 
 namespace
 {
+  ///////////////////////// acquire_transferbuffer //////////////////////////
+  size_t acquire_transferbuffer(RenderContext &context, size_t required)
+  {
+    auto bytes = alignto(required, max(context.device.physicaldeviceproperties.limits.minUniformBufferOffsetAlignment, context.device.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment));
+
+    size_t offset = context.offset.load(std::memory_order_relaxed);
+
+    while (!context.offset.compare_exchange_weak(offset, offset + bytes))
+      ;
+
+    assert(offset + bytes < kTransferBufferSize);
+
+    return offset;
+  }
+
 
   ///////////////////////// prepare_render_pipeline /////////////////////////
   bool prepare_render_pipeline(RenderContext &context, int width, int height)
@@ -121,6 +147,8 @@ namespace
       //
 
       context.colorbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+      context.colorbuffertarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.colorbuffer.imageview);
 
       //
       // Geometry Attachment
@@ -159,6 +187,11 @@ namespace
 
       context.gbuffer = create_framebuffer(context.device, gbufferinfo);
 
+      bindtexture(context.device, context.lightingbuffer, ShaderLocation::albedomap, context.albedobuffer);
+      bindtexture(context.device, context.lightingbuffer, ShaderLocation::specularmap, context.specularbuffer);
+      bindtexture(context.device, context.lightingbuffer, ShaderLocation::normalmap, context.normalbuffer);
+      bindtexture(context.device, context.lightingbuffer, ShaderLocation::depthmap, context.depthbuffer);
+
       //
       // Frame Buffer
       //
@@ -181,17 +214,6 @@ namespace
       context.fbowidth = width;
       context.fboheight = height;
 
-      //
-      // Lighting Set
-      //
-
-      context.lightingset = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.colorbuffer.imageview);
-
-      bindtexture(context.device, context.lightingset, ShaderLocation::albedomap, context.albedobuffer);
-      bindtexture(context.device, context.lightingset, ShaderLocation::specularmap, context.specularbuffer);
-      bindtexture(context.device, context.lightingset, ShaderLocation::normalmap, context.normalbuffer);
-      bindtexture(context.device, context.lightingset, ShaderLocation::depthmap, context.depthbuffer);
-
       return false;
     }
 
@@ -199,22 +221,6 @@ namespace
   }
 
 } // namespace
-
-
-///////////////////////// transfer_reservation //////////////////////////////
-size_t transfer_reservation(RenderContext &context, size_t required)
-{
-  assert(required <= kTransferReservationSize);
-
-  auto bytes = alignto(required, context.device.physicaldeviceproperties.limits.minUniformBufferOffsetAlignment);
-
-  size_t offset = context.offset.load(std::memory_order_relaxed);
-
-  while (!context.offset.compare_exchange_weak(offset, (offset + kTransferReservationSize < context.transferbuffer.size) ? offset + bytes : bytes))
-    ;
-
-  return (offset + kTransferReservationSize < context.transferbuffer.size) ? offset : 0;
-}
 
 
 ///////////////////////// prepare_render_context ////////////////////////////
@@ -245,7 +251,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     // DescriptorPool
 
     VkDescriptorPoolSize typecounts[4] = {};
-    typecounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    typecounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     typecounts[0].descriptorCount = 1;
     typecounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     typecounts[1].descriptorCount = 1;
@@ -315,7 +321,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkDescriptorSetLayoutBinding bindings[1] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bindings[0].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
@@ -325,30 +331,68 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     context.scenesetlayout = create_descriptorsetlayout(context.device, createinfo);
 
-    context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, kTransferReservationSize, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
+    context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, acquire_transferbuffer(context, sizeof(SceneSet)), sizeof(SceneSet), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  }
+
+  if (context.environmentsetlayout == 0)
+  {
+    // Environment Set
+
+    VkDescriptorSetLayoutBinding bindings[5] = {};
+    bindings[0].binding = 0;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    bindings[0].descriptorCount = 1;
+    bindings[1].binding = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[1].descriptorCount = 1;
+    bindings[2].binding = 2;
+    bindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[2].descriptorCount = 1;
+    bindings[3].binding = 3;
+    bindings[3].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[3].descriptorCount = 1;
+    bindings[4].binding = 4;
+    bindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[4].descriptorCount = 1;
+
+    VkDescriptorSetLayoutCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createinfo.bindingCount = extentof(bindings);
+    createinfo.pBindings = bindings;
+
+    context.environmentsetlayout = create_descriptorsetlayout(context.device, createinfo);
   }
 
   if (context.materialsetlayout == 0)
   {
     // Material Set
 
-    VkDescriptorSetLayoutBinding bindings[4] = {};
+    VkDescriptorSetLayoutBinding bindings[5] = {};
     bindings[0].binding = 0;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
     bindings[1].binding = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[1].descriptorCount = 1;
     bindings[2].binding = 2;
-    bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[2].descriptorCount = 1;
     bindings[3].binding = 3;
-    bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[3].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[3].descriptorCount = 1;
+    bindings[4].binding = 4;
+    bindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[4].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -380,27 +424,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Compute Set
 
-    VkDescriptorSetLayoutBinding bindings[5] = {};
+    VkDescriptorSetLayoutBinding bindings[1] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[0].descriptorCount = 1;
-    bindings[1].binding = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[1].descriptorCount = 1;
-    bindings[2].binding = 2;
-    bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[2].descriptorCount = 1;
-    bindings[3].binding = 3;
-    bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[3].descriptorCount = 1;
-    bindings[4].binding = 4;
-    bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[4].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -419,11 +447,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     constants[0].offset = 0;
     constants[0].size = kPushConstantSize;
 
-    VkDescriptorSetLayout layouts[4] = {};
+    VkDescriptorSetLayout layouts[5] = {};
     layouts[0] = context.scenesetlayout;
-    layouts[1] = context.materialsetlayout;
-    layouts[2] = context.modelsetlayout;
-    layouts[3] = context.computelayout;
+    layouts[1] = context.environmentsetlayout;
+    layouts[2] = context.materialsetlayout;
+    layouts[3] = context.modelsetlayout;
+    layouts[4] = context.computelayout;
 
     VkPipelineLayoutCreateInfo pipelinelayoutinfo = {};
     pipelinelayoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -722,6 +751,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pName = "main";
 
     context.lightingpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+
+    context.lightingbuffersize = kLightingBufferSize;
+    context.lightingbufferoffsets[0] = acquire_transferbuffer(context, kLightingBufferSize);
+    context.lightingbufferoffsets[1] = acquire_transferbuffer(context, kLightingBufferSize);
+    context.lightingbuffer = allocate_descriptorset(context.device, context.descriptorpool, context.environmentsetlayout, context.transferbuffer, 0, kLightingBufferSize, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.spritepipeline == 0)
@@ -825,7 +859,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.spritepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
-  context.offset = 0;
   context.transfermemory = map_memory<uint8_t>(context.device, context.transferbuffer, 0, context.transferbuffer.size);
 
   context.frame = 0;
@@ -842,52 +875,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 ///////////////////////// draw_calls ////////////////////////////////////////
 extern void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes);
 extern void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites);
-
-
-///////////////////////// draw_lights ////////////////////////////////////////
-void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuffer const &renderables, RenderParams const &params)
-{
-  struct MainLight
-  {
-    Vec4 direction;
-    Color4 intensity;
-  };
-
-  struct PointLight
-  {
-    Vec4 position;
-    Color4 intensity;
-    Vec4 attenuation;
-  };
-
-  struct SceneSet
-  {
-    Matrix4f proj;
-    Matrix4f invproj;
-    Matrix4f view;
-    Matrix4f invview;
-
-    Vec4 camerapos;
-
-    MainLight mainlight;
-  };
-
-  auto sceneoffset = transfer_reservation(context, sizeof(SceneSet));
-
-  SceneSet *scene = (SceneSet*)(context.transfermemory + sceneoffset);
-
-  scene->proj = context.proj;
-  scene->invproj = context.invproj;
-  scene->view = context.view;
-  scene->invview = context.invview;
-  scene->camerapos = Vec4(context.camerapos, 0);
-  scene->mainlight.direction.xyz = params.sundirection;
-  scene->mainlight.intensity.rgb = params.sunintensity;
-
-  bindresource(commandbuffer, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, sceneoffset, VK_PIPELINE_BIND_POINT_COMPUTE);
-
-  bindresource(commandbuffer, context.lightingset, context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
-}
+extern void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuffer const &renderables, RenderParams const &params);
 
 
 ///////////////////////// render_fallback ///////////////////////////////////
@@ -933,19 +921,23 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     return;
   }
 
-  context.proj = camera.proj();
-  context.invproj = inverse(context.proj);
-  context.view = ScaleMatrix(Vector4(1.0f, viewport.width / camera.aspect() / viewport.height, 1.0f, 1.0f)) * camera.view();
-  context.invview = inverse(context.view);
-  context.worldview = context.proj * context.view;
-  context.camerapos = camera.position();
-  context.camerarot = camera.rotation();
+  context.camera = camera;
 
-  CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
+  auto &commandbuffer = context.commandbuffers[context.frame & 1];
 
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   reset_querypool(commandbuffer, context.timingquerypool, 0, 1);
+
+  SceneSet scene;
+  scene.proj = camera.proj();
+  scene.invproj = inverse(scene.proj);
+  scene.view = ScaleMatrix(Vector4(1.0f, viewport.width / camera.aspect() / viewport.height, 1.0f, 1.0f)) * camera.view();
+  scene.invview = inverse(scene.view);
+  scene.worldview = scene.proj * scene.view;
+  scene.camerapos = Vec4(camera.position(), 0);
+
+  update(commandbuffer, context.transferbuffer, 0, sizeof(SceneSet), &scene);
 
   VkClearValue clearvalues[4];
   clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -986,6 +978,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   //
 
   bindresource(commandbuffer, context.lightingpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+  bindresource(commandbuffer, context.colorbuffertarget, context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   draw_lights(context, commandbuffer, renderables, params);
 
@@ -1053,6 +1047,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   GPU_SUBMIT();
 
   submit(context.device, commandbuffer, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
+
+  context.prevcamera = camera;
 
   ++context.frame;
 }

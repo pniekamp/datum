@@ -16,18 +16,18 @@ using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
-extern size_t transfer_reservation(RenderContext &context, size_t required);
-
 
 //|---------------------- CommandList ---------------------------------------
 //|--------------------------------------------------------------------------
 
 ///////////////////////// CommandList::Constructor //////////////////////////
-CommandList::CommandList()
-  : context(nullptr)
+CommandList::CommandList(RenderContext *context)
+  : context(context)
 {
+  m_resourcelump = context->resourcepool.aquire_lump();
   m_commandbuffer = 0;
-  m_resourcelump = nullptr;
+
+  memset(m_addressmap, 0, sizeof(m_addressmap));
 }
 
 
@@ -42,28 +42,27 @@ CommandList::~CommandList()
 
 
 ///////////////////////// CommandList::begin //////////////////////////////
-bool CommandList::begin(RenderContext &context, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, size_t transferreservation)
+bool CommandList::begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass)
 {
-  this->context = &context;
+  assert(context);
 
-  m_resourcelump = context.resourcepool.aquire_lump();
+  if (m_resourcelump)
+  {
+    m_commandbuffer = context->resourcepool.acquire_commandbuffer(m_resourcelump).commandbuffer;
 
-  if (!m_resourcelump)
-    return false;
+    if (m_commandbuffer)
+    {
+      VkCommandBufferInheritanceInfo inheritanceinfo = {};
+      inheritanceinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+      inheritanceinfo.framebuffer = framebuffer;
+      inheritanceinfo.renderPass = renderpass;
+      inheritanceinfo.subpass = subpass;
 
-  transferoffset = transfer_reservation(context, transferreservation);
+      Vulkan::begin(context->device, m_commandbuffer, inheritanceinfo, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+    }
+  }
 
-  m_commandbuffer = context.resourcepool.acquire_commandbuffer(m_resourcelump).commandbuffer;
-
-  VkCommandBufferInheritanceInfo inheritanceinfo = {};
-  inheritanceinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-  inheritanceinfo.framebuffer = framebuffer;
-  inheritanceinfo.renderPass = renderpass;
-  inheritanceinfo.subpass = subpass;
-
-  Vulkan::begin(context.device, m_commandbuffer, inheritanceinfo, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-
-  return true;
+  return m_commandbuffer;
 }
 
 
@@ -77,17 +76,22 @@ void CommandList::end()
 
 
 ///////////////////////// CommandList::acquire //////////////////////////////
-CommandList::Descriptor CommandList::acquire(VkDescriptorSetLayout layout, VkDeviceSize size)
+CommandList::Descriptor CommandList::acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size)
 {
-  assert(m_commandbuffer);
-
   Descriptor descriptor = {};
 
-  descriptor.m_storage = context->resourcepool.acquire_storagebuffer(m_resourcelump, size);
-
-  if (descriptor.m_storage.buffer)
+  if (m_resourcelump)
   {
-    descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout, descriptor.m_storage.buffer, descriptor.m_storage.offset, descriptor.m_storage.capacity);
+    descriptor.m_storage = context->resourcepool.acquire_storagebuffer(m_resourcelump, size);
+
+    if (descriptor.m_storage.buffer)
+    {
+      descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout, descriptor.m_storage.buffer, descriptor.m_storage.offset, descriptor.m_storage.capacity);
+    }
+
+    assert(set < extentof(m_addressmap));
+
+    m_addressmap[set] = descriptor.m_storage.memory;
   }
 
   return descriptor;
@@ -104,19 +108,20 @@ void CommandList::release(Descriptor const &descriptor, VkDeviceSize used)
 }
 
 
+
 //|---------------------- CommandList Resource ------------------------------
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ResourceManager::allocate //////////////////////////
 template<>
-CommandList *ResourceManager::allocate<CommandList>()
+CommandList *ResourceManager::allocate<CommandList>(RenderContext *context)
 {
   auto slot = acquire_slot(sizeof(CommandList));
 
   if (!slot)
     return nullptr;
 
-  return new(slot) CommandList;
+  return new(slot) CommandList(context);
 }
 
 
