@@ -20,7 +20,7 @@ class LightStoragePrivate : public LightComponentStorage
 {
   public:
 
-    typedef StackAllocatorWithFreelist<> allocator_type;
+    typedef StackAllocator<> allocator_type;
 
     LightStoragePrivate(Scene *scene, allocator_type const &allocator);
 
@@ -35,6 +35,9 @@ class LightStoragePrivate : public LightComponentStorage
     void add(EntityId entity, Color3 const &intensity, Attenuation const &attenuation);
     void remove(EntityId entity);
 
+    void set_intensity(size_t index, Color3 const &intensity);
+    void set_attenuation(size_t index, Attenuation const &attenuation);
+
     void update(size_t index);
 
   private:
@@ -42,7 +45,7 @@ class LightStoragePrivate : public LightComponentStorage
 
 
 ///////////////////////// LightStorage::Constructor /////////////////////////
-LightComponentStorage::LightComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator)
+LightComponentStorage::LightComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator)
 {
 }
@@ -62,8 +65,8 @@ void LightStoragePrivate::add(EntityId entity, Color3 const &intensity, Attenuat
 
   auto index = this->index(entity);
 
-  get<lightintensity>(m_data)[index] = intensity;
-  get<lightattenuation>(m_data)[index] = attenuation;
+  set_intensity(index, intensity);
+  set_attenuation(index, attenuation);
 
   update(index);
 }
@@ -76,10 +79,24 @@ void LightStoragePrivate::remove(EntityId entity)
 }
 
 
+///////////////////////// LightStorage::set_intensity ///////////////////////
+void LightStoragePrivate::set_intensity(size_t index, Color3 const &intensity)
+{
+  get<lightintensity>(m_data)[index] = intensity;
+}
+
+
+///////////////////////// LightStorage::set_attenuation /////////////////////
+void LightStoragePrivate::set_attenuation(size_t index, Attenuation const &attenuation)
+{
+  get<lightattenuation>(m_data)[index] = attenuation;
+}
+
+
 ///////////////////////// LightStorage::update //////////////////////////////
 void LightStoragePrivate::update(size_t index)
 {
-  range(index) = lml::range(attenuation(index), max_element(intensity(index)));
+  get<lightrange>(m_data)[index] = lml::range(attenuation(index), max_element(intensity(index)));
 }
 
 
@@ -102,12 +119,30 @@ LightComponent::LightComponent(size_t index, LightComponentStorage *storage)
 }
 
 
+///////////////////////// LightComponent::set_intensity /////////////////////
+void LightComponent::set_intensity(Color3 const &intensity)
+{
+  static_cast<LightStoragePrivate*>(storage)->set_intensity(index, intensity);
+
+  static_cast<LightStoragePrivate*>(storage)->update(index);
+}
+
+
+///////////////////////// LightComponent::set_attenuation ///////////////////
+void LightComponent::set_attenuation(Attenuation const &attenuation)
+{
+  static_cast<LightStoragePrivate*>(storage)->set_attenuation(index, attenuation);
+
+  static_cast<LightStoragePrivate*>(storage)->update(index);
+}
+
+
 //|---------------------- PointLightComponent -------------------------------
 //|--------------------------------------------------------------------------
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
-PointLightComponent Scene::add_component<PointLightComponent>(Scene::EntityId entity, lml::Color3 intensity, lml::Attenuation attenuation)
+PointLightComponent Scene::add_component<PointLightComponent>(Scene::EntityId entity, Color3 intensity, Attenuation attenuation)
 {
   assert(get(entity) != nullptr);
   assert(system<TransformComponentStorage>());

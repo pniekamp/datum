@@ -33,7 +33,7 @@ class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::B
     };
 
   public:
-    MeshComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator);
+    MeshComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     long const &flags(EntityId entity) const { return data<meshflags>(index(entity)); }
 

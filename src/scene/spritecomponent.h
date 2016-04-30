@@ -30,7 +30,7 @@ class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float
     };
 
   public:
-    SpriteComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator);
+    SpriteComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     long const &flags(EntityId entity) const { return data<spriteflags>(index(entity)); }
 

@@ -417,7 +417,6 @@ namespace
 
     END_TIMED_BLOCK(DebugOverlay)
   }
-
 }
 
 
@@ -453,6 +452,35 @@ double clock_frequency()
   }
 
   return frequency;
+}
+
+
+///////////////////////// dump //////////////////////////////////////////////
+void dump(const char *name, Arena const &arena)
+{
+  cout << "Arena: " << name << " " << arena.size / 1024 / 1024 << "/" << arena.capacity / 1024 / 1024 << " MiB" << endl;
+}
+
+
+///////////////////////// dump //////////////////////////////////////////////
+void dump(const char *name, FreeList const &freelist)
+{
+  void *entry = freelist.m_freelist;
+
+  size_t nodes = 0;
+  size_t bytes = 0;
+
+  while (entry != nullptr)
+  {
+    auto node = reinterpret_cast<FreeList::Node*>((reinterpret_cast<std::size_t>(entry) + alignof(FreeList::Node) - 1) & -alignof(FreeList::Node));
+
+    nodes += 1;
+    bytes += node->bytes;
+
+    entry = node->next;
+  }
+
+  cout << "Freelist: " << name << " " << nodes << " nodes" << " " << bytes << " bytes" << endl;
 }
 
 

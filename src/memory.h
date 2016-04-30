@@ -43,7 +43,7 @@ class StackAllocator
     template<typename U, std::size_t ulignment>
     StackAllocator(StackAllocator<U, ulignment> const &other);
 
-    Arena *arena() const { return m_arena; }
+    Arena &arena() const { return *m_arena; }
 
     T *allocate(std::size_t n);
 
@@ -70,7 +70,7 @@ StackAllocator<T, alignment>::StackAllocator(Arena &arena)
 template<typename T, std::size_t alignment>
 template<typename U, std::size_t ulignment>
 StackAllocator<T, alignment>::StackAllocator(StackAllocator<U, ulignment> const &other)
-  : StackAllocator(*other.arena())
+  : StackAllocator(other.arena())
 {  
 }
 
@@ -105,7 +105,7 @@ void StackAllocator<T, alignment>::deallocate(T * const ptr, std::size_t n)
 template<typename T, std::size_t alignment, typename U, std::size_t ulignment>
 bool operator ==(StackAllocator<T, alignment> const &lhs, StackAllocator<U, ulignment> const &rhs)
 {
-  return lhs.arena() == rhs.arena();
+  return lhs.arena().data == rhs.arena().data;
 }
 
 
@@ -147,6 +147,8 @@ class FreeList
     };
 
     void *m_freelist = nullptr;
+
+    friend void dump(const char *name, FreeList const &freelist);
 };
 
 
@@ -213,6 +215,8 @@ class StackAllocatorWithFreelist : public StackAllocator<T, alignment>
     template<typename U, std::size_t ulignment>
     StackAllocatorWithFreelist(StackAllocatorWithFreelist<U, ulignment> const &other);
 
+    FreeList &freelist() const { return *m_freelist; }
+
     T *allocate(std::size_t n);
 
     void deallocate(T * const ptr, std::size_t n);
@@ -238,7 +242,7 @@ StackAllocatorWithFreelist<T, alignment>::StackAllocatorWithFreelist(Arena &aren
 template<typename T, std::size_t alignment>
 template<typename U, std::size_t ulignment>
 StackAllocatorWithFreelist<T, alignment>::StackAllocatorWithFreelist(StackAllocatorWithFreelist<U, ulignment> const &other)
-  : StackAllocatorWithFreelist(*other.arena(), *other.m_freelist)
+  : StackAllocatorWithFreelist(other.arena(), other.freelist())
 {
 }
 

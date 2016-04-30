@@ -121,30 +121,26 @@ void MeshList::push_material(BuildState &state, Material const *material)
 
   if (state.material != material)
   {
-    if (state.materialset)
-      commandlist.release(state.materialset, state.materialoffset);
-
-    state.materialoffset = 0;
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet));
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
     if (state.materialset)
     {
-      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
-      bindtexture(context.device, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+      auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-      auto materialset = state.materialset.memory<MaterialSet>(state.materialoffset);
+      auto materialset = state.materialset.memory<MaterialSet>(offset);
 
       materialset->albedocolor = material->albedocolor;
       materialset->specularintensity = material->specularintensity;
       materialset->specularexponent = material->specularexponent;
 
-      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, state.materialoffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bindtexture(context.device, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-      state.materialoffset = alignto(state.materialoffset + sizeof(MaterialSet), state.materialset.alignment());
+      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      state.material = material;
     }
-
-    state.material = material;
   }
 }
 
@@ -171,33 +167,29 @@ void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.modelset.capacity() < state.modeloffset + sizeof(ModelSet))
+  if (state.mesh != mesh)
   {
-    if (state.modelset)
-      commandlist.release(state.modelset, state.modeloffset);
+    bindresource(commandlist, mesh->vertexbuffer);
 
-    state.modeloffset = 0;
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet));
+    state.mesh = mesh;
   }
 
-  if (state.modeloffset + sizeof(ModelSet) <= state.modelset.capacity())
+  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    auto modelset = state.modelset.memory<ModelSet>(state.modeloffset);
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+  }
+
+  if (state.modelset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
 
     modelset->modelworld = transform;
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, state.modeloffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-    if (state.mesh != mesh)
-    {
-      bindresource(commandlist, mesh->vertexbuffer);
-
-      state.mesh = mesh;
-    }
+    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
-
-    state.modeloffset = alignto(state.modeloffset + sizeof(ModelSet), state.modelset.alignment());
   }
 }
 
@@ -221,11 +213,8 @@ void MeshList::finalise(BuildState &state)
 
   auto &commandlist = *state.commandlist;
 
-  if (state.modelset)
-    commandlist.release(state.modelset, state.modeloffset);
-
-  if (state.materialset)
-    commandlist.release(state.materialset, state.materialoffset);
+  commandlist.release(state.modelset);
+  commandlist.release(state.materialset);
 
   state.commandlist->end();
 

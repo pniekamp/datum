@@ -18,7 +18,7 @@
 class NameComponentStorage : public DefaultStorage<char>
 {
   public:
-    NameComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator);
+    NameComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     const char *name(EntityId entity) const { return &data<0>(index(entity)); }
 

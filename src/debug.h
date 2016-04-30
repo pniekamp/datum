@@ -9,6 +9,7 @@
 #pragma once
 
 #include "platform.h"
+#include "memory.h"
 #include <cassert>
 #include <iostream>
 
@@ -181,6 +182,14 @@ extern DebugStatistics g_debugstatistics;
       logged = true;                                                                  \
     }                                                                                 \
   }
+
+//
+// Memory
+//
+
+void dump(const char *name, Arena const &arena);
+void dump(const char *name, FreeList const &freelist);
+
 
 //
 // Interface

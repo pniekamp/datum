@@ -24,7 +24,23 @@ class CommandList
       public:
 
         template<typename View>
-        View *memory(VkDeviceSize offset = 0) { return (View*)((uint8_t*)m_storage.memory + offset); }
+        View *memory(VkDeviceSize offset = 0)
+        {
+          return (View*)((uint8_t*)m_storage.memory + offset);
+        }
+
+        VkDeviceSize reserve(VkDeviceSize size)
+        {
+          auto offset = m_used;
+
+          assert(offset + size <= capacity());
+
+          m_used = (m_used + size + m_storage.alignment - 1) & -m_storage.alignment;
+
+          return offset;
+        }
+
+        VkDeviceSize used() { return m_used; }
 
         VkDeviceSize capacity() { return m_storage.capacity; }
 
@@ -33,6 +49,8 @@ class CommandList
         operator VkDescriptorSet() { return m_descriptor.descriptorset; }
 
       private:
+
+        VkDeviceSize m_used;
 
         ResourcePool::StorageBuffer m_storage;
         ResourcePool::DescriptorSet m_descriptor;
@@ -65,9 +83,9 @@ class CommandList
 
     bool begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass);
 
-    Descriptor acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size);
+    Descriptor acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset = {});
 
-    void release(Descriptor const &descriptor, VkDeviceSize used);
+    void release(Descriptor const &descriptor);
 
     void end();
 

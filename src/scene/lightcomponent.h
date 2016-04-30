@@ -30,7 +30,7 @@ class LightComponentStorage : public DefaultStorage<float, lml::Color3, lml::Att
     };
 
   public:
-    LightComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator);
+    LightComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     float const &range(EntityId entity) const { return data<lightrange>(index(entity)); }
     lml::Color3 const &intensity(EntityId entity) const { return data<lightintensity>(index(entity)); }
@@ -49,6 +49,9 @@ class LightComponent
     float const &range() const { return storage->data<LightComponentStorage::lightrange>(index); }
     lml::Color3 const &intensity() const { return storage->data<LightComponentStorage::lightintensity>(index); }
     lml::Attenuation const &attenuation() const { return storage->data<LightComponentStorage::lightattenuation>(index); }
+
+    void set_intensity(lml::Color3 const &intensity);
+    void set_attenuation(lml::Attenuation const &attenuation);
 
   protected:
     LightComponent(size_t index, LightComponentStorage *storage);

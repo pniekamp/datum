@@ -60,7 +60,7 @@ class DefaultStorage : public Storage
 {
   protected:
 
-    typedef StackAllocatorWithFreelist<> allocator_type;
+    typedef StackAllocator<> allocator_type;
 
     DefaultStorage(Scene *scene, allocator_type const &allocator);
 
@@ -128,8 +128,6 @@ DefaultStorage<Types...>::DefaultStorage(Scene *scene, allocator_type const &all
     m_data(std::allocator_arg, allocator),
     m_freeslots(allocator)
 {
-  m_index.reserve(128);
-
   clear();
 }
 

@@ -104,9 +104,11 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 
   if (environmentset)
   {
+    environmentset.reserve(sizeof(EnvironmentSet));
+
     bindresource(*commandlist, environmentset, context.pipelinelayout, ShaderLocation::environmentset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    commandlist->release(environmentset, sizeof(EnvironmentSet));
+    commandlist->release(environmentset);
   }
 
   bindresource(*commandlist, context.unitquad);
@@ -129,13 +131,9 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.texture != texture || state.materialset.capacity() < state.materialoffset + sizeof(MaterialSet))
+  if (state.materialset.capacity() < state.materialset.used() + sizeof(MaterialSet) || state.texture != texture)
   {
-    if (state.materialset)
-      commandlist.release(state.materialset, state.materialoffset);
-
-    state.materialoffset = 0;
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet));
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -145,16 +143,16 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
     }
   }
 
-  if (state.materialoffset + sizeof(MaterialSet) <= state.materialset.capacity())
+  if (state.materialset)
   {
-    auto materialset = state.materialset.memory<MaterialSet>(state.materialoffset);
+    auto offset = state.materialset.reserve(sizeof(MaterialSet));
+
+    auto materialset = state.materialset.memory<MaterialSet>(offset);
 
     materialset->tint = tint;
     materialset->texcoords = texcoords;
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, state.materialoffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-    state.materialoffset = alignto(state.materialoffset + sizeof(MaterialSet), state.materialset.alignment());
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.tint = tint;
     state.texcoords = texcoords;
@@ -170,28 +168,24 @@ void SpriteList::push_model(SpriteList::BuildState &state, lml::Vec2 xbasis, lml
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.modelset.capacity() < state.modeloffset + sizeof(ModelSet))
+  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    if (state.modelset)
-      commandlist.release(state.modelset, state.modeloffset);
-
-    state.modeloffset = 0;
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet));
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
-  if (state.modeloffset + sizeof(ModelSet) <= state.modelset.capacity())
+  if (state.modelset)
   {
-    auto modelset = state.modelset.memory<ModelSet>(state.modeloffset);
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
 
     modelset->xbasis = xbasis;
     modelset->ybasis = ybasis;
     modelset->position = Vec4(position, floor(layer), 1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, state.modeloffset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
-
-    state.modeloffset = alignto(state.modeloffset + sizeof(ModelSet), state.modelset.alignment());
   }
 }
 
@@ -398,11 +392,8 @@ void SpriteList::finalise(BuildState &state)
 
   auto &commandlist = *state.commandlist;
 
-  if (state.modelset)
-    commandlist.release(state.modelset, state.modeloffset);
-
-  if (state.materialset)
-    commandlist.release(state.materialset, state.materialoffset);
+  commandlist.release(state.modelset);
+  commandlist.release(state.materialset);
 
   state.commandlist->end();
 

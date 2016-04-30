@@ -76,20 +76,29 @@ void CommandList::end()
 
 
 ///////////////////////// CommandList::acquire //////////////////////////////
-CommandList::Descriptor CommandList::acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size)
+CommandList::Descriptor CommandList::acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset)
 {
+  assert(set < extentof(m_addressmap));
+
   Descriptor descriptor = {};
 
   if (m_resourcelump)
   {
-    descriptor.m_storage = context->resourcepool.acquire_storagebuffer(m_resourcelump, size);
+    descriptor.m_used = oldset.m_used;
+    descriptor.m_storage = oldset.m_storage;
+
+    if (descriptor.capacity() < descriptor.used() + size)
+    {
+      release(oldset);
+
+      descriptor.m_used = 0;
+      descriptor.m_storage = context->resourcepool.acquire_storagebuffer(m_resourcelump, size);
+    }
 
     if (descriptor.m_storage.buffer)
     {
       descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout, descriptor.m_storage.buffer, descriptor.m_storage.offset, descriptor.m_storage.capacity);
     }
-
-    assert(set < extentof(m_addressmap));
 
     m_addressmap[set] = descriptor.m_storage.memory;
   }
@@ -99,11 +108,11 @@ CommandList::Descriptor CommandList::acquire(uint32_t set, VkDescriptorSetLayout
 
 
 ///////////////////////// CommandList::release //////////////////////////////
-void CommandList::release(Descriptor const &descriptor, VkDeviceSize used)
+void CommandList::release(Descriptor const &descriptor)
 {
   if (descriptor.m_storage.buffer)
   {
-    context->resourcepool.release_storagebuffer(descriptor.m_storage, used);
+    context->resourcepool.release_storagebuffer(descriptor.m_storage, descriptor.m_used);
   }
 }
 

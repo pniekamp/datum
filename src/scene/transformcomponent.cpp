@@ -20,7 +20,7 @@ class TransformStoragePrivate : public TransformComponentStorage
 {
   public:
 
-    typedef StackAllocatorWithFreelist<> allocator_type;
+    typedef StackAllocator<> allocator_type;
 
     TransformStoragePrivate(Scene *scene, allocator_type const &allocator);
 
@@ -53,7 +53,7 @@ class TransformStoragePrivate : public TransformComponentStorage
 
 
 ///////////////////////// TransformStorage::Constructor /////////////////////
-TransformComponentStorage::TransformComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator)
+TransformComponentStorage::TransformComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator)
 {
 }

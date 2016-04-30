@@ -59,11 +59,11 @@ void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuff
 
   auto offset = context.lightingbufferoffsets[context.frame & 1];
 
-  EnvironmentSet *environment = (EnvironmentSet*)(context.transfermemory + offset);
+  EnvironmentSet *environmentset = (EnvironmentSet*)(context.transfermemory + offset);
 
-  auto &mainlight = environment->mainlight;
-  auto &pointlightcount = environment->pointlightcount;
-  auto &pointlights = environment->pointlights;
+  auto &mainlight = environmentset->mainlight;
+  auto &pointlightcount = environmentset->pointlightcount;
+  auto &pointlights = environmentset->pointlights;
 
   mainlight.direction.xyz = params.sundirection;
   mainlight.intensity.rgb = params.sunintensity;
@@ -119,13 +119,15 @@ bool LightList::begin(BuildState &state, DatumPlatform::v1::PlatformInterface &p
 
   if (environmentset)
   {
-    auto environment = environmentset.memory<EnvironmentSet>();
+    auto offset = environmentset.reserve(sizeof(EnvironmentSet));
 
-    environment->pointlightcount = 0;
+    auto lights = environmentset.memory<EnvironmentSet>(offset);
 
-    state.data = environment;
+    lights->pointlightcount = 0;
 
-    commandlist->release(environmentset, sizeof(EnvironmentSet));
+    commandlist->release(environmentset);
+
+    state.data = lights;
   }
 
   m_commandlist = { resources, commandlist };

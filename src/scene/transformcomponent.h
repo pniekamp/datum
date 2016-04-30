@@ -31,7 +31,7 @@ class TransformComponentStorage : public DefaultStorage<lml::Transform, lml::Tra
     };
 
   public:
-    TransformComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator);
+    TransformComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     lml::Transform const &local(EntityId entity) const { return data<localtransform>(index(entity)); }
     lml::Transform const &world(EntityId entity) const { return data<worldtransform>(index(entity)); }

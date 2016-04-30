@@ -186,7 +186,7 @@ class Scene
     template<typename T = void*>
     StackAllocatorWithFreelist<T> allocator()
     {
-      return StackAllocatorWithFreelist<T>(*m_allocator.arena(), m_freelist);
+      return StackAllocatorWithFreelist<T>(m_allocator.arena(), m_freelist);
     }
 
     template<typename Entity, typename ...Args>
@@ -227,9 +227,9 @@ class Scene
 
     Slot *acquire_slot();
 
-    std::vector<Slot, StackAllocatorWithFreelist<>> m_slots;
+    std::vector<Slot, StackAllocator<>> m_slots;
 
-    std::deque<size_t, StackAllocatorWithFreelist<>> m_freeslots;
+    std::deque<size_t, StackAllocator<>> m_freeslots;
 };
 
 

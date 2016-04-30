@@ -21,7 +21,7 @@ class SpriteStoragePrivate : public SpriteComponentStorage
 {
   public:
 
-    typedef StackAllocatorWithFreelist<> allocator_type;
+    typedef StackAllocator<> allocator_type;
 
     SpriteStoragePrivate(Scene *scene, allocator_type const &allocator);
 
@@ -42,7 +42,7 @@ class SpriteStoragePrivate : public SpriteComponentStorage
 
 
 ///////////////////////// SpriteStorage::Constructor ////////////////////////
-SpriteComponentStorage::SpriteComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator)
+SpriteComponentStorage::SpriteComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator)
 {
 }

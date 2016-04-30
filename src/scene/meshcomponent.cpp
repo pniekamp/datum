@@ -20,7 +20,7 @@ class MeshStoragePrivate : public MeshComponentStorage
 {
   public:
 
-    typedef StackAllocatorWithFreelist<> allocator_type;
+    typedef StackAllocator<> allocator_type;
 
     MeshStoragePrivate(Scene *scene, allocator_type const &allocator);
 
@@ -52,7 +52,7 @@ class MeshStoragePrivate : public MeshComponentStorage
 
 
 ///////////////////////// MeshStorage::Constructor //////////////////////////
-MeshComponentStorage::MeshComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator)
+MeshComponentStorage::MeshComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator)
 {
 }
@@ -61,7 +61,7 @@ MeshComponentStorage::MeshComponentStorage(Scene *scene, StackAllocatorWithFreel
 ///////////////////////// MeshStorage::Constructor //////////////////////////
 MeshStoragePrivate::MeshStoragePrivate(Scene *scene, allocator_type const &allocator)
   : MeshComponentStorage(scene, allocator),
-    m_tree(allocator)
+    m_tree(StackAllocatorWithFreelist<>(allocator.arena(), m_freelist))
 {
   m_staticpartition = 1;
 }

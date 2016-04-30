@@ -38,10 +38,8 @@ class MeshList
 
       uintptr_t assetbarrier;
 
-      VkDeviceSize materialoffset;
       CommandList::Descriptor materialset;
 
-      VkDeviceSize modeloffset;
       CommandList::Descriptor modelset;
 
       CommandList *commandlist = nullptr;

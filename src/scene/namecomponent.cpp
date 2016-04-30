@@ -20,7 +20,7 @@ using namespace leap;
 class NameStoragePrivate : public NameComponentStorage
 {
   public:
-    typedef StackAllocatorWithFreelist<> allocator_type;
+    typedef StackAllocator<> allocator_type;
 
     NameStoragePrivate(Scene *scene, allocator_type allocator);
 
@@ -40,7 +40,7 @@ class NameStoragePrivate : public NameComponentStorage
 
 
 ///////////////////////// NameComponentStorage::Constructor /////////////////
-NameComponentStorage::NameComponentStorage(Scene *scene, StackAllocatorWithFreelist<> allocator)
+NameComponentStorage::NameComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator)
 {
 }
@@ -50,7 +50,7 @@ NameComponentStorage::NameComponentStorage(Scene *scene, StackAllocatorWithFreel
 NameStoragePrivate::NameStoragePrivate(Scene *scene, allocator_type allocator)
   : NameComponentStorage(scene, allocator)
 {
-  names().reserve(4096);
+  names().reserve(16384);
 }
 
 

@@ -21,8 +21,8 @@ using namespace std;
 Scene::Scene(allocator_type const &allocator)
   : m_allocator(allocator),
     m_systems(allocator),
-    m_slots(StackAllocatorWithFreelist<>(*allocator.arena(), m_freelist)),
-    m_freeslots(StackAllocatorWithFreelist<>(*allocator.arena(), m_freelist))
+    m_slots(allocator),
+    m_freeslots(allocator)
 {
   m_systems.reserve(128);
 
