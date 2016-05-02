@@ -34,7 +34,7 @@ class SpriteStoragePrivate : public SpriteComponentStorage
 
   public:
 
-    void add(EntityId entity, Sprite const *sprite, float size, lml::Color4 tint, long flags);
+    void add(EntityId entity, Sprite const *sprite, float size, Color4 tint, long flags);
     void remove(EntityId entity);
 
   private:
@@ -56,7 +56,7 @@ SpriteStoragePrivate::SpriteStoragePrivate(Scene *scene, allocator_type const &a
 
 
 ///////////////////////// SpriteStorage::add ////////////////////////////////
-void SpriteStoragePrivate::add(EntityId entity, Sprite const *sprite, float size, lml::Color4 tint, long flags)
+void SpriteStoragePrivate::add(EntityId entity, Sprite const *sprite, float size, Color4 tint, long flags)
 {
   DefaultStorage::add(entity);
 
@@ -90,7 +90,7 @@ void Scene::initialise_component_storage<SpriteComponent>()
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
-SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, lml::Color4 tint, long flags)
+SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, Color4 tint, long flags)
 {
   assert(get(entity) != nullptr);
   assert(system<TransformComponentStorage>());

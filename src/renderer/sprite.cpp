@@ -58,7 +58,7 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, lml::Rect2 extent, lml::Vec2 align)
+Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 extent, Vec2 align)
 {
   auto slot = acquire_slot(sizeof(Sprite));
 

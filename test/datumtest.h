@@ -45,6 +45,9 @@ struct GameState
 
   Scene scene;
 
+  Mesh const *testplane;
+  Mesh const *testsphere;
+
   // Render Frames
 
   struct RenderFrame
@@ -56,6 +59,7 @@ struct GameState
     MeshList meshes;
     LightList lights;
     SpriteList sprites;
+    CasterList casters;
 
     size_t resourcetoken;
 

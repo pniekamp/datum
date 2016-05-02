@@ -8,5 +8,6 @@
 #include "../../src/renderer/mesh.h"
 #include "../../src/renderer/material.h"
 #include "../../src/renderer/meshlist.h"
+#include "../../src/renderer/casterlist.h"
 #include "../../src/renderer/lightlist.h"
 #include "../../src/renderlist.h"

@@ -38,6 +38,8 @@ class MeshStoragePrivate : public MeshComponentStorage
 
   public:
 
+    void clear();
+
     void add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags);
     void remove(EntityId entity);
 
@@ -63,6 +65,16 @@ MeshStoragePrivate::MeshStoragePrivate(Scene *scene, allocator_type const &alloc
   : MeshComponentStorage(scene, allocator),
     m_tree(StackAllocatorWithFreelist<>(allocator.arena(), m_freelist))
 {
+  m_staticpartition = 1;
+}
+
+
+///////////////////////// MeshStorage::clear ////////////////////////////////
+void MeshStoragePrivate::clear()
+{
+  m_tree.clear();
+  DefaultStorage::clear();
+
   m_staticpartition = 1;
 }
 

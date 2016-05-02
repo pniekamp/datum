@@ -39,6 +39,21 @@ void RenderList::push_meshes(MeshList const &meshes)
 }
 
 
+///////////////////////// RenderList::push_casters //////////////////////////
+void RenderList::push_casters(CasterList const &casters)
+{
+  if (casters)
+  {
+    auto entry = m_buffer.push<Renderable::Casters>();
+
+    if (entry)
+    {
+      entry->commandlist = casters.commandlist();
+    }
+  }
+}
+
+
 ///////////////////////// RenderList::push_lights ///////////////////////////
 void RenderList::push_lights(LightList const &lights)
 {
@@ -55,7 +70,7 @@ void RenderList::push_lights(LightList const &lights)
 
 
 ///////////////////////// RenderList::push_sprites //////////////////////////
-void RenderList::push_sprites(lml::Rect2 const &viewport, SpriteList const &sprites)
+void RenderList::push_sprites(Rect2 const &viewport, SpriteList const &sprites)
 {
   if (sprites)
   {

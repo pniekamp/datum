@@ -75,6 +75,7 @@ Texture const *ResourceManager::create<Texture>(Asset const *asset, Texture::For
   texture->format = format;
   texture->memory = nullptr;
   texture->transferlump = nullptr;
+  texture->state = Texture::State::Empty;
 
   set_slothandle(slot, asset);
 
@@ -111,12 +112,11 @@ Texture const *ResourceManager::create<Texture>(int width, int height, Texture::
 
   auto texture = new(slot) Texture;
 
-  texture->transferlump = lump;
-
   texture->width = width;
   texture->height = height;
   texture->layers = 1;
   texture->format = format;
+  texture->transferlump = lump;
 
   wait(vulkan, lump->fence);
 

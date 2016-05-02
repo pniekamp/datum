@@ -139,6 +139,11 @@ class FreeList
       return reinterpret_cast<U*>((reinterpret_cast<std::size_t>(ptr) + ulignment - 1) & -ulignment);
     }
 
+    size_t bucket(size_t n)
+    {
+      return std::min(std::max(8*sizeof(unsigned long long) - __builtin_clzll(n*n-n), (size_t)10) - 10, std::extent<decltype(m_freelist)>::value);
+    }
+
     struct Node
     {
       std::size_t bytes;
@@ -146,7 +151,7 @@ class FreeList
       void *next;
     };
 
-    void *m_freelist = nullptr;
+    void *m_freelist[24] = {};
 
     friend void dump(const char *name, FreeList const &freelist);
 };
@@ -155,8 +160,10 @@ class FreeList
 ///////////////////////// Freelist::acquire /////////////////////////////////
 inline void *FreeList::acquire(std::size_t bytes, std::size_t alignment)
 {
-  void *entry = m_freelist;
-  void **into = &m_freelist;
+  auto index = bucket(bytes);
+
+  void *entry = m_freelist[index];
+  void **into = &m_freelist[index];
 
   while (entry != nullptr)
   {
@@ -184,10 +191,12 @@ inline void FreeList::release(void * const ptr, std::size_t bytes)
 
   if ((size_t)node + sizeof(Node) < (size_t)ptr + bytes)
   {
-    node->bytes = bytes;
-    node->next = m_freelist;
+    auto index = bucket(bytes);
 
-    m_freelist = ptr;
+    node->bytes = bytes;
+    node->next = m_freelist[index];
+
+    m_freelist[index] = ptr;
   }
 }
 

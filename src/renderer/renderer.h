@@ -26,6 +26,7 @@ namespace Renderable
     Clear,
     Sprites,
     Meshes,
+    Casters,
     Lights
   };
 
@@ -50,6 +51,13 @@ namespace Renderable
   struct Meshes
   {
     static const Type type = Type::Meshes;
+
+    CommandList const *commandlist;
+  };
+
+  struct Casters
+  {
+    static const Type type = Type::Casters;
 
     CommandList const *commandlist;
   };
@@ -151,6 +159,21 @@ T const *renderable_cast(PushBuffer::Header const *header)
 //|---------------------- Renderer ------------------------------------------
 //|--------------------------------------------------------------------------
 
+struct ShadowMap
+{
+  int width = 1024;
+  int height = 1024;
+
+  float shadowsplitfar = 250.0;
+  float shadowsplitlambda = 0.9;
+
+  static const int nslices = 4;
+
+  Vulkan::Texture shadowmap;
+
+  std::array<lml::Matrix4f, nslices> shadowview;
+};
+
 struct RenderContext
 {
   RenderContext()
@@ -186,9 +209,10 @@ struct RenderContext
   Vulkan::Texture specularbuffer;
   Vulkan::Texture normalbuffer;
   Vulkan::Texture depthbuffer;
-  Vulkan::FrameBuffer gbuffer;
+  Vulkan::FrameBuffer geometrybuffer;
   Vulkan::FrameBuffer framebuffer;
 
+  Vulkan::RenderPass shadowpass;
   Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass renderpass;
 
@@ -207,9 +231,13 @@ struct RenderContext
   Vulkan::Texture whitediffuse;
   Vulkan::Texture nominalnormal;
 
+  Vulkan::Pipeline shadowpipeline;
   Vulkan::Pipeline geometrypipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline spritepipeline;
+
+  ShadowMap shadows;
+  Vulkan::FrameBuffer shadowbuffer;
 
   int fbowidth, fboheight;
 

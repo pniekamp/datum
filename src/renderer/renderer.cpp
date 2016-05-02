@@ -51,6 +51,7 @@ enum ShaderLocation
   specularmap = 2,
   normalmap = 3,
   depthmap = 4,
+  shadowmap = 5,
 };
 
 struct SceneSet
@@ -61,6 +62,8 @@ struct SceneSet
   Matrix4f invview;
   Matrix4f worldview;
   Vec4 camerapos;
+
+  array<Matrix4f, ShadowMap::nslices> shadowview;
 };
 
 constexpr size_t kPushConstantSize = 64;
@@ -143,6 +146,44 @@ namespace
         return false;
 
       //
+      // Shadow Map
+      //
+
+      context.shadows.shadowmap = create_attachment(context.device, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+      VkSamplerCreateInfo shadowsamplerinfo = {};
+      shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+      shadowsamplerinfo.magFilter = VK_FILTER_NEAREST;
+      shadowsamplerinfo.minFilter = VK_FILTER_NEAREST;
+      shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      shadowsamplerinfo.compareEnable = VK_TRUE;
+      shadowsamplerinfo.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+      context.shadows.shadowmap.sampler = create_sampler(context.device, shadowsamplerinfo);
+
+      //
+      // Shadow Buffer
+      //
+
+      VkImageView shadowbuffer[1] = {};
+      shadowbuffer[0] = context.shadows.shadowmap.imageview;
+
+      VkFramebufferCreateInfo shadowbufferinfo = {};
+      shadowbufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      shadowbufferinfo.renderPass = context.shadowpass;
+      shadowbufferinfo.attachmentCount = extentof(shadowbuffer);
+      shadowbufferinfo.pAttachments = shadowbuffer;
+      shadowbufferinfo.width = context.shadows.width;
+      shadowbufferinfo.height = context.shadows.height;
+      shadowbufferinfo.layers = context.shadows.nslices;
+
+      context.shadowbuffer = create_framebuffer(context.device, shadowbufferinfo);
+
+      bindtexture(context.device, context.lightingbuffer, ShaderLocation::shadowmap, context.shadows.shadowmap);
+
+      //
       // Color Attachment
       //
 
@@ -170,22 +211,22 @@ namespace
       // Geometry Buffer
       //
 
-      VkImageView gubffer[4] = {};
-      gubffer[0] = context.albedobuffer.imageview;
-      gubffer[1] = context.specularbuffer.imageview;
-      gubffer[2] = context.normalbuffer.imageview;
-      gubffer[3] = context.depthbuffer.imageview;
+      VkImageView geometrybuffer[4] = {};
+      geometrybuffer[0] = context.albedobuffer.imageview;
+      geometrybuffer[1] = context.specularbuffer.imageview;
+      geometrybuffer[2] = context.normalbuffer.imageview;
+      geometrybuffer[3] = context.depthbuffer.imageview;
 
-      VkFramebufferCreateInfo gbufferinfo = {};
-      gbufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      gbufferinfo.renderPass = context.geometrypass;
-      gbufferinfo.attachmentCount = extentof(gubffer);
-      gbufferinfo.pAttachments = gubffer;
-      gbufferinfo.width = width;
-      gbufferinfo.height = height;
-      gbufferinfo.layers = 1;
+      VkFramebufferCreateInfo geometrybufferinfo = {};
+      geometrybufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      geometrybufferinfo.renderPass = context.geometrypass;
+      geometrybufferinfo.attachmentCount = extentof(geometrybuffer);
+      geometrybufferinfo.pAttachments = geometrybuffer;
+      geometrybufferinfo.width = width;
+      geometrybufferinfo.height = height;
+      geometrybufferinfo.layers = 1;
 
-      context.gbuffer = create_framebuffer(context.device, gbufferinfo);
+      context.geometrybuffer = create_framebuffer(context.device, geometrybufferinfo);
 
       bindtexture(context.device, context.lightingbuffer, ShaderLocation::albedomap, context.albedobuffer);
       bindtexture(context.device, context.lightingbuffer, ShaderLocation::specularmap, context.specularbuffer);
@@ -320,7 +361,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkDescriptorSetLayoutBinding bindings[1] = {};
     bindings[0].binding = 0;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bindings[0].descriptorCount = 1;
 
@@ -338,7 +379,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Environment Set
 
-    VkDescriptorSetLayoutBinding bindings[5] = {};
+    VkDescriptorSetLayoutBinding bindings[7] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
@@ -359,6 +400,14 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[4].descriptorCount = 1;
+    bindings[5].binding = 5;
+    bindings[5].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[5].descriptorCount = 1;
+    bindings[6].binding = 6;
+    bindings[6].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[6].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -464,6 +513,38 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.pipelinelayout = create_pipelinelayout(context.device, pipelinelayoutinfo);
   }
 
+  if (context.shadowpass == 0)
+  {
+    //
+    // Shadow Pass
+    //
+
+    VkAttachmentDescription attachments[1] = {};
+    attachments[0].format = VK_FORMAT_D32_SFLOAT;
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkAttachmentReference depthreference = {};
+    depthreference.attachment = 0;
+    depthreference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpasses[1] = {};
+    subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpasses[0].pDepthStencilAttachment = &depthreference;
+
+    VkRenderPassCreateInfo renderpassinfo = {};
+    renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderpassinfo.attachmentCount = extentof(attachments);
+    renderpassinfo.pAttachments = attachments;
+    renderpassinfo.subpassCount = extentof(subpasses);
+    renderpassinfo.pSubpasses = subpasses;
+
+    context.shadowpass = create_renderpass(context.device, renderpassinfo);
+  }
+
   if (context.geometrypass == 0)
   {
     //
@@ -496,13 +577,13 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     attachments[3].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     attachments[3].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    VkAttachmentReference gbufferreference[3] = {};
-    gbufferreference[0].attachment = 0;
-    gbufferreference[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    gbufferreference[1].attachment = 1;
-    gbufferreference[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    gbufferreference[2].attachment = 2;
-    gbufferreference[2].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkAttachmentReference colorreference[3] = {};
+    colorreference[0].attachment = 0;
+    colorreference[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorreference[1].attachment = 1;
+    colorreference[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorreference[2].attachment = 2;
+    colorreference[2].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference depthreference = {};
     depthreference.attachment = 3;
@@ -510,8 +591,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkSubpassDescription subpasses[1] = {};
     subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpasses[0].colorAttachmentCount = extentof(gbufferreference);
-    subpasses[0].pColorAttachments = gbufferreference;
+    subpasses[0].colorAttachmentCount = extentof(colorreference);
+    subpasses[0].pColorAttachments = colorreference;
     subpasses[0].pDepthStencilAttachment = &depthreference;
 
     VkRenderPassCreateInfo renderpassinfo = {};
@@ -618,6 +699,107 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.unitquad = create_vertexbuffer(context.device, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
   }
 
+  if (context.shadowpipeline == 0)
+  {
+    //
+    // Shadow Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::shadow_vert);
+    auto gs = assets->find(CoreAsset::shadow_geom);
+    auto fs = assets->find(CoreAsset::shadow_frag);
+
+    if (!vs || !gs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto gssrc = assets->request(platform, gs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !gssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.device, gssrc, gs->length);
+    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkPipelineShaderStageCreateInfo shaders[3] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+    shaders[1].module = gsmodule;
+    shaders[1].pName = "main";
+    shaders[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[2].module = fsmodule;
+    shaders[2].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.shadowpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.shadowpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+  }
+
   if (context.geometrypipeline == 0)
   {
     //
@@ -661,6 +843,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     rasterization.polygonMode = VK_POLYGON_MODE_FILL;
     rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
 
     VkPipelineColorBlendAttachmentState blendattachments[3] = {};
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -800,6 +983,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization.polygonMode = VK_POLYGON_MODE_FILL;
     rasterization.cullMode = VK_CULL_MODE_NONE;
+    rasterization.lineWidth = 1.0;
 
     VkPipelineColorBlendAttachmentState blendattachments[1] = {};
     blendattachments[0].blendEnable = VK_TRUE;
@@ -872,10 +1056,59 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 }
 
 
+///////////////////////// prepare_shadowview ////////////////////////////////
+void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &lightdirection)
+{
+  const int nsplits = shadowmap.nslices;
+  const float lambda = shadowmap.shadowsplitlambda;
+  const float znear = 0.1;
+  const float zfar = shadowmap.shadowsplitfar;
+  const float extrusion = 1000.0;
+
+  float splits[nsplits+1] = { znear };
+
+  for(int i = 1; i <= nsplits; ++i)
+  {
+    float alpha = (float)i / nsplits;
+    float logdist = znear * pow(zfar / znear, alpha);
+    float uniformdist = znear + (zfar -znear) * alpha;
+
+    splits[i] = lerp(uniformdist, logdist, lambda);
+  }
+
+  auto up = (abs(dot(lightdirection, Vec3(0, 1, 0))) < 0.95) ? Vec3(0, 1, 0) : Vec3(0, 1, 0);
+
+  auto snapview = Transform::lookat(Vec3(0,0,0), -lightdirection, up);
+
+  for(int i = 0; i < nsplits; ++i)
+  {
+    auto frustum = camera.frustum(splits[i], splits[i+1]);
+
+    auto radius = 0.5f * norm(frustum.corners[0] - frustum.corners[6]);
+
+    auto frustumcentre = frustum.centre();
+
+    frustumcentre = inverse(snapview) * frustumcentre;
+    frustumcentre.x -= fmod(frustumcentre.x, (radius + radius) / shadowmap.width);
+    frustumcentre.y -= fmod(frustumcentre.y, (radius + radius) / shadowmap.height);
+    frustumcentre = snapview * frustumcentre;
+
+    auto lightpos = frustumcentre - extrusion * lightdirection;
+
+    auto lightview = Transform::lookat(lightpos, lightpos + lightdirection, up);
+
+    auto lightproj = OrthographicProjection(-radius, -radius, radius, radius, 0.1f, extrusion + radius);
+
+    shadowmap.shadowview[i] = lightproj * inverse(lightview).matrix();
+  }
+}
+
+
 ///////////////////////// draw_calls ////////////////////////////////////////
 extern void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes);
-extern void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites);
+extern void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Casters const &casters);
 extern void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuffer const &renderables, RenderParams const &params);
+extern void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites);
 
 
 ///////////////////////// render_fallback ///////////////////////////////////
@@ -923,6 +1156,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   context.camera = camera;
 
+  prepare_shadowview(context.shadows, camera, params.sundirection);
+
   auto &commandbuffer = context.commandbuffers[context.frame & 1];
 
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -936,6 +1171,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   scene.invview = inverse(scene.view);
   scene.worldview = scene.proj * scene.view;
   scene.camerapos = Vec4(camera.position(), 0);
+  scene.shadowview = context.shadows.shadowview;
 
   update(commandbuffer, context.transferbuffer, 0, sizeof(SceneSet), &scene);
 
@@ -948,13 +1184,36 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   querytimestamp(commandbuffer, context.timingquerypool, 0);
 
   //
+  // Shadows
+  //
+
+  beginpass(commandbuffer, context.shadowpass, context.shadowbuffer, 0, 0, context.shadows.width, context.shadows.height, 1, &clearvalues[3]);
+
+  for(auto &renderable : renderables)
+  {
+    switch (renderable.type)
+    {
+      case Renderable::Type::Casters:
+        draw_casters(context, commandbuffer, *renderable_cast<Renderable::Casters>(&renderable));
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  endpass(commandbuffer, context.shadowpass);
+
+  querytimestamp(commandbuffer, context.timingquerypool, 1);
+
+  //
   // Geometry
   //
 
   int width = viewport.width;
   int height = min((int)(viewport.width / camera.aspect()), viewport.height);
 
-  beginpass(commandbuffer, context.geometrypass, context.gbuffer, 0, (viewport.height - height)/2, width, height, extentof(clearvalues), clearvalues);
+  beginpass(commandbuffer, context.geometrypass, context.geometrybuffer, 0, (viewport.height - height)/2, width, height, extentof(clearvalues), clearvalues);
 
   for(auto &renderable : renderables)
   {
@@ -971,7 +1230,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.geometrypass);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 1);
+  querytimestamp(commandbuffer, context.timingquerypool, 2);
 
   //
   // Lighting
@@ -985,7 +1244,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   dispatch(commandbuffer, (context.fbowidth+15)/16, (context.fboheight+15)/16, 1);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 2);
+  querytimestamp(commandbuffer, context.timingquerypool, 3);
 
   //
   // Sprite
@@ -1008,7 +1267,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.renderpass);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 3);
+  querytimestamp(commandbuffer, context.timingquerypool, 4);
 
   //
   // Blit
@@ -1020,7 +1279,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   transition_present(commandbuffer, viewport.image);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 4);
+  querytimestamp(commandbuffer, context.timingquerypool, 5);
 
   end(context.device, commandbuffer);
 
@@ -1039,10 +1298,11 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   uint64_t timings[16];
   retreive_querypool(context.device, context.timingquerypool, 0, 5, timings);
 
-  GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[0], timings[1])
-  GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[1], timings[2])
-  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[2], timings[3])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[3], timings[4])
+  GPU_TIMED_BLOCK(Shadows, Color3(0.0, 0.4, 0.0), timings[0], timings[1])
+  GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])
+  GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[2], timings[3])
+  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[3], timings[4])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[4], timings[5])
 
   GPU_SUBMIT();
 

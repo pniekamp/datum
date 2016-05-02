@@ -624,7 +624,7 @@ namespace Vulkan
 
     VkImageViewCreateInfo viewinfo = {};
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
     viewinfo.format = format;
     viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
     viewinfo.subresourceRange = { (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT, 0, levels, 0, layers };

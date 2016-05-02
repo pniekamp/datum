@@ -34,12 +34,10 @@ Font const *ResourceManager::create<Font>(Asset const *asset)
   font->ascent = asset->ascent;
   font->descent = asset->descent;
   font->leading = asset->leading;
-
   font->glyphcount = asset->glyphcount;
-
   font->glyphs = nullptr;
-
   font->memory = nullptr;
+  font->state = Font::State::Empty;
 
   set_slothandle(slot, asset);
 
@@ -66,7 +64,7 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
     if (bits)
     {
       auto count = (size_t)asset->glyphcount;
-      auto glyphatlas = reinterpret_cast<uint32_t const*>((size_t)bits);
+      auto glyphs = reinterpret_cast<uint32_t const*>((size_t)bits);
       auto xtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 0 * count * sizeof(uint16_t));
       auto ytable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 1 * count * sizeof(uint16_t));
       auto widthtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 2 * count * sizeof(uint16_t));
@@ -81,7 +79,7 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
 
       if (slot->memory)
       {
-        slot->glyphs = create<Texture>(assets()->find(asset->id + *glyphatlas), Texture::Format::RGBA);
+        slot->glyphs = create<Texture>(assets()->find(asset->id + *glyphs), Texture::Format::RGBA);
 
         float sx = 1.0f / font->glyphs->width;
         float sy = 1.0f / font->glyphs->height;

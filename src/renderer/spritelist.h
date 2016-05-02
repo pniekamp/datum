@@ -54,8 +54,6 @@ class SpriteList
     void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Vec4 const &texcoords, lml::Color4 const &tint);
 
     void push_model(BuildState &state, lml::Vec2 xbasis, lml::Vec2 ybasis, lml::Vec2 position, float layer);
-    void push_model(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, float layer);
-    void push_model(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, float rotation, float layer);
 
     void push_line(BuildState &state, lml::Vec2 const &a, lml::Vec2 const &b, lml::Color4 const &color, float thickness = 1.0f);
 
@@ -70,7 +68,13 @@ class SpriteList
     void push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
     void push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 
+    void push_sprite(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, float size, Sprite const *sprite, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+    void push_sprite(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, float size, Sprite const *sprite, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+
     void push_text(BuildState &state, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+    void push_text(BuildState &state, lml::Vec2 const &position, float size, float rotation, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+
+    void push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 
     void push_scissor(BuildState &state, lml::Rect2 const &cliprect);
 

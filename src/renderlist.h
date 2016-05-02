@@ -30,6 +30,8 @@ class RenderList
 
     void push_meshes(MeshList const &meshes);
 
+    void push_casters(CasterList const &casters);
+
     void push_lights(LightList const &lights);
 
     void push_sprites(lml::Rect2 const &viewport, SpriteList const &sprites);

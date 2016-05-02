@@ -370,12 +370,18 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   queueinfo.pQueuePriorities = queuepriorities.data();
 
   const char* deviceextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+  
+  VkPhysicalDeviceFeatures devicefeatures = {};
+  devicefeatures.shaderClipDistance = true;
+  devicefeatures.shaderCullDistance = true;
+  devicefeatures.geometryShader = true;
+  devicefeatures.shaderTessellationAndGeometryPointSize = true;
 
   VkDeviceCreateInfo deviceinfo = {};
   deviceinfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   deviceinfo.queueCreateInfoCount = 1;
   deviceinfo.pQueueCreateInfos = &queueinfo;
-  deviceinfo.pEnabledFeatures = nullptr;
+  deviceinfo.pEnabledFeatures = &devicefeatures;
   deviceinfo.enabledExtensionCount = std::extent<decltype(deviceextensions)>::value;
   deviceinfo.ppEnabledExtensionNames = deviceextensions;
   deviceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;;

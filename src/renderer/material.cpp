@@ -44,6 +44,7 @@ Material const *ResourceManager::create<Material>(Asset const *asset)
   material->albedomap = nullptr;
   material->specularmap = nullptr;
   material->normalmap = nullptr;
+  material->state = Material::State::Empty;
 
   set_slothandle(slot, asset);
 

@@ -1,12 +1,12 @@
 //
-// Datum - mesh list
+// Datum - caster list
 //
 
 //
 // Copyright (c) 2016 Peter Niekamp
 //
 
-#include "meshlist.h"
+#include "casterlist.h"
 #include "renderer.h"
 #include <leap/lml/matrix.h>
 #include <leap/lml/matrixconstants.h>
@@ -21,7 +21,7 @@ using leap::extentof;
 
 enum RenderPasses
 {
-  geometrypass = 0,
+  shadowpass = 0,
 };
 
 enum ShaderLocation
@@ -39,9 +39,6 @@ enum ShaderLocation
 
 struct MaterialSet
 {
-  Color4 albedocolor;
-  Color3 specularintensity;
-  float specularexponent;
 };
 
 struct ModelSet
@@ -50,18 +47,18 @@ struct ModelSet
 };
 
 
-///////////////////////// draw_meshes ///////////////////////////////////////
-void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes)
+///////////////////////// draw_casters //////////////////////////////////////
+void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Casters const &casters)
 {
-  execute(commandbuffer, meshes.commandlist->commandbuffer());
+  execute(commandbuffer, casters.commandlist->commandbuffer());
 }
 
 
-//|---------------------- MeshList ------------------------------------------
+//|---------------------- CasterList ----------------------------------------
 //|--------------------------------------------------------------------------
 
-///////////////////////// MeshList::begin ///////////////////////////////////
-bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
+///////////////////////// CasterList::begin /////////////////////////////////
+bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
 {
   m_commandlist = nullptr;
 
@@ -70,7 +67,7 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
   state.context = &context;
   state.resources = resources;
 
-  if (!context.geometrybuffer)
+  if (!context.shadowbuffer)
     return false;
 
   auto commandlist = resources->allocate<CommandList>(&context);
@@ -78,7 +75,7 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context.geometrybuffer, context.geometrypass, RenderPasses::geometrypass))
+  if (!commandlist->begin(context.shadowbuffer, context.shadowpass, RenderPasses::shadowpass))
   {
     resources->destroy(commandlist);
     return false;
@@ -86,7 +83,7 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
 
   state.assetbarrier = resources->assets()->acquire_barrier();
 
-  bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.shadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -98,15 +95,15 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
 }
 
 
-///////////////////////// MeshList::push_material ///////////////////////////
-void MeshList::push_material(BuildState &state, Material const *material)
+///////////////////////// CasterList::push_material /////////////////////////
+void CasterList::push_material(BuildState &state, Material const *material)
 {
   if (!material)
     return;
 
   if (!material->ready())
   {
-    state.material = nullptr;
+    state.albedomap = nullptr;
 
     state.resources->request(*state.platform, material);
 
@@ -119,7 +116,7 @@ void MeshList::push_material(BuildState &state, Material const *material)
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.material != material)
+  if (state.albedomap != material->albedomap)
   {
     state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
@@ -127,26 +124,18 @@ void MeshList::push_material(BuildState &state, Material const *material)
     {
       auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-      auto materialset = state.materialset.memory<MaterialSet>(offset);
-
-      materialset->albedocolor = material->albedocolor;
-      materialset->specularintensity = material->specularintensity;
-      materialset->specularexponent = material->specularexponent;
-
       bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
-      bindtexture(context.device, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
       bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-      state.material = material;
+      state.albedomap = material->albedomap;
     }
   }
 }
 
 
-///////////////////////// MeshList::push_mesh ///////////////////////////////
-void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform, Mesh const *mesh)
+///////////////////////// CasterList::push_mesh /////////////////////////////
+void CasterList::push_mesh(CasterList::BuildState &state, Transform const &transform, Mesh const *mesh)
 {
   if (!mesh)
     return;
@@ -158,9 +147,6 @@ void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform
     if (!mesh->ready())
       return;
   }
-
-  if (!state.material)
-    return;
 
   assert(state.commandlist);
 
@@ -194,10 +180,10 @@ void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform
 }
 
 
-///////////////////////// MeshList::push_mesh ///////////////////////////////
-void MeshList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
+///////////////////////// CasterList::push_mesh /////////////////////////////
+void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
-  if (state.material != material)
+  if (state.albedomap != material->albedomap)
   {
     push_material(state, material);
   }
@@ -206,8 +192,8 @@ void MeshList::push_mesh(BuildState &state, Transform const &transform, Mesh con
 }
 
 
-///////////////////////// MeshList::finalise ////////////////////////////////
-void MeshList::finalise(BuildState &state)
+///////////////////////// CasterList::finalise //////////////////////////////
+void CasterList::finalise(BuildState &state)
 {
   assert(state.commandlist);
 

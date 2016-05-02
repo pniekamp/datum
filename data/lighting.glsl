@@ -40,7 +40,6 @@ const vec2 PoissonDisk[8] = {
 #define NSLICES 4
 #define BLENDSLICES 1
 
-/*
 ///////////////////////// poisson ///////////////////////////////////////////
 float poisson(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
 {
@@ -53,7 +52,7 @@ float poisson(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
     sum += texture(shadowmap, vec4(texel.xy + spread*PoissonDisk[k]*texelsize, texel.z, texel.w));
   }
 
-  return sum / 8;  
+  return sum / 8;
 }
 
 
@@ -74,7 +73,7 @@ float shadow_intensity(MainLight light, mat4 shadowview[NSLICES], sampler2DArray
   {
     vec4 shadowspace = shadowview[i] * vec4(position + bias[i] * normal, 1);
     
-    vec4 texel = vec4(0.5 * shadowspace.xy + 0.5, i, 0.5 * shadowspace.z + 0.5);
+    vec4 texel = vec4(0.5 * shadowspace.xy + 0.5, i, shadowspace.z);
 
     if (texel.x > 0.0 && texel.x < 1.0 && texel.y > 0.0 && texel.y < 1.0 && texel.w > 0.0 && texel.w < 1.0)
     {    
@@ -84,7 +83,7 @@ float shadow_intensity(MainLight light, mat4 shadowview[NSLICES], sampler2DArray
       if (i+i < NSLICES && weight > 0.0)
       {
         vec4 shadowspace2 = shadowview[i+1] * vec4(position + bias[i+1] * normal, 1);
-        vec4 texel2 = vec4(0.5 * shadowspace2.xy + 0.5, i+1, 0.5 * shadowspace2.z + 0.5);
+        vec4 texel2 = vec4(0.5 * shadowspace2.xy + 0.5, i+1, shadowspace2.z);
       
         return mix(poisson(shadowmap, texel, spread[i]), poisson(shadowmap, texel2, spread[i+1]), weight);
       }
@@ -96,7 +95,7 @@ float shadow_intensity(MainLight light, mat4 shadowview[NSLICES], sampler2DArray
   
   return 1.0;
 }
-*/
+
 
 ///////////////////////// diffuse_intensity /////////////////////////////////
 float diffuse_intensity(vec3 N, vec3 L)

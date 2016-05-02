@@ -124,7 +124,7 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 
 
 ///////////////////////// SpriteList::push_material /////////////////////////
-void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture, lml::Vec4 const &texcoords, lml::Color4 const &tint)
+void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture, Vec4 const &texcoords, Color4 const &tint)
 {
   assert(state.commandlist);
 
@@ -161,7 +161,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
 
 ///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(SpriteList::BuildState &state, lml::Vec2 xbasis, lml::Vec2 ybasis, lml::Vec2 position, float layer)
+void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 ybasis, Vec2 position, float layer)
 {
   assert(state.commandlist);
 
@@ -190,59 +190,45 @@ void SpriteList::push_model(SpriteList::BuildState &state, lml::Vec2 xbasis, lml
 }
 
 
-///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(SpriteList::BuildState &state, Vec2 const &position, Rect2 const &rect, float layer)
-{  
-  auto xbasis = Vec2(rect.max.x - rect.min.x, 0);
-  auto ybasis = Vec2(0, rect.max.y - rect.min.y);
-
-  push_model(state, xbasis, ybasis, position + rect.min, layer);
-}
-
-
-///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(SpriteList::BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, float layer)
-{
-  auto xbasis = rotate(Vec2(rect.max.x - rect.min.x, 0), rotation);
-  auto ybasis = rotate(Vec2(0, rect.max.y - rect.min.y), rotation);
-
-  push_model(state, xbasis, ybasis, position + rotate(rect.min, rotation), layer);
-}
-
-
 ///////////////////////// SpriteList::push_line /////////////////////////////
-void SpriteList::push_line(BuildState &state, lml::Vec2 const &a, lml::Vec2 const &b, lml::Color4 const &color, float thickness)
+void SpriteList::push_line(BuildState &state, Vec2 const &a, Vec2 const &b, Color4 const &color, float thickness)
 {
   push_rect(state, a, Rect2({ 0, -0.5f*thickness }, { norm(b - a), +0.5f*thickness }), theta(b - a), color);
 }
 
 
 ///////////////////////// SpriteList::push_rect /////////////////////////////
-void SpriteList::push_rect(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, lml::Color4 const &color)
+void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const &rect, Color4 const &color)
 {
   if (state.texture != state.context->whitediffuse || state.tint != color)
   {
     push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
   }
 
-  push_model(state, position, rect, 0);
+  auto xbasis = Vec2(1, 0);
+  auto ybasis = Vec2(0, 1);
+
+  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, 0);
 }
 
 
 ///////////////////////// SpriteList::push_rect /////////////////////////////
-void SpriteList::push_rect(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, float rotation, lml::Color4 const &color)
+void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, Color4 const &color)
 {
   if (state.texture != state.context->whitediffuse || state.tint != color)
   {
     push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
   }
 
-  push_model(state, position, rect, rotation, 0);
+  auto xbasis = rotate(Vec2(1, 0), rotation);
+  auto ybasis = rotate(Vec2(0, 1), rotation);
+
+  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, 0);
 }
 
 
 ///////////////////////// SpriteList::push_rect_outline /////////////////////
-void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, lml::Color4 const &color, float thickness)
+void SpriteList::push_rect_outline(BuildState &state, Vec2 const &position, Rect2 const &rect, Color4 const &color, float thickness)
 {
   push_rect(state, position, Rect2({ rect.min.x - 0.5f*thickness, rect.min.y - 0.5f*thickness }, { rect.max.x + 0.5f*thickness, rect.min.y + 0.5f*thickness }), color);
   push_rect(state, position, Rect2({ rect.min.x - 0.5f*thickness, rect.min.y + 0.5f*thickness }, { rect.min.x + 0.5f*thickness, rect.max.y - 0.5f*thickness }), color);
@@ -252,7 +238,7 @@ void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position,
 
 
 ///////////////////////// SpriteList::push_rect_outline /////////////////////
-void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, float rotation, lml::Color4 const &color, float thickness)
+void SpriteList::push_rect_outline(BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, Color4 const &color, float thickness)
 {
   auto a = position + rotate(Vec2(rect.min.x, rect.min.y), rotation);
   auto b = position + rotate(Vec2(rect.max.x, rect.min.y), rotation);
@@ -265,15 +251,16 @@ void SpriteList::push_rect_outline(BuildState &state, lml::Vec2 const &position,
   push_line(state, d, a, color, thickness);
 }
 
+
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, Sprite const *sprite, lml::Color4 const &tint)
+void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, float size, Sprite const *sprite, Color4 const &tint)
 {
-  push_sprite(state, position, size, sprite, 0, tint);
+  push_sprite(state, xbasis, ybasis, position, size, sprite, 0, tint);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, Sprite const *sprite, float layer, lml::Color4 const &tint)
+void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, float size, Sprite const *sprite, float layer, Color4 const &tint)
 {
   if (!sprite)
     return;
@@ -294,45 +281,52 @@ void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float
   auto dim = Vec2(size * sprite->aspect, size);
   auto align = Vec2(sprite->align.x * dim.x, sprite->align.y * dim.y);
 
-  push_model(state, position, Rect2(-align, dim - align), layer);
+  push_model(state, dim.x * xbasis, dim.y * ybasis, position - align.x*xbasis - align.y*ybasis, layer);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, lml::Color4 const &tint)
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, Sprite const *sprite, Color4 const &tint)
 {
-  push_sprite(state, position, size, rotation, sprite, 0, tint);
+  auto xbasis = Vec2(1, 0);
+  auto ybasis = Vec2(0, 1);
+
+  push_sprite(state, xbasis, ybasis, position, size, sprite, 0, tint);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, float layer, lml::Color4 const &tint)
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, Sprite const *sprite, float layer, Color4 const &tint)
 {
-  if (!sprite)
-    return;
+  auto xbasis = Vec2(1, 0);
+  auto ybasis = Vec2(0, 1);
 
-  if (!sprite->ready())
-  {
-    state.resources->request(*state.platform, sprite);
+  push_sprite(state, xbasis, ybasis, position, size, sprite, layer, tint);
+}
 
-    if (!sprite->ready())
-      return;
-  }
 
-  if (state.texture != sprite->atlas->texture || state.texcoords != sprite->extent || state.tint != tint)
-  {
-    push_material(state, sprite->atlas->texture, sprite->extent, tint);
-  }
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, float rotation, Sprite const *sprite, Color4 const &tint)
+{ 
+  auto xbasis = rotate(Vec2(1, 0), rotation);
+  auto ybasis = rotate(Vec2(0, 1), rotation);
 
-  auto dim = Vec2(size * sprite->aspect, size);
-  auto align = Vec2(sprite->align.x * dim.x, sprite->align.y * dim.y);
+  push_sprite(state, xbasis, ybasis, position, size, sprite, 0, tint);
+}
 
-  push_model(state, position, Rect2(-align, dim - align), rotation, layer);
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, float rotation, Sprite const *sprite, float layer, Color4 const &tint)
+{  
+  auto xbasis = rotate(Vec2(1, 0), rotation);
+  auto ybasis = rotate(Vec2(0, 1), rotation);
+
+  push_sprite(state, xbasis, ybasis, position, size, sprite, layer, tint);
 }
 
 
 ///////////////////////// SpriteList::push_text /////////////////////////////
-void SpriteList::push_text(BuildState &state, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint)
+void SpriteList::push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Vec2 const &position, float size, Font const *font, const char *str, Color4 const &tint)
 {
   if (!font)
     return;
@@ -358,22 +352,39 @@ void SpriteList::push_text(BuildState &state, lml::Vec2 const &position, float s
     if (codepoint >= (size_t)font->glyphcount)
       codepoint = 0;
 
-    cursor.x += scale * font->width(othercodepoint, codepoint);
-
-    auto xbasis = scale * Vec2(font->dimension[codepoint].x, 0);
-    auto ybasis = scale * Vec2(0, font->dimension[codepoint].y);
+    cursor += scale * font->width(othercodepoint, codepoint) * xbasis;
 
     push_material(state, font->glyphs->texture, font->texcoords[codepoint], tint);
 
-    push_model(state, xbasis, ybasis, cursor - scale * font->alignment[codepoint], 0);
+    push_model(state, scale * font->dimension[codepoint].x * xbasis, scale * font->dimension[codepoint].y * ybasis, cursor - scale * font->alignment[codepoint].x*xbasis - scale * font->alignment[codepoint].y*ybasis, 0);
 
     othercodepoint = codepoint;
   }
 }
 
 
+///////////////////////// SpriteList::push_text /////////////////////////////
+void SpriteList::push_text(BuildState &state, Vec2 const &position, float size, Font const *font, const char *str, Color4 const &tint)
+{
+  auto xbasis = Vec2(1, 0);
+  auto ybasis = Vec2(0, 1);
+
+  push_text(state, xbasis, ybasis, position, size, font, str, tint);
+}
+
+
+///////////////////////// SpriteList::push_text /////////////////////////////
+void SpriteList::push_text(BuildState &state, Vec2 const &position, float size, float rotation, Font const *font, const char *str, Color4 const &tint)
+{
+  auto xbasis = rotate(Vec2(1, 0), rotation);
+  auto ybasis = rotate(Vec2(0, 1), rotation);
+
+  push_text(state, xbasis, ybasis, position, size, font, str, tint);
+}
+
+
 ///////////////////////// SpriteList::push_scissor //////////////////////////
-void SpriteList::push_scissor(BuildState &state, lml::Rect2 const &cliprect)
+void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {
   VkRect2D scissor = {};
   scissor.offset.x = cliprect.min.x;

@@ -55,6 +55,9 @@ void datumtest_init(PlatformInterface &platform)
   state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
+  state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
+  state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
+
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 }
 
@@ -108,11 +111,38 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
 #if 1
   {
+    CasterList::BuildState buildstate;
+
+    if (state.writeframe->casters.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      state.writeframe->casters.push_mesh(buildstate, Transform::translation(sin(state.time), 1, -5), state.testsphere, state.defaultmaterial);
+      state.writeframe->casters.push_mesh(buildstate, Transform::translation(0, 1, -3 - sin(state.time)), state.testsphere, state.defaultmaterial);
+
+      state.writeframe->casters.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
+
+      for(auto &entity : state.scene.entities<MeshComponent>())
+      {
+        auto instance = state.scene.get_component<MeshComponent>(entity);
+        auto transform = state.scene.get_component<TransformComponent>(entity);
+
+        state.writeframe->casters.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
+      }
+
+      state.writeframe->casters.finalise(buildstate);
+    }
+  }
+#endif
+
+#if 1
+  {
     MeshList::BuildState buildstate;
 
     if (state.writeframe->meshes.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(0, 0, -3 - sin(state.time)), state.unitsphere, state.defaultmaterial);
+      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(sin(state.time), 1, -5), state.testsphere, state.defaultmaterial);
+      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(0, 1, -3 - sin(state.time)), state.testsphere, state.defaultmaterial);
+
+      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
 
       for(auto &entity : state.scene.entities<MeshComponent>())
       {
@@ -133,7 +163,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
     if (state.writeframe->lights.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      state.writeframe->lights.push_pointlight(buildstate, Vec3(10*sin(0.4*state.time), 1, 2*sin(0.6*state.time)), 5, Color3(1, 0, 1), Attenuation(0, 0, 1));
+      state.writeframe->lights.push_pointlight(buildstate, Vec3(10*sin(0.4*state.time), 2, 2*sin(0.6*state.time)), 5, Color3(1, 0, 1), Attenuation(0, 0, 1));
 
       for(auto &entity : state.scene.entities<PointLightComponent>())
       {
@@ -148,7 +178,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   }
 #endif
 
-#if 1
+#if 0
   {
     SpriteList::BuildState buildstate;
 
@@ -204,6 +234,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
   renderlist.push_meshes(state.readframe->meshes);
+  renderlist.push_casters(state.readframe->casters);
   renderlist.push_lights(state.readframe->lights);
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 

@@ -465,22 +465,27 @@ void dump(const char *name, Arena const &arena)
 ///////////////////////// dump //////////////////////////////////////////////
 void dump(const char *name, FreeList const &freelist)
 {
-  void *entry = freelist.m_freelist;
+  cout << "Freelist: " << name;
 
-  size_t nodes = 0;
-  size_t bytes = 0;
-
-  while (entry != nullptr)
+  for(size_t index = 0; index < extentof(freelist.m_freelist); ++index)
   {
-    auto node = reinterpret_cast<FreeList::Node*>((reinterpret_cast<std::size_t>(entry) + alignof(FreeList::Node) - 1) & -alignof(FreeList::Node));
+    size_t nodes = 0;
 
-    nodes += 1;
-    bytes += node->bytes;
+    void *entry = freelist.m_freelist[index];
 
-    entry = node->next;
+    while (entry != nullptr)
+    {
+      auto node = reinterpret_cast<FreeList::Node*>((reinterpret_cast<std::size_t>(entry) + alignof(FreeList::Node) - 1) & -alignof(FreeList::Node));
+
+      nodes += 1;
+
+      entry = node->next;
+    }
+
+    cout << " [" << nodes << "]";
   }
 
-  cout << "Freelist: " << name << " " << nodes << " nodes" << " " << bytes << " bytes" << endl;
+  cout << endl;
 }
 
 

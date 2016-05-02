@@ -19,7 +19,7 @@
 class Model : public Entity
 {
   public:
-    friend Scene::EntityId Scene::create<Model>(ResourceManager &resourcemanager);
+    friend Scene::EntityId Scene::create<Model>(ResourceManager *resources);
     friend Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset);
 
     size_t add_texture(Texture const *texture);

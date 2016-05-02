@@ -46,6 +46,7 @@ Mesh const *ResourceManager::create<Mesh>(Asset const *asset)
   mesh->vertices = nullptr;
   mesh->indices = nullptr;
   mesh->transferlump = nullptr;
+  mesh->state = Mesh::State::Empty;
 
   set_slothandle(slot, asset);
 
@@ -164,7 +165,7 @@ void ResourceManager::update<Mesh>(Mesh const *mesh, Vertex *vertices)
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh, lml::Bound3 bound)
+void ResourceManager::update<Mesh>(Mesh const *mesh, Bound3 bound)
 {
   assert(mesh);
 
