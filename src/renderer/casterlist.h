@@ -45,7 +45,7 @@ class CasterList
       CommandList *commandlist = nullptr;
 
       Mesh const *mesh;
-      Texture const *albedomap;
+      Material const *material;
     };
 
     bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);

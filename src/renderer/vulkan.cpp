@@ -101,7 +101,7 @@ namespace Vulkan
     vkGetPhysicalDeviceQueueFamilyProperties(vulkan.physicaldevice, &queuecount, queueproperties);
 
     uint32_t queueindex = 0;
-    while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+    while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)))
       ++queueindex;
 
     VkCommandPoolCreateInfo createinfo = {};
@@ -1179,7 +1179,7 @@ namespace Vulkan
   ///////////////////////// querytimestamp //////////////////////////////////
   void querytimestamp(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query)
   {
-    vkCmdWriteTimestamp(commandbuffer, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, pool, query);
+    vkCmdWriteTimestamp(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, pool, query);
   }
 
 

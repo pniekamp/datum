@@ -7,35 +7,30 @@
 
 layout(local_size_x = SIZE, local_size_y = SIZE) in;
 
-layout(std140, set=0, binding=0) uniform SceneSet 
+layout(std430, set=0, binding=0) buffer SceneSet 
 {
   layout(row_major) mat4 proj;
   layout(row_major) mat4 invproj;
   layout(row_major) mat4 view;
   layout(row_major) mat4 invview;
-  layout(row_major) mat4 worldview;  
   vec3 camerapos;
 
   layout(row_major) mat4 shadowview[NSLICES];
 
-} scene;
-
-layout(std430, set=1, binding=0) buffer EnvironmentSet 
-{
   MainLight mainlight;
   
   uint pointlightcount;
   PointLight pointlights[256];
 
-} environment;
+} scene;
 
-layout(set=1, binding=1) uniform sampler2D albedomap;
-layout(set=1, binding=2) uniform sampler2D specularmap;
-layout(set=1, binding=3) uniform sampler2D normalmap;
-layout(set=1, binding=4) uniform sampler2D depthmap;
-layout(set=1, binding=5) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=1) uniform sampler2D albedomap;
+layout(set=0, binding=2) uniform sampler2D specularmap;
+layout(set=0, binding=3) uniform sampler2D normalmap;
+layout(set=0, binding=4) uniform sampler2D depthmap;
+layout(set=0, binding=5) uniform sampler2DArrayShadow shadowmap;
 
-layout(set=4, binding=0) writeonly uniform image2D dest;
+layout(set=3, binding=0) writeonly uniform image2D dest;
 
 #define MAX_TILE_LIGHTS 128u
 
@@ -113,10 +108,10 @@ void main(void)
   Bound3 faraabb = make_bound(tile, minhz, maxz);
   Bound3 nearaabb = make_bound(tile, minz, maxhz);
 
-  for(uint i = gl_LocalInvocationIndex, end = environment.pointlightcount; i < end; i += SIZE*SIZE)
+  for(uint i = gl_LocalInvocationIndex, end = scene.pointlightcount; i < end; i += SIZE*SIZE)
   {
-    vec3 lightposition = view_position(scene.view, environment.pointlights[i].position);
-    float lightradius = environment.pointlights[i].attenuation.w;
+    vec3 lightposition = view_position(scene.view, scene.pointlights[i].position);
+    float lightradius = scene.pointlights[i].attenuation.w;
 
     if (intersects(faraabb, lightposition, lightradius))
     {
@@ -149,15 +144,15 @@ void main(void)
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
 
-  float ambientocclusion = 1;//ambient_intensity(environment.mainlight, ssaomap, vec2(xy)/viewport);
+  float ambientocclusion = 1;//ambient_intensity(scene.mainlight, ssaomap, vec2(xy)/viewport);
 
-  float mainlightshadow = shadow_intensity(environment.mainlight, scene.shadowview, shadowmap, position, normal);
+  float mainlightshadow = shadow_intensity(scene.mainlight, scene.shadowview, shadowmap, position, normal);
 
-  main_light(diffuse, specular, environment.mainlight, normal, eyevec, albedocolor.rgb, specularcolor.rgb, specularexponent, ambientocclusion, mainlightshadow);
+  main_light(diffuse, specular, scene.mainlight, normal, eyevec, albedocolor.rgb, specularcolor.rgb, specularexponent, ambientocclusion, mainlightshadow);
 
   for(uint i = 0, end = min(pln[nf], MAX_TILE_LIGHTS); i < end; ++i)
   {
-    PointLight pointlight = environment.pointlights[plids[nf][i]];
+    PointLight pointlight = scene.pointlights[plids[nf][i]];
 
     point_light(diffuse, specular, pointlight, position, normal, eyevec, albedocolor.rgb, specularcolor.rgb, specularexponent);
   }

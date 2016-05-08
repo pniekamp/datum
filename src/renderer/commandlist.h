@@ -91,7 +91,8 @@ class CommandList
 
   public:
 
-    void *lookup(uint32_t set) const { return m_addressmap[set]; }
+    template<typename View>
+    View *lookup(uint32_t set) const { return (View*)m_addressmap[set]; }
 
     operator VkCommandBuffer() const { return m_commandbuffer; }
 

@@ -27,14 +27,15 @@ enum RenderPasses
 enum ShaderLocation
 {
   sceneset = 0,
-  environmentset = 1,
-  materialset = 2,
-  modelset = 3,
-  computeset = 4,
+  materialset = 1,
+  modelset = 2,
 
   albedomap = 1,
-  specularmap = 2,
-  normalmap = 3,
+};
+
+struct SceneSet
+{
+  array<Matrix4f, ShadowMap::nslices> shadowview;
 };
 
 struct MaterialSet
@@ -50,7 +51,14 @@ struct ModelSet
 ///////////////////////// draw_casters //////////////////////////////////////
 void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Casters const &casters)
 {
-  execute(commandbuffer, casters.commandlist->commandbuffer());
+  auto scene = casters.commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
+
+  if (scene)
+  {
+    scene->shadowview = context.shadows.shadowview;
+
+    execute(commandbuffer, casters.commandlist->commandbuffer());
+  }
 }
 
 
@@ -85,7 +93,16 @@ bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 
   bindresource(*commandlist, context.shadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
+
+  if (sceneset)
+  {
+    sceneset.reserve(sizeof(SceneSet));
+
+    bindresource(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    commandlist->release(sceneset);
+  }
 
   m_commandlist = { resources, commandlist };
 
@@ -103,8 +120,6 @@ void CasterList::push_material(BuildState &state, Material const *material)
 
   if (!material->ready())
   {
-    state.albedomap = nullptr;
-
     state.resources->request(*state.platform, material);
 
     if (!material->ready())
@@ -116,7 +131,7 @@ void CasterList::push_material(BuildState &state, Material const *material)
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.albedomap != material->albedomap)
+  if (state.material != material)
   {
     state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
@@ -128,7 +143,7 @@ void CasterList::push_material(BuildState &state, Material const *material)
 
       bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-      state.albedomap = material->albedomap;
+      state.material = material;
     }
   }
 }
@@ -183,7 +198,7 @@ void CasterList::push_mesh(CasterList::BuildState &state, Transform const &trans
 ///////////////////////// CasterList::push_mesh /////////////////////////////
 void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
-  if (state.albedomap != material->albedomap)
+  if (state.material != material)
   {
     push_material(state, material);
   }

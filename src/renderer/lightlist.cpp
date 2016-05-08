@@ -19,15 +19,12 @@ using leap::extentof;
 enum ShaderLocation
 {
   sceneset = 0,
-  environmentset = 1,
-  materialset = 2,
-  modelset = 3,
-  computeset = 4,
 
   albedomap = 1,
   specularmap = 2,
   normalmap = 3,
   depthmap = 4,
+  shadowmap = 5,
 };
 
 struct alignas(16) MainLight
@@ -43,8 +40,16 @@ struct alignas(16) PointLight
   Vec4 attenuation;
 };
 
-struct EnvironmentSet
+struct SceneSet
 {
+  Matrix4f proj;
+  Matrix4f invproj;
+  Matrix4f view;
+  Matrix4f invview;
+  Vec4 camerapos;
+
+  array<Matrix4f, ShadowMap::nslices> shadowview;
+
   MainLight mainlight;
 
   uint32_t pointlightcount;
@@ -55,15 +60,22 @@ struct EnvironmentSet
 ///////////////////////// draw_lights ////////////////////////////////////////
 void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuffer const &renderables, RenderParams const &params)
 {
-  assert(sizeof(EnvironmentSet) < context.lightingbuffersize);
+  assert(sizeof(SceneSet) < context.lightingbuffersize);
 
   auto offset = context.lightingbufferoffsets[context.frame & 1];
 
-  EnvironmentSet *environmentset = (EnvironmentSet*)(context.transfermemory + offset);
+  SceneSet *scene = (SceneSet*)(context.transfermemory + offset);
 
-  auto &mainlight = environmentset->mainlight;
-  auto &pointlightcount = environmentset->pointlightcount;
-  auto &pointlights = environmentset->pointlights;
+  scene->proj = context.proj;
+  scene->invproj = inverse(scene->proj);
+  scene->view = context.view;
+  scene->invview = inverse(scene->view);
+  scene->camerapos = Vec4(context.camera.position(), 0);
+  scene->shadowview = context.shadows.shadowview;
+
+  auto &mainlight = scene->mainlight;
+  auto &pointlightcount = scene->pointlightcount;
+  auto &pointlights = scene->pointlights;
 
   mainlight.direction.xyz = params.sundirection;
   mainlight.intensity.rgb = params.sunintensity;
@@ -74,7 +86,7 @@ void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuff
   {
     if (renderable.type == Renderable::Type::Lights)
     {
-      auto lights = (EnvironmentSet*)renderable_cast<Renderable::Lights>(&renderable)->commandlist->lookup(ShaderLocation::environmentset);
+      auto lights = renderable_cast<Renderable::Lights>(&renderable)->commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
 
       for(size_t i = 0; lights && i < lights->pointlightcount && pointlightcount < extentof(pointlights); ++i)
       {
@@ -88,9 +100,7 @@ void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuff
     }
   }
 
-  bindresource(commandbuffer, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_COMPUTE);
-
-  bindresource(commandbuffer, context.lightingbuffer, context.pipelinelayout, ShaderLocation::environmentset, offset, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bindresource(commandbuffer, context.lightingbuffer, context.pipelinelayout, ShaderLocation::sceneset, offset, VK_PIPELINE_BIND_POINT_COMPUTE);
 }
 
 
@@ -115,17 +125,17 @@ bool LightList::begin(BuildState &state, DatumPlatform::v1::PlatformInterface &p
   if (!commandlist)
     return false;
 
-  auto environmentset = commandlist->acquire(ShaderLocation::environmentset, context.environmentsetlayout, sizeof(EnvironmentSet));
+  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
 
-  if (environmentset)
+  if (sceneset)
   {
-    auto offset = environmentset.reserve(sizeof(EnvironmentSet));
+    auto offset = sceneset.reserve(sizeof(SceneSet));
 
-    auto lights = environmentset.memory<EnvironmentSet>(offset);
+    auto lights = sceneset.memory<SceneSet>(offset);
 
     lights->pointlightcount = 0;
 
-    commandlist->release(environmentset);
+    commandlist->release(sceneset);
 
     state.data = lights;
   }
@@ -141,11 +151,11 @@ bool LightList::begin(BuildState &state, DatumPlatform::v1::PlatformInterface &p
 ///////////////////////// LightList::push_pointlight ////////////////////////
 void LightList::push_pointlight(BuildState &state, Vec3 const &position, float range, Color3 const &intensity, Attenuation const &attenuation)
 {
-  EnvironmentSet *environment = (EnvironmentSet*)state.data;
+  SceneSet *scene = (SceneSet*)state.data;
 
-  if (environment && environment->pointlightcount < extentof(environment->pointlights))
+  if (scene && scene->pointlightcount < extentof(scene->pointlights))
   {
-    PointLight &pointlight = environment->pointlights[environment->pointlightcount];
+    PointLight &pointlight = scene->pointlights[scene->pointlightcount];
 
     pointlight.position.xyz = position;
     pointlight.intensity.rgb = intensity;
@@ -154,7 +164,7 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
     pointlight.attenuation.z = attenuation.constant;
     pointlight.attenuation.w = range;
 
-    environment->pointlightcount += 1;
+    scene->pointlightcount += 1;
   }
 }
 

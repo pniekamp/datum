@@ -62,11 +62,11 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
   typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
   typecounts[0].descriptorCount = kDescriptorSetSlots;
   typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  typecounts[1].descriptorCount = kDescriptorSetSlots;
+  typecounts[1].descriptorCount = 8*kDescriptorSetSlots;
 
   VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
   descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  descriptorpoolinfo.maxSets = accumulate(begin(typecounts), end(typecounts), 0, [](int i, auto &k) { return i += k.descriptorCount; });
+  descriptorpoolinfo.maxSets = accumulate(begin(typecounts), end(typecounts), 0, [](int i, auto &k) { return i + k.descriptorCount; });
   descriptorpoolinfo.poolSizeCount = extentof(typecounts);
   descriptorpoolinfo.pPoolSizes = typecounts;
 

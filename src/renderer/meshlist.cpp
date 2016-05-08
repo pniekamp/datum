@@ -27,14 +27,17 @@ enum RenderPasses
 enum ShaderLocation
 {
   sceneset = 0,
-  environmentset = 1,
-  materialset = 2,
-  modelset = 3,
-  computeset = 4,
+  materialset = 1,
+  modelset = 2,
 
   albedomap = 1,
   specularmap = 2,
   normalmap = 3,
+};
+
+struct SceneSet
+{
+  Matrix4f worldview;
 };
 
 struct MaterialSet
@@ -53,7 +56,14 @@ struct ModelSet
 ///////////////////////// draw_meshes ///////////////////////////////////////
 void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes)
 {
-  execute(commandbuffer, meshes.commandlist->commandbuffer());
+  auto scene = meshes.commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
+
+  if (scene)
+  {
+    scene->worldview = context.proj * context.view;
+
+    execute(commandbuffer, meshes.commandlist->commandbuffer());
+  }
 }
 
 
@@ -88,7 +98,16 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
 
   bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
+
+  if (sceneset)
+  {
+    sceneset.reserve(sizeof(SceneSet));
+
+    bindresource(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    commandlist->release(sceneset);
+  }
 
   m_commandlist = { resources, commandlist };
 

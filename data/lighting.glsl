@@ -78,7 +78,7 @@ float shadow_intensity(MainLight light, mat4 shadowview[NSLICES], sampler2DArray
     if (texel.x > 0.0 && texel.x < 1.0 && texel.y > 0.0 && texel.y < 1.0 && texel.w > 0.0 && texel.w < 1.0)
     {    
 #if BLENDSLICES
-     	float weight = max(4 * max(max(abs(shadowspace.x), abs(shadowspace.y)) - 0.75, 0.0), 125 * max(shadowspace.z - 0.992, 0.0));
+     	float weight = max(4 * max(max(abs(shadowspace.x), abs(shadowspace.y)) - 0.75, 0.0), 500 * max(shadowspace.z - 0.998, 0.0));
 
       if (i+i < NSLICES && weight > 0.0)
       {

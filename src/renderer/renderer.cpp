@@ -42,28 +42,15 @@ enum ShaderLocation
   vertex_tangent = 3,
 
   sceneset = 0,
-  environmentset = 1,
-  materialset = 2,
-  modelset = 3,
-  computeset = 4,
+  materialset = 1,
+  modelset = 2,
+  computeset = 3,
 
   albedomap = 1,
   specularmap = 2,
   normalmap = 3,
   depthmap = 4,
   shadowmap = 5,
-};
-
-struct SceneSet
-{
-  Matrix4f proj;
-  Matrix4f invproj;
-  Matrix4f view;
-  Matrix4f invview;
-  Matrix4f worldview;
-  Vec4 camerapos;
-
-  array<Matrix4f, ShadowMap::nslices> shadowview;
 };
 
 constexpr size_t kPushConstantSize = 64;
@@ -120,7 +107,7 @@ namespace
   ///////////////////////// acquire_transferbuffer //////////////////////////
   size_t acquire_transferbuffer(RenderContext &context, size_t required)
   {
-    auto bytes = alignto(required, max(context.device.physicaldeviceproperties.limits.minUniformBufferOffsetAlignment, context.device.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment));
+    auto bytes = alignto(required, context.device.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment);
 
     size_t offset = context.offset.load(std::memory_order_relaxed);
 
@@ -153,8 +140,8 @@ namespace
 
       VkSamplerCreateInfo shadowsamplerinfo = {};
       shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      shadowsamplerinfo.magFilter = VK_FILTER_NEAREST;
-      shadowsamplerinfo.minFilter = VK_FILTER_NEAREST;
+      shadowsamplerinfo.magFilter = VK_FILTER_LINEAR;
+      shadowsamplerinfo.minFilter = VK_FILTER_LINEAR;
       shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
       shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
       shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -291,20 +278,18 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     // DescriptorPool
 
-    VkDescriptorPoolSize typecounts[4] = {};
-    typecounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    VkDescriptorPoolSize typecounts[3] = {};
+    typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     typecounts[0].descriptorCount = 1;
-    typecounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-    typecounts[1].descriptorCount = 1;
-    typecounts[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    typecounts[2].descriptorCount = 8;
-    typecounts[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    typecounts[3].descriptorCount = 2;
+    typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    typecounts[1].descriptorCount = 8;
+    typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    typecounts[2].descriptorCount = 2;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     descriptorpoolinfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    descriptorpoolinfo.maxSets = accumulate(begin(typecounts), end(typecounts), 0, [](int i, auto &k) { return i += k.descriptorCount; });
+    descriptorpoolinfo.maxSets = accumulate(begin(typecounts), end(typecounts), 0, [](int i, auto &k) { return i + k.descriptorCount; });
     descriptorpoolinfo.poolSizeCount = extentof(typecounts);
     descriptorpoolinfo.pPoolSizes = typecounts;
 
@@ -359,11 +344,31 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Scene Set
 
-    VkDescriptorSetLayoutBinding bindings[1] = {};
+    VkDescriptorSetLayoutBinding bindings[6] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
+    bindings[1].binding = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[1].descriptorCount = 1;
+    bindings[2].binding = 2;
+    bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[2].descriptorCount = 1;
+    bindings[3].binding = 3;
+    bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[3].descriptorCount = 1;
+    bindings[4].binding = 4;
+    bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[4].descriptorCount = 1;
+    bindings[5].binding = 5;
+    bindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[5].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -371,77 +376,29 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     createinfo.pBindings = bindings;
 
     context.scenesetlayout = create_descriptorsetlayout(context.device, createinfo);
-
-    context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, acquire_transferbuffer(context, sizeof(SceneSet)), sizeof(SceneSet), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  }
-
-  if (context.environmentsetlayout == 0)
-  {
-    // Environment Set
-
-    VkDescriptorSetLayoutBinding bindings[7] = {};
-    bindings[0].binding = 0;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-    bindings[0].descriptorCount = 1;
-    bindings[1].binding = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[1].descriptorCount = 1;
-    bindings[2].binding = 2;
-    bindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[2].descriptorCount = 1;
-    bindings[3].binding = 3;
-    bindings[3].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[3].descriptorCount = 1;
-    bindings[4].binding = 4;
-    bindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[4].descriptorCount = 1;
-    bindings[5].binding = 5;
-    bindings[5].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[5].descriptorCount = 1;
-    bindings[6].binding = 6;
-    bindings[6].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[6].descriptorCount = 1;
-
-    VkDescriptorSetLayoutCreateInfo createinfo = {};
-    createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    createinfo.bindingCount = extentof(bindings);
-    createinfo.pBindings = bindings;
-
-    context.environmentsetlayout = create_descriptorsetlayout(context.device, createinfo);
   }
 
   if (context.materialsetlayout == 0)
   {
     // Material Set
 
-    VkDescriptorSetLayoutBinding bindings[5] = {};
+    VkDescriptorSetLayoutBinding bindings[4] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
     bindings[1].binding = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[1].descriptorCount = 1;
     bindings[2].binding = 2;
-    bindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[2].descriptorCount = 1;
     bindings[3].binding = 3;
-    bindings[3].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[3].descriptorCount = 1;
-    bindings[4].binding = 4;
-    bindings[4].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[4].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -496,12 +453,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     constants[0].offset = 0;
     constants[0].size = kPushConstantSize;
 
-    VkDescriptorSetLayout layouts[5] = {};
+    VkDescriptorSetLayout layouts[4] = {};
     layouts[0] = context.scenesetlayout;
-    layouts[1] = context.environmentsetlayout;
-    layouts[2] = context.materialsetlayout;
-    layouts[3] = context.modelsetlayout;
-    layouts[4] = context.computelayout;
+    layouts[1] = context.materialsetlayout;
+    layouts[2] = context.modelsetlayout;
+    layouts[3] = context.computelayout;
 
     VkPipelineLayoutCreateInfo pipelinelayoutinfo = {};
     pipelinelayoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -938,7 +894,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.lightingbuffersize = kLightingBufferSize;
     context.lightingbufferoffsets[0] = acquire_transferbuffer(context, kLightingBufferSize);
     context.lightingbufferoffsets[1] = acquire_transferbuffer(context, kLightingBufferSize);
-    context.lightingbuffer = allocate_descriptorset(context.device, context.descriptorpool, context.environmentsetlayout, context.transferbuffer, 0, kLightingBufferSize, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+    context.lightingbuffer = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, kLightingBufferSize, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.spritepipeline == 0)
@@ -1155,6 +1111,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   }
 
   context.camera = camera;
+  context.proj = context.camera.proj();
+  context.view = ScaleMatrix(Vector4(1.0f, viewport.width / camera.aspect() / viewport.height, 1.0f, 1.0f)) * camera.view();
 
   prepare_shadowview(context.shadows, camera, params.sundirection);
 
@@ -1163,17 +1121,6 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   reset_querypool(commandbuffer, context.timingquerypool, 0, 1);
-
-  SceneSet scene;
-  scene.proj = camera.proj();
-  scene.invproj = inverse(scene.proj);
-  scene.view = ScaleMatrix(Vector4(1.0f, viewport.width / camera.aspect() / viewport.height, 1.0f, 1.0f)) * camera.view();
-  scene.invview = inverse(scene.view);
-  scene.worldview = scene.proj * scene.view;
-  scene.camerapos = Vec4(camera.position(), 0);
-  scene.shadowview = context.shadows.shadowview;
-
-  update(commandbuffer, context.transferbuffer, 0, sizeof(SceneSet), &scene);
 
   VkClearValue clearvalues[4];
   clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -1296,7 +1243,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.device, context.timingquerypool, 0, 5, timings);
+  retreive_querypool(context.device, context.timingquerypool, 0, 6, timings);
 
   GPU_TIMED_BLOCK(Shadows, Color3(0.0, 0.4, 0.0), timings[0], timings[1])
   GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])

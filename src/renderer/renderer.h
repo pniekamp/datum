@@ -195,7 +195,6 @@ struct RenderContext
   Vulkan::QueryPool timingquerypool;
 
   Vulkan::DescriptorSetLayout scenesetlayout;
-  Vulkan::DescriptorSetLayout environmentsetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;
   Vulkan::DescriptorSetLayout computelayout;
@@ -215,8 +214,6 @@ struct RenderContext
   Vulkan::RenderPass shadowpass;
   Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass renderpass;
-
-  Vulkan::DescriptorSet sceneset;
 
   size_t lightingbuffersize;
   size_t lightingbufferoffsets[2];
@@ -251,6 +248,9 @@ struct RenderContext
   Vulkan::MemoryView<uint8_t> transfermemory;
 
   Camera camera;
+  lml::Matrix4f proj;
+  lml::Matrix4f view;
+
   Camera prevcamera;
 };
 

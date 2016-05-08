@@ -27,17 +27,15 @@ enum RenderPasses
 enum ShaderLocation
 {
   sceneset = 0,
-  environmentset = 1,
-  materialset = 2,
-  modelset = 3,
-  computeset = 4,
+  materialset = 1,
+  modelset = 2,
 
   albedomap = 1,
 };
 
-struct EnvironmentSet
+struct SceneSet
 {
-  Matrix4f worldviewport;
+  Matrix4f worldview;
 };
 
 struct MaterialSet
@@ -58,11 +56,11 @@ struct ModelSet
 ///////////////////////// draw_sprites //////////////////////////////////////
 void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
 {
-  EnvironmentSet *environment = (EnvironmentSet*)sprites.commandlist->lookup(ShaderLocation::environmentset);
+  auto scene = sprites.commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
 
-  if (environment)
+  if (scene)
   {
-    environment->worldviewport = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
+    scene->worldview = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
 
     execute(commandbuffer, sprites.commandlist->commandbuffer());
   }
@@ -98,17 +96,15 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 
   bindresource(*commandlist, context.spritepipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(*commandlist, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
 
-  auto environmentset = commandlist->acquire(ShaderLocation::environmentset, context.environmentsetlayout, sizeof(EnvironmentSet));
-
-  if (environmentset)
+  if (sceneset)
   {
-    environmentset.reserve(sizeof(EnvironmentSet));
+    sceneset.reserve(sizeof(SceneSet));
 
-    bindresource(*commandlist, environmentset, context.pipelinelayout, ShaderLocation::environmentset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bindresource(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    commandlist->release(environmentset);
+    commandlist->release(sceneset);
   }
 
   bindresource(*commandlist, context.unitquad);

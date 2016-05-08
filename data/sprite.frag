@@ -1,13 +1,13 @@
 #version 450 core
 
-layout(std430, set=2, binding=0) buffer MaterialSet 
+layout(std430, set=1, binding=0) buffer MaterialSet 
 {
   vec4 tint;
   vec4 texcoords;
 
 } material;
 
-layout(set=2, binding=1) uniform sampler2DArray albedomap;
+layout(set=1, binding=1) uniform sampler2DArray albedomap;
 
 layout(location = 0) in vec3 texcoord;
 

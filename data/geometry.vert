@@ -6,18 +6,13 @@ layout(location=1) in vec2 vertex_texcoord;
 layout(location=2) in vec3 vertex_normal;
 layout(location=3) in vec4 vertex_tangent;
 
-layout(std140, set=0, binding=0) uniform SceneSet 
+layout(std430, set=0, binding=0) buffer SceneSet 
 {
-  layout(row_major) mat4 proj;
-  layout(row_major) mat4 invproj;
-  layout(row_major) mat4 view;
-  layout(row_major) mat4 invview;
   layout(row_major) mat4 worldview;
-  vec3 camerapos;
 
 } scene;
 
-layout(std430, set=3, binding=0) buffer ModelSet 
+layout(std430, set=2, binding=0) buffer ModelSet 
 { 
   Transform modelworld;
 

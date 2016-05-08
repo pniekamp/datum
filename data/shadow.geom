@@ -4,15 +4,8 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3*NSLICES) out;
 
-layout(std140, set=0, binding=0) uniform SceneSet 
+layout(std430, set=0, binding=0) buffer SceneSet 
 {
-  layout(row_major) mat4 proj;
-  layout(row_major) mat4 invproj;
-  layout(row_major) mat4 view;
-  layout(row_major) mat4 invview;
-  layout(row_major) mat4 worldview;
-  vec3 camerapos;
-
   layout(row_major) mat4 shadowview[NSLICES];
 
 } scene;
