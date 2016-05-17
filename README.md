@@ -8,4 +8,6 @@
 - Mesh Rendering
 - Single Main Directional Lighting
 - Deferred Tile Based Point Lighting
+- Main Light Cascaded Shadow Map
+- HDR Skybox
 - Entity-Component Scene Management

@@ -39,6 +39,7 @@ size_t image_datasize(int width, int height, int layers, int levels);
 size_t image_datasize_bc3(int width, int height, int layers, int levels);
 
 void image_buildmips_rgb(int width, int height, int layers, int levels, void *bits);
+void image_buildmips_rgbe(int width, int height, int layers, int levels, void *bits);
 void image_buildmips_srgb(int width, int height, int layers, int levels, void *bits);
 void image_buildmips_srgb_a(float alpharef, int width, int height, int layers, int levels, void *bits);
 void image_premultiply_srgb(int width, int height, int layers, int levels, void *bits);

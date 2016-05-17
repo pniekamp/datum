@@ -12,12 +12,12 @@ layout(set=1, binding=1) uniform sampler2D albedomap;
 layout(set=1, binding=2) uniform sampler2D specularmap;
 layout(set=1, binding=3) uniform sampler2D normalmap;
 
-layout(location = 0) in vec2 texcoord;
-layout(location = 1) in mat3 tbnworld;
+layout(location=0) in vec2 texcoord;
+layout(location=1) in mat3 tbnworld;
 
-layout (location = 0) out vec4 fragalbedo;
-layout (location = 1) out vec4 fragspecular;
-layout (location = 2) out vec4 fragnormals;
+layout(location=0) out vec4 fragalbedo;
+layout(location=1) out vec4 fragspecular;
+layout(location=2) out vec4 fragnormals;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

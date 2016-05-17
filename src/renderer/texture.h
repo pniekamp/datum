@@ -9,8 +9,6 @@
 #pragma once
 
 #include "resource.h"
-#include "renderer.h"
-
 
 //|---------------------- Texture -------------------------------------------
 //|--------------------------------------------------------------------------
@@ -23,11 +21,13 @@ class Texture
     {
       RGBA,
       SRGBA,
+      RGBM,
+      RGBE
     };
 
   public:
     friend Texture const *ResourceManager::create<Texture>(Asset const *asset, Format format);
-    friend Texture const *ResourceManager::create<Texture>(int width, int height, Format format);
+    friend Texture const *ResourceManager::create<Texture>(int width, int height, int layers, int levels, Format format);
 
     friend void ResourceManager::update<Texture>(Texture const *texture);
     friend void ResourceManager::update<Texture>(Texture const *texture, void const *bits);

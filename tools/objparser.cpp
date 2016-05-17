@@ -186,10 +186,8 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
     {
       for(int x = 0; x < image.width(); ++x)
       {
-        Color3 color = Color3(qRed(albedo.pixel(x, y))/255.0, qGreen(albedo.pixel(x, y))/255.0, qBlue(albedo.pixel(x, y))/255.0);
-
-        Color3 intensity = Color3(qRed(image.pixel(x, y))/255.0, qGreen(image.pixel(x, y))/255.0, qBlue(image.pixel(x, y))/255.0);
-
+        auto color = rgba(albedo.pixel(x, y));
+        auto intensity = rgba(image.pixel(x, y));
         float shininess = qAlpha(image.pixel(x, y))/255.0;;
 
         image.setPixel(x, y, qRgba(color.r * intensity.r * 255, color.g * intensity.g * 255, color.b * intensity.b * 255, shininess * 255));

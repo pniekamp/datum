@@ -15,6 +15,7 @@
 #include "vulkan.h"
 #include "resourcepool.h"
 #include "commandlist.h"
+#include "skybox.h"
 #include <tuple>
 
 
@@ -219,6 +220,11 @@ struct RenderContext
   size_t lightingbufferoffsets[2];
   Vulkan::DescriptorSet lightingbuffer;
 
+  size_t skyboxbuffersize;
+  size_t skyboxbufferoffsets[2];
+  Vulkan::DescriptorSet skyboxbuffers[2];
+  Vulkan::CommandBuffer skyboxcommands[2];
+
   Vulkan::DescriptorSet colorbuffertarget;
 
   Vulkan::VertexAttribute vertexattributes[4];
@@ -231,6 +237,7 @@ struct RenderContext
   Vulkan::Pipeline shadowpipeline;
   Vulkan::Pipeline geometrypipeline;
   Vulkan::Pipeline lightingpipeline;
+  Vulkan::Pipeline skyboxpipeline;
   Vulkan::Pipeline spritepipeline;
 
   ShadowMap shadows;
@@ -261,8 +268,8 @@ struct RenderParams
   lml::Vec3 sundirection = { -0.57735, -0.57735, -0.57735 };
   lml::Color3 sunintensity = { 1.0f, 1.0f, 1.0f };
 
-  float skyboxblend = 1.0;
-  lml::Quaternion3f skyboxorientation = { 1.0f, 0.0f, 0.0f, 0.0f };
+  Skybox const *skybox = nullptr;
+  lml::Transform skyboxorientation = lml::Transform::identity();
 
   float lightfalloff = 0.66;
 };

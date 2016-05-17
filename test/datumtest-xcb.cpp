@@ -275,7 +275,6 @@ struct Vulkan
   VkQueue queue;
 
   VkSurfaceKHR surface;
-  VkSurfaceFormatKHR surfaceformat;
 
   VkSwapchainKHR swapchain;
   VkSwapchainCreateInfoKHR swapchaininfo;
@@ -449,17 +448,6 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   if (surfacesupport != VK_TRUE)
     throw runtime_error("Vulkan vkGetPhysicalDeviceSurfaceSupportKHR error");
 
-  uint32_t formatscount = 0;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatscount, nullptr);
-
-  vector<VkSurfaceFormatKHR> formats(formatscount);
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatscount, formats.data());
-
-  surfaceformat = formats[0];
-
-  if (surfaceformat.format == VK_FORMAT_UNDEFINED)
-    surfaceformat.format = VK_FORMAT_B8G8R8A8_UNORM;
-
   //
   // Swap Chain
   //
@@ -495,8 +483,8 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   swapchaininfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   swapchaininfo.surface = surface;
   swapchaininfo.minImageCount = desiredimages;
-  swapchaininfo.imageFormat = surfaceformat.format;
-  swapchaininfo.imageColorSpace = surfaceformat.colorSpace;
+  swapchaininfo.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
+  swapchaininfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
   swapchaininfo.imageExtent = surfacecapabilities.currentExtent;
   swapchaininfo.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
   swapchaininfo.preTransform = pretransform;

@@ -55,6 +55,10 @@ void datumtest_init(PlatformInterface &platform)
   state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
+  state.skybox = state.resources.create<Skybox>(state.assets.find(CoreAsset::default_skybox));
+
+  state.testimage = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image));
+
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
 
@@ -99,6 +103,12 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   if (input.controllers[0].move_right.state == true)
     state.camera.offset(speed*Vec3(+1.0f, 0.0f, 0.0f));
+
+  if (input.keys['-'].down())
+    state.camera.set_exposure(state.camera.exposure() - 0.01);
+
+  if (input.keys['='].down())
+    state.camera.set_exposure(state.camera.exposure() + 0.01);
 
   state.lastmousex = input.mousex;
   state.lastmousey = input.mousey;
@@ -222,6 +232,11 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     return;
   }
 
+  if (!state.skybox->ready())
+  {
+    state.resources.request(platform, state.skybox);
+  }
+
   while (state.readyframe.load()->time <= state.readframe->time)
     ;
 
@@ -246,6 +261,12 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   {
     overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
 
+    char buffer[256];
+    sprintf(buffer, "%f", state.readframe->camera.exposure());
+    overlay.push_text(buildstate, Vec2(5, 400), 22, state.debugfont, buffer);
+
+//    overlay.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
+
     overlay.finalise(buildstate);
   }
 
@@ -265,10 +286,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 #endif
 
   RenderParams renderparams;
-  renderparams.skyboxblend = 0.9;//abs(sin(0.01*state.time));
-  renderparams.sundirection = normalise(Vec3(renderparams.skyboxblend - 0.5, -1, -0.1));
-  renderparams.sunintensity = Color3(renderparams.skyboxblend, renderparams.skyboxblend, renderparams.skyboxblend);
-  renderparams.skyboxorientation = Quaternion3f(Vector3(0.0f, 1.0f, 0.0f), 0.1*state.time);
+  renderparams.skybox = state.skybox;
+  renderparams.sundirection = normalise(Vec3(0.4, -1, -0.1));
+  renderparams.sunintensity = Color3(1, 1, 1);
+  renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), 0.1*state.readframe->time);
 
   render_debug_overlay(platform, state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);
 

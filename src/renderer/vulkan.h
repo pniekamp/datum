@@ -383,6 +383,7 @@ namespace Vulkan
 
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferUsageFlags flags);
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferInheritanceInfo const &inheritanceinfo, VkCommandBufferUsageFlags flags);
+  void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, VkCommandBufferUsageFlags flags);
   void end(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);
 
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);

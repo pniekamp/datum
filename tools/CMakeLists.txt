@@ -11,6 +11,8 @@ find_package(Qt5Gui REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+set(SRCS ${SRCS} atlaspacker.h assetpacker.h assetpacker.cpp bc3.h bc3.cpp hdr.h hdr.cpp glslang.h glslang.cpp)
+
 #
 # embed
 #
@@ -24,7 +26,7 @@ target_link_libraries(assetembed leap Qt5::Gui)
 # assetbuilder
 #
 
-add_executable(assetbuilder atlaspacker.h assetpacker.h assetpacker.cpp bc3.h bc3.cpp assetbuilder.cpp glslang.h glslang.cpp)
+add_executable(assetbuilder assetbuilder.cpp ${SRCS})
 
 target_link_libraries(assetbuilder leap Qt5::Gui)
 
@@ -33,7 +35,7 @@ target_link_libraries(assetbuilder leap Qt5::Gui)
 # assetcompressor
 #
 
-add_executable(assetcompressor assetpacker.h assetpacker.cpp bc3.h bc3.cpp assetcompressor.cpp)
+add_executable(assetcompressor assetcompressor.cpp ${SRCS})
 
 target_link_libraries(assetcompressor leap Qt5::Gui)
 
@@ -42,7 +44,7 @@ target_link_libraries(assetcompressor leap Qt5::Gui)
 # objparser
 #
 
-add_executable(objparser assetpacker.h assetpacker.cpp bc3.h bc3.cpp objparser.cpp)
+add_executable(objparser objparser.cpp ${SRCS})
 
 target_link_libraries(objparser leap Qt5::Gui)
 

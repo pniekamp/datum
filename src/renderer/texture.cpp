@@ -34,6 +34,10 @@ namespace
           size += ((width + 3)/4) * ((height + 3)/4) * layers * 16;
           break;
 
+        case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+          size += width * height * layers * sizeof(uint32_t);
+          break;
+
         default:
           assert(false);
           break;
@@ -85,7 +89,7 @@ Texture const *ResourceManager::create<Texture>(Asset const *asset, Texture::For
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Texture const *ResourceManager::create<Texture>(int width, int height, Texture::Format format)
+Texture const *ResourceManager::create<Texture>(int width, int height, int layers, int levels, Texture::Format format)
 {
   auto slot = acquire_slot(sizeof(Texture));
 
@@ -103,9 +107,17 @@ Texture const *ResourceManager::create<Texture>(int width, int height, Texture::
     case Texture::Format::SRGBA:
       vkformat = VK_FORMAT_B8G8R8A8_SRGB;
       break;
+
+    case Texture::Format::RGBM:
+      vkformat = VK_FORMAT_B8G8R8A8_UNORM;
+      break;
+
+    case Texture::Format::RGBE:
+      vkformat = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+      break;
   }
 
-  auto lump = acquire_lump(image_datasize(width, height, 1, 1, vkformat));
+  auto lump = acquire_lump(image_datasize(width, height, layers, levels, vkformat));
 
   if (!lump)
     return nullptr;
@@ -114,7 +126,7 @@ Texture const *ResourceManager::create<Texture>(int width, int height, Texture::
 
   texture->width = width;
   texture->height = height;
-  texture->layers = 1;
+  texture->layers = layers;
   texture->format = format;
   texture->transferlump = lump;
 
@@ -122,7 +134,7 @@ Texture const *ResourceManager::create<Texture>(int width, int height, Texture::
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  texture->texture = create_texture(vulkan, lump->commandbuffer, width, height, 1, 1, vkformat);
+  texture->texture = create_texture(vulkan, lump->commandbuffer, width, height, layers, levels, vkformat);
 
   end(vulkan, lump->commandbuffer);
 
@@ -239,6 +251,23 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
                 vkformat = VK_FORMAT_BC3_SRGB_BLOCK;
                 break;
             }
+            break;
+
+          case Texture::Format::RGBM:
+            switch(((PackImagePayload*)bits)->compression)
+            {
+              case PackImagePayload::none:
+                vkformat = VK_FORMAT_B8G8R8A8_UNORM;
+                break;
+
+              case PackImagePayload::bc3:
+                vkformat = VK_FORMAT_BC3_UNORM_BLOCK;
+                break;
+            }
+            break;
+
+          case Texture::Format::RGBE:
+            vkformat = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
             break;
         }
 

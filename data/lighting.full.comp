@@ -2,6 +2,7 @@
 #include "bound.glsl"
 #include "gbuffer.glsl"
 #include "lighting.glsl"
+#include "camera.glsl"
 
 #define SIZE 16
 
@@ -159,5 +160,5 @@ void main(void)
 
   vec3 fragcolor = diffuse + specular * max(1.0 - diffuse, 0.0);
 
-  imageStore(dest, xy, vec4(pow(fragcolor, vec3(1/2.2)), 1.0));
+  imageStore(dest, xy, vec4(tonemap(scene.exposure * fragcolor), 1.0));
 }

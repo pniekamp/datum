@@ -23,6 +23,7 @@ Camera::Camera()
 {
   m_fov = 60.0f;
   m_aspect = 1.7777;
+  m_exposure = 1.0f;
   m_transform = Transform::identity();
 }
 
@@ -34,6 +35,23 @@ void Camera::set_projection(float fov, float aspect, float znear, float zfar)
   m_aspect = aspect;
   m_znear = znear;
   m_zfar = zfar;
+}
+
+
+///////////////////////// Camera::set_exposure //////////////////////////////
+void Camera::set_exposure(float exposure)
+{
+  m_exposure = exposure;
+}
+
+
+///////////////////////// Camera::set_exposure //////////////////////////////
+void Camera::set_exposure(float aperture, float shutterspeed, float iso)
+{
+  float q = 0.65;
+  float l_avg = (1.0 / q) * sqrt(aperture) / (iso * shutterspeed);
+
+  m_exposure = 0.18 / l_avg;
 }
 
 

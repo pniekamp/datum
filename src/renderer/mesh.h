@@ -9,7 +9,6 @@
 #pragma once
 
 #include "resource.h"
-#include "renderer.h"
 
 
 //|---------------------- Vertex --------------------------------------------

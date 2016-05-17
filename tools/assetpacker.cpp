@@ -338,6 +338,38 @@ void image_buildmips_rgb(int width, int height, int layers, int levels, void *bi
 
 
 ///////////////////////// image_buildmips ///////////////////////////////////
+void image_buildmips_rgbe(int width, int height, int layers, int levels, void *bits)
+{
+  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *dst = src + width * height * layers;
+
+  for(int level = 1; level < levels; ++level)
+  {
+    for(int layer = 0; layer < layers; ++layer)
+    {
+      for(int y = 0, end = height >> 1; y < end; ++y)
+      {
+        for(int x = 0, end = width >> 1; x < end; ++x)
+        {
+          Color4 tl = rgbe(*(src + ((y << 1) + 0)*width + ((x << 1) + 0)));
+          Color4 tr = rgbe(*(src + ((y << 1) + 0)*width + ((x << 1) + 1)));
+          Color4 bl = rgbe(*(src + ((y << 1) + 1)*width + ((x << 1) + 0)));
+          Color4 br = rgbe(*(src + ((y << 1) + 1)*width + ((x << 1) + 1)));
+
+          *dst++ = rgbe((tl + tr + bl + br) / 4);
+        }
+      }
+
+      src += width * height;
+    }
+
+    width /= 2;
+    height /= 2;
+  }
+}
+
+
+///////////////////////// image_buildmips ///////////////////////////////////
 void image_buildmips_srgb(int width, int height, int layers, int levels, void *bits)
 {
   uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));

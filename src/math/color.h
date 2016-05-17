@@ -96,7 +96,7 @@ namespace lml
   }
 
 
-  //|///////////////////// Color RGB ////////////////////////////////////////
+  //|///////////////////// RGBA /////////////////////////////////////////////
   inline uint32_t rgba(Color4 const &color)
   {
     return ((uint8_t)(color.b * 255) << 0) | ((uint8_t)(color.g * 255) << 8) | ((uint8_t)(color.r * 255) << 16) | ((uint8_t)(color.a * 255) << 24);
@@ -118,7 +118,51 @@ namespace lml
   }
 
 
-  //|///////////////////// Color HSV ////////////////////////////////////////
+  //|///////////////////// RGBM /////////////////////////////////////////////
+  inline uint32_t rgbm(Color4 const &color)
+  {
+    auto r = color.r * 1.0f / 8.0f;
+    auto g = color.g * 1.0f / 8.0f;
+    auto b = color.b * 1.0f / 8.0f;
+    auto m = std::ceil(clamp(std::max(r, std::max(g, std::max(b, 1e-6f))), 0.0f, 1.0f) * 255.0f) / 255.0f;
+
+    return ((uint8_t)(b/m * 255) << 0) | ((uint8_t)(g/m * 255) << 8) | ((uint8_t)(r/m * 255) << 16) | ((uint8_t)(m * 255) << 24);
+  }
+
+  inline Color4 rgbm(uint32_t color)
+  {
+    auto r = (uint8_t)(color >> 16) / 255.0f;
+    auto g = (uint8_t)(color >> 8) / 255.0f;
+    auto b = (uint8_t)(color >> 0) / 255.0f;
+    auto m = (uint8_t)(color >> 24) / 255.0f;
+
+    return Color4(8.0f * r * m, 8.0f * g * m, 8.0f * b * m, 1.0f);
+  }
+
+
+  //|///////////////////// RGBE /////////////////////////////////////////////
+  inline uint32_t rgbe(Color4 const &color)
+  {
+    auto r = clamp(color.r, 0.0f, 65408.0f);
+    auto g = clamp(color.g, 0.0f, 65408.0f);
+    auto b = clamp(color.b, 0.0f, 65408.0f);
+    auto e = std::max(-16.0f, std::floor(std::log2(std::max(r, std::max(g, b))))) + 1;
+
+    return ((uint8_t)(e + 15) << 27) | ((uint16_t)(r / std::exp2(e) * 511) << 0) | ((uint16_t)(g / std::exp2(e) * 511) << 9) | ((uint16_t)(b / std::exp2(e) * 511) << 18);
+  }
+
+  inline Color4 rgbe(uint32_t color)
+  {
+    auto r = ((color >> 0) & 0x1FF) / 511.0f;
+    auto g = ((color >> 9) & 0x1FF) / 511.0f;
+    auto b = ((color >> 18) & 0x1FF) / 511.0f;
+    auto e = (int)((color >> 27) & 0x1F) - 15;
+
+    return Color4(r * std::exp2(e), g * std::exp2(e), b * std::exp2(e), 1.0f);
+  }
+
+
+  //|///////////////////// HSV //////////////////////////////////////////////
   inline Color3 hsv(float h, float s, float v)
   {
     if (v <= 0)
@@ -127,13 +171,13 @@ namespace lml
     if (s <= 0)
       return Color3(v, v, v);
 
-    float hf = clamp(h, 0.0f, 360.0f) / 60.0f;
+    auto hf = clamp(h, 0.0f, 360.0f) / 60.0f;
 
-    int i = (int)hf;
+    auto i = (int)hf;
 
-    float p = v * (1 - s);
-    float q = v * (1 - (s * (hf - i)));
-    float t = v * (1 - (s * (1.0 - (hf - i))));
+    auto p = v * (1 - s);
+    auto q = v * (1 - (s * (hf - i)));
+    auto t = v * (1 - (s * (1.0 - (hf - i))));
 
     switch(i)
     {

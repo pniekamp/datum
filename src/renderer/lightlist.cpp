@@ -12,7 +12,6 @@
 
 using namespace std;
 using namespace lml;
-using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
@@ -46,7 +45,8 @@ struct SceneSet
   Matrix4f invproj;
   Matrix4f view;
   Matrix4f invview;
-  Vec4 camerapos;
+  Vec3 camerapos;
+  float exposure;
 
   array<Matrix4f, ShadowMap::nslices> shadowview;
 
@@ -60,17 +60,20 @@ struct SceneSet
 ///////////////////////// draw_lights ////////////////////////////////////////
 void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuffer const &renderables, RenderParams const &params)
 {
+  using namespace Vulkan;
+
   assert(sizeof(SceneSet) < context.lightingbuffersize);
 
   auto offset = context.lightingbufferoffsets[context.frame & 1];
 
-  SceneSet *scene = (SceneSet*)(context.transfermemory + offset);
+  auto scene = (SceneSet*)(context.transfermemory + offset);
 
   scene->proj = context.proj;
   scene->invproj = inverse(scene->proj);
   scene->view = context.view;
   scene->invview = inverse(scene->view);
-  scene->camerapos = Vec4(context.camera.position(), 0);
+  scene->camerapos = context.camera.position();
+  scene->exposure = context.camera.exposure();
   scene->shadowview = context.shadows.shadowview;
 
   auto &mainlight = scene->mainlight;

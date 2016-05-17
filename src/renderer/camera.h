@@ -32,6 +32,8 @@ class Camera
     float fov() const { return m_fov; }
     float aspect() const { return m_aspect; }
 
+    float exposure() const { return m_exposure; }
+
     lml::Matrix4f proj() const;
     lml::Matrix4f view() const;
     lml::Matrix4f viewproj() const;
@@ -42,6 +44,9 @@ class Camera
   public:
 
     void set_projection(float fov, float aspect, float znear = 0.1f, float zfar = 24000.0f);
+
+    void set_exposure(float exposure);
+    void set_exposure(float aperture, float shutterspeed, float iso);
 
   public:
 
@@ -74,6 +79,8 @@ class Camera
     float m_fov;
     float m_aspect;
     float m_znear, m_zfar;
+
+    float m_exposure;
 
     lml::Transform m_transform;
 };

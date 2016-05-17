@@ -14,6 +14,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <cassert>
+#include "hdr.h"
 #include "glslang.h"
 #include "assetpacker.h"
 #include "atlaspacker.h"
@@ -172,6 +173,7 @@ uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path, float
   return id + 1;
 }
 
+
 uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &images, float alignx = 0.5f, float aligny = 0.5f)
 {
   int width = images.front().width();
@@ -204,7 +206,7 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &im
 }
 
 
-uint32_t write_sprite_asset(ostream &fout, uint32_t id, std::vector<string> const &paths, float alignx = 0.5f, float aligny = 0.5f)
+uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<string> const &paths, float alignx = 0.5f, float aligny = 0.5f)
 {
   vector<QImage> layers;
 
@@ -342,6 +344,79 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
   cout << "  " << path << endl;
+
+  return id + 1;
+}
+
+
+uint32_t write_skybox_asset(ostream &fout, uint32_t id, vector<string> const &paths)
+{
+  vector<QImage> images;
+
+  for(auto &path : paths)
+  {
+    QImage image(path.c_str());
+
+    if (image.isNull())
+      throw runtime_error("Failed to load image - " + path);
+
+    images.push_back(image);
+
+    cout << "  " << path << endl;
+  }
+
+  assert(images.size() == 6);
+
+  int width = images.front().width();
+  int height = images.front().height();
+  int layers = 6;
+  int levels = 1;
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  char *dst = payload.data() + sizeof(PackImagePayload);
+  for(size_t i = 0; i < images.size(); i++)
+  {
+    QImage image = images[i].convertToFormat(QImage::Format_ARGB32);
+
+    if (image.width() != width || image.height() != height)
+      throw runtime_error("Layers with differing dimensions");
+
+    for(int y = 0; y < image.height(); ++y)
+    {
+      for(int x = 0; x < image.width(); ++x)
+      {
+        image.setPixel(x, y, rgbe(srgba(image.pixel(x, y))));
+      }
+    }
+
+    image = image.mirrored();
+
+    memcpy(dst, image.bits(), image.byteCount());
+
+    dst += image.byteCount();
+  }
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+
+  return id + 1;
+}
+
+
+uint32_t write_skybox_asset(ostream &fout, uint32_t id, string const &path)
+{
+  auto image = load_hdr(path);
+
+  int width = 512;
+  int height = 512;
+  int layers = 6;
+  int levels = 1;
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  image_pack_cubemap(image, width, height, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -593,6 +668,10 @@ void write_core()
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
 
   write_shader_asset(fout, CoreAsset::lighting_comp, "../../data/lighting.comp");
+
+  write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
+  write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
+  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");

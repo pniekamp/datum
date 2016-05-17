@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "renderer.h"
 #include "resource.h"
 #include "commandlist.h"
 #include <utility>
