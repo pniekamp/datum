@@ -34,14 +34,6 @@ enum VertexLayout
   stride = 48
 };
 
-enum RenderPasses
-{
-  shadowpass = 0,
-  geometrypass = 0,
-  skyboxpass = 0,
-  spritepass = 1,
-};
-
 enum ShaderLocation
 {
   vertex_position = 0,
@@ -59,6 +51,11 @@ enum ShaderLocation
   normalmap = 3,
   depthmap = 4,
   shadowmap = 5,
+
+  scratchmap0 = 1,
+  scratchmap1 = 2,
+  scratchmap2 = 3,
+  scratchmap3 = 4,
 };
 
 constexpr size_t kPushConstantSize = 64;
@@ -151,11 +148,12 @@ namespace
       shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
       shadowsamplerinfo.magFilter = VK_FILTER_LINEAR;
       shadowsamplerinfo.minFilter = VK_FILTER_LINEAR;
-      shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+      shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+      shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
       shadowsamplerinfo.compareEnable = VK_TRUE;
       shadowsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
+      shadowsamplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
       context.shadows.shadowmap.sampler = create_sampler(context.device, shadowsamplerinfo);
 
@@ -184,6 +182,8 @@ namespace
       //
 
       context.colorbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+      setimagelayout(context.device, context.colorbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
       context.colorbuffertarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.colorbuffer.imageview);
 
@@ -251,6 +251,39 @@ namespace
       context.fbowidth = width;
       context.fboheight = height;
 
+      //
+      // Scratch Buffers
+      //
+
+      for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
+      {
+        context.scratchbuffers[i] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+
+        setimagelayout(context.device, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+        context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.scratchbuffers[i].imageview);
+      }
+
+      //
+      // Bloom Commands
+      //
+
+      bindtexture(context.device, context.bloombuffer, ShaderLocation::scratchmap0, context.colorbuffer);
+      bindtexture(context.device, context.bloombuffer, ShaderLocation::scratchmap1, context.scratchbuffers[0]);
+      bindtexture(context.device, context.bloombuffer, ShaderLocation::scratchmap2, context.scratchbuffers[1]);
+
+      begin(context.device, context.bloomblendcommands, context.framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+
+      bindresource(context.bloomblendcommands, context.bloompipeline[3], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      bindresource(context.bloomblendcommands, context.bloombuffer, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      bindresource(context.bloomblendcommands, context.unitquad);
+
+      draw(context.bloomblendcommands, context.unitquad.vertexcount, 1, 0, 0);
+
+      end(context.device, context.bloomblendcommands);
+
       return false;
     }
 
@@ -289,11 +322,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkDescriptorPoolSize typecounts[3] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-    typecounts[0].descriptorCount = 3;
+    typecounts[0].descriptorCount = 4;
     typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    typecounts[1].descriptorCount = 15;
+    typecounts[1].descriptorCount = 20;
     typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    typecounts[2].descriptorCount = 2;
+    typecounts[2].descriptorCount = 3;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -581,8 +614,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     attachments[1].format = VK_FORMAT_D32_SFLOAT;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -626,57 +659,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     renderpassinfo.pDependencies = dependencies;
 
     context.renderpass = create_renderpass(context.device, renderpassinfo);
-  }
-
-  if (context.whitediffuse == 0)
-  {
-    auto image = assets->find(CoreAsset::white_diffuse);
-
-    if (!image)
-      return false;
-
-    asset_guard lock(assets);
-
-    auto bits = assets->request(platform, image);
-
-    if (!bits)
-      return false;
-
-    context.whitediffuse = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
-  }
-
-  if (context.nominalnormal == 0)
-  {
-    auto image = assets->find(CoreAsset::nominal_normal);
-
-    if (!image)
-      return false;
-
-    asset_guard lock(assets);
-
-    auto bits = assets->request(platform, image);
-
-    if (!bits)
-      return false;
-
-    context.nominalnormal = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
-  }
-
-  if (context.unitquad == 0)
-  {
-    auto mesh = assets->find(CoreAsset::unit_quad);
-
-    if (!mesh)
-      return false;
-
-    asset_guard lock(assets);
-
-    auto bits = assets->request(platform, mesh);
-
-    if (!bits)
-      return false;
-
-    context.unitquad = create_vertexbuffer(context.device, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
   }
 
   if (context.shadowpipeline == 0)
@@ -1030,6 +1012,202 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     }
   }
 
+  if (context.bloompipeline[0] == 0)
+  {
+    //
+    // Bloom Luma Pipeline
+    //
+
+    auto cs = assets->find(CoreAsset::bloom_luma_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets->request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pName = "main";
+
+    context.bloompipeline[0] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+
+    context.bloombuffer = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+  }
+
+  if (context.bloompipeline[1] == 0)
+  {
+    //
+    // Bloom H-Blur  Pipeline
+    //
+
+    auto cs = assets->find(CoreAsset::bloom_hblur_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets->request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pName = "main";
+
+    context.bloompipeline[1] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.bloompipeline[2] == 0)
+  {
+    //
+    // Bloom V-Blur Pipeline
+    //
+
+    auto cs = assets->find(CoreAsset::bloom_vblur_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets->request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pName = "main";
+
+    context.bloompipeline[2] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.bloompipeline[3] == 0)
+  {
+    //
+    // Bloom Blend Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::bloom_blend_vert);
+    auto fs = assets->find(CoreAsset::bloom_blend_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_NONE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
+    blendattachments[0].blendEnable = VK_TRUE;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorblend = {};
+    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorblend.attachmentCount = extentof(blendattachments);
+    colorblend.pAttachments = blendattachments;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.renderpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pColorBlendState = &colorblend;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.bloompipeline[3] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+
+    context.bloomblendcommands = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+  }
+
   if (context.spritepipeline == 0)
   {
     //
@@ -1079,9 +1257,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     VkPipelineColorBlendStateCreateInfo colorblend = {};
@@ -1130,6 +1305,57 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.pStages = shaders;
 
     context.spritepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.whitediffuse == 0)
+  {
+    auto image = assets->find(CoreAsset::white_diffuse);
+
+    if (!image)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto bits = assets->request(platform, image);
+
+    if (!bits)
+      return false;
+
+    context.whitediffuse = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
+  }
+
+  if (context.nominalnormal == 0)
+  {
+    auto image = assets->find(CoreAsset::nominal_normal);
+
+    if (!image)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto bits = assets->request(platform, image);
+
+    if (!bits)
+      return false;
+
+    context.nominalnormal = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
+  }
+
+  if (context.unitquad == 0)
+  {
+    auto mesh = assets->find(CoreAsset::unit_quad);
+
+    if (!mesh)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto bits = assets->request(platform, mesh);
+
+    if (!bits)
+      return false;
+
+    context.unitquad = create_vertexbuffer(context.device, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
   }
 
   context.transfermemory = map_memory<uint8_t>(context.device, context.transferbuffer, 0, context.transferbuffer.size);
@@ -1325,6 +1551,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   dispatch(commandbuffer, (context.fbowidth+15)/16, (context.fboheight+15)/16, 1);
 
+  setimagelayout(commandbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
   querytimestamp(commandbuffer, context.timingquerypool, 3);
 
   //
@@ -1335,13 +1563,50 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   draw_skybox(context, commandbuffer, params);
 
+  endpass(commandbuffer, context.renderpass);
+
   querytimestamp(commandbuffer, context.timingquerypool, 4);
+
+  //
+  // Bloom
+  //
+
+  if (params.bloom)
+  {
+    bindresource(commandbuffer, context.bloompipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.scratchtargets[0], context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.bloombuffer, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, (context.fbowidth+15)/16, (context.fboheight+15)/16, 1);
+
+    bindresource(commandbuffer, context.bloompipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.scratchtargets[1], context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, (context.fbowidth/2+63)/64, context.fboheight, 1);
+
+    bindresource(commandbuffer, context.bloompipeline[2], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.scratchtargets[0], context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.fbowidth/2, (context.fboheight/2+63)/64, 1);
+
+    beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
+
+    execute(commandbuffer, context.bloomblendcommands);
+
+    endpass(commandbuffer, context.renderpass);
+  }
+
+  querytimestamp(commandbuffer, context.timingquerypool, 5);
 
   //
   // Sprite
   //
 
-  nextsubpass(commandbuffer, context.renderpass);
+  beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
 
   for(auto &renderable : renderables)
   {
@@ -1356,7 +1621,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     }
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 5);
+  querytimestamp(commandbuffer, context.timingquerypool, 6);
 
   endpass(commandbuffer, context.renderpass);
 
@@ -1366,12 +1631,16 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   transition_acquire(commandbuffer, viewport.image);
 
+  setimagelayout(commandbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
   //blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y);
   blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_NEAREST);
 
   transition_present(commandbuffer, viewport.image);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 6);
+  querytimestamp(commandbuffer, context.timingquerypool, 7);
+
+  setimagelayout(commandbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
   end(context.device, commandbuffer);
 
@@ -1388,14 +1657,15 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.device, context.timingquerypool, 0, 7, timings);
+  retreive_querypool(context.device, context.timingquerypool, 0, 8, timings);
 
   GPU_TIMED_BLOCK(Shadows, Color3(0.0, 0.4, 0.0), timings[0], timings[1])
   GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])
   GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[2], timings[3])
   GPU_TIMED_BLOCK(Skybox, Color3(0.0, 0.4, 0.4), timings[3], timings[4])
-  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[4], timings[5])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[5], timings[6])
+  GPU_TIMED_BLOCK(Bloom, Color3(0.2, 0.6, 0.2), timings[4], timings[5])
+  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[5], timings[6])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[6], timings[7])
 
   GPU_SUBMIT();
 

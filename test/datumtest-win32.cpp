@@ -8,6 +8,7 @@
 #include <windowsx.h>
 #include <vulkan/vulkan.h>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 using namespace leap;
@@ -449,6 +450,15 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 
   if (surfacesupport != VK_TRUE)
     throw runtime_error("Vulkan vkGetPhysicalDeviceSurfaceSupportKHR error");
+
+  uint32_t formatscount = 0;
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatscount, nullptr);
+
+  vector<VkSurfaceFormatKHR> formats(formatscount);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatscount, formats.data());
+
+  if (!any_of(formats.begin(), formats.end(), [](VkSurfaceFormatKHR surface) { return (surface.format == VK_FORMAT_B8G8R8A8_SRGB); }))
+    throw runtime_error("Vulkan vkGetPhysicalDeviceSurfaceFormatsKHR error");
 
   //
   // Swap Chain

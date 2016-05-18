@@ -209,6 +209,7 @@ struct RenderContext
   Vulkan::Texture specularbuffer;
   Vulkan::Texture normalbuffer;
   Vulkan::Texture depthbuffer;
+  Vulkan::Texture scratchbuffers[2];
   Vulkan::FrameBuffer geometrybuffer;
   Vulkan::FrameBuffer framebuffer;
 
@@ -225,6 +226,10 @@ struct RenderContext
   Vulkan::DescriptorSet skyboxbuffers[2];
   Vulkan::CommandBuffer skyboxcommands[2];
 
+  Vulkan::DescriptorSet bloombuffer;
+  Vulkan::CommandBuffer bloomblendcommands;
+
+  Vulkan::DescriptorSet scratchtargets[2];
   Vulkan::DescriptorSet colorbuffertarget;
 
   Vulkan::VertexAttribute vertexattributes[4];
@@ -238,6 +243,7 @@ struct RenderContext
   Vulkan::Pipeline geometrypipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline bloompipeline[4];
   Vulkan::Pipeline spritepipeline;
 
   ShadowMap shadows;
@@ -272,6 +278,8 @@ struct RenderParams
   lml::Transform skyboxorientation = lml::Transform::identity();
 
   float lightfalloff = 0.66;
+
+  bool bloom = true;
 };
 
 

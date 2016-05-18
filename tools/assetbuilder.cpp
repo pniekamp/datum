@@ -673,6 +673,12 @@ void write_core()
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
   write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 
+  write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
+  write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");
+  write_shader_asset(fout, CoreAsset::bloom_vblur_comp, "../../data/bloom.vblur.comp");
+  write_shader_asset(fout, CoreAsset::bloom_blend_vert, "../../data/bloom.blend.vert");
+  write_shader_asset(fout, CoreAsset::bloom_blend_frag, "../../data/bloom.blend.frag");
+
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");
 

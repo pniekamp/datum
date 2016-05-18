@@ -1,0 +1,60 @@
+#version 450 core
+
+#define RADIUS 9
+#define HEIGHT 64
+#define SIZEY HEIGHT+RADIUS+RADIUS+1
+
+layout(local_size_y = SIZEY) in;
+
+layout(set=0, binding=3) uniform sampler2D src;
+
+layout(set=3, binding=0) writeonly uniform image2D dest;
+
+const float BlurSigma = 6;
+
+shared vec4 texels[SIZEY];
+
+///////////////////////// blur //////////////////////////////////////////////
+vec4 blur(uint k, vec3 coefficients)
+{
+  vec4 avg = vec4(0.0);
+  float weight = 0.0;
+
+  avg += texels[k] * coefficients.x;    
+  weight += coefficients.x;
+  coefficients.xy *= coefficients.yz;
+
+  for(int i = 1; i <= RADIUS; ++i)
+  {
+    avg += texels[k + i] * coefficients.x;
+    avg += texels[k - i] * coefficients.x;
+    weight += 2 * coefficients.x;
+    coefficients.xy *= coefficients.yz;
+  }
+  
+  return avg / weight;
+}
+
+///////////////////////// main //////////////////////////////////////////////
+void main(void)
+{ 
+  ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * HEIGHT);
+  
+  ivec2 xy = ivec2(gl_LocalInvocationID.xy);
+  
+  vec2 texelsize = 1.0 / textureSize(src, 0);
+  
+  texels[xy.y] = texture(src, vec2(tile.x + xy.x, 2*(tile.y + xy.y - RADIUS) + 0.5) * texelsize);
+  
+  barrier();
+  
+  if (xy.y < HEIGHT)
+  {
+    vec3 coefficients;
+    coefficients.x = 1.0 / (sqrt(2.0 * 3.14159265) * BlurSigma);
+    coefficients.y = exp(-0.5 / (BlurSigma * BlurSigma));
+    coefficients.z = coefficients.y * coefficients.y;   
+  
+    imageStore(dest, tile + xy, blur(xy.y + RADIUS, coefficients));
+  }  
+}

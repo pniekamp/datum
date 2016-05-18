@@ -13,7 +13,7 @@
 #include "transformcomponent.h"
 #include "datum/math.h"
 #include "datum/renderer.h"
-#include "leap/lml/rtree.h"
+#include <leap/lml/rtree.h>
 
 
 //|---------------------- MeshComponentStorage ------------------------------

@@ -8,7 +8,7 @@
 
 #include "skybox.h"
 #include "renderer.h"
-#include "leap/lml/matrixconstants.h"
+#include <leap/lml/matrixconstants.h>
 #include "debug.h"
 
 using namespace std;

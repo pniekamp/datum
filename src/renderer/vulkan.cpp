@@ -611,9 +611,9 @@ namespace Vulkan
 
     VkSamplerCreateInfo samplerinfo = {};
     samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerinfo.magFilter = VK_FILTER_NEAREST;
-    samplerinfo.minFilter = VK_FILTER_NEAREST;
-    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
@@ -621,7 +621,7 @@ namespace Vulkan
     samplerinfo.compareOp = VK_COMPARE_OP_NEVER;
     samplerinfo.minLod = 0.0f;
     samplerinfo.maxLod = levels;
-    samplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    samplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
 
     texture.sampler = create_sampler(vulkan, samplerinfo);
 

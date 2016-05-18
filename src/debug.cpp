@@ -302,7 +302,7 @@ namespace
 
             if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), g_mousepos))
             {
-              tippos = Vec2(floor(timingsorigin.x + barrect.min.x), floor(timingsorigin.y + barrect.min.y));
+              tippos = floor(timingsorigin + barrect.min);
               tipblk = &block;
             }
           }
@@ -355,7 +355,7 @@ namespace
 
             if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), g_mousepos))
             {
-              tippos = timingsorigin + barrect.min;
+              tippos = floor(timingsorigin + barrect.min);
               tipblk = &block;
             }
           }
