@@ -1152,6 +1152,9 @@ namespace Vulkan
     if (oldlayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_SHADER_READ_BIT;
 
+    if (oldlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+      imagebarrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
     if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;
 

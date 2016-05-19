@@ -1,8 +1,8 @@
 #version 450 core
 #include "bound.glsl"
+#include "camera.glsl"
 #include "gbuffer.glsl"
 #include "lighting.glsl"
-#include "camera.glsl"
 
 #define SIZE 16
 
@@ -14,8 +14,15 @@ layout(std430, set=0, binding=0) buffer SceneSet
   layout(row_major) mat4 invproj;
   layout(row_major) mat4 view;
   layout(row_major) mat4 invview;
-  vec3 camerapos;
+  layout(row_major) mat4 skyview;
+  
+  Camera camera;
 
+  layout(row_major) mat4 prevview;
+
+  vec3 noise[16];
+  vec3 kernel[16];
+ 
   layout(row_major) mat4 shadowview[NSLICES];
 
   MainLight mainlight;
@@ -25,11 +32,12 @@ layout(std430, set=0, binding=0) buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D albedomap;
-layout(set=0, binding=2) uniform sampler2D specularmap;
-layout(set=0, binding=3) uniform sampler2D normalmap;
-layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=0, binding=5) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=1) uniform sampler2DArray albedomap;
+layout(set=0, binding=2) uniform sampler2DArray specularmap;
+layout(set=0, binding=3) uniform sampler2DArray normalmap;
+layout(set=0, binding=4) uniform sampler2DArray depthmap;
+layout(set=0, binding=5) uniform sampler2DArray ssaomap;
+layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
 
 layout(set=3, binding=0) writeonly uniform image2D dest;
 
@@ -72,7 +80,7 @@ void main(void)
   
   ivec2 viewport = imageSize(dest);
   
-  float depth = texelFetch(depthmap, xy, 0).z;
+  float depth = texelFetch(depthmap, ivec3(xy, 0), 0).z;
 
   float z = -view_depth(scene.proj, depth);
 
@@ -134,18 +142,18 @@ void main(void)
   barrier();
 
   vec3 position = world_position(scene.invview, scene.proj, scene.invproj, xy, viewport, depth);
-  vec3 normal = world_normal(xy, normalmap);
-  vec3 eyevec = normalize(scene.camerapos - position);
+  vec3 normal = world_normal(texelFetch(normalmap, ivec3(xy, 0), 0).xyz);
+  vec3 eyevec = normalize(scene.camera.position - position);
   
-  vec4 albedocolor = texelFetch(albedomap, xy, 0);
-  vec4 specularcolor = texelFetch(specularmap, xy, 0);
+  vec4 albedocolor = texelFetch(albedomap, ivec3(xy, 0), 0);
+  vec4 specularcolor = texelFetch(specularmap, ivec3(xy, 0), 0);
 
   float specularexponent = 1000.0 * specularcolor.w;
 
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
 
-  float ambientocclusion = 1;//ambient_intensity(scene.mainlight, ssaomap, vec2(xy)/viewport);
+  float ambientocclusion = ambient_intensity(scene.mainlight, ssaomap, vec2(xy)/viewport);
 
   float mainlightshadow = shadow_intensity(scene.mainlight, scene.shadowview, shadowmap, position, normal);
 
@@ -160,5 +168,5 @@ void main(void)
 
   vec3 fragcolor = diffuse + specular * max(1.0 - diffuse, 0.0);
 
-  imageStore(dest, xy, vec4(tonemap(scene.exposure * fragcolor), 1.0));
+  imageStore(dest, xy, vec4(tonemap(scene.camera.exposure * fragcolor), 1.0));
 }

@@ -57,9 +57,9 @@ float poisson(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
 
 
 ///////////////////////// ambient_intensity /////////////////////////////////
-float ambient_intensity(MainLight light, sampler2D ssaomap, vec2 uv)
+float ambient_intensity(MainLight light, sampler2DArray ssaomap, vec2 uv)
 {
-  return texture(ssaomap, uv).x;
+  return texture(ssaomap, vec3(uv, 0)).x;
 }
 
 

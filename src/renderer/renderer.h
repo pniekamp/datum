@@ -217,12 +217,14 @@ struct RenderContext
   Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass renderpass;
 
-  size_t lightingbuffersize;
-  size_t lightingbufferoffsets[2];
-  Vulkan::DescriptorSet lightingbuffer;
+  Vulkan::Texture ssao[2];
+  lml::Vec4 ssaonoise[16];
+  lml::Vec4 ssaokernel[16];
+  Vulkan::DescriptorSet ssaotarget;
 
-  size_t skyboxbuffersize;
-  size_t skyboxbufferoffsets[2];
+  size_t scenesetoffsets[2];
+  Vulkan::DescriptorSet sceneset;
+
   Vulkan::DescriptorSet skyboxbuffers[2];
   Vulkan::CommandBuffer skyboxcommands[2];
 
@@ -241,6 +243,7 @@ struct RenderContext
 
   Vulkan::Pipeline shadowpipeline;
   Vulkan::Pipeline geometrypipeline;
+  Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
   Vulkan::Pipeline bloompipeline[4];
@@ -279,6 +282,7 @@ struct RenderParams
 
   float lightfalloff = 0.66;
 
+  bool ssao = true;
   bool bloom = true;
 };
 

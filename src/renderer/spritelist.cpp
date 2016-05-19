@@ -21,7 +21,7 @@ using leap::extentof;
 
 enum RenderPasses
 {
-  spritepass = 1,
+  spritepass = 0,
 };
 
 enum ShaderLocation

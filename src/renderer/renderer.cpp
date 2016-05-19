@@ -8,6 +8,7 @@
 
 #include "renderer.h"
 #include "commandlist.h"
+#include "lightlist.h"
 #include "corepack.h"
 #include "assetpack.h"
 #include <leap.h>
@@ -50,7 +51,8 @@ enum ShaderLocation
   specularmap = 2,
   normalmap = 3,
   depthmap = 4,
-  shadowmap = 5,
+  ssaomap = 5,
+  shadowmap = 6,
 
   scratchmap0 = 1,
   scratchmap1 = 2,
@@ -60,8 +62,42 @@ enum ShaderLocation
 
 constexpr size_t kPushConstantSize = 64;
 constexpr size_t kTransferBufferSize = 64*1024;
-constexpr size_t kLightingBufferSize = 16*1024;
-constexpr size_t kSkyboxBufferSize = 256;
+
+struct alignas(16) MainLight
+{
+  Vec4 direction;
+  Color4 intensity;
+};
+
+struct alignas(16) PointLight
+{
+  Vec4 position;
+  Color4 intensity;
+  Vec4 attenuation;
+};
+
+struct SceneSet
+{
+  Matrix4f proj;
+  Matrix4f invproj;
+  Matrix4f view;
+  Matrix4f invview;
+  Matrix4f prevview;
+  Matrix4f skyview;
+
+  Vec3 camerapos;
+  float exposure;
+
+  Vec4 noise[16];
+  Vec4 kernel[16];
+
+  array<Matrix4f, ShadowMap::nslices> shadowview;
+
+  MainLight mainlight;
+
+  uint32_t pointlightcount;
+  PointLight pointlights[256];
+};
 
 
 //|---------------------- PushBuffer ----------------------------------------
@@ -175,15 +211,13 @@ namespace
 
       context.shadowbuffer = create_framebuffer(context.device, shadowbufferinfo);
 
-      bindtexture(context.device, context.lightingbuffer, ShaderLocation::shadowmap, context.shadows.shadowmap);
-
       //
       // Color Attachment
       //
 
       context.colorbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-      setimagelayout(context.device, context.colorbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+      setimagelayout(context.device, context.colorbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
       context.colorbuffertarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.colorbuffer.imageview);
 
@@ -200,6 +234,17 @@ namespace
       //
 
       context.depthbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+      VkSamplerCreateInfo depthsamplerinfo = {};
+      depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+      depthsamplerinfo.magFilter = VK_FILTER_LINEAR;
+      depthsamplerinfo.minFilter = VK_FILTER_LINEAR;
+      depthsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+      depthsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+      depthsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+      depthsamplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+      context.depthbuffer.sampler = create_sampler(context.device, depthsamplerinfo);
 
       setimagelayout(context.device, context.depthbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
 
@@ -223,11 +268,6 @@ namespace
       geometrybufferinfo.layers = 1;
 
       context.geometrybuffer = create_framebuffer(context.device, geometrybufferinfo);
-
-      bindtexture(context.device, context.lightingbuffer, ShaderLocation::albedomap, context.albedobuffer);
-      bindtexture(context.device, context.lightingbuffer, ShaderLocation::specularmap, context.specularbuffer);
-      bindtexture(context.device, context.lightingbuffer, ShaderLocation::normalmap, context.normalbuffer);
-      bindtexture(context.device, context.lightingbuffer, ShaderLocation::depthmap, context.depthbuffer);
 
       //
       // Frame Buffer
@@ -263,6 +303,31 @@ namespace
 
         context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.scratchbuffers[i].imageview);
       }
+
+      //
+      // SSAO
+      //
+
+      context.ssao[0] = create_attachment(context.device, width/2, height/2, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+      context.ssao[1] = create_attachment(context.device, width/2, height/2, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+      setimagelayout(context.device, context.ssao[0].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+      setimagelayout(context.device, context.ssao[1].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+      clear(context.device, context.ssao[0].image, Color4(1.0, 1.0, 1.0, 1.0));
+
+      context.ssaotarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.ssao[1].imageview);
+
+      //
+      // Scene Set
+      //
+
+      bindtexture(context.device, context.sceneset, ShaderLocation::albedomap, context.albedobuffer);
+      bindtexture(context.device, context.sceneset, ShaderLocation::specularmap, context.specularbuffer);
+      bindtexture(context.device, context.sceneset, ShaderLocation::normalmap, context.normalbuffer);
+      bindtexture(context.device, context.sceneset, ShaderLocation::depthmap, context.depthbuffer);
+      bindtexture(context.device, context.sceneset, ShaderLocation::ssaomap, context.ssao[0]);
+      bindtexture(context.device, context.sceneset, ShaderLocation::shadowmap, context.shadows.shadowmap);
 
       //
       // Bloom Commands
@@ -322,11 +387,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkDescriptorPoolSize typecounts[3] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-    typecounts[0].descriptorCount = 4;
+    typecounts[0].descriptorCount = 6;
     typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    typecounts[1].descriptorCount = 20;
+    typecounts[1].descriptorCount = 24;
     typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    typecounts[2].descriptorCount = 3;
+    typecounts[2].descriptorCount = 5;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -386,7 +451,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Scene Set
 
-    VkDescriptorSetLayoutBinding bindings[6] = {};
+    VkDescriptorSetLayoutBinding bindings[7] = {};
     bindings[0].binding = 0;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
@@ -411,6 +476,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[5].descriptorCount = 1;
+    bindings[6].binding = 6;
+    bindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[6].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -631,23 +700,23 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     depthreference.attachment = 1;
     depthreference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    VkSubpassDescription subpasses[2] = {};
+    VkSubpassDescription subpasses[1] = {};
     subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpasses[0].colorAttachmentCount = 1;
     subpasses[0].pColorAttachments = &colorreference;
     subpasses[0].pDepthStencilAttachment = &depthreference;
-    subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpasses[1].colorAttachmentCount = 1;
-    subpasses[1].pColorAttachments = &colorreference;
+//    subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+//    subpasses[1].colorAttachmentCount = 1;
+//    subpasses[1].pColorAttachments = &colorreference;
 
-    VkSubpassDependency dependencies[1] = {};
-    dependencies[0].srcSubpass = 0;
-    dependencies[0].dstSubpass = 1;
-    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-    dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[0].dependencyFlags = 0;
+//    VkSubpassDependency dependencies[1] = {};
+//    dependencies[0].srcSubpass = 0;
+//    dependencies[0].dstSubpass = 1;
+//    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+//    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+//    dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+//    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+//    dependencies[0].dependencyFlags = 0;
 
     VkRenderPassCreateInfo renderpassinfo = {};
     renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -655,8 +724,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     renderpassinfo.pAttachments = attachments;
     renderpassinfo.subpassCount = extentof(subpasses);
     renderpassinfo.pSubpasses = subpasses;
-    renderpassinfo.dependencyCount = extentof(dependencies);
-    renderpassinfo.pDependencies = dependencies;
+//    renderpassinfo.dependencyCount = extentof(dependencies);
+//    renderpassinfo.pDependencies = dependencies;
 
     context.renderpass = create_renderpass(context.device, renderpassinfo);
   }
@@ -867,6 +936,57 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.geometrypipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
+  if (context.sceneset == 0)
+  {
+    context.scenesetoffsets[0] = acquire_transferbuffer(context, sizeof(SceneSet));
+    context.scenesetoffsets[1] = acquire_transferbuffer(context, sizeof(SceneSet));
+    context.sceneset = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+  }
+
+  if (context.ssaopipeline == 0)
+  {
+    //
+    // SSAO Pipeline
+    //
+
+    auto cs = assets->find(CoreAsset::ssao_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets->request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pName = "main";
+
+    context.ssaopipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+
+    mt19937 random(random_device{}());
+    uniform_real_distribution<float> unit(0.0f, 1.0f);
+
+    for(size_t i = 0; i < extentof(context.ssaonoise); ++i)
+    {
+      context.ssaonoise[i] = normalise(Vec4(2*unit(random)-1, 2*unit(random)-1, 0.0f, 0.0f));
+    }
+
+    for(size_t i = 0; i < extentof(context.ssaokernel); ++i)
+    {
+      context.ssaokernel[i] = normalise(Vec4(2*unit(random)-1, 2*unit(random)-1, unit(random), 0.0f)) * lerp(0.1f, 1.0f, pow(i / (float)extentof(context.ssaokernel), 2.0f));
+    }
+  }
+
   if (context.lightingpipeline == 0)
   {
     //
@@ -896,11 +1016,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pName = "main";
 
     context.lightingpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
-
-    context.lightingbuffersize = kLightingBufferSize;
-    context.lightingbufferoffsets[0] = acquire_transferbuffer(context, kLightingBufferSize);
-    context.lightingbufferoffsets[1] = acquire_transferbuffer(context, kLightingBufferSize);
-    context.lightingbuffer = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, kLightingBufferSize, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.skyboxpipeline == 0)
@@ -1005,9 +1120,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     for(size_t i = 0; i < 2; ++i)
     {
-      context.skyboxbuffersize = kLightingBufferSize;
-      context.skyboxbufferoffsets[i] = acquire_transferbuffer(context, kSkyboxBufferSize);
-      context.skyboxbuffers[i] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, kSkyboxBufferSize, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+      context.skyboxbuffers[i] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.transferbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
       context.skyboxcommands[i] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
     }
   }
@@ -1167,6 +1280,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_FALSE;
+
     VkPipelineViewportStateCreateInfo viewport = {};
     viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewport.viewportCount = 1;
@@ -1198,6 +1315,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.pRasterizationState = &rasterization;
     pipelineinfo.pColorBlendState = &colorblend;
     pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
     pipelineinfo.pViewportState = &viewport;
     pipelineinfo.pDynamicState = &dynamic;
     pipelineinfo.stageCount = extentof(shaders);
@@ -1268,6 +1386,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_FALSE;
+
     VkPipelineViewportStateCreateInfo viewport = {};
     viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewport.viewportCount = 1;
@@ -1299,6 +1421,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.pRasterizationState = &rasterization;
     pipelineinfo.pColorBlendState = &colorblend;
     pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
     pipelineinfo.pViewportState = &viewport;
     pipelineinfo.pDynamicState = &dynamic;
     pipelineinfo.stageCount = extentof(shaders);
@@ -1419,10 +1542,56 @@ void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &
 }
 
 
+///////////////////////// prepare_sceneset //////////////////////////////////
+void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, RenderParams const &params)
+{
+  auto scene = (SceneSet*)(context.transfermemory + context.scenesetoffsets[context.frame & 1]);
+
+  scene->proj = context.proj;
+  scene->invproj = inverse(scene->proj);
+  scene->view = context.view;
+  scene->invview = inverse(scene->view);
+  scene->prevview = ScaleMatrix(Vector4(1.0f, context.fbowidth / context.camera.aspect() / context.fboheight, 1.0f, 1.0f)) * context.prevcamera.view();
+  scene->skyview = (params.skyboxorientation * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
+  scene->camerapos = context.camera.position();
+  scene->exposure = context.camera.exposure();
+  scene->shadowview = context.shadows.shadowview;
+
+  memcpy(scene->noise, context.ssaonoise, sizeof(scene->noise));
+  memcpy(scene->kernel, context.ssaokernel, sizeof(scene->kernel));
+
+  auto &mainlight = scene->mainlight;
+  auto &pointlightcount = scene->pointlightcount;
+  auto &pointlights = scene->pointlights;
+
+  mainlight.direction.xyz = params.sundirection;
+  mainlight.intensity.rgb = params.sunintensity;
+
+  pointlightcount = 0;
+
+  for(auto &renderable : renderables)
+  {
+    if (renderable.type == Renderable::Type::Lights)
+    {
+      auto lights = renderable_cast<Renderable::Lights>(&renderable)->commandlist->lookup<LightList::Lights>(ShaderLocation::sceneset);
+
+      for(size_t i = 0; lights && i < lights->pointlightcount && pointlightcount < extentof(pointlights); ++i)
+      {
+        pointlights[pointlightcount].position = lights->pointlights[i].position;
+        pointlights[pointlightcount].intensity = lights->pointlights[i].intensity;
+        pointlights[pointlightcount].attenuation = lights->pointlights[i].attenuation;
+        pointlights[pointlightcount].attenuation.w = params.lightfalloff * lights->pointlights[i].attenuation.w;
+
+        ++pointlightcount;
+      }
+    }
+  }
+}
+
+
 ///////////////////////// draw_calls ////////////////////////////////////////
 extern void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes);
 extern void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Casters const &casters);
-extern void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuffer const &renderables, RenderParams const &params);
 extern void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderParams const &params);
 extern void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites);
 
@@ -1446,7 +1615,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
     assert(size < kTransferBufferSize);
 
-    memcpy(map_memory<void*>(context.device, context.transferbuffer, 0, size), bitmap, size);
+    memcpy(context.transfermemory ? (void*)context.transfermemory : (void*)map_memory<uint8_t>(context.device, context.transferbuffer, 0, size), bitmap, size);
 
     blit(commandbuffer, context.transferbuffer, 0, width, height, viewport.image, (viewport.width - width)/2, (viewport.height - height)/2, width, height);
   }
@@ -1475,6 +1644,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   context.view = ScaleMatrix(Vector4(1.0f, viewport.width / camera.aspect() / viewport.height, 1.0f, 1.0f)) * camera.view();
 
   prepare_shadowview(context.shadows, camera, params.sundirection);
+
+  prepare_sceneset(context, renderables, params);
 
   auto &commandbuffer = context.commandbuffers[context.frame & 1];
 
@@ -1543,17 +1714,34 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Lighting
   //
 
+  bindresource(commandbuffer, context.sceneset, context.pipelinelayout, ShaderLocation::sceneset, context.scenesetoffsets[context.frame & 1], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+  if (params.ssao)
+  {
+    bindresource(commandbuffer, context.ssaopipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.ssaotarget, context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, (context.fbowidth/2+31)/32, (context.fboheight/2+31)/32, 1);
+
+    setimagelayout(commandbuffer, context.ssao[1].image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+    setimagelayout(commandbuffer, context.ssao[0].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+    blit(commandbuffer, context.ssao[1].image, 0, 0, context.ssao[1].width, context.ssao[1].height, context.ssao[0].image, 0, 0);
+
+    setimagelayout(commandbuffer, context.ssao[1].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+    setimagelayout(commandbuffer, context.ssao[0].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+  }
+
+  querytimestamp(commandbuffer, context.timingquerypool, 3);
+
   bindresource(commandbuffer, context.lightingpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   bindresource(commandbuffer, context.colorbuffertarget, context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  draw_lights(context, commandbuffer, renderables, params);
-
   dispatch(commandbuffer, (context.fbowidth+15)/16, (context.fboheight+15)/16, 1);
 
-  setimagelayout(commandbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
-  querytimestamp(commandbuffer, context.timingquerypool, 3);
+  querytimestamp(commandbuffer, context.timingquerypool, 4);
 
   //
   // Skybox
@@ -1565,7 +1753,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.renderpass);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 4);
+  querytimestamp(commandbuffer, context.timingquerypool, 5);
 
   //
   // Bloom
@@ -1600,7 +1788,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     endpass(commandbuffer, context.renderpass);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 5);
+  querytimestamp(commandbuffer, context.timingquerypool, 6);
 
   //
   // Sprite
@@ -1621,7 +1809,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     }
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 6);
+  querytimestamp(commandbuffer, context.timingquerypool, 7);
 
   endpass(commandbuffer, context.renderpass);
 
@@ -1631,16 +1819,12 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   transition_acquire(commandbuffer, viewport.image);
 
-  setimagelayout(commandbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
   //blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y);
   blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_NEAREST);
 
   transition_present(commandbuffer, viewport.image);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 7);
-
-  setimagelayout(commandbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+  querytimestamp(commandbuffer, context.timingquerypool, 8);
 
   end(context.device, commandbuffer);
 
@@ -1657,15 +1841,16 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.device, context.timingquerypool, 0, 8, timings);
+  retreive_querypool(context.device, context.timingquerypool, 0, 9, timings);
 
   GPU_TIMED_BLOCK(Shadows, Color3(0.0, 0.4, 0.0), timings[0], timings[1])
   GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])
-  GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[2], timings[3])
-  GPU_TIMED_BLOCK(Skybox, Color3(0.0, 0.4, 0.4), timings[3], timings[4])
-  GPU_TIMED_BLOCK(Bloom, Color3(0.2, 0.6, 0.2), timings[4], timings[5])
-  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[5], timings[6])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[6], timings[7])
+  GPU_TIMED_BLOCK(SSAO, Color3(0.2, 0.8, 0.2), timings[2], timings[3])
+  GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[3], timings[4])
+  GPU_TIMED_BLOCK(Skybox, Color3(0.0, 0.4, 0.4), timings[4], timings[5])
+  GPU_TIMED_BLOCK(Bloom, Color3(0.2, 0.2, 0.8), timings[5], timings[6])
+  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[6], timings[7])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[7], timings[8])
 
   GPU_SUBMIT();
 

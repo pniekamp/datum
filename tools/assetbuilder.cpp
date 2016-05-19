@@ -667,6 +667,8 @@ void write_core()
   write_shader_asset(fout, CoreAsset::geometry_vert, "../../data/geometry.vert");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
 
+  write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/ssao.comp");
+
   write_shader_asset(fout, CoreAsset::lighting_comp, "../../data/lighting.comp");
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");

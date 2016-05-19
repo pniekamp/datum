@@ -1,0 +1,125 @@
+#version 450 core
+#include "camera.glsl"
+#include "gbuffer.glsl"
+
+#define RADIUS 2
+#define WIDTH 32
+#define HEIGHT 32
+#define SIZEX WIDTH + RADIUS + RADIUS
+#define SIZEY HEIGHT + RADIUS + RADIUS
+
+layout(local_size_x = SIZEX, local_size_y = SIZEY) in;
+
+#define NOISE_SIZE 16
+#define KERNEL_SIZE 16
+
+layout(std430, set=0, binding=0) buffer SceneSet 
+{
+  layout(row_major) mat4 proj;
+  layout(row_major) mat4 invproj;
+  layout(row_major) mat4 view;
+  layout(row_major) mat4 invview;
+  layout(row_major) mat4 prevview;
+  layout(row_major) mat4 skyview;
+  
+  Camera camera;
+
+  vec3 noise[NOISE_SIZE];
+  vec3 kernel[KERNEL_SIZE];
+
+} scene;
+
+layout(set=0, binding=1) uniform sampler2DArray albedomap;
+layout(set=0, binding=2) uniform sampler2DArray specularmap;
+layout(set=0, binding=3) uniform sampler2DArray normalmap;
+layout(set=0, binding=4) uniform sampler2DArray depthmap;
+layout(set=0, binding=5) uniform sampler2DArray prevmap;
+
+layout(set=3, binding=0) writeonly uniform image2D dest;
+
+const float OcclusionRadius = 1.5;
+const float OcclusionPower = 1.5;
+const float OcclusionBias = 0.1;
+
+shared float texels[SIZEY][SIZEX];
+shared float depths[SIZEY][SIZEX];
+
+///////////////////////// max_element ///////////////////////////////////////
+float max_element(vec4 value)
+{
+  return max(value.x, max(value.y, max(value.z, value.w)));
+}
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  ivec2 ij = ivec2(gl_LocalInvocationID.xy);
+  ivec2 xy = ivec2(gl_WorkGroupID.x * WIDTH + ij.x - RADIUS, gl_WorkGroupID.y * HEIGHT + ij.y - RADIUS);
+  
+  vec2 texcoord = vec2(xy + 0.5) / imageSize(dest);
+
+  vec4 depthquad = textureGather(depthmap, vec3(texcoord, 0));
+  
+  float depth = max_element(mix(vec4(0), depthquad, lessThan(depthquad, vec4(1))));
+  
+  vec3 position = view_position(scene.proj, scene.invproj, texcoord, depth);
+  vec3 normal = view_normal(scene.view, texture(normalmap, vec3(texcoord, 0)).xyz);
+  
+	vec3 randomvec = scene.noise[(xy.x + xy.y * 4) % NOISE_SIZE];
+
+	vec3 tangent = normalize(randomvec - normal * dot(randomvec, normal));
+	vec3 bitangent = cross(normal, tangent);
+  
+	mat3 tbnview = mat3(tangent, bitangent, normal);
+
+  float occlusion = 0.0;
+
+  for(int i = 0; i < KERNEL_SIZE; ++i)
+  {
+    vec3 samplepos = position + tbnview * scene.kernel[i] * OcclusionRadius;
+    
+    float sampledepth = view_depth(scene.proj, texture(depthmap, vec3(0.5 * project(scene.proj, samplepos) + 0.5, 0)).r);
+
+    float rangecheck = smoothstep(0.0, 1.0, OcclusionRadius / abs(position.z - -sampledepth));
+    
+    occlusion += rangecheck * step(samplepos.z, -sampledepth - OcclusionBias);
+  }
+
+  occlusion = pow(1.0 - (occlusion / KERNEL_SIZE), OcclusionPower);
+
+  texels[ij.y][ij.x] = occlusion;
+  depths[ij.y][ij.x] = depth;
+
+  barrier();
+  
+  if (ij.x >= RADIUS && ij.x < SIZEX-RADIUS && ij.y >= RADIUS && ij.y < SIZEY-RADIUS)
+  {
+    float avg = 0;
+    float spatialweight = 0;
+
+    for(int j = ij.y - RADIUS; j < ij.y + RADIUS; ++j)
+    {
+      for(int i = ij.x - RADIUS; i < ij.x + RADIUS; ++i)
+      {
+        float weight = max(1.0 - 250*abs(depths[j][i] - depth), 0.0);
+        
+        avg += weight * texels[j][i];
+        spatialweight += weight;
+      }
+    }
+    
+    occlusion = avg / spatialweight;
+
+    vec2 prevtexcoord = 0.5 * project(scene.proj, (scene.prevview * scene.invview * vec4(position, 1.0)).xyz) + 0.5;
+
+    vec4 prevocclusion = texture(prevmap, vec3(prevtexcoord, 0));
+    
+    vec3 prevposition = view_position(scene.proj, scene.invproj, prevtexcoord, prevocclusion.y);
+    
+    float temporalweight = clamp(5.0 * abs(prevocclusion.x - occlusion) + 0.001 * distance(prevposition, position), 0.1, 1.0);
+
+    occlusion = mix(prevocclusion.x, occlusion, temporalweight);
+  
+    imageStore(dest, xy, vec4(occlusion, depth, 0, 0));
+  }
+}

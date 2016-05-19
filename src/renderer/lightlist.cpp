@@ -18,94 +18,7 @@ using leap::extentof;
 enum ShaderLocation
 {
   sceneset = 0,
-
-  albedomap = 1,
-  specularmap = 2,
-  normalmap = 3,
-  depthmap = 4,
-  shadowmap = 5,
 };
-
-struct alignas(16) MainLight
-{
-  Vec4 direction;
-  Color4 intensity;
-};
-
-struct alignas(16) PointLight
-{
-  Vec4 position;
-  Color4 intensity;
-  Vec4 attenuation;
-};
-
-struct SceneSet
-{
-  Matrix4f proj;
-  Matrix4f invproj;
-  Matrix4f view;
-  Matrix4f invview;
-  Vec3 camerapos;
-  float exposure;
-
-  array<Matrix4f, ShadowMap::nslices> shadowview;
-
-  MainLight mainlight;
-
-  uint32_t pointlightcount;
-  PointLight pointlights[256];
-};
-
-
-///////////////////////// draw_lights ////////////////////////////////////////
-void draw_lights(RenderContext &context, VkCommandBuffer commandbuffer, PushBuffer const &renderables, RenderParams const &params)
-{
-  using namespace Vulkan;
-
-  assert(sizeof(SceneSet) < context.lightingbuffersize);
-
-  auto offset = context.lightingbufferoffsets[context.frame & 1];
-
-  auto scene = (SceneSet*)(context.transfermemory + offset);
-
-  scene->proj = context.proj;
-  scene->invproj = inverse(scene->proj);
-  scene->view = context.view;
-  scene->invview = inverse(scene->view);
-  scene->camerapos = context.camera.position();
-  scene->exposure = context.camera.exposure();
-  scene->shadowview = context.shadows.shadowview;
-
-  auto &mainlight = scene->mainlight;
-  auto &pointlightcount = scene->pointlightcount;
-  auto &pointlights = scene->pointlights;
-
-  mainlight.direction.xyz = params.sundirection;
-  mainlight.intensity.rgb = params.sunintensity;
-
-  pointlightcount = 0;
-
-  for(auto &renderable : renderables)
-  {
-    if (renderable.type == Renderable::Type::Lights)
-    {
-      auto lights = renderable_cast<Renderable::Lights>(&renderable)->commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
-
-      for(size_t i = 0; lights && i < lights->pointlightcount && pointlightcount < extentof(pointlights); ++i)
-      {
-        pointlights[pointlightcount].position = lights->pointlights[i].position;
-        pointlights[pointlightcount].intensity = lights->pointlights[i].intensity;
-        pointlights[pointlightcount].attenuation = lights->pointlights[i].attenuation;
-        pointlights[pointlightcount].attenuation.w = params.lightfalloff * lights->pointlights[i].attenuation.w;
-
-        ++pointlightcount;
-      }
-    }
-  }
-
-  bindresource(commandbuffer, context.lightingbuffer, context.pipelinelayout, ShaderLocation::sceneset, offset, VK_PIPELINE_BIND_POINT_COMPUTE);
-}
-
 
 
 //|---------------------- LightList -----------------------------------------
@@ -128,19 +41,17 @@ bool LightList::begin(BuildState &state, DatumPlatform::v1::PlatformInterface &p
   if (!commandlist)
     return false;
 
-  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
+  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(Lights));
 
   if (sceneset)
   {
-    auto offset = sceneset.reserve(sizeof(SceneSet));
+    auto offset = sceneset.reserve(sizeof(Lights));
 
-    auto lights = sceneset.memory<SceneSet>(offset);
+    state.lights = sceneset.memory<Lights>(offset);
 
-    lights->pointlightcount = 0;
+    state.lights->pointlightcount = 0;
 
     commandlist->release(sceneset);
-
-    state.data = lights;
   }
 
   m_commandlist = { resources, commandlist };
@@ -154,11 +65,9 @@ bool LightList::begin(BuildState &state, DatumPlatform::v1::PlatformInterface &p
 ///////////////////////// LightList::push_pointlight ////////////////////////
 void LightList::push_pointlight(BuildState &state, Vec3 const &position, float range, Color3 const &intensity, Attenuation const &attenuation)
 {
-  SceneSet *scene = (SceneSet*)state.data;
-
-  if (scene && scene->pointlightcount < extentof(scene->pointlights))
+  if (state.lights && state.lights->pointlightcount < extentof(state.lights->pointlights))
   {
-    PointLight &pointlight = scene->pointlights[scene->pointlightcount];
+    auto &pointlight = state.lights->pointlights[state.lights->pointlightcount];
 
     pointlight.position.xyz = position;
     pointlight.intensity.rgb = intensity;
@@ -167,7 +76,7 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
     pointlight.attenuation.z = attenuation.constant;
     pointlight.attenuation.w = range;
 
-    scene->pointlightcount += 1;
+    state.lights->pointlightcount += 1;
   }
 }
 

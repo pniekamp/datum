@@ -28,20 +28,11 @@ enum ShaderLocation
   skyboxmap = 1,
 };
 
-struct SceneSet
-{
-  Matrix4f modelview;
-
-  float exposure;
-};
-
 
 ///////////////////////// draw_skybox ///////////////////////////////////////
 void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderParams const &params)
 {
   using namespace Vulkan;
-
-  assert(sizeof(SceneSet) < context.skyboxbuffersize);
 
   if (!params.skybox || !params.skybox->ready())
     return;
@@ -50,12 +41,7 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   auto &skyboxdescriptor = context.skyboxbuffers[context.frame & 1];
 
-  auto offset = context.skyboxbufferoffsets[context.frame & 1];
-
-  auto scene = (SceneSet*)(context.transfermemory + offset);
-
-  scene->modelview = (params.skyboxorientation * Transform::rotation(context.camera.rotation())).matrix() * inverse(context.proj);
-  scene->exposure = context.camera.exposure();
+  auto offset = context.scenesetoffsets[context.frame & 1];
 
   begin(context.device, skyboxcommandbuffer, context.framebuffer, context.renderpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 

@@ -288,7 +288,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   RenderParams renderparams;
   renderparams.skybox = state.skybox;
   renderparams.sundirection = normalise(Vec3(0.4, -1, -0.1));
-  renderparams.sunintensity = Color3(1, 1, 1);
+  renderparams.sunintensity = Color3(5, 5, 5);
   renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), 0.1*state.readframe->time);
 
   render_debug_overlay(platform, state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);

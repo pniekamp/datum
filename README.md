@@ -9,5 +9,6 @@
 - Single Main Directional Lighting
 - Deferred Tile Based Point Lighting
 - Main Light Cascaded Shadow Map
-- HDR Skybox
+- Screen Space Ambient Occlusion
+- HDR Skybox & Bloom
 - Entity-Component Scene Management

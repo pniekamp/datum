@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "renderer.h"
 #include "resource.h"
 #include "commandlist.h"
 #include <utility>
@@ -26,12 +27,25 @@ class LightList
 
   public:
 
+    struct Lights
+    {
+      size_t pointlightcount;
+
+      struct PointLight
+      {
+        lml::Vec4 position;
+        lml::Color4 intensity;
+        lml::Vec4 attenuation;
+
+      } pointlights[256];
+    };
+
     struct BuildState
     {
       RenderContext *context;
       ResourceManager *resources;
 
-      void *data;
+      Lights *lights;
 
       CommandList *commandlist = nullptr;
     };
