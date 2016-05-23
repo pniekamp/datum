@@ -18,6 +18,104 @@ using namespace lml;
 //|---------------------- Model ---------------------------------------------
 //|--------------------------------------------------------------------------
 
+///////////////////////// Model::create /////////////////////////////////////
+template<>
+Scene::EntityId Scene::create<Model>(ResourceManager *resourcemanager)
+{
+  auto id = add_entity<Model>(this, resourcemanager, allocator<>());
+
+  add_component<TransformComponent>(id, Transform::identity());
+
+  get<Model>(id)->id = id;
+
+  return id;
+}
+
+
+///////////////////////// Model::load ///////////////////////////////////////
+template<>
+Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset)
+{
+  if (!asset)
+    return EntityId{};
+
+  asset_guard lock(resources->assets());
+
+  auto model = get<Model>(create<Model>(resources));
+
+  auto assets = resources->assets();
+
+  void const *bits;
+
+  while (!(bits = assets->request(platform, asset)))
+    ;
+
+  auto texturetable = reinterpret_cast<PackModelPayload::Texture const *>(reinterpret_cast<char const *>(bits));
+
+  model->textures.resize(asset->texturecount);
+
+  for(int i = 0; i < asset->texturecount; ++i)
+  {
+    switch (texturetable[i].type)
+    {
+      case PackModelPayload::Texture::defaulttexture:
+        model->textures[i] = nullptr;
+        break;
+
+      case PackModelPayload::Texture::albedomap:
+        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::SRGBA);
+        break;
+
+      case PackModelPayload::Texture::specularmap:
+        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::SRGBA);
+        break;
+
+      case PackModelPayload::Texture::normalmap:
+        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::RGBA);
+        break;
+    }
+  }
+
+  auto materialtable = reinterpret_cast<PackModelPayload::Material const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture));
+
+  model->materials.resize(asset->materialcount);
+
+  for(int i = 0; i < asset->materialcount; ++i)
+  {
+    auto albedocolor = Color3(materialtable[i].albedocolor[0], materialtable[i].albedocolor[1], materialtable[i].albedocolor[2]);
+    auto albedomap = model->textures[materialtable[i].albedomap];
+
+    auto specularintensity = Color3(materialtable[i].specularintensity[0], materialtable[i].specularintensity[1], materialtable[i].specularintensity[2]);
+    auto specularexponent = materialtable[i].specularexponent;
+    auto specularmap = model->textures[materialtable[i].specularmap];
+
+    auto normalmap = model->textures[materialtable[i].normalmap];
+
+    model->materials[i] = resources->create<Material>(albedocolor, albedomap, specularintensity, specularexponent, specularmap, normalmap);
+  }
+
+  auto meshtable = reinterpret_cast<PackModelPayload::Mesh const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material));
+
+  model->meshes.resize(asset->meshcount);
+
+  for(int i = 0; i < asset->meshcount; ++i)
+  {
+    model->meshes[i] = resources->create<Mesh>(assets->find(asset->id + meshtable[i].mesh));
+  }
+
+  auto instancetable = reinterpret_cast<PackModelPayload::Instance const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material) + asset->meshcount*sizeof(PackModelPayload::Mesh));
+
+  for(int i = 0; i < asset->instancecount; ++i)
+  {
+    auto transform =  Transform{ { instancetable[i].transform[0], instancetable[i].transform[1], instancetable[i].transform[2], instancetable[i].transform[3] }, { instancetable[i].transform[4], instancetable[i].transform[5], instancetable[i].transform[6], instancetable[i].transform[7] } };
+
+    model->add_instance(transform, instancetable[i].mesh, instancetable[i].material, MeshComponent::Visible | MeshComponent::Static);
+  }
+
+  return model->id;
+}
+
+
 ///////////////////////// Model::Constructor ////////////////////////////////
 Model::Model(Scene *scene, ResourceManager *resourcemanager, StackAllocatorWithFreelist<> const &allocator)
   : textures(allocator),
@@ -99,100 +197,3 @@ Scene::EntityId Model::add_instance(Transform const &transform, size_t mesh, siz
   return instance;
 }
 
-
-///////////////////////// Model::create /////////////////////////////////////
-template<>
-Scene::EntityId Scene::create<Model>(ResourceManager *resourcemanager)
-{
-  auto id = push_entity<Model>(this, resourcemanager, allocator<>());
-
-  add_component<TransformComponent>(id, Transform::identity());
-
-  get<Model>(id)->id = id;
-
-  return id;
-}
-
-
-///////////////////////// Model::load ///////////////////////////////////////
-template<>
-Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset)
-{
-  if (!asset)
-    return EntityId{};
-
-  asset_guard lock(resources->assets());
-
-  auto model = get<Model>(create<Model>(resources));
-
-  auto assets = resources->assets();
-
-  void const *bits;
-
-  while (!(bits = assets->request(platform, asset)))
-    ;
-
-  auto texturetable = reinterpret_cast<PackModelPayload::Texture const *>(reinterpret_cast<char const *>(bits));
-
-  model->textures.resize(asset->texturecount);
-
-  for(int i = 0; i < asset->texturecount; ++i)
-  {
-    switch (texturetable[i].type)
-    {
-      case PackModelPayload::Texture::defaulttexture:
-        model->textures[i] = nullptr;
-        break;
-
-      case PackModelPayload::Texture::albedomap:
-        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::SRGBA);
-        break;
-
-      case PackModelPayload::Texture::specularmap:
-        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::SRGBA);
-        break;
-
-      case PackModelPayload::Texture::normalmap:
-        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::RGBA);
-        break;
-    }
-  }
-
-  auto materialtable = reinterpret_cast<PackModelPayload::Material const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture));
-
-  model->materials.resize(asset->materialcount);
-
-  for(int i = 0; i < asset->materialcount; ++i)
-  {
-    auto albedocolor = Color3(materialtable[i].albedocolor[0], materialtable[i].albedocolor[1], materialtable[i].albedocolor[2]);
-    auto albedomap = model->textures[materialtable[i].albedomap];
-
-    auto specularintensity = Color3(materialtable[i].specularintensity[0], materialtable[i].specularintensity[1], materialtable[i].specularintensity[2]);
-    auto specularexponent = materialtable[i].specularexponent;
-    auto specularmap = model->textures[materialtable[i].specularmap];
-
-    auto normalmap = model->textures[materialtable[i].normalmap];
-
-    model->materials[i] = resources->create<Material>(albedocolor, albedomap, specularintensity, specularexponent, specularmap, normalmap);
-  }
-
-  auto meshtable = reinterpret_cast<PackModelPayload::Mesh const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material));
-
-  model->meshes.resize(asset->meshcount);
-
-  for(int i = 0; i < asset->meshcount; ++i)
-  {
-    model->meshes[i] = resources->create<Mesh>(assets->find(asset->id + meshtable[i].mesh));
-  }
-
-  auto instancetable = reinterpret_cast<PackModelPayload::Instance const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material) + asset->meshcount*sizeof(PackModelPayload::Mesh));  
-
-  for(int i = 0; i < asset->instancecount; ++i)
-  {
-    auto transform =  Transform{ { instancetable[i].transform[0], instancetable[i].transform[1], instancetable[i].transform[2], instancetable[i].transform[3] }, { instancetable[i].transform[4], instancetable[i].transform[5], instancetable[i].transform[6], instancetable[i].transform[7] } };
-
-    model->add_instance(transform, instancetable[i].mesh, instancetable[i].material, MeshComponent::Visible | MeshComponent::Static);
-  }
-
-  return model->id;
-}

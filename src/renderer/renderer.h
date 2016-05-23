@@ -252,7 +252,7 @@ struct RenderContext
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
 
-  int fbowidth, fboheight;
+  int fbowidth, fboheight, fbocrop;
 
   ResourcePool resourcepool;
 

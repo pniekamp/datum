@@ -33,14 +33,11 @@ class LightStoragePrivate : public LightComponentStorage
   public:
 
     void add(EntityId entity, Color3 const &intensity, Attenuation const &attenuation);
-    void remove(EntityId entity);
 
     void set_intensity(size_t index, Color3 const &intensity);
     void set_attenuation(size_t index, Attenuation const &attenuation);
 
     void update(size_t index);
-
-  private:
 };
 
 
@@ -69,13 +66,6 @@ void LightStoragePrivate::add(EntityId entity, Color3 const &intensity, Attenuat
   set_attenuation(index, attenuation);
 
   update(index);
-}
-
-
-///////////////////////// LightStorage::remove //////////////////////////////
-void LightStoragePrivate::remove(EntityId entity)
-{
-  DefaultStorage::remove(entity);
 }
 
 

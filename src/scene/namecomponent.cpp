@@ -26,23 +26,20 @@ class NameStoragePrivate : public NameComponentStorage
 
   public:
 
-    auto &names() { return std::get<0>(m_data); }
+    void clear() override;
 
-  public:
-
-    using DefaultStorage::add;
-    using DefaultStorage::remove;
+    void remove(EntityId entity) override;
 
     void set_name(EntityId entity, const char *name);
-
-  private:
 };
 
 
 ///////////////////////// NameComponentStorage::Constructor /////////////////
 NameComponentStorage::NameComponentStorage(Scene *scene, StackAllocator<> allocator)
-  : DefaultStorage(scene, allocator)
+  : DefaultStorage(scene, allocator),
+    m_names(allocator)
 {
+  m_names.reserve(16384);
 }
 
 
@@ -50,7 +47,26 @@ NameComponentStorage::NameComponentStorage(Scene *scene, StackAllocator<> alloca
 NameStoragePrivate::NameStoragePrivate(Scene *scene, allocator_type allocator)
   : NameComponentStorage(scene, allocator)
 {
-  names().reserve(16384);
+}
+
+
+///////////////////////// NameComponentStorage::clear ///////////////////////
+void NameStoragePrivate::clear()
+{
+  m_names.clear();
+
+  DefaultStorage::clear();
+}
+
+
+///////////////////////// NameComponentStorage::remove //////////////////////
+void NameStoragePrivate::remove(EntityId entity)
+{
+  auto index = this->index(entity);
+
+  get<0>(m_data)[index] = {};
+
+  DefaultStorage::remove(entity);
 }
 
 
@@ -59,25 +75,25 @@ void NameStoragePrivate::set_name(EntityId entity, const char *name)
 {
   assert(has(entity));
 
-  m_index[entity.index()] = names().size();
+  get<1>(m_data)[index(entity)] = m_names.size();
 
-  names().insert(names().end(), name, name + strlen(name) + 2);
+  m_names.insert(m_names.end(), name, name + strlen(name) + 2);
 }
 
 
 ///////////////////////// NameComponentStorage::find ////////////////////////
 Scene::EntityId NameComponentStorage::find(const char *name) const
 {
-  for(auto &index : m_index)
+  for(size_t index = 1; index < size(); ++index)
   {
-    if (index != 0)
+    if (data<0>(index) != 0)
     {
-      if (stricmp(&data<0>(index), name) == 0)
-        return entityid(&index - &m_index.front());
+      if (stricmp(m_names.data() + data<1>(index), name) == 0)
+        return data<0>(index);
     }
   }
 
-  return Scene::EntityId{};
+  return {};
 }
 
 

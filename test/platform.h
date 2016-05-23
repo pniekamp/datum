@@ -55,6 +55,8 @@ namespace DatumPlatform
     public:
       InputBuffer();
 
+      void register_viewport(int x, int y, int width, int height);
+
       void register_mousemove(int x, int y);
       void register_mousepress(GameInput::MouseButton button);
       void register_mouserelease(GameInput::MouseButton button);
@@ -71,6 +73,8 @@ namespace DatumPlatform
     private:
 
       GameInput m_input;
+
+      int m_x, m_y, m_width, m_height;
 
       std::vector<InputEvent> m_events;
 

@@ -45,7 +45,7 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   begin(context.device, skyboxcommandbuffer, context.framebuffer, context.renderpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
-  bindresource(skyboxcommandbuffer, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(skyboxcommandbuffer, context.skyboxpipeline, 0, context.fbocrop, context.fbowidth, context.fboheight - context.fbocrop - context.fbocrop, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindtexture(context.device, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->cubemap);
 

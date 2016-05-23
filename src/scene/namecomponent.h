@@ -15,15 +15,19 @@
 //|---------------------- NameComponentStorage ------------------------------
 //|--------------------------------------------------------------------------
 
-class NameComponentStorage : public DefaultStorage<char>
+class NameComponentStorage : public DefaultStorage<Scene::EntityId, size_t>
 {
   public:
     NameComponentStorage(Scene *scene, StackAllocator<> allocator);
 
-    const char *name(EntityId entity) const { return &data<0>(index(entity)); }
+    const char *name(EntityId entity) const { return m_names.data() + data<1>(index(entity)); }
 
     // linear search
     EntityId find(const char *name) const;
+
+  protected:
+
+    std::vector<char, StackAllocator<>> m_names;
 };
 
 

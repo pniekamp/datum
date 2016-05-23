@@ -184,12 +184,11 @@ namespace
       shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
       shadowsamplerinfo.magFilter = VK_FILTER_LINEAR;
       shadowsamplerinfo.minFilter = VK_FILTER_LINEAR;
-      shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-      shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-      shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+      shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
       shadowsamplerinfo.compareEnable = VK_TRUE;
       shadowsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
-      shadowsamplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
       context.shadows.shadowmap.sampler = create_sampler(context.device, shadowsamplerinfo);
 
@@ -290,6 +289,7 @@ namespace
 
       context.fbowidth = width;
       context.fboheight = height;
+      context.fbocrop = (height - min((int)(width / context.camera.aspect()), height)) / 2;
 
       //
       // Scratch Buffers
@@ -308,8 +308,8 @@ namespace
       // SSAO
       //
 
-      context.ssao[0] = create_attachment(context.device, width/2, height/2, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-      context.ssao[1] = create_attachment(context.device, width/2, height/2, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+      context.ssao[0] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+      context.ssao[1] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
       setimagelayout(context.device, context.ssao[0].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
       setimagelayout(context.device, context.ssao[1].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
@@ -705,18 +705,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     subpasses[0].colorAttachmentCount = 1;
     subpasses[0].pColorAttachments = &colorreference;
     subpasses[0].pDepthStencilAttachment = &depthreference;
-//    subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-//    subpasses[1].colorAttachmentCount = 1;
-//    subpasses[1].pColorAttachments = &colorreference;
-
-//    VkSubpassDependency dependencies[1] = {};
-//    dependencies[0].srcSubpass = 0;
-//    dependencies[0].dstSubpass = 1;
-//    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-//    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-//    dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-//    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-//    dependencies[0].dependencyFlags = 0;
 
     VkRenderPassCreateInfo renderpassinfo = {};
     renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -724,8 +712,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     renderpassinfo.pAttachments = attachments;
     renderpassinfo.subpassCount = extentof(subpasses);
     renderpassinfo.pSubpasses = subpasses;
-//    renderpassinfo.dependencyCount = extentof(dependencies);
-//    renderpassinfo.pDependencies = dependencies;
 
     context.renderpass = create_renderpass(context.device, renderpassinfo);
   }
@@ -1549,7 +1535,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
 
   scene->proj = context.proj;
   scene->invproj = inverse(scene->proj);
-  scene->view = context.view;
+  scene->view = ScaleMatrix(Vector4(1.0f, context.fbowidth / context.camera.aspect() / context.fboheight, 1.0f, 1.0f)) * context.view;
   scene->invview = inverse(scene->view);
   scene->prevview = ScaleMatrix(Vector4(1.0f, context.fbowidth / context.camera.aspect() / context.fboheight, 1.0f, 1.0f)) * context.prevcamera.view();
   scene->skyview = (params.skyboxorientation * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
@@ -1640,8 +1626,8 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   }
 
   context.camera = camera;
-  context.proj = context.camera.proj();
-  context.view = ScaleMatrix(Vector4(1.0f, viewport.width / camera.aspect() / viewport.height, 1.0f, 1.0f)) * camera.view();
+  context.proj = camera.proj();
+  context.view = camera.view();
 
   prepare_shadowview(context.shadows, camera, params.sundirection);
 
@@ -1688,10 +1674,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Geometry
   //
 
-  int width = viewport.width;
-  int height = min((int)(viewport.width / camera.aspect()), viewport.height);
-
-  beginpass(commandbuffer, context.geometrypass, context.geometrybuffer, 0, (viewport.height - height)/2, width, height, extentof(clearvalues), clearvalues);
+  beginpass(commandbuffer, context.geometrypass, context.geometrybuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
 
   for(auto &renderable : renderables)
   {
@@ -1722,7 +1705,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     bindresource(commandbuffer, context.ssaotarget, context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, (context.fbowidth/2+31)/32, (context.fboheight/2+31)/32, 1);
+    dispatch(commandbuffer, (context.ssao[1].width+31)/32, (context.ssao[1].height+31)/32, 1);
 
     setimagelayout(commandbuffer, context.ssao[1].image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
     setimagelayout(commandbuffer, context.ssao[0].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
@@ -1781,7 +1764,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     dispatch(commandbuffer, context.fbowidth/2, (context.fboheight/2+63)/64, 1);
 
-    beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
+    beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, context.fbocrop, context.fbowidth, context.fboheight - context.fbocrop - context.fbocrop, extentof(clearvalues), clearvalues);
 
     execute(commandbuffer, context.bloomblendcommands);
 
@@ -1819,7 +1802,6 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   transition_acquire(commandbuffer, viewport.image);
 
-  //blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y);
   blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_NEAREST);
 
   transition_present(commandbuffer, viewport.image);

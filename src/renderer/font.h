@@ -26,6 +26,7 @@ class Font
     int descent;
     int leading;
 
+    int width(const char *str) const;
     int width(uint32_t codepoint, uint32_t nextcodepoint) const;
     int height() const;
     int lineheight() const;
@@ -57,6 +58,23 @@ class Font
   private:
     Font() = default;
 };
+
+
+///////////////////////// Font::width ///////////////////////////////////////
+inline int Font::width(const char *str) const
+{
+  int sum = 0;
+
+  if (ready())
+  {
+    for(const char *ch = str; *ch != 0; ++ch)
+    {
+      sum += width(ch[0], ch[1]);
+    }
+  }
+
+  return sum;
+}
 
 
 ///////////////////////// Font::width ///////////////////////////////////////

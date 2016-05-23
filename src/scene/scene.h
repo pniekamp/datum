@@ -190,7 +190,7 @@ class Scene
     }
 
     template<typename Entity, typename ...Args>
-    EntityId push_entity(Args ...args)
+    EntityId add_entity(Args ...args)
     {
       Slot *slot = acquire_slot();
 

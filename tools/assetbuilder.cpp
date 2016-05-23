@@ -138,11 +138,11 @@ uint32_t write_shader_asset(ostream &fout, uint32_t id, string const &path)
   else
     throw runtime_error("Unknown shader stage");
 
+  cout << "  " << path << endl;
+
   auto spirv = compile_shader(text, stage);
 
   write_text_asset(fout, id, spirv);
-
-  cout << "  " << path << endl;
 
   return id + 1;
 }
@@ -154,6 +154,8 @@ uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path, float
 
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
+
+  cout << "  " << path << endl;
 
   image = image.convertToFormat(QImage::Format_ARGB32);
 
@@ -167,8 +169,6 @@ uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path, float
   memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
 
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), alignx, aligny);
-
-  cout << "  " << path << endl;
 
   return id + 1;
 }
@@ -217,9 +217,9 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<string> const &pa
     if (image.isNull())
       throw runtime_error("Failed to load image - " + path);
 
-    layers.push_back(image);
-
     cout << "  " << path << endl;
+
+    layers.push_back(image);
   }
 
   write_sprite_asset(fout, id, layers, alignx, aligny);
@@ -243,6 +243,8 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, int 
   if (sheet.isNull())
     throw runtime_error("Failed to load image - " + path);
 
+  cout << "  " << path << endl;
+
   vector<QImage> layers;
 
   int width = sheet.width() / count;
@@ -255,8 +257,6 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, int 
 
   write_sprite_asset(fout, id, layers, alignx, aligny);
 
-  cout << "  " << path << endl;
-
   return id + 1;
 }
 
@@ -267,6 +267,8 @@ uint32_t write_albedomap_asset(ostream &fout, uint32_t id, string const &path)
 
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
+
+  cout << "  " << path << endl;
 
   image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
 
@@ -285,8 +287,6 @@ uint32_t write_albedomap_asset(ostream &fout, uint32_t id, string const &path)
 
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
-  cout << "  " << path << endl;
-
   return id + 1;
 }
 
@@ -297,6 +297,8 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
 
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
+
+  cout << "  " << path << endl;
 
   image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
 
@@ -315,8 +317,6 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
 
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
-  cout << "  " << path << endl;
-
   return id + 1;
 }
 
@@ -327,6 +327,8 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
 
   if (image.isNull())
     throw runtime_error("Failed to load image - " + path);
+
+  cout << "  " << path << endl;
 
   image = image.convertToFormat(QImage::Format_ARGB32).mirrored();
 
@@ -343,8 +345,6 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
 
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
-  cout << "  " << path << endl;
-
   return id + 1;
 }
 
@@ -360,9 +360,9 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, vector<string> const &pa
     if (image.isNull())
       throw runtime_error("Failed to load image - " + path);
 
-    images.push_back(image);
-
     cout << "  " << path << endl;
+
+    images.push_back(image);
   }
 
   assert(images.size() == 6);
@@ -407,6 +407,8 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, string const &path)
 {
   auto image = load_hdr(path);
 
+  cout << "  " << path << endl;
+
   int width = 512;
   int height = 512;
   int layers = 6;
@@ -436,6 +438,8 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
 
   if (!fin)
     throw runtime_error("unable to read obj file - " + path);
+
+  cout << "  " << path << endl;
 
   string buffer;
 
@@ -504,8 +508,6 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
 
   write_mesh_asset(fout, id, vertices, indices);
 
-  cout << "  " << path << endl;
-
   return id + 1;
 }
 
@@ -537,6 +539,8 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
   QFont font(fontname.c_str(), size, weight);
 
   QFontMetrics tm(font);
+
+  cout << "  " << fontname << endl;
 
   PackAssetHeader aset = { id };
 
@@ -609,8 +613,6 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
   write_sprite_asset(fout, id + 1, { atlas }, 0.0f, 0.0f);
 
-  cout << "  " << fontname << endl;
-
   return id + 1 + count;
 }
 
@@ -673,7 +675,9 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
-  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+//  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+//  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
+  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
 
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");

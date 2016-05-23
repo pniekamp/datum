@@ -832,6 +832,7 @@ void Window::handle_event(xcb_generic_event_t const *event)
     case XCB_CONFIGURE_NOTIFY:
       width = reinterpret_cast<xcb_configure_notify_event_t const *>(event)->width;
       height = reinterpret_cast<xcb_configure_notify_event_t const *>(event)->height;
+      game->inputbuffer().register_viewport(0, 0, width, height);
       vulkan.resize();
       break;
 

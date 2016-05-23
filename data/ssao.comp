@@ -37,7 +37,7 @@ layout(set=0, binding=5) uniform sampler2DArray prevmap;
 
 layout(set=3, binding=0) writeonly uniform image2D dest;
 
-const float OcclusionRadius = 1.5;
+const float OcclusionRadius = 0.75;
 const float OcclusionPower = 1.5;
 const float OcclusionBias = 0.1;
 

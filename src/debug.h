@@ -192,10 +192,23 @@ void dump(const char *name, FreeList const &freelist);
 
 
 //
+// Menu
+//
+
+template<typename T>
+void debug_menu_entry(const char *name, T const &value);
+
+template<typename T>
+T debug_menu_value(const char *name, T const &value, T const &min, T const &max);
+
+#define DEBUG_ENTRY(name, value) \
+  debug_menu_entry(name, value);
+
+//
 // Interface
 //
 
-void update_debug_overlay(class DatumPlatform::GameInput const &input);
+void update_debug_overlay(class DatumPlatform::GameInput const &input, bool *accepted);
 void render_debug_overlay(DatumPlatform::PlatformInterface &platform, class RenderContext &context, class ResourceManager *resources, class PushBuffer &pushbuffer, class DatumPlatform::Viewport const &viewport, class Font const *font);
 
 #endif
@@ -213,6 +226,7 @@ void render_debug_overlay(DatumPlatform::PlatformInterface &platform, class Rend
 #define RESOURCE_RELEASE(...)
 #define STATISTIC_HIT(...)
 #define LOG_ONCE(...)
+#define DEBUG_ENTRY(...)
 #define update_debug_overlay(...)
 #define render_debug_overlay(...)
 #endif

@@ -96,7 +96,7 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
 
   state.assetbarrier = resources->assets()->acquire_barrier();
 
-  bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.geometrypipeline, 0, context.fbocrop, context.fbowidth, context.fboheight - context.fbocrop - context.fbocrop, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
 

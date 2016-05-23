@@ -56,5 +56,5 @@ vec3 whitepoint()
 ///////////////////////// tonemap ///////////////////////////////////////////
 vec3 tonemap(vec3 color)
 {
-  return filmic_uncharted2(2.0 * color) / whitepoint();
+  return max(filmic_uncharted2(2.0 * color) / whitepoint(), 0.0);
 }

@@ -63,14 +63,15 @@ class SpriteComponent
   public:
 
     long const &flags() const { return storage->data<SpriteComponentStorage::spriteflags>(index); }
-
     Sprite const *sprite() const { return storage->data<SpriteComponentStorage::spriteresource>(index); }
-
     float const &size() const { return storage->data<SpriteComponentStorage::spritesize>(index); }
-
     lml::Color4 const &tint() const { return storage->data<SpriteComponentStorage::spritetint>(index); }
-
     lml::Rect2 bound() const { return lml::Rect2(-sprite()->align, lml::Vec2(size() * sprite()->aspect, size()) - sprite()->align); }
+
+    void set_size(float size);
+    void set_sprite(Sprite const *sprite, float size);
+    void set_sprite(Sprite const *sprite, float size, lml::Color4 const &tint);
+    void set_tint(lml::Color4 const &tint);
 
   protected:
     SpriteComponent(size_t index, SpriteComponentStorage *storage);

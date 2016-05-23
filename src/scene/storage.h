@@ -31,11 +31,6 @@ class Storage
 
     Scene *m_scene;
 
-    Scene::EntityId entityid(size_t index) const
-    {
-      return m_scene->m_slots[index].id;
-    }
-
     friend class Scene;
 };
 
@@ -87,7 +82,7 @@ class DefaultStorage : public Storage
     size_t size() const { return std::get<0>(m_data).size(); }
 
     void add(EntityId entity);
-    void remove(EntityId entity);
+    virtual void remove(EntityId entity);
 
   protected:
 
@@ -114,6 +109,8 @@ class DefaultStorage : public Storage
     std::tuple<std::vector<Types, allocator_type>...> m_data;
 
     std::deque<size_t, allocator_type> m_freeslots;
+
+    friend class Scene;
 };
 
 

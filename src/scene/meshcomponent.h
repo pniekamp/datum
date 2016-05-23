@@ -80,12 +80,9 @@ class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::B
     iterator_pair<tree_iterator> tree() const;
 
     iterator_pair<EntityId const *> dynamic() const;
-
-  public:
-
-    void update(TransformComponentStorage *transforms);
 };
 
+void update_meshes(Scene &scene);
 
 
 //|---------------------- MeshComponent -------------------------------------

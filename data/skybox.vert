@@ -14,9 +14,6 @@ layout(std430, set=0, binding=0) buffer SceneSet
   layout(row_major) mat4 prevview;
   layout(row_major) mat4 skyview;
   
-  vec3 camerapos;
-  float exposure;
-  
 } scene;
 
 layout(location=0) out vec3 texcoord;

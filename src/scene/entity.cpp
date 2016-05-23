@@ -31,5 +31,5 @@ Entity::~Entity()
 template<>
 Scene::EntityId Scene::create<Entity>()
 {
-  return push_entity<Entity>();
+  return add_entity<Entity>();
 }

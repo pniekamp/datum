@@ -63,6 +63,29 @@ void datumtest_init(PlatformInterface &platform)
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
+
+#if 1
+  state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
+
+  auto light1 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light1, Transform::translation(Vec3(4.85,1.45,1.45)));
+  state.scene.add_component<PointLightComponent>(light1, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  auto light2 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light2, Transform::translation(Vec3(4.85,1.45,-2.20)));
+  state.scene.add_component<PointLightComponent>(light2, Color3(1, 0.3, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  auto light3 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light3, Transform::translation(Vec3(-6.20,1.45,-2.20)));
+  state.scene.add_component<PointLightComponent>(light3, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  auto light4 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light4, Transform::translation(Vec3(-6.20,1.45,1.45)));
+  state.scene.add_component<PointLightComponent>(light4, Color3(1, 0.4, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
+  state.camera.lookat(Vec3(1, 1, 0), Vec3(0, 1, 0));
+#endif
 }
 
 
@@ -75,46 +98,53 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   state.time += dt;
 
-  if (input.mousebuttons[GameInput::Left].state == true)
+  bool inputaccepted = false;
+
+  update_debug_overlay(input, &inputaccepted);
+
+  if (!inputaccepted)
   {
-    state.camera.yaw(0.0025f * (state.lastmousex - input.mousex), Vec3(0.0f, 1.0f, 0.0f));
-    state.camera.pitch(0.0025f * (state.lastmousey - input.mousey));
+    if (input.mousebuttons[GameInput::Left].down())
+    {
+      state.camera.yaw(1.5f * (state.lastmousex - input.mousex), Vec3(0.0f, 1.0f, 0.0f));
+      state.camera.pitch(1.5f * (state.lastmousey - input.mousey));
+    }
+
+    float speed = 0.02;
+
+    if (input.modifiers & GameInput::Shift)
+      speed *= 10;
+
+    if (input.controllers[0].move_up.down() && !(input.modifiers & GameInput::Control))
+      state.camera.offset(speed*Vec3(0.0f, 0.0f, -1.0f));
+
+    if (input.controllers[0].move_down.down() && !(input.modifiers & GameInput::Control))
+      state.camera.offset(speed*Vec3(0.0f, 0.0f, 1.0f));
+
+    if (input.controllers[0].move_up.down() && (input.modifiers & GameInput::Control))
+      state.camera.offset(speed*Vec3(0.0f, 1.0f, 0.0f));
+
+    if (input.controllers[0].move_down.down() && (input.modifiers & GameInput::Control))
+      state.camera.offset(speed*Vec3(0.0f, -1.0f, 0.0f));
+
+    if (input.controllers[0].move_left.down())
+      state.camera.offset(speed*Vec3(-1.0f, 0.0f, 0.0f));
+
+    if (input.controllers[0].move_right.down())
+      state.camera.offset(speed*Vec3(+1.0f, 0.0f, 0.0f));
   }
-
-  float speed = 0.02;
-
-  if (input.modifiers & GameInput::Shift)
-    speed *= 10;
-
-  if (input.controllers[0].move_up.state == true && !(input.modifiers & GameInput::Control))
-    state.camera.offset(speed*Vec3(0.0f, 0.0f, -1.0f));
-
-  if (input.controllers[0].move_down.state == true && !(input.modifiers & GameInput::Control))
-    state.camera.offset(speed*Vec3(0.0f, 0.0f, 1.0f));
-
-  if (input.controllers[0].move_up.state == true && (input.modifiers & GameInput::Control))
-    state.camera.offset(speed*Vec3(0.0f, 1.0f, 0.0f));
-
-  if (input.controllers[0].move_down.state == true && (input.modifiers & GameInput::Control))
-    state.camera.offset(speed*Vec3(0.0f, -1.0f, 0.0f));
-
-  if (input.controllers[0].move_left.state == true)
-    state.camera.offset(speed*Vec3(-1.0f, 0.0f, 0.0f));
-
-  if (input.controllers[0].move_right.state == true)
-    state.camera.offset(speed*Vec3(+1.0f, 0.0f, 0.0f));
-
-  if (input.keys['-'].down())
-    state.camera.set_exposure(state.camera.exposure() - 0.01);
-
-  if (input.keys['='].down())
-    state.camera.set_exposure(state.camera.exposure() + 0.01);
 
   state.lastmousex = input.mousex;
   state.lastmousey = input.mousey;
   state.lastmousez = input.mousez;
 
+#ifdef DEBUG
+  state.camera.set_exposure(debug_menu_value("Exposure", state.camera.exposure(), 0.0f, 8.0f));
+#endif
+
   state.camera = normalise(state.camera);
+
+  update_meshes(state.scene);
 
   state.writeframe->time = state.time;
   state.writeframe->camera = state.camera;
@@ -152,7 +182,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
       state.writeframe->meshes.push_mesh(buildstate, Transform::translation(sin(state.time), 1, -5), state.testsphere, state.defaultmaterial);
       state.writeframe->meshes.push_mesh(buildstate, Transform::translation(0, 1, -3 - sin(state.time)), state.testsphere, state.defaultmaterial);
 
-      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
+//      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
 
       for(auto &entity : state.scene.entities<MeshComponent>())
       {
@@ -209,11 +239,12 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   }
 #endif
 
+  DEBUG_ENTRY("Position", state.camera.position());
+  DEBUG_ENTRY("Exposure", state.camera.exposure());
+
   state.writeframe->resourcetoken = state.resources.token();
 
   state.writeframe = state.readyframe.exchange(state.writeframe);
-
-  update_debug_overlay(input);
 
   END_TIMED_BLOCK(Update)
 }
@@ -260,10 +291,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   if (overlay.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
     overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
-
-    char buffer[256];
-    sprintf(buffer, "%f", state.readframe->camera.exposure());
-    overlay.push_text(buildstate, Vec2(5, 400), 22, state.debugfont, buffer);
 
 //    overlay.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
 

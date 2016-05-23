@@ -27,27 +27,25 @@ class MeshStoragePrivate : public MeshComponentStorage
   public:
 
     auto &flags(size_t index) { return std::get<meshflags>(m_data)[index]; }
-    auto &entity(size_t index) { return std::get<entityid>(m_data)[index]; }
     auto &bound(size_t index) { return std::get<boundingbox>(m_data)[index]; }
     auto &mesh(size_t index) { return std::get<meshresource>(m_data)[index]; }
     auto &material(size_t index) { return std::get<materialresource>(m_data)[index]; }
 
-    size_t staticpartition() const { return m_staticpartition; }
+  public:
 
-    auto const &tree() const { return m_tree; }
+    void clear() override;
+
+    void add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags);
+
+    void remove(EntityId entity) override;
+
+    void update();
 
   public:
 
-    void clear();
-
-    void add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags);
-    void remove(EntityId entity);
-
-  private:
-
     size_t m_staticpartition;
 
-    FreeList m_freelist;
+    FreeList m_treefreelist;
 
     RTree::basic_rtree<MeshIndex, 3, RTree::box<MeshIndex>, StackAllocatorWithFreelist<>> m_tree;
 };
@@ -63,7 +61,7 @@ MeshComponentStorage::MeshComponentStorage(Scene *scene, StackAllocator<> alloca
 ///////////////////////// MeshStorage::Constructor //////////////////////////
 MeshStoragePrivate::MeshStoragePrivate(Scene *scene, allocator_type const &allocator)
   : MeshComponentStorage(scene, allocator),
-    m_tree(StackAllocatorWithFreelist<>(allocator.arena(), m_freelist))
+    m_tree(StackAllocatorWithFreelist<>(allocator.arena(), m_treefreelist))
 {
   m_staticpartition = 1;
 }
@@ -73,9 +71,10 @@ MeshStoragePrivate::MeshStoragePrivate(Scene *scene, allocator_type const &alloc
 void MeshStoragePrivate::clear()
 {
   m_tree.clear();
-  DefaultStorage::clear();
 
   m_staticpartition = 1;
+
+  DefaultStorage::clear();
 }
 
 
@@ -96,8 +95,8 @@ void MeshStoragePrivate::add(EntityId entity, Bound3 const &bound, Mesh const *m
   {
     for_each(m_data, [=](auto &v) { swap(v[index], v[m_staticpartition]); });
 
-    m_index[this->entity(index).index()] = index;
-    m_index[this->entity(m_staticpartition).index()] = m_staticpartition;
+    m_index[data<entityid>(index).index()] = index;
+    m_index[data<entityid>(m_staticpartition).index()] = m_staticpartition;
 
     index = m_staticpartition;
 
@@ -124,14 +123,12 @@ void MeshStoragePrivate::remove(EntityId entity)
   {
     auto index = m_freeslots.front();
 
-    for(auto i = index; i+1 < size(); ++i)
+    for_each(m_data, [=](auto &v) { v.erase(v.begin() + index); });
+
+    for(auto i = index; i < size(); ++i)
     {
-      for_each(m_data, [=](auto &v) { v[i] = v[i+1]; });
-
-      m_index[this->entity(i).index()] = i;
+      m_index[data<entityid>(i).index()] = i;
     }
-
-    for_each(m_data, [](auto &v) { v.resize(v.size()-1); });
 
     if (index < m_staticpartition)
       m_staticpartition -= 1;
@@ -141,12 +138,35 @@ void MeshStoragePrivate::remove(EntityId entity)
 }
 
 
+///////////////////////// MeshStorage::update ///////////////////////////////
+void MeshStoragePrivate::update()
+{
+  auto transforms = m_scene->system<TransformComponentStorage>();
+
+  for(size_t index = m_staticpartition; index < size(); ++index)
+  {
+    assert(transforms->has(data<entityid>(index)));
+
+    get<boundingbox>(m_data)[index] = transforms->world(data<entityid>(index)) * mesh(index)->bound;
+  }
+}
+
+
+///////////////////////// update_meshes /////////////////////////////////////
+void update_meshes(Scene &scene)
+{
+  auto storage = static_cast<MeshStoragePrivate*>(scene.system<MeshComponentStorage>());
+
+  storage->update();
+}
+
+
 ///////////////////////// MeshStorage::tree /////////////////////////////////
 MeshComponentStorage::iterator_pair<MeshComponentStorage::tree_iterator> MeshComponentStorage::tree() const
 {
   auto storage = static_cast<MeshStoragePrivate const*>(this);
 
-  return { storage->tree().begin(), storage->tree().end() };
+  return { storage->m_tree.begin(), storage->m_tree.end() };
 }
 
 
@@ -155,23 +175,7 @@ MeshComponentStorage::iterator_pair<Scene::EntityId const *> MeshComponentStorag
 {
   auto storage = static_cast<MeshStoragePrivate const*>(this);
 
-  return { &data<entityid>(storage->staticpartition()), &data<entityid>(0) + size() };
-}
-
-
-///////////////////////// MeshStorage::update ///////////////////////////////
-void MeshComponentStorage::update(TransformComponentStorage *transforms)
-{
-  assert(transforms);
-
-  auto storage = static_cast<MeshStoragePrivate*>(this);
-
-  for(size_t index = storage->staticpartition(); index < storage->size(); ++index)
-  {
-    assert(transforms->has(data<entityid>(index)));
-
-    get<boundingbox>(m_data)[index] = transforms->world(data<entityid>(index)) * data<meshresource>(index)->bound;
-  }
+  return { &data<entityid>(storage->m_staticpartition), &data<entityid>(0) + size() };
 }
 
 

@@ -25,6 +25,8 @@ namespace lml
       Rect2() = default;
       constexpr Rect2(Vec2 const &min, Vec2 const &max);
 
+      Vec2 dim() const { return (max - min); }
+
       Vec2 centre() const { return (min + max)/2; }
       Vec2 halfdim() const { return (max - min)/2; }
 
@@ -51,6 +53,8 @@ namespace lml
     public:
       Rect3() = default;
       constexpr Rect3(Vec3 const &min, Vec3 const &max);
+
+      Vec3 dim() const { return (max - min); }
 
       Vec3 centre() const { return (min + max)/2; }
       Vec3 halfdim() const { return (max - min)/2; }

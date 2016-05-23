@@ -24,10 +24,6 @@ class TransformStoragePrivate : public TransformComponentStorage
 
     TransformStoragePrivate(Scene *scene, allocator_type const &allocator);
 
-    virtual void clear() override;
-
-    virtual void destroyed(Scene::EntityId entity) override;
-
   public:
 
     auto &local(size_t index) { return std::get<localtransform>(m_data)[index]; }
@@ -40,15 +36,14 @@ class TransformStoragePrivate : public TransformComponentStorage
   public:
 
     void add(EntityId entity);
-    void remove(EntityId entity);
+
+    void remove(EntityId entity) override;
 
     void set_local(size_t index, Transform const &transform);
 
     void reparent(size_t index, size_t parentindex);
 
     void update(size_t index);
-
-  private:
 };
 
 
@@ -63,13 +58,6 @@ TransformComponentStorage::TransformComponentStorage(Scene *scene, StackAllocato
 TransformStoragePrivate::TransformStoragePrivate(Scene *scene, allocator_type const &allocator)
   : TransformComponentStorage(scene, allocator)
 {
-}
-
-
-///////////////////////// TransformStorage::clear ///////////////////////////
-void TransformStoragePrivate::clear()
-{
-  DefaultStorage::clear();
 }
 
 
@@ -102,16 +90,6 @@ void TransformStoragePrivate::remove(EntityId entity)
   prevsibling(nextsibling(index)) = prevsibling(index);
 
   DefaultStorage::remove(entity);
-}
-
-
-///////////////////////// TransformStorage::destroyed ///////////////////////
-void TransformStoragePrivate::destroyed(Scene::EntityId entity)
-{
-  if (has(entity))
-  {
-    remove(entity);
-  }
 }
 
 

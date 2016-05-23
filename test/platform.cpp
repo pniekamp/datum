@@ -71,6 +71,16 @@ namespace DatumPlatform
   }
 
 
+  ///////////////////////// InputBuffer::register_viewport /////////////////
+  void InputBuffer::register_viewport(int x, int y, int width, int height)
+  {
+    m_x = x;
+    m_y = y;
+    m_width = width;
+    m_height = height;
+  }
+
+
   ///////////////////////// InputBuffer::register_mousemove /////////////////
   void InputBuffer::register_mousemove(int x, int y)
   {
@@ -159,15 +169,15 @@ namespace DatumPlatform
           break;
 
         case EventType::MouseMoveX:
-          m_input.mousex = evt.data;
+          m_input.mousex = (evt.data - m_x) / (m_width - 1.0f);
           break;
 
         case EventType::MouseMoveY:
-          m_input.mousey = evt.data;
+          m_input.mousey = (evt.data - m_y) / (m_width - 1.0f);
           break;
 
         case EventType::MouseMoveZ:
-          m_input.mousez = evt.data;
+          m_input.mousez = evt.data / 120.0f;
           break;
 
         case EventType::MousePress:

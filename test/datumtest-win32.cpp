@@ -256,7 +256,7 @@ void Game::terminate()
 //|--------------------------------------------------------------------------
 
 #ifndef NDEBUG
-#define VALIDATION 1
+#define VALIDATION 0
 #endif
 
 struct Vulkan
@@ -751,6 +751,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
       window.width = (lParam & 0xffff);
       window.height = (lParam & 0xffff0000) >> 16;
+      window.game->inputbuffer().register_viewport(0, 0, window.width, window.height);
       vulkan.resize();
       break;
 
@@ -823,7 +824,7 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
   DWORD dwexstyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 
   RECT rect = { 0, 0, width, height };
-  AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, dwexstyle);
+  AdjustWindowRectEx(&rect, dwstyle, FALSE, dwexstyle);
 
   hwnd = CreateWindowEx(dwexstyle, "DatumTest", "Datum Test", dwstyle, CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hinstance, NULL);
 
