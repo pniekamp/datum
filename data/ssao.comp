@@ -13,14 +13,14 @@ layout(local_size_x = SIZEX, local_size_y = SIZEY) in;
 #define NOISE_SIZE 16
 #define KERNEL_SIZE 16
 
-layout(std430, set=0, binding=0) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
-  layout(row_major) mat4 proj;
-  layout(row_major) mat4 invproj;
-  layout(row_major) mat4 view;
-  layout(row_major) mat4 invview;
-  layout(row_major) mat4 prevview;
-  layout(row_major) mat4 skyview;
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 prevview;
+  mat4 skyview;
   
   Camera camera;
 

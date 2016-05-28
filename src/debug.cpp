@@ -104,9 +104,9 @@ namespace
       alignas(alignof(max_align_t)) char min_[256];
       alignas(alignof(max_align_t)) char max_[256];
 
-      template<typename T> T &value() { return *(T*)value_; }
-      template<typename T> T &min() { return *(T*)min_; }
-      template<typename T> T &max() { return *(T*)max_; }
+      template<typename T> T &value() { union { T*a; char*b; } p; p.b = value_; return *p.a; }
+      template<typename T> T &min() { union { T*a; char*b; } p; p.b = min_; return *p.a; }
+      template<typename T> T &max() { union { T*a; char*b; } p; p.b = max_; return *p.a; }
 
     } entries[64];
 

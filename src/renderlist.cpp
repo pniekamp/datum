@@ -90,3 +90,21 @@ void RenderList::push_sprites(DatumPlatform::Viewport const &viewport, SpriteLis
 {
   push_sprites(Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height)), sprites);
 }
+
+
+///////////////////////// RenderList::push_environment //////////////////////
+void RenderList::push_environment(Vec3 const &dimension, Transform const &transform, EnvMap const *envmap)
+{
+  if (envmap)
+  {
+    auto entry = m_buffer.push<Renderable::Environment>();
+
+    if (entry)
+    {
+      entry->dimension = dimension;
+      entry->transform = transform;
+      entry->envmap = envmap;
+    }
+  }
+
+}

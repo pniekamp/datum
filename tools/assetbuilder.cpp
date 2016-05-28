@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <cassert>
 #include "hdr.h"
+#include "ibl.h"
 #include "glslang.h"
 #include "assetpacker.h"
 #include "atlaspacker.h"
@@ -92,24 +93,17 @@ namespace
     {
       auto normal = Vec3(vertices[i].normal[0], vertices[i].normal[1], vertices[i].normal[2]);
 
-      if (normsqr(tan1[i]) == 0)
-        tan1[i] = cross(normal, Vec3(vertices[i].normal[1], -vertices[i].normal[2], vertices[i].normal[0]));
+      auto tangent = tan1[i];
+      auto binormal = tan2[i];
 
-      if (normsqr(tan2[i]) == 0)
-        tan2[i] = cross(normal, tan1[i]);
-
-      if (normsqr(tan1[i] - normal * dot(normal, tan1[i])) == 0)
-        tan1[i] = cross(normal, tan2[i]);
-
-      auto tangent = normalise(tan1[i] - normal * dot(normal, tan1[i]));
+      orthonormalise(normal, tangent, binormal);
 
       vertices[i].tangent[0] = tangent.x;
       vertices[i].tangent[1] = tangent.y;
       vertices[i].tangent[2] = tangent.z;
-      vertices[i].tangent[3] = (dot(cross(normal, tan1[i]), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
+      vertices[i].tangent[3] = (dot(binormal, tan2[i]) < 0.0f) ? -1.0f : 1.0f;
     }
   }
-
 }
 
 
@@ -412,11 +406,28 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, string const &path)
   int width = 512;
   int height = 512;
   int layers = 6;
+  int levels = 8;
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  image_pack_cube_ibl(image, width, height, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+
+  return id + 1;
+}
+
+
+uint32_t write_envbrdf_asset(ostream &fout, uint32_t id)
+{
+  int width = 256;
+  int height = 256;
+  int layers = 1;
   int levels = 1;
 
   vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
 
-  image_pack_cubemap(image, width, height, levels, payload.data());
+  image_pack_envbrdf(width, height, payload.data());
 
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
@@ -671,13 +682,12 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/ssao.comp");
 
+  write_envbrdf_asset(fout, CoreAsset::envbrdf_lut);
   write_shader_asset(fout, CoreAsset::lighting_comp, "../../data/lighting.comp");
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
-//  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
-//  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
-  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
+  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");

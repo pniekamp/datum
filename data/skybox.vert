@@ -5,14 +5,14 @@ layout(location=1) in vec2 vertex_texcoord;
 layout(location=2) in vec3 vertex_normal;
 layout(location=3) in vec4 vertex_tangent;
 
-layout(std430, set=0, binding=0) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
-  layout(row_major) mat4 proj;
-  layout(row_major) mat4 invproj;
-  layout(row_major) mat4 view;
-  layout(row_major) mat4 invview;
-  layout(row_major) mat4 prevview;
-  layout(row_major) mat4 skyview;
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 prevview;
+  mat4 skyview;
   
 } scene;
 

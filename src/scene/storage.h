@@ -173,6 +173,8 @@ void DefaultStorage<Types...>::add(EntityId entity)
   {
     index = m_freeslots.front();
 
+    for_each(m_data, [=](auto &v) { v[index] = {}; });
+
     m_freeslots.pop_front();
   }
   else

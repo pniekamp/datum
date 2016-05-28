@@ -27,7 +27,6 @@ namespace lml
       static constexpr Transform identity();
       static constexpr Transform rotation(Quaternion3f const &quaternion);
       static constexpr Transform rotation(Vec3 const &axis, float angle);
-      static constexpr Transform rotation(Vec3 const &u, Vec3 const &v);
       static constexpr Transform translation(Vec3 const &vector);
       static constexpr Transform translation(float x, float y, float z);
       static Transform lookat(Vec3 const &eye, Vec3 const &target, Vec3 const &up);
@@ -63,12 +62,6 @@ namespace lml
     return { Quaternion3f({axis.x, axis.y, axis.z}, angle), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
-
-  //////////////////////// Transform::rotation //////////////////////////////
-  constexpr Transform Transform::rotation(Vec3 const &u, Vec3 const &v)
-  {
-    return { leap::lml::rotation(u, v), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
-  }
 
   //////////////////////// Transform::translation ///////////////////////////
   constexpr Transform Transform::translation(Vec3 const &vector)
@@ -166,7 +159,7 @@ namespace lml
   inline Transform Transform::lookat(Vec3 const &eye, Vec3 const &target, Vec3 const &up)
   {
     auto zaxis = normalise(eye - target);
-    auto xaxis = normalise(cross(up, zaxis));
+    auto xaxis = normalise(orthogonal(up, zaxis));
     auto yaxis = cross(zaxis, xaxis);
 
     return Transform::translation(eye) * Transform::rotation(Quaternion3f(Vector3(xaxis.x, xaxis.y, xaxis.z), Vector3(yaxis.x, yaxis.y, yaxis.z), Vector3(zaxis.x, zaxis.y, zaxis.z)));

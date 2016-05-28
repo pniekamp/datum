@@ -1,6 +1,6 @@
 #version 450 core
 
-layout(std430, set=1, binding=0) buffer MaterialSet 
+layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
 {
   vec4 tint;
   vec4 texcoords;

@@ -256,7 +256,7 @@ void Game::terminate()
 //|--------------------------------------------------------------------------
 
 #ifndef NDEBUG
-#define VALIDATION 0
+#define VALIDATION 1
 #endif
 
 struct Vulkan

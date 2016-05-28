@@ -17,20 +17,29 @@ using namespace leap;
 //|--------------------------------------------------------------------------
 
 //|///////////////////// sample /////////////////////////////////////////////
+Color4 HDRImage::sample(int i, int j) const
+{
+  return bits[j * width + i];
+}
+
+
+//|///////////////////// sample /////////////////////////////////////////////
 Color4 HDRImage::sample(Vec2 const &texcoords) const
 {
-  auto u = fmod2(texcoords.x, 1.0f);
-  auto v = fmod2(texcoords.y, 1.0f);
+  float i, j;
+  auto u = modf(fmod2(texcoords.x, 1.0f) * (width - 1), &i);
+  auto v = modf(fmod2(texcoords.y, 1.0f) * (height - 1), &j);
 
-  return bits[(floor(v * (height - 1) + 0.5f))*width + floor(u * (width - 1) + 0.5f)];
+  return lerp(lerp(sample(i, j), sample(i+1, j), u), lerp(sample(i, j+1), sample(i+1, j+1), u), v);
+
 }
 
 
 //|///////////////////// sample /////////////////////////////////////////////
 Color4 HDRImage::sample(Vec2 const &texcoords, Vec2 const &area) const
 {
-  auto n = 0;
-  auto sum = Color4(0, 0, 0, 0);
+  Color4 sum(0, 0, 0);
+  float totalweight = 0;
 
   for(float y = texcoords.y - 0.5*area.y; y < texcoords.y + 0.5*area.y; y += 1.0f/height)
   {
@@ -38,11 +47,11 @@ Color4 HDRImage::sample(Vec2 const &texcoords, Vec2 const &area) const
     {
       sum += sample(Vec2(x, y));
 
-      ++n;
+      totalweight += 1.0f;
     }
   }
 
-  return sum / n;
+  return sum / totalweight;
 }
 
 
@@ -155,12 +164,12 @@ HDRImage load_hdr(string const &path)
 }
 
 
-///////////////////////// image_blend_cubemap ///////////////////////////////
-void image_blend_cubemap(int width, int height, int levels, void *bits)
+///////////////////////// image_blend_edges /////////////////////////////////
+void image_blend_edges(int width, int height, int levels, void *bits)
 {
   uint32_t *img = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
 
-  for(int level = 0; level < levels; ++level)
+  for(int level = 0; level < levels && width > 1 && height > 1; ++level)
   {
     auto tex = [=](int x, int y, int z) -> uint32_t& { return *(img + z*width*height + y*width + x); };
 
@@ -304,9 +313,17 @@ void image_blend_cubemap(int width, int height, int levels, void *bits)
 }
 
 
+///////////////////////// image_buildmips_cube //////////////////////////////
+void image_buildmips_cube(int width, int height, int levels, void *bits)
+{
+  image_buildmips_rgbe(width, height, 6, levels, bits);
 
-///////////////////////// image_pack_cubemap ////////////////////////////////
-void image_pack_cubemap(HDRImage const &image, int width, int height, int levels, void *bits)
+  image_blend_edges(width, height, levels, bits);
+}
+
+
+///////////////////////// image_pack_cube ///////////////////////////////////
+void image_pack_cube(HDRImage const &image, int width, int height, int levels, void *bits)
 {
   uint32_t *dst = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
 
@@ -328,12 +345,10 @@ void image_pack_cubemap(HDRImage const &image, int width, int height, int levels
     {
       for(int x = 0; x < width; ++x)
       {
-        *dst++ = rgbe(image.sample(transform * normalise(Vec3(2 * x * 1.0f/width - 1, 2 * y * 1.0f/height - 1, 1.0)), area));
+        *dst++ = rgbe(image.sample(transform * normalise(Vec3(2 * (x + 0.5f)/width - 1, 2 * (y + 0.5f)/height - 1, 1.0)), area));
       }
     }
   }
 
-  image_buildmips_rgbe(width, height, 6, levels, bits);
-
-  image_blend_cubemap(width, height, levels, bits);
+  image_buildmips_cube(width, height, levels, bits);
 }

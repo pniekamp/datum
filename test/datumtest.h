@@ -49,6 +49,7 @@ struct GameState
   Mesh const *testplane;
   Mesh const *testsphere;
   Sprite const *testimage;
+  EnvMap const *testenvmap;
 
   // Render Frames
 

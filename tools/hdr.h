@@ -21,6 +21,8 @@ class HDRImage
 
     std::vector<lml::Color4> bits;
 
+    lml::Color4 sample(int i, int j) const;
+
     lml::Color4 sample(lml::Vec2 const &texcoords) const;
     lml::Color4 sample(lml::Vec3 const &texcoords) const;
 
@@ -30,4 +32,6 @@ class HDRImage
 
 HDRImage load_hdr(std::string const &path);
 
-void image_pack_cubemap(HDRImage const &image, int width, int height, int levels, void *bits);
+void image_buildmips_cube(int width, int height, int levels, void *bits);
+
+void image_pack_cube(HDRImage const &image, int width, int height, int levels, void *bits);

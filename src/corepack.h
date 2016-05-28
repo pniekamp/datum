@@ -26,6 +26,7 @@ namespace CoreAsset
     geometry_vert,
     geometry_frag,
     ssao_comp,
+    envbrdf_lut,
     lighting_comp,
     skybox_vert,
     skybox_frag,

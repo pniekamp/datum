@@ -4,9 +4,9 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3*NSLICES) out;
 
-layout(std430, set=0, binding=0) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
-  layout(row_major) mat4 shadowview[NSLICES];
+  mat4 shadowview[NSLICES];
 
 } scene;
 

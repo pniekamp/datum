@@ -16,6 +16,7 @@
 #include "resourcepool.h"
 #include "commandlist.h"
 #include "skybox.h"
+#include "envmap.h"
 #include <tuple>
 
 
@@ -28,7 +29,8 @@ namespace Renderable
     Sprites,
     Meshes,
     Casters,
-    Lights
+    Lights,
+    Environment,
   };
 
   using Vec2 = lml::Vec2;
@@ -68,6 +70,15 @@ namespace Renderable
     static const Type type = Type::Lights;
 
     CommandList const *commandlist;
+  };
+
+  struct Environment
+  {
+    static const Type type = Type::Environment;
+
+    Vec3 dimension;
+    Transform transform;
+    EnvMap const *envmap;
   };
 }
 
@@ -217,18 +228,22 @@ struct RenderContext
   Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass renderpass;
 
-  Vulkan::Texture ssao[2];
+  Vulkan::Texture envbrdf;
+
+  bool ssao;
+  Vulkan::Texture ssaobuffers[2];
   lml::Vec4 ssaonoise[16];
   lml::Vec4 ssaokernel[16];
   Vulkan::DescriptorSet ssaotarget;
 
-  size_t scenesetoffsets[2];
-  Vulkan::DescriptorSet sceneset;
+  size_t sceneoffsets[2];
+  Vulkan::DescriptorSet scenedescriptors[2];
 
-  Vulkan::DescriptorSet skyboxbuffers[2];
+  Vulkan::DescriptorSet skyboxdescriptors[2];
   Vulkan::CommandBuffer skyboxcommands[2];
 
-  Vulkan::DescriptorSet bloombuffer;
+  bool bloom;
+  Vulkan::DescriptorSet bloomdescriptor;
   Vulkan::CommandBuffer bloomblendcommands;
 
   Vulkan::DescriptorSet scratchtargets[2];
@@ -274,6 +289,9 @@ struct RenderContext
 
 struct RenderParams
 {
+  int width = 1280;
+  int height = 720;
+
   lml::Vec3 sundirection = { -0.57735, -0.57735, -0.57735 };
   lml::Color3 sunintensity = { 1.0f, 1.0f, 1.0f };
 

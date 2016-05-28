@@ -201,7 +201,7 @@ void debug_menu_entry(const char *name, T const &value);
 template<typename T>
 T debug_menu_value(const char *name, T const &value, T const &min, T const &max);
 
-#define DEBUG_ENTRY(name, value) \
+#define DEBUG_MENU_ENTRY(name, value) \
   debug_menu_entry(name, value);
 
 //
@@ -226,7 +226,7 @@ void render_debug_overlay(DatumPlatform::PlatformInterface &platform, class Rend
 #define RESOURCE_RELEASE(...)
 #define STATISTIC_HIT(...)
 #define LOG_ONCE(...)
-#define DEBUG_ENTRY(...)
+#define DEBUG_MENU_ENTRY(...)
 #define update_debug_overlay(...)
 #define render_debug_overlay(...)
 #endif

@@ -95,24 +95,19 @@ namespace
     {
       auto normal = Vec3(vertices[i].normal[0], vertices[i].normal[1], vertices[i].normal[2]);
 
-      if (normsqr(tan1[i]) == 0)
-        tan1[i] = cross(normal, Vec3(vertices[i].normal[1], -vertices[i].normal[2], vertices[i].normal[0]));
+      auto tangent = tan1[i];
+      auto binormal = tan2[i];
 
-      if (normsqr(tan2[i]) == 0)
-        tan2[i] = cross(normal, tan1[i]);
-
-      if (normsqr(tan1[i] - normal * dot(normal, tan1[i])) == 0)
-        tan1[i] = cross(normal, tan2[i]);
-
-      auto tangent = normalise(tan1[i] - normal * dot(normal, tan1[i]));
+      orthonormalise(normal, tangent, binormal);
 
       vertices[i].tangent[0] = tangent.x;
       vertices[i].tangent[1] = tangent.y;
       vertices[i].tangent[2] = tangent.z;
-      vertices[i].tangent[3] = (dot(cross(normal, tan1[i]), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
+      vertices[i].tangent[3] = (dot(binormal, tan2[i]) < 0.0f) ? -1.0f : 1.0f;
     }
   }
 }
+
 
 uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, string const &mask)
 {
@@ -303,6 +298,8 @@ void write_model(string const &filename)
 
     uint32_t normalmap;
 
+    float disolve;
+
     string albedobase;
     string albedomask;
   };
@@ -444,7 +441,7 @@ void write_model(string const &filename)
 
       if (fields[0] == "newmtl")
       {
-        materials.push_back({ fields[1], Color3(1.0f, 1.0f, 1.0f), 0, Color3(0.5f, 0.5f, 0.5f), 60.0f, 0 });
+        materials.push_back({ fields[1], Color3(1.0f, 1.0f, 1.0f), 0, Color3(0.5f, 0.5f, 0.5f), 60.0f, 0, 0, 1.0f });
 
         material = &materials.back();
 
@@ -506,6 +503,11 @@ void write_model(string const &filename)
           material->albedocolor = Color3(1, 1, 1);
       }
 
+      if (fields[0] == "d")
+      {
+        material->disolve = ato<float>(fields[1]);
+      }
+
       if (fields[0] == "map_Ks")
       {
         textures.push_back({ PackModelPayload::Texture::specularmap, fields[1], material->albedobase });
@@ -536,6 +538,8 @@ void write_model(string const &filename)
   // Post Process
 
   cout << "  Procesing: " << "Scale " << gScale << ", Tangents, Draw Order" << endl;
+
+  meshes.erase(remove_if(meshes.begin(), meshes.end(), [&](auto &mesh) { return materials[mesh.material].disolve < 0.5; }), meshes.end());
 
   for(auto &mesh : meshes)
   {

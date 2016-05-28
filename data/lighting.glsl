@@ -19,6 +19,16 @@ struct PointLight
 };
 
 
+//----------------------- Environment ---------------------------------------
+//---------------------------------------------------------------------------
+
+struct Environment
+{
+  vec4 rotation;
+  mat4 clipview;
+};
+
+
 //----------------------- Poisson Disk --------------------------------------
 //---------------------------------------------------------------------------
 
@@ -43,13 +53,13 @@ const vec2 PoissonDisk[8] = {
 ///////////////////////// poisson ///////////////////////////////////////////
 float poisson(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
 {
-  vec2 texelsize = 1.0 / textureSize(shadowmap, 0).xy;
+  vec2 texelsize = spread / textureSize(shadowmap, 0).xy;
 
   float sum = 0.0;
 
   for(int k = 0; k < 8; ++k)
   {
-    sum += texture(shadowmap, vec4(texel.xy + spread*PoissonDisk[k]*texelsize, texel.z, texel.w));
+    sum += texture(shadowmap, vec4(texel.xy + PoissonDisk[k]*texelsize, texel.z, texel.w));
   }
 
   return sum / 8;

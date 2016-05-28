@@ -1,5 +1,5 @@
 //
-// Datum - skybox
+// Datum - envmap
 //
 
 //
@@ -12,13 +12,13 @@
 #include "texture.h"
 
 
-//|---------------------- Skybox --------------------------------------------
+//|---------------------- EnvMap --------------------------------------------
 //|--------------------------------------------------------------------------
 
-class Skybox
+class EnvMap
 {
   public:
-    friend Skybox const *ResourceManager::create<Skybox>(Asset const *asset);
+    friend EnvMap const *ResourceManager::create<EnvMap>(Asset const *asset);
 
     bool ready() const { return (state == State::Ready); }
 
@@ -38,5 +38,5 @@ class Skybox
     std::atomic<State> state;
 
   private:
-    Skybox() = default;
+    EnvMap() = default;
 };

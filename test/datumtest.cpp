@@ -62,30 +62,9 @@ void datumtest_init(PlatformInterface &platform)
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
 
-  state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
-
-#if 1
-  state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
-
-  auto light1 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light1, Transform::translation(Vec3(4.85,1.45,1.45)));
-  state.scene.add_component<PointLightComponent>(light1, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
-
-  auto light2 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light2, Transform::translation(Vec3(4.85,1.45,-2.20)));
-  state.scene.add_component<PointLightComponent>(light2, Color3(1, 0.3, 0), Attenuation(0.4f, 0.0f, 1.0f));
-
-  auto light3 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light3, Transform::translation(Vec3(-6.20,1.45,-2.20)));
-  state.scene.add_component<PointLightComponent>(light3, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
-
-  auto light4 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light4, Transform::translation(Vec3(-6.20,1.45,1.45)));
-  state.scene.add_component<PointLightComponent>(light4, Color3(1, 0.4, 0), Attenuation(0.4f, 0.0f, 1.0f));
+  state.testenvmap = state.resources.create<EnvMap>(state.assets.find(CoreAsset::default_skybox));
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
-  state.camera.lookat(Vec3(1, 1, 0), Vec3(0, 1, 0));
-#endif
 }
 
 
@@ -158,8 +137,6 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
       state.writeframe->casters.push_mesh(buildstate, Transform::translation(sin(state.time), 1, -5), state.testsphere, state.defaultmaterial);
       state.writeframe->casters.push_mesh(buildstate, Transform::translation(0, 1, -3 - sin(state.time)), state.testsphere, state.defaultmaterial);
 
-      state.writeframe->casters.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
-
       for(auto &entity : state.scene.entities<MeshComponent>())
       {
         auto instance = state.scene.get_component<MeshComponent>(entity);
@@ -182,7 +159,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
       state.writeframe->meshes.push_mesh(buildstate, Transform::translation(sin(state.time), 1, -5), state.testsphere, state.defaultmaterial);
       state.writeframe->meshes.push_mesh(buildstate, Transform::translation(0, 1, -3 - sin(state.time)), state.testsphere, state.defaultmaterial);
 
-//      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
+      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
 
       for(auto &entity : state.scene.entities<MeshComponent>())
       {
@@ -239,8 +216,8 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   }
 #endif
 
-  DEBUG_ENTRY("Position", state.camera.position());
-  DEBUG_ENTRY("Exposure", state.camera.exposure());
+  DEBUG_MENU_ENTRY("Position", state.camera.position());
+  DEBUG_MENU_ENTRY("Exposure", state.camera.exposure());
 
   state.writeframe->resourcetoken = state.resources.token();
 
@@ -266,6 +243,11 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   if (!state.skybox->ready())
   {
     state.resources.request(platform, state.skybox);
+  }
+
+  if (!state.testenvmap->ready())
+  {
+    state.resources.request(platform, state.testenvmap);
   }
 
   while (state.readyframe.load()->time <= state.readframe->time)
@@ -300,6 +282,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderlist.push_sprites(viewport, overlay);
 #endif
 
+//  renderlist.push_environment(Vec3(2, 2, 2), Transform::translation(3, 0, 2) * Transform::rotation(Vec3(0, 1, 0), 1), state.testenvmap);
+
 #ifdef DEBUG
   if (state.rendercontext.frame % 600 == 0)
   {
@@ -310,13 +294,17 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     cout << "Entities: " << g_debugstatistics.entityslotsused << " / " << g_debugstatistics.entityslotscapacity << "  ";
     cout << endl;
   }
-#endif
+#endif 
 
   RenderParams renderparams;
+  renderparams.width = viewport.width;
+  renderparams.height = viewport.height;
   renderparams.skybox = state.skybox;
   renderparams.sundirection = normalise(Vec3(0.4, -1, -0.1));
   renderparams.sunintensity = Color3(5, 5, 5);
   renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), 0.1*state.readframe->time);
+
+  DEBUG_MENU_ENTRY("Sun Direction", renderparams.sundirection = normalise(debug_menu_value("Sun Direction", renderparams.sundirection, Vec3(-1), Vec3(1))))
 
   render_debug_overlay(platform, state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);
 

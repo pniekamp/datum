@@ -826,6 +826,21 @@ namespace Vulkan
 
 
   ///////////////////////// updatetexture ///////////////////////////////////
+  void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
+  {
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = binding;
+    writeset.descriptorCount = count;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writeset.pImageInfo = imageinfos;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
+
+
+  ///////////////////////// updatetexture ///////////////////////////////////
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler)
   {
     VkDescriptorImageInfo imageinfo = {};
@@ -833,15 +848,7 @@ namespace Vulkan
     imageinfo.imageView = imageview;
     imageinfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    VkWriteDescriptorSet writeset = {};
-    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeset.dstSet = descriptorset;
-    writeset.dstBinding = binding;
-    writeset.descriptorCount = 1;
-    writeset.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writeset.pImageInfo = &imageinfo;
-
-    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+    bindtexture(vulkan, descriptorset, binding, &imageinfo, 1);
   }
 
 

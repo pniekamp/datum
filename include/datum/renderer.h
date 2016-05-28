@@ -11,4 +11,5 @@
 #include "../../src/renderer/casterlist.h"
 #include "../../src/renderer/lightlist.h"
 #include "../../src/renderer/skybox.h"
+#include "../../src/renderer/envmap.h"
 #include "../../src/renderlist.h"

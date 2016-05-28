@@ -11,7 +11,7 @@ find_package(Qt5Gui REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-set(SRCS ${SRCS} atlaspacker.h assetpacker.h assetpacker.cpp bc3.h bc3.cpp hdr.h hdr.cpp glslang.h glslang.cpp)
+set(SRCS ${SRCS} atlaspacker.h assetpacker.h assetpacker.cpp bc3.h bc3.cpp hdr.h hdr.cpp ibl.h ibl.cpp glslang.h glslang.cpp)
 
 #
 # embed
