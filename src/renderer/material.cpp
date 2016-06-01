@@ -54,7 +54,7 @@ Material const *ResourceManager::create<Material>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Material const *ResourceManager::create<Material>(Color3 albedocolor, Texture const *albedomap, Color3 specularintensity, float specularexponent, Texture const *specularmap, Texture const *normalmap)
+Material const *ResourceManager::create<Material>(Color3 color, float metalness, float smoothness)
 {
   auto slot = acquire_slot(sizeof(Material));
 
@@ -65,10 +65,38 @@ Material const *ResourceManager::create<Material>(Color3 albedocolor, Texture co
 
   material->flags = 0;
 
-  material->albedocolor = albedocolor;
+  material->color = color;
+  material->albedomap = nullptr;
+  material->metalness = metalness;
+  material->smoothness = smoothness;
+  material->reflectivity = 0.5f;
+  material->specularmap = nullptr;
+  material->normalmap = nullptr;
+
+  material->state = Material::State::Waiting;
+
+  set_slothandle(slot, nullptr);
+
+  return material;
+}
+
+template<>
+Material const *ResourceManager::create<Material>(Color3 color, float metalness, float smoothness, float reflectivity, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
+{
+  auto slot = acquire_slot(sizeof(Material));
+
+  if (!slot)
+    return nullptr;
+
+  auto material = new(slot) Material;
+
+  material->flags = 0;
+
+  material->color = color;
   material->albedomap = albedomap;
-  material->specularintensity = specularintensity;
-  material->specularexponent = specularexponent;
+  material->metalness = metalness;
+  material->smoothness = smoothness;
+  material->reflectivity = reflectivity;
   material->specularmap = specularmap;
   material->normalmap = normalmap;
 
@@ -102,7 +130,11 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
       {
         auto material = reinterpret_cast<PackMaterialPayload const *>(bits);
 
-        slot->albedocolor = Color3(material->albedocolor[0], material->albedocolor[1], material->albedocolor[2]);
+        slot->color = Color3(material->color[0], material->color[1], material->color[2]);
+
+        slot->metalness = material->metalness;
+        slot->smoothness = material->smoothness;
+        slot->reflectivity = material->reflectivity;
 
         if (material->albedomap)
         {
@@ -110,9 +142,6 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
 
           slot->flags |= MaterialOwnsAlbedoMap;
         }
-
-        slot->specularintensity = Color3(material->specularintensity[0], material->specularintensity[1], material->specularintensity[2]);
-        slot->specularexponent = material->specularexponent;
 
         if (material->specularmap)
         {

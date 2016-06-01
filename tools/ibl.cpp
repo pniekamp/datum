@@ -114,10 +114,10 @@ namespace
     return NdotV / (NdotV * (1.0f - k) + k);
   }
 
-  Vec3 importancesample(Vec2 xi, float alpha, Vec3 normal)
+  Vec3 importancesampleGGX(Vec2 u, float alpha, Vec3 normal)
   {
-    float phi = 2*pi<float>() * xi.x;
-    float costheta = sqrt((1 - xi.y) / (1 + (alpha*alpha - 1) * xi.y));
+    float phi = 2*pi<float>() * u.x;
+    float costheta = sqrt((1 - u.y) / (1 + (alpha*alpha - 1) * u.y));
     float sintheta = sqrt(1 - costheta*costheta);
 
     Vec3 up = abs(normal.z) < 0.999 ? Vec3(0,0,1) : Vec3(1,0,0);
@@ -139,8 +139,8 @@ namespace
 
     for(int i = 0; i < kSamples; ++i)
     {
-      Vec2 xi = hammersley(i, kSamples);
-      Vec3 H = importancesample(xi, roughness * roughness, N);
+      Vec2 u = hammersley(i, kSamples);
+      Vec3 H = importancesampleGGX(u, roughness * roughness, N);
       Vec3 L = 2 * dot(V, H) * H - V;
 
       float NdotL = clamp(dot(N, L), 0.0f, 1.0f);
@@ -162,12 +162,13 @@ namespace
 
     Vec3 V = Vec3(sqrt(1.0f - NdotV * NdotV), 0.0f, NdotV);
 
-    float A = 0;
-    float B = 0;
+    float a = 0;
+    float b = 0;
+
     for(int i = 0; i < kSamples; ++i)
     {
-      Vec2 xi = hammersley(i, kSamples);
-      Vec3 H = importancesample(xi, roughness * roughness, Vec3(0, 0, 1));
+      Vec2 u = hammersley(i, kSamples);
+      Vec3 H = importancesampleGGX(u, roughness * roughness, Vec3(0, 0, 1));
       Vec3 L = 2 * dot(V, H) * H - V;
 
       float NdotL = clamp(L.z, 0.0f, 1.0f);
@@ -177,15 +178,15 @@ namespace
       if (NdotL > 0)
       {
         float G = GGX(NdotL, roughness * roughness) * GGX(NdotV, roughness * roughness);
-        float G_vis = G * VdotH / (NdotH * NdotV);
+        float Vis = G * VdotH / (NdotH * NdotV);
         float Fc = pow(1 - VdotH, 5);
 
-        A += (1 - Fc) * G_vis;
-        B += Fc * G_vis;
+        a += (1 - Fc) * Vis;
+        b += Fc * Vis;
       }
     }
 
-    return Vec2(A, B) / kSamples;
+    return Vec2(a, b) / kSamples;
   }
 }
 
@@ -249,8 +250,8 @@ void image_pack_envbrdf(int width, int height, void *bits)
   {
     for(int x = 0; x < width; ++x)
     {
-      float roughness = 1.0f - (y + 0.5f) / height;
       float NdotV = (x + 0.5f) / width;
+      float roughness = 1 - (y + 0.5f) / height;
 
       auto lut = integrate(roughness, NdotV);
 

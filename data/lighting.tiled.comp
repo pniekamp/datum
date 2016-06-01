@@ -1,8 +1,8 @@
 #version 450 core
 #include "bound.glsl"
 #include "camera.glsl"
-#include "transform.glsl"
 #include "gbuffer.glsl"
+#include "transform.glsl"
 #include "lighting.glsl"
 
 #define SIZE 16
@@ -35,14 +35,14 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2DArray albedomap;
-layout(set=0, binding=2) uniform sampler2DArray specularmap;
+layout(set=0, binding=1) uniform sampler2DArray rt0map;
+layout(set=0, binding=2) uniform sampler2DArray rt1map;
 layout(set=0, binding=3) uniform sampler2DArray normalmap;
 layout(set=0, binding=4) uniform sampler2DArray depthmap;
 layout(set=0, binding=5) uniform sampler2DArray ssaomap;
 layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
 layout(set=0, binding=7) uniform samplerCube envmap[6];
-layout(set=0, binding=8) uniform sampler2DArray envbrdf;
+layout(set=0, binding=8) uniform sampler2DArray envbrdfmap;
 
 layout(set=3, binding=0) writeonly uniform image2D dest;
 
@@ -66,7 +66,7 @@ float asfloat(uint value)
 {
   return float(value) / float(0x7F7FFFFF);
 }
-
+  
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 { 
@@ -149,41 +149,51 @@ void main(void)
   vec3 position = world_position(scene.invview, scene.proj, scene.invproj, xy, viewport, depth);
   vec3 normal = world_normal(texelFetch(normalmap, ivec3(xy, 0), 0).xyz);
   vec3 eyevec = normalize(scene.camera.position - position);
-  
-  vec4 albedocolor = texelFetch(albedomap, ivec3(xy, 0), 0);
-  vec4 specularcolor = texelFetch(specularmap, ivec3(xy, 0), 0);
 
-  float specularexponent = 1000.0 * specularcolor.w;
+  Material material = unpack_material(texelFetch(rt0map, ivec3(xy, 0), 0), texelFetch(rt1map, ivec3(xy, 0), 0)); 
 
   float ambientocclusion = ambient_intensity(scene.mainlight, ssaomap, vec2(xy)/viewport);
 
   float mainlightshadow = shadow_intensity(scene.mainlight, scene.shadowview, shadowmap, position, normal);
 
+  vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.smoothness, 0.0)).rg;
+  
+  vec3 envdiffuse = vec3(0);
+  vec3 envspecular = vec3(0);
+
+  vec3 diffusedirection = dffuse_dominantdirection(normal, eyevec, material.smoothness);
+  vec3 speculardirection = specular_dominantdirection(normal, reflect(-eyevec, normal), material.smoothness);
+
   for(uint i = 0, end = scene.environmentcount; i < end; ++i)
   {
-    vec4 ll = scene.environments[i].clipview * vec4(position, 1);
+    vec3 localpos = transform_multiply(scene.environments[i].invtransform, position);
+    vec3 localdir = quaternion_multiply(scene.environments[i].invtransform.real, speculardirection);
     
-    if (ll.x > -1 && ll.x < 1 && ll.y > -1 && ll.y < 1 && ll.z > -1 && ll.z < 1)
+    vec2 hittest = intersections(localpos, localdir, scene.environments[i].halfdim);
+    
+    if (hittest.y > hittest.x)
     {
-      specularcolor.rgb *= texture(envmap[i], quaternion_multiply(scene.environments[i].rotation, reflect(-eyevec, normal)) * vec3(1, -1, -1)).rgb;
-    
+      envdiffuse = textureLod(envmap[i], diffusedirection * vec3(1, -1, -1), 6.3).rgb;
+      envspecular = textureLod(envmap[i], (localpos + hittest.y * localdir) * vec3(1, -1, -1), (1 - material.smoothness) * 8.0).rgb;
       break;
     }
   }
-  
+
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
-
-  main_light(diffuse, specular, scene.mainlight, normal, eyevec, albedocolor.rgb, specularcolor.rgb, specularexponent, ambientocclusion, mainlightshadow);
-
+  
+  env_light(diffuse, specular, material, envdiffuse, envspecular, envbrdf);
+  
+  main_light(diffuse, specular, scene.mainlight, normal, eyevec, material, ambientocclusion, mainlightshadow);
+  
   for(uint i = 0, end = min(pln[nf], MAX_TILE_LIGHTS); i < end; ++i)
   {
     PointLight pointlight = scene.pointlights[plids[nf][i]];
 
-    point_light(diffuse, specular, pointlight, position, normal, eyevec, albedocolor.rgb, specularcolor.rgb, specularexponent);
+    point_light(diffuse, specular, pointlight, position, normal, eyevec, material);
   }
 
-  vec3 fragcolor = diffuse + specular;
+  vec3 fragcolor = diffuse * material.diffuse + specular;
 
-  imageStore(dest, xy, vec4(tonemap(scene.camera.exposure * fragcolor), 1.0));
+  imageStore(dest, xy, vec4(tonemap(scene.camera.exposure * fragcolor), 1));
 }

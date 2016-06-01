@@ -118,14 +118,13 @@ struct PackMaterialHeader
 
 struct PackMaterialPayload
 {
-  float albedocolor[3];
+  float color[3];
+  float metalness;
+  float smoothness;
+  float reflectivity;
+
   uint32_t albedomap;
-
-  float specularintensity[3];
-  float specularexponent;
-
   uint32_t specularmap;
-
   uint32_t normalmap;
 };
 
@@ -150,14 +149,13 @@ struct PackModelPayload
 
   struct Material
   {
-    float albedocolor[3];
+    float color[3];
+    float metalness;
+    float smoothness;
+    float reflectivity;
+
     uint32_t albedomap;
-
-    float specularintensity[3];
-    float specularexponent;
-
     uint32_t specularmap;
-
     uint32_t normalmap;
   };
 

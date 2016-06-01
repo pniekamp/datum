@@ -490,7 +490,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter, VkSamplerAddressMode addressmode)
   {
     Texture texture = {};
 
@@ -518,12 +518,12 @@ namespace Vulkan
 
     VkSamplerCreateInfo samplerinfo = {};
     samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerinfo.magFilter = VK_FILTER_LINEAR;
-    samplerinfo.minFilter = VK_FILTER_LINEAR;
-    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.magFilter = filter;
+    samplerinfo.minFilter = filter;
+    samplerinfo.mipmapMode = (filter == VK_FILTER_LINEAR) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerinfo.addressModeU = addressmode;
+    samplerinfo.addressModeV = addressmode;
+    samplerinfo.addressModeW = addressmode;
     samplerinfo.mipLodBias = 0.0f;
     samplerinfo.compareOp = VK_COMPARE_OP_NEVER;
     samplerinfo.minLod = 0.0f;
@@ -551,9 +551,9 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter, VkSamplerAddressMode addressmode)
   {
-    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format);
+    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, filter, addressmode);
 
     update_texture(vulkan, commandbuffer, transferbuffer, texture, bits);
 
@@ -562,7 +562,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits)
+  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter, VkSamplerAddressMode addressmode)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
@@ -570,7 +570,7 @@ namespace Vulkan
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    Texture texture = create_texture(vulkan, setupbuffer, transferbuffer, width, height, layers, levels, format, bits);
+    Texture texture = create_texture(vulkan, setupbuffer, transferbuffer, width, height, layers, levels, format, bits, filter, addressmode);
 
     end(vulkan, setupbuffer);
 

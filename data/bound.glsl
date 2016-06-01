@@ -64,3 +64,20 @@ bool intersects(Bound3 bound, vec3 spherecentre, float sphereradius)
   
   return dot(delta, delta) <= sphereradius * sphereradius;
 }
+
+
+///////////////////////// intersections /////////////////////////////////////
+vec2 intersections(vec3 origin, vec3 direction, vec3 halfdim)
+{ 
+  vec3 invdirection = 1 / direction;
+
+  float txmin, txmax, tymin, tymax, tzmin, tzmax;
+  txmin = (((invdirection.x < 0) ? +halfdim.x : -halfdim.x) - origin.x) * invdirection.x;
+  txmax = (((invdirection.x < 0) ? -halfdim.x : +halfdim.x) - origin.x) * invdirection.x;
+  tymin = (((invdirection.y < 0) ? +halfdim.y : -halfdim.y) - origin.y) * invdirection.y;
+  tymax = (((invdirection.y < 0) ? -halfdim.y : +halfdim.y) - origin.y) * invdirection.y;
+  tzmin = (((invdirection.z < 0) ? +halfdim.z : -halfdim.z) - origin.z) * invdirection.z;
+  tzmax = (((invdirection.z < 0) ? -halfdim.z : +halfdim.z) - origin.z) * invdirection.z;
+  
+  return vec2(max(max(txmin, tymin), tzmin), min(min(txmax, tymax), tzmax));
+}

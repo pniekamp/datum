@@ -288,17 +288,16 @@ void write_model(string const &filename)
   {
     string name;
 
-    Color3 albedocolor;
-    uint32_t albedomap;
+    Color3 color = Color3(1.0f, 1.0f, 1.0f);
 
-    Color3 specularintensity;
-    float specularexponent;
+    Color3 specularintensity = Color3(0.5f, 0.5f, 0.5f);
+    float specularexponent = 96.0f;
 
-    uint32_t specularmap;
+    uint32_t albedomap = 0;
+    uint32_t specularmap = 0;
+    uint32_t normalmap = 0;
 
-    uint32_t normalmap;
-
-    float disolve;
+    float disolve = 1.0f;
 
     string albedobase;
     string albedomask;
@@ -441,7 +440,7 @@ void write_model(string const &filename)
 
       if (fields[0] == "newmtl")
       {
-        materials.push_back({ fields[1], Color3(1.0f, 1.0f, 1.0f), 0, Color3(0.5f, 0.5f, 0.5f), 60.0f, 0, 0, 1.0f });
+        materials.push_back({ fields[1] });
 
         material = &materials.back();
 
@@ -454,16 +453,16 @@ void write_model(string const &filename)
 
       if (fields[0] == "Kd")
       {
-        material->albedocolor[0] = ato<float>(fields[1]);
-        material->albedocolor[1] = ato<float>(fields[2]);
-        material->albedocolor[2] = ato<float>(fields[3]);
+        material->color[0] = ato<float>(fields[1]);
+        material->color[1] = ato<float>(fields[2]);
+        material->color[2] = ato<float>(fields[3]);
       }
 
       if (fields[0] == "Ks")
       {
-        material->specularintensity[0] = ato<float>(fields[1]);
-        material->specularintensity[1] = ato<float>(fields[2]);
-        material->specularintensity[2] = ato<float>(fields[3]);
+        material->specularintensity.r = ato<float>(fields[1]);
+        material->specularintensity.g = ato<float>(fields[2]);
+        material->specularintensity.b = ato<float>(fields[3]);
       }
 
       if (fields[0] == "Ns")
@@ -499,8 +498,8 @@ void write_model(string const &filename)
 
         material->albedomap = j - textures.begin();
 
-        if (norm(material->albedocolor) < 0.01)
-          material->albedocolor = Color3(1, 1, 1);
+        if (norm(material->color) < 0.01)
+          material->color = Color3(1, 1, 1);
       }
 
       if (fields[0] == "d")
@@ -513,9 +512,6 @@ void write_model(string const &filename)
         textures.push_back({ PackModelPayload::Texture::specularmap, fields[1], material->albedobase });
 
         material->specularmap = textures.size() - 1;
-
-        if (norm(material->specularintensity) < 0.01)
-          material->specularintensity = Color3(1, 1, 1);
       }
 
       if (fields[0] == "map_Bump" || fields[0] == "map_bump" || fields[0] == "bump")
@@ -596,15 +592,14 @@ void write_model(string const &filename)
 
   for(size_t i = 0; i < materials.size(); ++i)
   {
-    materialtable[i].albedocolor[0] = materials[i].albedocolor.r;
-    materialtable[i].albedocolor[1] = materials[i].albedocolor.g;
-    materialtable[i].albedocolor[2] = materials[i].albedocolor.b;
+    materialtable[i].color[0] = materials[i].color.r;
+    materialtable[i].color[1] = materials[i].color.g;
+    materialtable[i].color[2] = materials[i].color.b;
+    materialtable[i].metalness = 0.0f;
+    materialtable[i].smoothness = 0.0f;
+    materialtable[i].reflectivity = 0.5f;
     materialtable[i].albedomap = materials[i].albedomap;
-    materialtable[i].specularintensity[0] = materials[i].specularintensity.r;
-    materialtable[i].specularintensity[1] = materials[i].specularintensity.g;
-    materialtable[i].specularintensity[2] = materials[i].specularintensity.b;
-    materialtable[i].specularexponent = max(1.0f, materials[i].specularexponent);
-    materialtable[i].specularmap = materials[i].specularmap;
+    materialtable[i].specularmap = 0;
     materialtable[i].normalmap = materials[i].normalmap;
   }
 

@@ -42,9 +42,10 @@ struct SceneSet
 
 struct MaterialSet
 {
-  Color4 albedocolor;
-  Color3 specularintensity;
-  float specularexponent;
+  Color4 color;
+  float metalness;
+  float smoothness;
+  float reflectivity;
 };
 
 struct ModelSet
@@ -148,9 +149,10 @@ void MeshList::push_material(BuildState &state, Material const *material)
 
       auto materialset = state.materialset.memory<MaterialSet>(offset);
 
-      materialset->albedocolor = material->albedocolor;
-      materialset->specularintensity = material->specularintensity;
-      materialset->specularexponent = material->specularexponent;
+      materialset->color = material->color;
+      materialset->metalness = material->metalness;
+      materialset->smoothness = material->smoothness;
+      materialset->reflectivity = material->reflectivity;
 
       bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
       bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);

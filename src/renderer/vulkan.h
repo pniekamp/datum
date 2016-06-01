@@ -345,9 +345,9 @@ namespace Vulkan
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
 
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format);
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits);
-  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
   Texture create_attachment(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageUsageFlags usage);
 

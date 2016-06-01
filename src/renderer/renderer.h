@@ -216,8 +216,8 @@ struct RenderContext
   Vulkan::PipelineCache pipelinecache;
 
   Vulkan::Texture colorbuffer;
-  Vulkan::Texture albedobuffer;
-  Vulkan::Texture specularbuffer;
+  Vulkan::Texture rt0buffer;
+  Vulkan::Texture rt1buffer;
   Vulkan::Texture normalbuffer;
   Vulkan::Texture depthbuffer;
   Vulkan::Texture scratchbuffers[2];

@@ -50,7 +50,7 @@ vec3 view_position(mat4 view, vec3 position)
 ///////////////////////// world_normal //////////////////////////////////////
 vec3 world_normal(vec3 normal)
 {
-  return 2.0 * normal - 1.0;
+  return normalize(2.0 * normal - 1.0);
 }
 
 

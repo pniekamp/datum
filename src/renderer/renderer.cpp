@@ -47,8 +47,8 @@ enum ShaderLocation
   modelset = 2,
   computeset = 3,
 
-  albedomap = 1,
-  specularmap = 2,
+  rt0 = 1,
+  rt1 = 2,
   normalmap = 3,
   depthmap = 4,
   ssaomap = 5,
@@ -80,8 +80,8 @@ struct alignas(16) PointLight
 
 struct alignas(16) Environment
 {
-  Quaternion3f rotation;
-  Matrix4f clipview;
+  Vec4 halfdim;
+  Transform invtransform;
 };
 
 struct alignas(16) CameraView
@@ -104,7 +104,7 @@ struct SceneSet
   Vec4 noise[16];
   Vec4 kernel[16];
 
-  array<Matrix4f, ShadowMap::nslices> shadowview;
+  Matrix4f shadowview[4];
 
   MainLight mainlight;
 
@@ -243,8 +243,8 @@ namespace
       // Geometry Attachment
       //
 
-      context.albedobuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-      context.specularbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+      context.rt0buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+      context.rt1buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
       context.normalbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
       //
@@ -271,8 +271,8 @@ namespace
       //
 
       VkImageView geometrybuffer[4] = {};
-      geometrybuffer[0] = context.albedobuffer.imageview;
-      geometrybuffer[1] = context.specularbuffer.imageview;
+      geometrybuffer[0] = context.rt0buffer.imageview;
+      geometrybuffer[1] = context.rt1buffer.imageview;
       geometrybuffer[2] = context.normalbuffer.imageview;
       geometrybuffer[3] = context.depthbuffer.imageview;
 
@@ -352,8 +352,8 @@ namespace
 
       for(size_t i = 0; i < extentof(context.scenedescriptors); ++i)
       {
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::albedomap, context.albedobuffer);
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::specularmap, context.specularbuffer);
+        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::rt0, context.rt0buffer);
+        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::rt1, context.rt1buffer);
         bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
         bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
         bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[0] ? context.ssaobuffers[0] : context.whitediffuse);
@@ -1471,7 +1471,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.envbrdf = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, (char*)bits + sizeof(PackImagePayload));
+    context.envbrdf = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, (char*)bits + sizeof(PackImagePayload), VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
   }
 
   if (context.whitediffuse == 0)
@@ -1564,7 +1564,7 @@ void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &
 
   for(int i = 0; i < nsplits; ++i)
   {
-    auto frustum = camera.frustum(splits[i], splits[i+1]);
+    auto frustum = camera.frustum(splits[i], splits[i+1] + 1.0f);
 
     auto radius = 0.5f * norm(frustum.corners[0] - frustum.corners[6]);
 
@@ -1596,12 +1596,17 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   scene->view = ScaleMatrix(Vector4(1.0f, context.fbowidth / context.camera.aspect() / context.fboheight, 1.0f, 1.0f)) * context.view;
   scene->invview = inverse(scene->view);
   scene->prevview = ScaleMatrix(Vector4(1.0f, context.fbowidth / context.camera.aspect() / context.fboheight, 1.0f, 1.0f)) * context.prevcamera.view();
-  scene->skyview = (params.skyboxorientation * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
+  scene->skyview = (inverse(params.skyboxorientation) * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
   scene->camera.position = context.camera.position();
   scene->camera.exposure = context.camera.exposure();
-  scene->shadowview = context.shadows.shadowview;
 
+  assert(sizeof(scene->shadowview) <= sizeof(context.shadows.shadowview));
+  memcpy(scene->shadowview, context.shadows.shadowview.data(), sizeof(context.shadows.shadowview));
+
+  assert(sizeof(scene->noise) <= sizeof(scene->noise));
   memcpy(scene->noise, context.ssaonoise, sizeof(scene->noise));
+
+  assert(sizeof(scene->kernel) <= sizeof(scene->kernel));
   memcpy(scene->kernel, context.ssaokernel, sizeof(scene->kernel));
 
   auto &mainlight = scene->mainlight;
@@ -1646,8 +1651,8 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
         imageinfos[envcount].imageView = environment.envmap->envmap.imageview;
         imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-        scene->environments[envcount].rotation = environment.transform.rotation();
-        scene->environments[envcount].clipview = inverse(environment.transform).matrix() * ScaleMatrix(Vector4(2/environment.dimension.x, 2/environment.dimension.y, 2/environment.dimension.z, 1.0f));
+        scene->environments[envcount].halfdim = Vec4(environment.dimension/2, 0);
+        scene->environments[envcount].invtransform = inverse(environment.transform);
 
         envcount += 1;
       }
@@ -1660,8 +1665,8 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
     imageinfos[envcount].imageView = params.skybox->envmap.imageview;
     imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    scene->environments[envcount].rotation = params.skyboxorientation.rotation();
-    scene->environments[envcount].clipview = ZeroMatrix<float, 4, 4>();
+    scene->environments[envcount].halfdim = Vec4(1e8f, 1e8f, 1e8f, 0);
+    scene->environments[envcount].invtransform = inverse(params.skyboxorientation);
 
     envcount += 1;
   }

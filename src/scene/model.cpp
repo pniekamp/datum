@@ -67,7 +67,7 @@ Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, R
         break;
 
       case PackModelPayload::Texture::specularmap:
-        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::SRGBA);
+        model->textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::RGBA);
         break;
 
       case PackModelPayload::Texture::normalmap:
@@ -82,16 +82,17 @@ Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, R
 
   for(int i = 0; i < asset->materialcount; ++i)
   {
-    auto albedocolor = Color3(materialtable[i].albedocolor[0], materialtable[i].albedocolor[1], materialtable[i].albedocolor[2]);
+    auto color = Color3(materialtable[i].color[0], materialtable[i].color[1], materialtable[i].color[2]);
+
+    auto metalness = materialtable[i].metalness;
+    auto smoothness = materialtable[i].smoothness;
+    auto reflectivity = materialtable[i].reflectivity;
+
     auto albedomap = model->textures[materialtable[i].albedomap];
-
-    auto specularintensity = Color3(materialtable[i].specularintensity[0], materialtable[i].specularintensity[1], materialtable[i].specularintensity[2]);
-    auto specularexponent = materialtable[i].specularexponent;
     auto specularmap = model->textures[materialtable[i].specularmap];
-
     auto normalmap = model->textures[materialtable[i].normalmap];
 
-    model->materials[i] = resources->create<Material>(albedocolor, albedomap, specularintensity, specularexponent, specularmap, normalmap);
+    model->materials[i] = resources->create<Material>(color, metalness, smoothness, reflectivity, albedomap, specularmap, normalmap);
   }
 
   auto meshtable = reinterpret_cast<PackModelPayload::Mesh const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material));

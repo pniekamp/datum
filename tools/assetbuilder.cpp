@@ -523,14 +523,14 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
 }
 
 
-uint32_t write_material_asset(ostream &fout, uint32_t id, Color3 albedocolor, string albedomap, Color3 specularintensity, float specularexponent, string specularmap, string normalmap)
+uint32_t write_material_asset(ostream &fout, uint32_t id, Color3 color, float metalness, float smoothness, float reflectivity, string albedomap, string specularmap, string normalmap)
 {
   int mapid = 0;
   uint32_t albedomapid = (albedomap != "") ? ++mapid : 0;
   uint32_t specularmapid = (specularmap != "") ? ++mapid : 0;
   uint32_t normalmapid = (normalmap != "") ? ++mapid : 0;
 
-  write_matl_asset(fout, id, albedocolor, albedomapid, specularintensity, specularexponent, specularmapid, normalmapid);
+  write_matl_asset(fout, id, color, metalness, smoothness, reflectivity, albedomapid, specularmapid, normalmapid);
 
   if (albedomapid)
     write_albedomap_asset(fout, id + albedomapid, albedomap);
@@ -628,13 +628,13 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 }
 
 
-void write_material(string const &output, Color3 albedocolor, string albedomap, Color3 specularintensity, float specularexponent, string specularmap, string normalmap)
+void write_material(string const &output, Color3 color, float metalness, float smoothness, float reflectivity, string albedomap, string specularmap, string normalmap)
 {
   ofstream fout(output, ios::binary | ios::trunc);
 
   write_header(fout);
 
-  write_material_asset(fout, 0, albedocolor, albedomap, specularintensity, specularexponent, specularmap, normalmap);
+  write_material_asset(fout, 0, color, metalness, smoothness, reflectivity, albedomap, specularmap, normalmap);
 
   write_chunk(fout, "HEND", 0, nullptr);
 
@@ -687,7 +687,9 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
-  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+//  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+//  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
+  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
 
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");
@@ -698,7 +700,7 @@ void write_core()
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");
 
-  write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), "", Color3(0.64, 0.64, 0.64), 96.0, "", "");
+  write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 0, 0.5, "", "", "");
 
   write_sprite_asset(fout, CoreAsset::loader_image, "../../data/loader.png", 8);
 

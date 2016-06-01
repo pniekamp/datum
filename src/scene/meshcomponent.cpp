@@ -208,6 +208,12 @@ MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh c
   return { storage->index(entity), storage };
 }
 
+template<>
+MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, int flags)
+{
+  return add_component<MeshComponent>(entity, mesh, material, (long)flags);
+}
+
 
 ///////////////////////// Scene::remove_component ///////////////////////////
 template<>
