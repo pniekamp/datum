@@ -183,9 +183,9 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
       {
         auto color = rgba(albedo.pixel(x, y));
         auto intensity = rgba(image.pixel(x, y));
-        float shininess = qAlpha(image.pixel(x, y))/255.0;;
+        auto shininess = qAlpha(image.pixel(x, y));
 
-        image.setPixel(x, y, qRgba(color.r * intensity.r * 255, color.g * intensity.g * 255, color.b * intensity.b * 255, shininess * 255));
+        image.setPixel(x, y, qRgba(color.r * intensity.r * 255, color.g * intensity.g * 255, color.b * intensity.b * 255, shininess));
       }
     }
   }

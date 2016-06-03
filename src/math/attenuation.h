@@ -50,6 +50,6 @@ namespace lml
     auto linear = attenuation.linear;
     auto constant = attenuation.constant;
 
-    return (-linear + sqrt(linear*linear - 4*quadratic*(constant - 256*intensity))) / (2*quadratic);
+    return (-linear + sqrt(linear*linear - 4*quadratic*(constant - 256*intensity/pi<float>()))) / (2*quadratic);
   }
 }

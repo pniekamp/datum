@@ -114,7 +114,7 @@ namespace
     return NdotV / (NdotV * (1.0f - k) + k);
   }
 
-  Vec3 importancesampleGGX(Vec2 u, float alpha, Vec3 normal)
+  Vec3 importancesample_ggx(Vec2 u, float alpha, Vec3 normal)
   {
     float phi = 2*pi<float>() * u.x;
     float costheta = sqrt((1 - u.y) / (1 + (alpha*alpha - 1) * u.y));
@@ -140,7 +140,7 @@ namespace
     for(int i = 0; i < kSamples; ++i)
     {
       Vec2 u = hammersley(i, kSamples);
-      Vec3 H = importancesampleGGX(u, roughness * roughness, N);
+      Vec3 H = importancesample_ggx(u, roughness * roughness, N);
       Vec3 L = 2 * dot(V, H) * H - V;
 
       float NdotL = clamp(dot(N, L), 0.0f, 1.0f);
@@ -168,7 +168,7 @@ namespace
     for(int i = 0; i < kSamples; ++i)
     {
       Vec2 u = hammersley(i, kSamples);
-      Vec3 H = importancesampleGGX(u, roughness * roughness, Vec3(0, 0, 1));
+      Vec3 H = importancesample_ggx(u, roughness * roughness, Vec3(0, 0, 1));
       Vec3 L = 2 * dot(V, H) * H - V;
 
       float NdotL = clamp(L.z, 0.0f, 1.0f);

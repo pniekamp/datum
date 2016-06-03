@@ -181,18 +181,18 @@ vec3 fresnel_schlick(vec3 f0, float f90, float u)
   return f0 + (f90 - f0) * pow(1.0f - u, 5.0f);
 }
 
-///////////////////////// smithggx_visibility ///////////////////////////////
-float smithggx_visibility(float NdotL, float NdotV, float alpha)
+///////////////////////// visibility_smith //////////////////////////////////
+float visibility_smith(float NdotL, float NdotV, float alpha)
 {
   float k = alpha / 2;
-	float GGXL = NdotL * (1-k) + k;
-	float GGXV = NdotV * (1-k) + k;
+  float GGXL = NdotL * (1-k) + k;
+  float GGXV = NdotV * (1-k) + k;
 
-  return 1.0f / (GGXV + GGXL);
+  return 0.25f / (GGXV * GGXL + 1e-5);
 }
 
-///////////////////////// ggx ///////////////////////////////////////////////
-float ggx(float NdotH, float alpha)
+///////////////////////// distribution_ggx //////////////////////////////////
+float distribution_ggx(float NdotH, float alpha)
 { 
   float alpha2 = alpha * alpha;
   float f = (NdotH * alpha2 - NdotH) * NdotH + 1;
@@ -214,17 +214,17 @@ float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
 }
 
 ///////////////////////// specular_ggx ////////////////////////////////////
-float specular_ggx(vec3 f0, float f90, float NdotV, float NdotL, float LdotH, float NdotH, float alpha)
+vec3 specular_ggx(vec3 f0, float f90, float NdotV, float NdotL, float LdotH, float NdotH, float alpha)
 { 
   vec3 F = fresnel_schlick(f0, f90, LdotH);
-  float Vis = smithggx_visibility(NdotV, NdotL, alpha);
-  float D = ggx(NdotH, alpha);
+  float Vis = visibility_smith(NdotV, NdotL, alpha);
+  float D = distribution_ggx(NdotH, alpha);
   
   return D * F * Vis;
 }
 
 
-///////////////////////// main_light  ///////////////////////////////////////
+///////////////////////// env_light  ////////////////////////////////////////
 void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 envdiffuse, vec3 envspecular, vec2 envbrdf)
 { 
   float f90 = 0.8f;
@@ -248,7 +248,7 @@ void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 n
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) / PI;
 
-  float Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) / PI;
+  vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) / PI;
 
   diffuse += NdotL * Fd * light.intensity * shadowfactor;
 
@@ -270,7 +270,7 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) / PI;
 
-  float Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) / PI;
+  vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) / PI;
 
   float lightdistance = length(light.position - position);
   

@@ -73,7 +73,7 @@ void datumtest_init(PlatformInterface &platform)
     float y = 1.0f;
     float z = -5.0f;
 
-    auto material = state.resources.create<Material>(Color3(0.0f, 0.0f, 0.0f), 0.0f, smoothness);
+    auto material = state.resources.create<Material>(Color3(1.0f, 0.0f, 0.0f), 0.0f, smoothness);
 
     auto entity = state.scene.create<Entity>();
     state.scene.add_component<TransformComponent>(entity, Transform::translation(Vec3(x, y, z)));
@@ -86,7 +86,7 @@ void datumtest_init(PlatformInterface &platform)
     float y = 1.0f;
     float z = -3.0f;
 
-    auto material = state.resources.create<Material>(Color3(1.0f, 1.0f, 1.0f), 1.0f, smoothness);
+    auto material = state.resources.create<Material>(Color3(1.000, 0.766, 0.336), 1.0f, smoothness);
 
     auto entity = state.scene.create<Entity>();
     state.scene.add_component<TransformComponent>(entity, Transform::translation(Vec3(x, y, z)));
@@ -324,9 +324,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.sunintensity = Color3(5, 5, 5);
   renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), -0.1*state.readframe->time);
 
-  float intensity = 1.0f;
-  DEBUG_MENU_ENTRY("Sun Intensity", intensity = debug_menu_value("Sun Intensity", intensity, 0.0f, 8.0f));
-  renderparams.sunintensity = Color3(intensity, intensity, intensity);
   DEBUG_MENU_ENTRY("Sun Direction", renderparams.sundirection = normalise(debug_menu_value("Sun Direction", renderparams.sundirection, Vec3(-1), Vec3(1))))
 
   render_debug_overlay(platform, state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);

@@ -687,9 +687,8 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
-//  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 //  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
-  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
 
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");
@@ -713,6 +712,24 @@ void write_core()
   fout.close();
 }
 
+void write_dagger()
+{
+  ofstream fout("dagger.pack", ios::binary | ios::trunc);
+
+  write_header(fout);
+
+  write_catalog_asset(fout, CoreAsset::catalog);
+
+  write_mesh_asset(fout, 1, "../../data/dagger.obj", 0.05);
+
+  write_material_asset(fout, 2, Color3(1, 1, 1), 1.0, 1.0, 0.5, "../../data/dagger_albedo.tga", "../../data/dagger_specular.tga", "../../data/dagger_normals.tga");
+
+  write_chunk(fout, "HEND", 0, nullptr);
+
+  fout.close();
+}
+
+
 int main(int argc, char **argv)
 {
   QGuiApplication app(argc, argv);
@@ -722,6 +739,8 @@ int main(int argc, char **argv)
   try
   {
     write_core();
+
+    write_dagger();
 
     write_mesh("plane.pack", "../../data/plane.obj");
     write_mesh("sphere.pack", "../../data/sphere.obj");

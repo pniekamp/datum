@@ -125,7 +125,7 @@ void main(void)
   for(uint i = gl_LocalInvocationIndex, end = scene.pointlightcount; i < end; i += SIZE*SIZE)
   {
     vec3 lightposition = view_position(scene.view, scene.pointlights[i].position);
-    float lightradius = scene.pointlights[i].attenuation.w;
+    float lightradius = scene.pointlights[i].attenuation.w + 1;
 
     if (intersects(faraabb, lightposition, lightradius))
     {
