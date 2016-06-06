@@ -100,8 +100,8 @@ void ResourcePool::reset_storagepool(StoragePool &pool)
 }
 
 
-///////////////////////// ResourcePool::aquire_lump /////////////////////////
-ResourcePool::ResourceLump const *ResourcePool::aquire_lump()
+///////////////////////// ResourcePool::acquire_lump ////////////////////////
+ResourcePool::ResourceLump const *ResourcePool::acquire_lump()
 {
   if (!m_initialised)
     return nullptr;

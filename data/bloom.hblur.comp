@@ -1,6 +1,6 @@
 #version 450 core
 
-#define RADIUS 9
+#define RADIUS 16
 #define WIDTH 64
 #define SIZEX WIDTH+RADIUS+RADIUS+1
 
@@ -10,7 +10,7 @@ layout(set=0, binding=2) uniform sampler2D src;
 
 layout(set=3, binding=0) writeonly uniform image2D dest;
 
-const float BlurSigma = 6;
+const float BlurSigma = 8;
 
 shared vec4 texels[SIZEX];
 

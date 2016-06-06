@@ -85,7 +85,7 @@ class ResourcePool
 
     // lump
 
-    ResourceLump const *aquire_lump();
+    ResourceLump const *acquire_lump();
 
     void release_lump(ResourceLump const *lump);
 

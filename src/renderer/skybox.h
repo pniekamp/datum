@@ -12,13 +12,13 @@
 #include "texture.h"
 
 
-//|---------------------- Skybox --------------------------------------------
+//|---------------------- SkyBox --------------------------------------------
 //|--------------------------------------------------------------------------
 
-class Skybox
+class SkyBox
 {
   public:
-    friend Skybox const *ResourceManager::create<Skybox>(Asset const *asset);
+    friend SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset);
 
     bool ready() const { return (state == State::Ready); }
 
@@ -38,5 +38,5 @@ class Skybox
     std::atomic<State> state;
 
   private:
-    Skybox() = default;
+    SkyBox() = default;
 };

@@ -129,7 +129,7 @@ namespace
 
   Color3 convolve(float roughness, Vec3 ray, Sampler const &envmap)
   {
-    const int kSamples = 1024;
+    const int kSamples = 102;//4;
 
     Vec3 N = ray;
     Vec3 V = ray;

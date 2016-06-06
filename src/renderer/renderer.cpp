@@ -177,218 +177,6 @@ namespace
     return offset;
   }
 
-
-  ///////////////////////// prepare_render_pipeline /////////////////////////
-  bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
-  {
-    int width = params.width;
-    int height = params.height;
-
-    if (context.fbowidth != width || context.fboheight != height || context.ssao != params.ssao)
-    {
-      vkDeviceWaitIdle(context.device);
-      vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-      vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-
-      if (width == 0 || height == 0)
-        return false;
-
-      //
-      // Shadow Map
-      //
-
-      context.shadows.shadowmap = create_attachment(context.device, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
-      VkSamplerCreateInfo shadowsamplerinfo = {};
-      shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      shadowsamplerinfo.magFilter = VK_FILTER_LINEAR;
-      shadowsamplerinfo.minFilter = VK_FILTER_LINEAR;
-      shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      shadowsamplerinfo.compareEnable = VK_TRUE;
-      shadowsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
-
-      context.shadows.shadowmap.sampler = create_sampler(context.device, shadowsamplerinfo);
-
-      //
-      // Shadow Buffer
-      //
-
-      VkImageView shadowbuffer[1] = {};
-      shadowbuffer[0] = context.shadows.shadowmap.imageview;
-
-      VkFramebufferCreateInfo shadowbufferinfo = {};
-      shadowbufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      shadowbufferinfo.renderPass = context.shadowpass;
-      shadowbufferinfo.attachmentCount = extentof(shadowbuffer);
-      shadowbufferinfo.pAttachments = shadowbuffer;
-      shadowbufferinfo.width = context.shadows.width;
-      shadowbufferinfo.height = context.shadows.height;
-      shadowbufferinfo.layers = context.shadows.nslices;
-
-      context.shadowbuffer = create_framebuffer(context.device, shadowbufferinfo);
-
-      //
-      // Color Attachment
-      //
-
-      context.colorbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-
-      setimagelayout(context.device, context.colorbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
-      context.colorbuffertarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.colorbuffer.imageview);
-
-      //
-      // Geometry Attachment
-      //
-
-      context.rt0buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-      context.rt1buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-      context.normalbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
-      //
-      // Depth Attachment
-      //
-
-      context.depthbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
-      VkSamplerCreateInfo depthsamplerinfo = {};
-      depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      depthsamplerinfo.magFilter = VK_FILTER_LINEAR;
-      depthsamplerinfo.minFilter = VK_FILTER_LINEAR;
-      depthsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-      depthsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-      depthsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-      depthsamplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-
-      context.depthbuffer.sampler = create_sampler(context.device, depthsamplerinfo);
-
-      setimagelayout(context.device, context.depthbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
-
-      //
-      // Geometry Buffer
-      //
-
-      VkImageView geometrybuffer[4] = {};
-      geometrybuffer[0] = context.rt0buffer.imageview;
-      geometrybuffer[1] = context.rt1buffer.imageview;
-      geometrybuffer[2] = context.normalbuffer.imageview;
-      geometrybuffer[3] = context.depthbuffer.imageview;
-
-      VkFramebufferCreateInfo geometrybufferinfo = {};
-      geometrybufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      geometrybufferinfo.renderPass = context.geometrypass;
-      geometrybufferinfo.attachmentCount = extentof(geometrybuffer);
-      geometrybufferinfo.pAttachments = geometrybuffer;
-      geometrybufferinfo.width = width;
-      geometrybufferinfo.height = height;
-      geometrybufferinfo.layers = 1;
-
-      context.geometrybuffer = create_framebuffer(context.device, geometrybufferinfo);
-
-      //
-      // Frame Buffer
-      //
-
-      VkImageView framebuffer[2] = {};
-      framebuffer[0] = context.colorbuffer.imageview;
-      framebuffer[1] = context.depthbuffer.imageview;
-
-      VkFramebufferCreateInfo framebufferinfo = {};
-      framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      framebufferinfo.renderPass = context.renderpass;
-      framebufferinfo.attachmentCount = extentof(framebuffer);
-      framebufferinfo.pAttachments = framebuffer;
-      framebufferinfo.width = width;
-      framebufferinfo.height = height;
-      framebufferinfo.layers = 1;
-
-      context.framebuffer = create_framebuffer(context.device, framebufferinfo);
-
-      context.fbowidth = width;
-      context.fboheight = height;
-      context.fbocrop = (height - min((int)(width / context.camera.aspect()), height)) / 2;
-
-      //
-      // Scratch Buffers
-      //
-
-      for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
-      {
-        context.scratchbuffers[i] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
-
-        setimagelayout(context.device, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
-        context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.scratchbuffers[i].imageview);
-      }
-
-      //
-      // SSAO
-      //
-
-      context.ssaotarget = 0;
-      context.ssaobuffers[0] = {};
-      context.ssaobuffers[1] = {};
-
-      if (params.ssao)
-      {
-        context.ssaobuffers[0] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-        context.ssaobuffers[1] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-
-        setimagelayout(context.device, context.ssaobuffers[0].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-        setimagelayout(context.device, context.ssaobuffers[1].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
-        clear(context.device, context.ssaobuffers[0].image, Color4(1.0, 1.0, 1.0, 1.0));
-
-        context.ssaotarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.ssaobuffers[1].imageview);
-      }
-
-      context.ssao = params.ssao;
-
-      //
-      // Scene Set
-      //
-
-      for(size_t i = 0; i < extentof(context.scenedescriptors); ++i)
-      {
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::rt0, context.rt0buffer);
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::rt1, context.rt1buffer);
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[0] ? context.ssaobuffers[0] : context.whitediffuse);
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
-        bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
-      }
-
-      //
-      // Bloom Commands
-      //
-
-      bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap0, context.colorbuffer);
-      bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap1, context.scratchbuffers[0]);
-      bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap2, context.scratchbuffers[1]);
-
-      begin(context.device, context.bloomblendcommands, context.framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-
-      bindresource(context.bloomblendcommands, context.bloompipeline[3], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-      bindresource(context.bloomblendcommands, context.bloomdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-      bindresource(context.bloomblendcommands, context.unitquad);
-
-      draw(context.bloomblendcommands, context.unitquad.vertexcount, 1, 0, 0);
-
-      end(context.device, context.bloomblendcommands);
-
-      context.bloom = params.bloom;
-
-      return false;
-    }
-
-    return true;
-  }
-
 } // namespace
 
 
@@ -1048,7 +836,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   if (context.skyboxpipeline == 0)
   {
     //
-    // Skybox Pipeline
+    // SkyBox Pipeline
     //
 
     auto vs = assets->find(CoreAsset::skybox_vert);
@@ -1250,107 +1038,32 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   if (context.bloompipeline[3] == 0)
   {
     //
-    // Bloom Blend Pipeline
+    // Bloom Tone Pipeline
     //
 
-    auto vs = assets->find(CoreAsset::bloom_blend_vert);
-    auto fs = assets->find(CoreAsset::bloom_blend_frag);
+    auto cs = assets->find(CoreAsset::bloom_tone_comp);
 
-    if (!vs || !fs)
+    if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto vssrc = assets->request(platform, vs);
-    auto fssrc = assets->request(platform, fs);
+    auto cssrc = assets->request(platform, cs);
 
-    if (!vssrc || !fssrc)
+    if (!cssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
 
-    VkVertexInputBindingDescription vertexbindings[1] = {};
-    vertexbindings[0].stride = VertexLayout::stride;
-    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    VkPipelineVertexInputStateCreateInfo vertexinput = {};
-    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
-    vertexinput.pVertexBindingDescriptions = vertexbindings;
-    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
-    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
-
-    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
-    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-
-    VkPipelineRasterizationStateCreateInfo rasterization = {};
-    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterization.cullMode = VK_CULL_MODE_NONE;
-    rasterization.lineWidth = 1.0;
-
-    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
-    blendattachments[0].blendEnable = VK_TRUE;
-    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-    blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    VkPipelineColorBlendStateCreateInfo colorblend = {};
-    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorblend.attachmentCount = extentof(blendattachments);
-    colorblend.pAttachments = blendattachments;
-
-    VkPipelineMultisampleStateCreateInfo multisample = {};
-    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineDepthStencilStateCreateInfo depthstate = {};
-    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthstate.depthTestEnable = VK_FALSE;
-
-    VkPipelineViewportStateCreateInfo viewport = {};
-    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewport.viewportCount = 1;
-    viewport.scissorCount = 1;
-
-    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-
-    VkPipelineDynamicStateCreateInfo dynamic = {};
-    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamic.dynamicStateCount = extentof(dynamicstates);
-    dynamic.pDynamicStates = dynamicstates;
-
-    VkPipelineShaderStageCreateInfo shaders[2] = {};
-    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaders[0].module = vsmodule;
-    shaders[0].pName = "main";
-    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaders[1].module = fsmodule;
-    shaders[1].pName = "main";
-
-    VkGraphicsPipelineCreateInfo pipelineinfo = {};
-    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipelineinfo.layout = context.pipelinelayout;
-    pipelineinfo.renderPass = context.renderpass;
-    pipelineinfo.pVertexInputState = &vertexinput;
-    pipelineinfo.pInputAssemblyState = &inputassembly;
-    pipelineinfo.pRasterizationState = &rasterization;
-    pipelineinfo.pColorBlendState = &colorblend;
-    pipelineinfo.pMultisampleState = &multisample;
-    pipelineinfo.pDepthStencilState = &depthstate;
-    pipelineinfo.pViewportState = &viewport;
-    pipelineinfo.pDynamicState = &dynamic;
-    pipelineinfo.stageCount = extentof(shaders);
-    pipelineinfo.pStages = shaders;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pName = "main";
 
     context.bloompipeline[3] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
-
-    context.bloomblendcommands = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
   }
 
   if (context.spritepipeline == 0)
@@ -1527,12 +1240,211 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
   context.transfermemory = map_memory<uint8_t>(context.device, context.transferbuffer, 0, context.transferbuffer.size);
 
-  context.frame = 0;
-
   context.fbowidth = 0;
   context.fboheight = 0;
 
   context.initialised = true;
+
+  return true;
+}
+
+
+///////////////////////// prepare_render_pipeline /////////////////////////
+bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
+{
+  int width = params.width;
+  int height = params.height;
+
+  if (context.fbowidth != width || context.fboheight != height || context.ssao != params.ssao)
+  {
+    vkDeviceWaitIdle(context.device);
+    vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+    vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+
+    if (width == 0 || height == 0)
+      return false;
+
+    //
+    // Shadow Map
+    //
+
+    context.shadows.shadowmap = create_attachment(context.device, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    VkSamplerCreateInfo shadowsamplerinfo = {};
+    shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    shadowsamplerinfo.magFilter = VK_FILTER_LINEAR;
+    shadowsamplerinfo.minFilter = VK_FILTER_LINEAR;
+    shadowsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    shadowsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    shadowsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    shadowsamplerinfo.compareEnable = VK_TRUE;
+    shadowsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
+
+    context.shadows.shadowmap.sampler = create_sampler(context.device, shadowsamplerinfo);
+
+    //
+    // Shadow Buffer
+    //
+
+    VkImageView shadowbuffer[1] = {};
+    shadowbuffer[0] = context.shadows.shadowmap.imageview;
+
+    VkFramebufferCreateInfo shadowbufferinfo = {};
+    shadowbufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    shadowbufferinfo.renderPass = context.shadowpass;
+    shadowbufferinfo.attachmentCount = extentof(shadowbuffer);
+    shadowbufferinfo.pAttachments = shadowbuffer;
+    shadowbufferinfo.width = context.shadows.width;
+    shadowbufferinfo.height = context.shadows.height;
+    shadowbufferinfo.layers = context.shadows.nslices;
+
+    context.shadowbuffer = create_framebuffer(context.device, shadowbufferinfo);
+
+    //
+    // Color Attachment
+    //
+
+    context.colorbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+    setimagelayout(context.device, context.colorbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+    context.colorbuffertarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.colorbuffer.imageview);
+
+    //
+    // Geometry Attachment
+    //
+
+    context.rt0buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    context.rt1buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    context.normalbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    //
+    // Depth Attachment
+    //
+
+    context.depthbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    VkSamplerCreateInfo depthsamplerinfo = {};
+    depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    depthsamplerinfo.magFilter = VK_FILTER_LINEAR;
+    depthsamplerinfo.minFilter = VK_FILTER_LINEAR;
+    depthsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    depthsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    depthsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    depthsamplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+    context.depthbuffer.sampler = create_sampler(context.device, depthsamplerinfo);
+
+    setimagelayout(context.device, context.depthbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+
+    //
+    // Geometry Buffer
+    //
+
+    VkImageView geometrybuffer[4] = {};
+    geometrybuffer[0] = context.rt0buffer.imageview;
+    geometrybuffer[1] = context.rt1buffer.imageview;
+    geometrybuffer[2] = context.normalbuffer.imageview;
+    geometrybuffer[3] = context.depthbuffer.imageview;
+
+    VkFramebufferCreateInfo geometrybufferinfo = {};
+    geometrybufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    geometrybufferinfo.renderPass = context.geometrypass;
+    geometrybufferinfo.attachmentCount = extentof(geometrybuffer);
+    geometrybufferinfo.pAttachments = geometrybuffer;
+    geometrybufferinfo.width = width;
+    geometrybufferinfo.height = height;
+    geometrybufferinfo.layers = 1;
+
+    context.geometrybuffer = create_framebuffer(context.device, geometrybufferinfo);
+
+    //
+    // Frame Buffer
+    //
+
+    VkImageView framebuffer[2] = {};
+    framebuffer[0] = context.colorbuffer.imageview;
+    framebuffer[1] = context.depthbuffer.imageview;
+
+    VkFramebufferCreateInfo framebufferinfo = {};
+    framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferinfo.renderPass = context.renderpass;
+    framebufferinfo.attachmentCount = extentof(framebuffer);
+    framebufferinfo.pAttachments = framebuffer;
+    framebufferinfo.width = width;
+    framebufferinfo.height = height;
+    framebufferinfo.layers = 1;
+
+    context.framebuffer = create_framebuffer(context.device, framebufferinfo);
+
+    context.fbowidth = width;
+    context.fboheight = height;
+    context.fbox = (context.fbowidth - min((int)(context.fboheight * params.aspect), context.fbowidth)) / 2;
+    context.fboy = (context.fboheight - min((int)(context.fbowidth / params.aspect), context.fboheight)) / 2;
+
+    //
+    // Scratch Buffers
+    //
+
+    for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
+    {
+      context.scratchbuffers[i] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+
+      setimagelayout(context.device, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+      context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.scratchbuffers[i].imageview);
+    }
+
+    //
+    // SSAO
+    //
+
+    context.ssaotarget = 0;
+    context.ssaobuffers[0] = {};
+    context.ssaobuffers[1] = {};
+
+    if (params.ssao)
+    {
+      context.ssaobuffers[0] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+      context.ssaobuffers[1] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+      setimagelayout(context.device, context.ssaobuffers[0].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+      setimagelayout(context.device, context.ssaobuffers[1].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+      clear(context.device, context.ssaobuffers[0].image, Color4(1.0, 1.0, 1.0, 1.0));
+
+      context.ssaotarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.ssaobuffers[1].imageview);
+    }
+
+    context.ssao = params.ssao;
+
+    //
+    // Scene Set
+    //
+
+    for(size_t i = 0; i < extentof(context.scenedescriptors); ++i)
+    {
+      bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::rt0, context.rt0buffer);
+      bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::rt1, context.rt1buffer);
+      bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
+      bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
+      bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[0] ? context.ssaobuffers[0] : context.whitediffuse);
+      bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
+      bindtexture(context.device, context.scenedescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
+    }
+
+    //
+    // Bloom Commands
+    //
+
+    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap0, context.colorbuffer);
+    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap1, context.scratchbuffers[0]);
+    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap2, context.scratchbuffers[1]);
+
+    context.bloom = params.bloom;
+
+    return false;
+  }
 
   return true;
 }
@@ -1579,7 +1491,7 @@ void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &
 
     auto lightview = Transform::lookat(lightpos, lightpos + lightdirection, up);
 
-    auto lightproj = OrthographicProjection(-radius, -radius, radius, radius, 0.1f, extrusion + radius);
+    auto lightproj = OrthographicProjection(-radius, -radius, radius, radius, 0.1f, extrusion + radius) * ScaleMatrix(Vector4(1.0f, -1.0f, 1.0f, 1.0f));
 
     shadowmap.shadowview[i] = lightproj * inverse(lightview).matrix();
   }
@@ -1591,11 +1503,13 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
 {
   auto scene = (SceneSet*)(context.transfermemory + context.sceneoffsets[context.frame & 1]);
 
+  auto viewport = ScaleMatrix(Vector4((context.fbowidth - 2.0f*context.fbox) / context.fbowidth, (context.fboheight - 2.0f*context.fboy) / context.fboheight, 1.0f, 1.0f));
+
   scene->proj = context.proj;
   scene->invproj = inverse(scene->proj);
-  scene->view = ScaleMatrix(Vector4(1.0f, context.fbowidth / context.camera.aspect() / context.fboheight, 1.0f, 1.0f)) * context.view;
+  scene->view = viewport * context.view;
   scene->invview = inverse(scene->view);
-  scene->prevview = ScaleMatrix(Vector4(1.0f, context.fbowidth / context.camera.aspect() / context.fboheight, 1.0f, 1.0f)) * context.prevcamera.view();
+  scene->prevview = viewport * context.prevcamera.view();
   scene->skyview = (inverse(params.skyboxorientation) * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
   scene->camera.position = context.camera.position();
   scene->camera.exposure = context.camera.exposure();
@@ -1710,7 +1624,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
   end(context.device, commandbuffer);
 
-  submit(context.device, commandbuffer, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.device, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
 
   ++context.frame;
 }
@@ -1719,15 +1633,15 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 ///////////////////////// render ////////////////////////////////////////////
 void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
 {
-  context.camera = camera;
-  context.proj = camera.proj();
-  context.view = camera.view();
-
   if (!prepare_render_pipeline(context, params))
   {
     render_fallback(context, viewport);
     return;
   }
+
+  context.camera = camera;
+  context.proj = camera.proj();
+  context.view = camera.view();
 
   auto &commandbuffer = context.commandbuffers[context.frame & 1];
 
@@ -1740,9 +1654,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   prepare_sceneset(context, renderables, params);
 
   VkClearValue clearvalues[4];
-  clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-  clearvalues[1].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-  clearvalues[2].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[0].color = { 1.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[1].color = { 1.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[2].color = { 1.0f, 0.0f, 0.0f, 1.0f };
   clearvalues[3].depthStencil = { 1, 0 };
 
   querytimestamp(commandbuffer, context.timingquerypool, 0);
@@ -1827,7 +1741,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   querytimestamp(commandbuffer, context.timingquerypool, 4);
 
   //
-  // Skybox
+  // SkyBox
   //
 
   beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
@@ -1850,7 +1764,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     bindresource(commandbuffer, context.bloomdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, (context.fbowidth+15)/16, (context.fboheight+15)/16, 1);
+    dispatch(commandbuffer, (context.fbowidth+31)/32, (context.fboheight+31)/32, 1);
 
     bindresource(commandbuffer, context.bloompipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -1864,11 +1778,11 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     dispatch(commandbuffer, context.fbowidth/2, (context.fboheight/2+63)/64, 1);
 
-    beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, context.fbocrop, context.fbowidth, context.fboheight - context.fbocrop - context.fbocrop, extentof(clearvalues), clearvalues);
+    bindresource(commandbuffer, context.bloompipeline[3], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    execute(commandbuffer, context.bloomblendcommands);
+    bindresource(commandbuffer, context.colorbuffertarget, context.pipelinelayout, ShaderLocation::computeset, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    endpass(commandbuffer, context.renderpass);
+    dispatch(commandbuffer, (context.fbowidth+31)/32, (context.fboheight+31)/32, 1);
   }
 
   querytimestamp(commandbuffer, context.timingquerypool, 6);
@@ -1929,14 +1843,14 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])
   GPU_TIMED_BLOCK(SSAO, Color3(0.2, 0.8, 0.2), timings[2], timings[3])
   GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[3], timings[4])
-  GPU_TIMED_BLOCK(Skybox, Color3(0.0, 0.4, 0.4), timings[4], timings[5])
+  GPU_TIMED_BLOCK(SkyBox, Color3(0.0, 0.4, 0.4), timings[4], timings[5])
   GPU_TIMED_BLOCK(Bloom, Color3(0.2, 0.2, 0.8), timings[5], timings[6])
   GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[6], timings[7])
   GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[7], timings[8])
 
   GPU_SUBMIT();
 
-  submit(context.device, commandbuffer, viewport.aquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.device, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
 
   context.prevcamera = camera;
 

@@ -93,7 +93,7 @@ void RenderList::push_sprites(DatumPlatform::Viewport const &viewport, SpriteLis
 
 
 ///////////////////////// RenderList::push_environment //////////////////////
-void RenderList::push_environment(Vec3 const &dimension, Transform const &transform, EnvMap const *envmap)
+void RenderList::push_environment(Transform const &transform, Vec3 const &dimension, EnvMap const *envmap)
 {
   if (envmap)
   {

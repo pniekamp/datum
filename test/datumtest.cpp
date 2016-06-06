@@ -55,7 +55,7 @@ void datumtest_init(PlatformInterface &platform)
   state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
-  state.skybox = state.resources.create<Skybox>(state.assets.find(CoreAsset::default_skybox));
+  state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
 
   state.testimage = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image));
 
@@ -319,6 +319,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   RenderParams renderparams;
   renderparams.width = viewport.width;
   renderparams.height = viewport.height;
+  renderparams.aspect = state.aspect;
   renderparams.skybox = state.skybox;
   renderparams.sundirection = normalise(Vec3(0.4, -1, -0.1));
   renderparams.sunintensity = Color3(5, 5, 5);

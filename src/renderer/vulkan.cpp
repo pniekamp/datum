@@ -762,6 +762,21 @@ namespace Vulkan
   }
 
 
+  ///////////////////////// create_semaphore ////////////////////////////////
+  Semaphore create_semaphore(const VulkanDevice &vulkan, VkSemaphoreCreateFlags flags)
+  {
+    VkSemaphoreCreateInfo semaphoreinfo = {};
+    semaphoreinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    semaphoreinfo.flags = flags;
+
+    VkSemaphore semaphore;
+    if (vkCreateSemaphore(vulkan.device, &semaphoreinfo, nullptr, &semaphore) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateSemaphore failed");
+
+    return { semaphore, { vulkan.device } };
+  }
+
+
   ///////////////////////// allocate_descriptorset //////////////////////////
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type)
   {
@@ -1119,6 +1134,28 @@ namespace Vulkan
     buffercopy.imageExtent.depth = 1;
 
     vkCmdCopyBufferToImage(commandbuffer, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffercopy);
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkBuffer dst, VkDeviceSize offset, int dw, int dh, VkImageSubresourceLayers subresource)
+  {
+    VkBufferImageCopy buffercopy = {};
+
+    buffercopy.bufferOffset = offset;
+    buffercopy.bufferRowLength = dw;
+    buffercopy.bufferImageHeight = dh;
+
+    buffercopy.imageOffset.x = sx;
+    buffercopy.imageOffset.y = sy;
+    buffercopy.imageOffset.z = 1;
+    buffercopy.imageSubresource = subresource;
+
+    buffercopy.imageExtent.width = sw;
+    buffercopy.imageExtent.height = sh;
+    buffercopy.imageExtent.depth = 1;
+
+    vkCmdCopyImageToBuffer(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, 1, &buffercopy);
   }
 
 

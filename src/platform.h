@@ -109,7 +109,7 @@ namespace DatumPlatform
       int height;
 
       VkImage image;
-      VkSemaphore aquirecomplete;
+      VkSemaphore acquirecomplete;
       VkSemaphore rendercomplete;
     };
 

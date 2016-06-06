@@ -24,7 +24,7 @@ using leap::extentof;
 CommandList::CommandList(RenderContext *context)
   : context(context)
 {
-  m_resourcelump = context->resourcepool.aquire_lump();
+  m_resourcelump = context->resourcepool.acquire_lump();
   m_commandbuffer = 0;
 
   memset(m_addressmap, 0, sizeof(m_addressmap));

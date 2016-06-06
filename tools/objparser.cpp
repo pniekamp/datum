@@ -11,14 +11,14 @@
 #include <QColor>
 #include <QFile>
 #include <QFileInfo>
+#include "assetpacker.h"
+#include <leap.h>
+#include <leap/pathstring.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
-#include <leap.h>
-#include <leap/pathstring.h>
-#include "assetpacker.h"
 
 using namespace std;
 using namespace lml;
@@ -158,35 +158,32 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
 }
 
 
-uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, string const &base = "")
+uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &metalpath, string const &roughpath)
 {
-  QImage image(path.c_str());
+  QImage roughmap(roughpath.c_str());
 
-  if (image.isNull())
-    throw runtime_error("Failed to load image - " + path);
+  if (roughmap.isNull())
+    throw runtime_error("Failed to load image - " + roughpath);
 
-  image = image.convertToFormat(QImage::Format_ARGB32);
+  QImage metalmap(metalpath.c_str());
 
-  if (base != "")
+  if (metalmap.isNull())
+    throw runtime_error("Failed to load image - " + metalpath);
+
+  if (roughmap.size() != metalmap.size())
+    throw runtime_error("Image size mismatch - " + roughpath + "," + metalpath);
+
+  QImage image(roughmap.width(), roughmap.height(), QImage::Format_ARGB32);
+
+  for(int y = 0; y < image.height(); ++y)
   {
-    QImage albedo(base.c_str());
-
-    if (albedo.isNull())
-      throw runtime_error("Failed to load image - " + base);
-
-    if (albedo.size() != image.size())
-      throw runtime_error("Image size mismatch - " + base);
-
-    for(int y = 0; y < image.height(); ++y)
+    for(int x = 0; x < image.width(); ++x)
     {
-      for(int x = 0; x < image.width(); ++x)
-      {
-        auto color = rgba(albedo.pixel(x, y));
-        auto intensity = rgba(image.pixel(x, y));
-        auto shininess = qAlpha(image.pixel(x, y));
+      auto metalness = qRed(metalmap.pixel(x, y)) / 255.0f;
+      auto reflectivity = 1.0f;
+      auto smoothness = 1.0f - qRed(roughmap.pixel(x, y)) / 255.0f;
 
-        image.setPixel(x, y, qRgba(color.r * intensity.r * 255, color.g * intensity.g * 255, color.b * intensity.b * 255, shininess));
-      }
+      image.setPixel(x, y, qRgba(metalness * 255, reflectivity * 255, 0, smoothness * 255));
     }
   }
 
@@ -201,7 +198,7 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &path, str
 
   memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
 
-  image_buildmips_srgb(width, height, layers, levels, payload.data());
+  image_buildmips_rgb(width, height, layers, levels, payload.data());
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
@@ -265,6 +262,32 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
 }
 
 
+uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
+{
+  QImage src(path.c_str());
+
+  if (src.isNull())
+    throw runtime_error("Failed to load image - " + path);
+
+  QImage image = src.convertToFormat(QImage::Format_ARGB32).mirrored();
+
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_rgb(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+
+  return id + 1;
+}
+
+
 void write_model(string const &filename)
 {
   string mtllib;
@@ -276,8 +299,7 @@ void write_model(string const &filename)
   struct Texture
   {
     int type;
-    string path;
-    string base;
+    string paths[2];
   };
 
   vector<Texture> textures;
@@ -301,6 +323,9 @@ void write_model(string const &filename)
 
     string albedobase;
     string albedomask;
+    string metalmap;
+    string roughmap;
+    string bumpmap;
   };
 
   vector<Material> materials;
@@ -438,6 +463,8 @@ void write_model(string const &filename)
 
       auto fields = split(buffer);
 
+      fields[0] = tolower(fields[0]);
+
       if (fields[0] == "newmtl")
       {
         materials.push_back({ fields[1] });
@@ -451,55 +478,23 @@ void write_model(string const &filename)
         }
       }
 
-      if (fields[0] == "Kd")
+      if (fields[0] == "kd")
       {
         material->color[0] = ato<float>(fields[1]);
         material->color[1] = ato<float>(fields[2]);
         material->color[2] = ato<float>(fields[3]);
       }
 
-      if (fields[0] == "Ks")
+      if (fields[0] == "ks")
       {
         material->specularintensity.r = ato<float>(fields[1]);
         material->specularintensity.g = ato<float>(fields[2]);
         material->specularintensity.b = ato<float>(fields[3]);
       }
 
-      if (fields[0] == "Ns")
+      if (fields[0] == "ns")
       {
         material->specularexponent = ato<float>(fields[1]);
-      }
-
-      if (fields[0] == "map_Kd")
-      {
-        material->albedobase = fields[1];
-
-        if (material->specularmap != 0)
-          textures[material->specularmap].base = material->albedobase;
-      }
-
-      if (fields[0] == "map_d")
-      {
-        material->albedomask = fields[1];
-
-        if (material->albedomap != 0)
-          textures[material->albedomap].base = material->albedomask;
-      }
-
-      if (fields[0] == "map_Kd")
-      {
-        auto j = find_if(textures.begin(), textures.end(), [&](auto &texture) { return (texture.type == PackModelPayload::Texture::albedomap && texture.path == fields[1]); });
-
-        if (j == textures.end())
-        {
-          textures.push_back({ PackModelPayload::Texture::albedomap, fields[1], material->albedomask });
-          j = textures.end() - 1;
-        }
-
-        material->albedomap = j - textures.begin();
-
-        if (norm(material->color) < 0.01)
-          material->color = Color3(1, 1, 1);
       }
 
       if (fields[0] == "d")
@@ -507,24 +502,32 @@ void write_model(string const &filename)
         material->disolve = ato<float>(fields[1]);
       }
 
-      if (fields[0] == "map_Ks")
+      if (fields[0] == "map_d")
       {
-        textures.push_back({ PackModelPayload::Texture::specularmap, fields[1], material->albedobase });
-
-        material->specularmap = textures.size() - 1;
+        material->albedomask = fields[1];
       }
 
-      if (fields[0] == "map_Bump" || fields[0] == "map_bump" || fields[0] == "bump")
+      if (fields[0] == "map_ka")
       {
-        auto j = find_if(textures.begin(), textures.end(), [&](auto &texture) { return (texture.type == PackModelPayload::Texture::normalmap && texture.path == fields[1]); });
+        material->metalmap = fields[1];
+      }
 
-        if (j == textures.end())
-        {
-          textures.push_back({ PackModelPayload::Texture::normalmap, fields[1] });
-          j = textures.end() - 1;
-        }
+      if (fields[0] == "map_kd")
+      {
+        material->albedobase = fields[1];
 
-        material->normalmap = j - textures.begin();
+        if (norm(material->color) < 0.01)
+          material->color = Color3(1, 1, 1);
+      }
+
+      if (fields[0] == "map_ns")
+      {
+        material->roughmap = fields[1];
+      }
+
+      if (fields[0] == "map_bump" || fields[0] == "bump")
+      {
+        material->bumpmap = fields[1];
       }
     }
 
@@ -547,6 +550,48 @@ void write_model(string const &filename)
     }
 
     calculatetangents(mesh.vertices, mesh.indices);
+  }
+
+  for(auto &material : materials)
+  {
+    if (material.albedobase != "")
+    {
+      auto j = find_if(textures.begin(), textures.end(), [&](auto &texture) { return (texture.type == PackModelPayload::Texture::albedomap && texture.paths[0] == material.albedobase && texture.paths[1] == material.albedomask); });
+
+      if (j == textures.end())
+      {
+        textures.push_back({ PackModelPayload::Texture::albedomap, material.albedobase, material.albedomask });
+        j = textures.end() - 1;
+      }
+
+      material.albedomap = j - textures.begin();
+    }
+
+    if (material.roughmap != "")
+    {
+      auto j = find_if(textures.begin(), textures.end(), [&](auto &texture) { return (texture.type == PackModelPayload::Texture::specularmap && texture.paths[0] == material.roughmap && texture.paths[1] == material.metalmap); });
+
+      if (j == textures.end())
+      {
+        textures.push_back({ PackModelPayload::Texture::specularmap, material.roughmap, material.metalmap });
+        j = textures.end() - 1;
+      }
+
+      material.specularmap = j - textures.begin();
+    }
+
+    if (material.bumpmap != "")
+    {
+      auto j = find_if(textures.begin(), textures.end(), [&](auto &texture) { return (texture.type == PackModelPayload::Texture::normalmap && texture.paths[0] == material.bumpmap); });
+
+      if (j == textures.end())
+      {
+        textures.push_back({ PackModelPayload::Texture::normalmap, material.bumpmap });
+        j = textures.end() - 1;
+      }
+
+      material.normalmap = j - textures.begin();
+    }
   }
 
   auto batchorder = [&](Mesh const &lhs) { return make_tuple(materials[lhs.material].albedomap, materials[lhs.material].normalmap); };
@@ -595,11 +640,11 @@ void write_model(string const &filename)
     materialtable[i].color[0] = materials[i].color.r;
     materialtable[i].color[1] = materials[i].color.g;
     materialtable[i].color[2] = materials[i].color.b;
-    materialtable[i].metalness = 0.0f;
-    materialtable[i].smoothness = 0.0f;
+    materialtable[i].metalness = 1.0f;
+    materialtable[i].smoothness = 1.0f;
     materialtable[i].reflectivity = 0.5f;
     materialtable[i].albedomap = materials[i].albedomap;
-    materialtable[i].specularmap = 0;
+    materialtable[i].specularmap = materials[i].specularmap;
     materialtable[i].normalmap = materials[i].normalmap;
   }
 
@@ -627,7 +672,7 @@ void write_model(string const &filename)
 
   for(auto &texture: textures)
   {
-    cout << "  Writing: (" << id << ") texture " << texture.path << endl;
+    cout << "  Writing: (" << id << ") texture " << texture.paths[0] << endl;
 
     switch (texture.type)
     {
@@ -636,15 +681,16 @@ void write_model(string const &filename)
         break;
 
       case PackModelPayload::Texture::albedomap:
-        write_diffmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.path), pathstring(pathstring(filename).base(), texture.base));
+        write_diffmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[0]), pathstring(pathstring(filename).base(), texture.paths[1]));
         break;
 
       case PackModelPayload::Texture::specularmap:
-        write_specmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.path), pathstring(pathstring(filename).base(), texture.base));
+        write_specmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[1]), pathstring(pathstring(filename).base(), texture.paths[0]));
         break;
 
       case PackModelPayload::Texture::normalmap:
-        write_bumpmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.path));
+        //write_bumpmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[0]));
+        write_normalmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[0]));
         break;
     }
   }

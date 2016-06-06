@@ -189,7 +189,7 @@ struct ShadowMap
 struct RenderContext
 {
   RenderContext()
-    : initialised(false)
+    : offset(0), frame(0), initialised(false)
   {
   }
 
@@ -244,7 +244,6 @@ struct RenderContext
 
   bool bloom;
   Vulkan::DescriptorSet bloomdescriptor;
-  Vulkan::CommandBuffer bloomblendcommands;
 
   Vulkan::DescriptorSet scratchtargets[2];
   Vulkan::DescriptorSet colorbuffertarget;
@@ -267,16 +266,16 @@ struct RenderContext
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
 
-  int fbowidth, fboheight, fbocrop;
+  int fbowidth, fboheight, fbox, fboy;
 
   ResourcePool resourcepool;
 
-  bool initialised;
+  std::atomic<size_t> offset;
+  Vulkan::MemoryView<uint8_t> transfermemory;
 
   size_t frame;
 
-  std::atomic<size_t> offset;
-  Vulkan::MemoryView<uint8_t> transfermemory;
+  bool initialised;
 
   Camera camera;
   lml::Matrix4f proj;
@@ -291,11 +290,12 @@ struct RenderParams
 {
   int width = 1280;
   int height = 720;
+  float aspect = 1.7777778;
 
   lml::Vec3 sundirection = { -0.57735, -0.57735, -0.57735 };
   lml::Color3 sunintensity = { 1.0f, 1.0f, 1.0f };
 
-  Skybox const *skybox = nullptr;
+  SkyBox const *skybox = nullptr;
   lml::Transform skyboxorientation = lml::Transform::identity();
 
   float lightfalloff = 0.66;
@@ -307,6 +307,7 @@ struct RenderParams
 
 // Prepare
 bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets);
+bool prepare_render_pipeline(RenderContext &context, RenderParams const &params);
 
 // Fallback
 void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap = nullptr, int width = 0, int height = 0);

@@ -152,7 +152,7 @@ class Game
 
     void update(float dt);
 
-    void render(VkImage image, VkSemaphore aquirecomplete, VkSemaphore rendercomplete, int x, int y, int width, int height);
+    void render(VkImage image, VkSemaphore acquirecomplete, VkSemaphore rendercomplete, int x, int y, int width, int height);
 
     void terminate();
 
@@ -224,11 +224,11 @@ void Game::update(float dt)
 
 
 ///////////////////////// Game::render //////////////////////////////////////
-void Game::render(VkImage image, VkSemaphore aquirecomplete, VkSemaphore rendercomplete, int x, int y, int width, int height)
+void Game::render(VkImage image, VkSemaphore acquirecomplete, VkSemaphore rendercomplete, int x, int y, int width, int height)
 {
   m_platform.renderscratchmemory.size = 0;
 
-  game_render(m_platform, { x, y, width, height, image, aquirecomplete, rendercomplete });
+  game_render(m_platform, { x, y, width, height, image, acquirecomplete, rendercomplete });
 
   ++m_fpscount;
 
@@ -386,7 +386,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   deviceinfo.pEnabledFeatures = &devicefeatures;
   deviceinfo.enabledExtensionCount = std::extent<decltype(deviceextensions)>::value;
   deviceinfo.ppEnabledExtensionNames = deviceextensions;
-  deviceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;;
+  deviceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;
   deviceinfo.ppEnabledLayerNames = validationlayers;
 
   if (vkCreateDevice(physicaldevice, &deviceinfo, nullptr, &device) != VK_SUCCESS)

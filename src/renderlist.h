@@ -37,7 +37,7 @@ class RenderList
     void push_sprites(lml::Rect2 const &viewport, SpriteList const &sprites);
     void push_sprites(DatumPlatform::Viewport const &viewport, SpriteList const &sprites);
 
-    void push_environment(lml::Vec3 const &dimension, lml::Transform const &transform, EnvMap const *envmap);
+    void push_environment(lml::Transform const &transform, lml::Vec3 const &dimension, EnvMap const *envmap);
 
   private:
 

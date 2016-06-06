@@ -87,6 +87,15 @@ namespace Vulkan
 
   using Fence = VulkanResource<VkFence, FenceDeleter>;
 
+  struct SemaphoreDeleter
+  {
+    VkDevice device;
+
+    void operator()(VkSemaphore semaphore) { vkDestroySemaphore(device, semaphore, nullptr); }
+  };
+
+  using Semaphore = VulkanResource<VkSemaphore, SemaphoreDeleter>;
+
   struct CommandPoolDeleter
   {
     VkDevice device;
@@ -369,6 +378,8 @@ namespace Vulkan
   bool test(VulkanDevice const &vulkan, VkFence fence);
   void signal(VulkanDevice const &vulkan, VkFence fence);
 
+  Semaphore create_semaphore(VulkanDevice const &vulkan, VkSemaphoreCreateFlags flags = 0);
+
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkImageView writeimage);
 
@@ -403,6 +414,7 @@ namespace Vulkan
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter);
 
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkBuffer dst, VkDeviceSize offset, int dw, int dh, VkImageSubresourceLayers subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
 
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkBuffer dst, VkDeviceSize dstoffset, VkDeviceSize size);
 

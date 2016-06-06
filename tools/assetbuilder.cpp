@@ -11,15 +11,15 @@
 #include <QFont>
 #include <QFontMetrics>
 #include <QPainter>
-#include <fstream>
-#include <unordered_map>
-#include <cassert>
 #include "hdr.h"
 #include "ibl.h"
 #include "glslang.h"
 #include "assetpacker.h"
 #include "atlaspacker.h"
 #include <leap.h>
+#include <fstream>
+#include <unordered_map>
+#include <cassert>
 
 using namespace std;
 using namespace lml;
@@ -305,7 +305,59 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
 
   memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
 
-  image_buildmips_srgb(width, height, layers, levels, payload.data());
+  image_buildmips_rgb(width, height, layers, levels, payload.data());
+
+  image_compress_bc3(width, height, layers, levels, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+
+  return id + 1;
+}
+
+uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &metalpath, string const &roughpath)
+{
+  QImage roughmap(roughpath.c_str());
+
+  if (roughmap.isNull())
+    throw runtime_error("Failed to load image - " + roughpath);
+
+  QImage metalmap(metalpath.c_str());
+
+  if (metalmap.isNull())
+    throw runtime_error("Failed to load image - " + metalpath);
+
+  if (roughmap.size() != metalmap.size())
+    throw runtime_error("Image size mismatch - " + roughpath + "," + metalpath);
+
+  cout << "  " << metalpath << endl;
+  cout << "  " << roughpath << endl;
+
+  QImage image(roughmap.width(), roughmap.height(), QImage::Format_ARGB32);
+
+  for(int y = 0; y < image.height(); ++y)
+  {
+    for(int x = 0; x < image.width(); ++x)
+    {
+      auto metalness = qRed(metalmap.pixel(x, y)) / 255.0f;
+      auto reflectivity = 1.0f;
+      auto smoothness = 1.0f - qRed(roughmap.pixel(x, y)) / 255.0f;
+
+      image.setPixel(x, y, qRgba(metalness * 255, reflectivity * 255, 0, smoothness * 255));
+    }
+  }
+
+  image = image.mirrored();
+
+  int width = image.width();
+  int height = image.height();
+  int layers = 1;
+  int levels = min(4, image_maxlevels(width, height));
+
+  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+
+  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+
+  image_buildmips_rgb(width, height, layers, levels, payload.data());
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
@@ -364,7 +416,7 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, vector<string> const &pa
   int width = images.front().width();
   int height = images.front().height();
   int layers = 6;
-  int levels = 1;
+  int levels = 8;
 
   vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
 
@@ -390,6 +442,8 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, vector<string> const &pa
 
     dst += image.byteCount();
   }
+
+  image_buildmips_cube_ibl(width, height, levels, payload.data());
 
   write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
 
@@ -689,12 +743,12 @@ void write_core()
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
   write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 //  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
+//  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
 
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");
   write_shader_asset(fout, CoreAsset::bloom_vblur_comp, "../../data/bloom.vblur.comp");
-  write_shader_asset(fout, CoreAsset::bloom_blend_vert, "../../data/bloom.blend.vert");
-  write_shader_asset(fout, CoreAsset::bloom_blend_frag, "../../data/bloom.blend.frag");
+  write_shader_asset(fout, CoreAsset::bloom_tone_comp, "../../data/bloom.tone.comp");
 
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");
@@ -712,24 +766,6 @@ void write_core()
   fout.close();
 }
 
-void write_dagger()
-{
-  ofstream fout("dagger.pack", ios::binary | ios::trunc);
-
-  write_header(fout);
-
-  write_catalog_asset(fout, CoreAsset::catalog);
-
-  write_mesh_asset(fout, 1, "../../data/dagger.obj", 0.05);
-
-  write_material_asset(fout, 2, Color3(1, 1, 1), 1.0, 1.0, 0.5, "../../data/dagger_albedo.tga", "../../data/dagger_specular.tga", "../../data/dagger_normals.tga");
-
-  write_chunk(fout, "HEND", 0, nullptr);
-
-  fout.close();
-}
-
-
 int main(int argc, char **argv)
 {
   QGuiApplication app(argc, argv);
@@ -739,8 +775,6 @@ int main(int argc, char **argv)
   try
   {
     write_core();
-
-    write_dagger();
 
     write_mesh("plane.pack", "../../data/plane.obj");
     write_mesh("sphere.pack", "../../data/sphere.obj");

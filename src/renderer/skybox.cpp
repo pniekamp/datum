@@ -45,7 +45,7 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   begin(context.device, skyboxcommandbuffer, context.framebuffer, context.renderpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
-  bindresource(skyboxcommandbuffer, context.skyboxpipeline, 0, context.fbocrop, context.fbowidth, context.fboheight - context.fbocrop - context.fbocrop, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(skyboxcommandbuffer, context.skyboxpipeline, context.fbox, context.fboy, context.fbowidth - 2*context.fbox, context.fboheight - 2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindtexture(context.device, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap);
 
@@ -61,28 +61,28 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 }
 
 
-//|---------------------- Skybox --------------------------------------------
+//|---------------------- SkyBox --------------------------------------------
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Skybox const *ResourceManager::create<Skybox>(Asset const *asset)
+SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset)
 {
   if (!asset)
     return nullptr;
 
   assert(asset->layers == 6);
 
-  auto slot = acquire_slot(sizeof(Skybox));
+  auto slot = acquire_slot(sizeof(SkyBox));
 
   if (!slot)
     return nullptr;
 
-  auto skybox = new(slot) Skybox;
+  auto skybox = new(slot) SkyBox;
 
   skybox->texture = create<Texture>(asset, Texture::Format::RGBE);
 
-  skybox->state = Skybox::State::Loading;
+  skybox->state = SkyBox::State::Loading;
 
   set_slothandle(slot, asset);
 
@@ -92,7 +92,7 @@ Skybox const *ResourceManager::create<Skybox>(Asset const *asset)
 
 ///////////////////////// ResourceManager::request //////////////////////////
 template<>
-void ResourceManager::request<Skybox>(DatumPlatform::PlatformInterface &platform, Skybox const *skybox)
+void ResourceManager::request<SkyBox>(DatumPlatform::PlatformInterface &platform, SkyBox const *skybox)
 {
   assert(skybox);
   assert(skybox->texture);
@@ -101,11 +101,11 @@ void ResourceManager::request<Skybox>(DatumPlatform::PlatformInterface &platform
 
   if (skybox->texture->ready())
   {
-    auto slot = const_cast<Skybox*>(skybox);
+    auto slot = const_cast<SkyBox*>(skybox);
 
-    Skybox::State loading = Skybox::State::Loading;
+    SkyBox::State loading = SkyBox::State::Loading;
 
-    if (slot->state.compare_exchange_strong(loading, Skybox::State::Finalising))
+    if (slot->state.compare_exchange_strong(loading, SkyBox::State::Finalising))
     {
       slot->envmap.width = skybox->texture->texture.width;
       slot->envmap.height = skybox->texture->texture.height;
@@ -134,7 +134,7 @@ void ResourceManager::request<Skybox>(DatumPlatform::PlatformInterface &platform
 
       slot->envmap.imageview = create_imageview(vulkan, viewinfo);
 
-      slot->state = Skybox::State::Ready;
+      slot->state = SkyBox::State::Ready;
     }
   }
 }
@@ -142,7 +142,7 @@ void ResourceManager::request<Skybox>(DatumPlatform::PlatformInterface &platform
 
 ///////////////////////// ResourceManager::release //////////////////////////
 template<>
-void ResourceManager::release<Skybox>(Skybox const *skybox)
+void ResourceManager::release<SkyBox>(SkyBox const *skybox)
 {
   assert(skybox);
 
@@ -152,15 +152,15 @@ void ResourceManager::release<Skybox>(Skybox const *skybox)
 
 ///////////////////////// ResourceManager::destroy //////////////////////////
 template<>
-void ResourceManager::destroy<Skybox>(Skybox const *skybox)
+void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 {
   assert(skybox);
 
-  auto slot = const_cast<Skybox*>(skybox);
+  auto slot = const_cast<SkyBox*>(skybox);
 
   destroy(skybox->texture);
 
-  skybox->~Skybox();
+  skybox->~SkyBox();
 
-  release_slot(slot, sizeof(Skybox));
+  release_slot(slot, sizeof(SkyBox));
 }
