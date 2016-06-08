@@ -145,7 +145,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
     auto materialset = state.materialset.memory<MaterialSet>(offset);
 
-    materialset->tint = tint;
+    materialset->tint = premultiply(tint);
     materialset->texcoords = texcoords;
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);

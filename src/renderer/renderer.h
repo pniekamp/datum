@@ -176,10 +176,10 @@ struct ShadowMap
   int width = 1024;
   int height = 1024;
 
-  float shadowsplitfar = 250.0;
-  float shadowsplitlambda = 0.9;
+  float shadowsplitfar = 250.0f;
+  float shadowsplitlambda = 0.9f;
 
-  static const int nslices = 4;
+  static constexpr int nslices = 4;
 
   Vulkan::Texture shadowmap;
 
@@ -290,15 +290,15 @@ struct RenderParams
 {
   int width = 1280;
   int height = 720;
-  float aspect = 1.7777778;
+  float aspect = 1.7777778f;
 
-  lml::Vec3 sundirection = { -0.57735, -0.57735, -0.57735 };
+  lml::Vec3 sundirection = { -0.57735f, -0.57735f, -0.57735f };
   lml::Color3 sunintensity = { 1.0f, 1.0f, 1.0f };
 
   SkyBox const *skybox = nullptr;
   lml::Transform skyboxorientation = lml::Transform::identity();
 
-  float lightfalloff = 0.66;
+  float lightfalloff = 0.66f;
 
   bool ssao = true;
   bool bloom = true;

@@ -1453,11 +1453,11 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 ///////////////////////// prepare_shadowview ////////////////////////////////
 void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &lightdirection)
 {
-  const int nsplits = shadowmap.nslices;
   const float lambda = shadowmap.shadowsplitlambda;
   const float znear = 0.1;
   const float zfar = shadowmap.shadowsplitfar;
   const float extrusion = 1000.0;
+  constexpr int nsplits = ShadowMap::nslices;
 
   float splits[nsplits+1] = { znear };
 

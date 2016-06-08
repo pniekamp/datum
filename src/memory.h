@@ -10,6 +10,7 @@
 
 #include "platform.h"
 #include <memory>
+#include <algorithm>
 #include <scoped_allocator>
 #include <cassert>
 

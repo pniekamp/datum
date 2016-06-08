@@ -54,7 +54,7 @@ void Scene::clear()
   m_slots.clear();
   m_freeslots.clear();
 
-  m_slots.push_back({0, (size_t)-1, nullptr});
+  m_slots.push_back({ 0, (size_t)-1, nullptr });
 
   RESOURCE_SET(entityslotsused, m_slots.size());
   RESOURCE_SET(entityslotscapacity, m_slots.capacity());
@@ -85,7 +85,7 @@ Scene::Slot *Scene::acquire_slot()
   {
     assert(m_slots.size() < ((1 << kIndexBits) - 1));
 
-    m_slots.push_back({0, 0, nullptr});
+    m_slots.push_back({ 0, 0, nullptr });
 
     slot = &m_slots.back();
   }

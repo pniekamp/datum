@@ -127,7 +127,7 @@ namespace lml
     bool result = true;
 
     for(size_t i = 0; i < 8; ++i)
-     result &= (lhs.corners[i] == rhs.corners[i]);
+      result &= (lhs.corners[i] == rhs.corners[i]);
 
     return result;
   }

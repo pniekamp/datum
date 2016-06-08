@@ -59,7 +59,7 @@ class CommandList
     };
 
   public:
-    CommandList(class RenderContext *context);
+    CommandList(struct RenderContext *context);
     ~CommandList();
 
     CommandList(CommandList const &) = delete;
@@ -106,5 +106,5 @@ class CommandList
 
     ResourcePool::ResourceLump const *m_resourcelump;
 
-    class RenderContext *context;
+    struct RenderContext *context;
 };

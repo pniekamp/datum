@@ -66,14 +66,14 @@ namespace lml
   //////////////////////// Transform::translation ///////////////////////////
   constexpr Transform Transform::translation(Vec3 const &vector)
   {
-    return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5*vector.x, 0.5*vector.y, 0.5*vector.z) };
+    return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5f*vector.x, 0.5f*vector.y, 0.5f*vector.z) };
   }
 
 
   //////////////////////// Transform::translation ///////////////////////////
   constexpr Transform Transform::translation(float x, float y, float z)
   {
-    return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5*x, 0.5*y, 0.5*z) };
+    return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5f*x, 0.5f*y, 0.5f*z) };
   }
 
 

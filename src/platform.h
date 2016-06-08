@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <vulkan/vulkan.h>
 
 namespace DatumPlatform

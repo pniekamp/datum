@@ -22,7 +22,7 @@ using namespace lml;
 Camera::Camera()
 {
   m_fov = 60.0f;
-  m_aspect = 1.7777;
+  m_aspect = 1.7777f;
   m_exposure = 1.0f;
   m_transform = Transform::identity();
 }
@@ -48,10 +48,10 @@ void Camera::set_exposure(float exposure)
 ///////////////////////// Camera::set_exposure //////////////////////////////
 void Camera::set_exposure(float aperture, float shutterspeed, float iso)
 {
-  float q = 0.65;
-  float l_avg = (1.0 / q) * sqrt(aperture) / (iso * shutterspeed);
+  float q = 0.65f;
+  float l_avg = (1.0f / q) * sqrt(aperture) / (iso * shutterspeed);
 
-  m_exposure = 0.18 / l_avg;
+  m_exposure = 0.18f / l_avg;
 }
 
 

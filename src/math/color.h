@@ -52,8 +52,8 @@ namespace lml
   {
     public:
       Color4() = default;
-      constexpr Color4(float r, float g, float b, float a = 1.0);
-      constexpr Color4(Color3 const &rgb, float a = 1.0);
+      constexpr Color4(float r, float g, float b, float a = 1.0f);
+      constexpr Color4(Color3 const &rgb, float a = 1.0f);
 
     union
     {
@@ -87,12 +87,12 @@ namespace lml
   //|///////////////////// Gamma ////////////////////////////////////////////
   inline Color4 gamma(Color4 const &color)
   {
-    return Color4(pow(color.r, 1/2.2), pow(color.g, 1/2.2), pow(color.b, 1/2.2), color.a);
+    return Color4(pow(color.r, 1/2.2f), pow(color.g, 1/2.2f), pow(color.b, 1/2.2f), color.a);
   }
 
   inline Color4 ungamma(Color4 const &color)
   {
-    return Color4(pow(color.r, 2.2), pow(color.g, 2.2), pow(color.b, 2.2), color.a);
+    return Color4(pow(color.r, 2.2f), pow(color.g, 2.2f), pow(color.b, 2.2f), color.a);
   }
 
 
@@ -177,7 +177,7 @@ namespace lml
 
     auto p = v * (1 - s);
     auto q = v * (1 - (s * (hf - i)));
-    auto t = v * (1 - (s * (1.0 - (hf - i))));
+    auto t = v * (1 - (s * (1 - (hf - i))));
 
     switch(i)
     {
