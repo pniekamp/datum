@@ -37,27 +37,25 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
   if (!params.skybox || !params.skybox->ready())
     return;
 
-  auto &skyboxcommandbuffer = context.skyboxcommands[context.frame & 1];
+  auto &skyboxcommands = context.skyboxcommands[context.frame & 1];
 
   auto &skyboxdescriptor = context.skyboxdescriptors[context.frame & 1];
 
-  auto offset = context.sceneoffsets[context.frame & 1];
+  begin(context.device, skyboxcommands, context.framebuffer, context.renderpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
-  begin(context.device, skyboxcommandbuffer, context.framebuffer, context.renderpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-
-  bindresource(skyboxcommandbuffer, context.skyboxpipeline, context.fbox, context.fboy, context.fbowidth - 2*context.fbox, context.fboheight - 2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(skyboxcommands, context.skyboxpipeline, context.fbox, context.fboy, context.fbowidth - 2*context.fbox, context.fboheight - 2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindtexture(context.device, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap);
 
-  bindresource(skyboxcommandbuffer, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(skyboxcommandbuffer, context.unitquad);
+  bindresource(skyboxcommands, context.unitquad);
 
-  draw(skyboxcommandbuffer, context.unitquad.vertexcount, 1, 0, 0);
+  draw(skyboxcommands, context.unitquad.vertexcount, 1, 0, 0);
 
-  end(context.device, skyboxcommandbuffer);
+  end(context.device, skyboxcommands);
 
-  execute(commandbuffer, skyboxcommandbuffer);
+  execute(commandbuffer, skyboxcommands);
 }
 
 

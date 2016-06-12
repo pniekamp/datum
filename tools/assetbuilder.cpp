@@ -340,9 +340,9 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &metal
     {
       auto metalness = qRed(metalmap.pixel(x, y)) / 255.0f;
       auto reflectivity = 1.0f;
-      auto smoothness = 1.0f - qRed(roughmap.pixel(x, y)) / 255.0f;
+      auto roughness = qRed(roughmap.pixel(x, y)) / 255.0f;
 
-      image.setPixel(x, y, qRgba(metalness * 255, reflectivity * 255, 0, smoothness * 255));
+      image.setPixel(x, y, qRgba(metalness * 255, reflectivity * 255, 0, roughness * 255));
     }
   }
 
@@ -577,14 +577,14 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
 }
 
 
-uint32_t write_material_asset(ostream &fout, uint32_t id, Color3 color, float metalness, float smoothness, float reflectivity, string albedomap, string specularmap, string normalmap)
+uint32_t write_material_asset(ostream &fout, uint32_t id, Color3 color, float metalness, float roughness, float reflectivity, string albedomap, string specularmap, string normalmap)
 {
   int mapid = 0;
   uint32_t albedomapid = (albedomap != "") ? ++mapid : 0;
   uint32_t specularmapid = (specularmap != "") ? ++mapid : 0;
   uint32_t normalmapid = (normalmap != "") ? ++mapid : 0;
 
-  write_matl_asset(fout, id, color, metalness, smoothness, reflectivity, albedomapid, specularmapid, normalmapid);
+  write_matl_asset(fout, id, color, metalness, roughness, reflectivity, albedomapid, specularmapid, normalmapid);
 
   if (albedomapid)
     write_albedomap_asset(fout, id + albedomapid, albedomap);
@@ -750,10 +750,12 @@ void write_core()
   write_shader_asset(fout, CoreAsset::bloom_vblur_comp, "../../data/bloom.vblur.comp");
   write_shader_asset(fout, CoreAsset::bloom_tone_comp, "../../data/bloom.tone.comp");
 
+  write_shader_asset(fout, CoreAsset::luminance_comp, "../../data/luminance.comp");
+
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");
 
-  write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 0, 0.5, "", "", "");
+  write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, "", "", "");
 
   write_sprite_asset(fout, CoreAsset::loader_image, "../../data/loader.png", 8);
 
@@ -765,6 +767,7 @@ void write_core()
 
   fout.close();
 }
+
 
 int main(int argc, char **argv)
 {
@@ -778,6 +781,9 @@ int main(int argc, char **argv)
 
     write_mesh("plane.pack", "../../data/plane.obj");
     write_mesh("sphere.pack", "../../data/sphere.obj");
+
+    write_mesh("teapot.pack", "../../data/teapot.obj");
+    write_mesh("suzanne.pack", "../../data/suzanne.obj");
   }
   catch(std::exception &e)
   {

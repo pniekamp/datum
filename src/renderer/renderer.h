@@ -176,8 +176,8 @@ struct ShadowMap
   int width = 1024;
   int height = 1024;
 
-  float shadowsplitfar = 250.0f;
-  float shadowsplitlambda = 0.9f;
+  float shadowsplitfar = 150.0f;
+  float shadowsplitlambda = 0.925f;
 
   static constexpr int nslices = 4;
 
@@ -189,7 +189,7 @@ struct ShadowMap
 struct RenderContext
 {
   RenderContext()
-    : offset(0), frame(0), initialised(false)
+    : frame(0), initialised(false)
   {
   }
 
@@ -228,16 +228,18 @@ struct RenderContext
   Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass renderpass;
 
+  Vulkan::ConstantBuffer constantbuffer;
+
   Vulkan::Texture envbrdf;
 
   bool ssao;
-  Vulkan::Texture ssaobuffers[2];
   lml::Vec4 ssaonoise[16];
   lml::Vec4 ssaokernel[16];
-  Vulkan::DescriptorSet ssaotarget;
+  Vulkan::Texture ssaobuffers[2];
+  Vulkan::DescriptorSet ssaotargets[2];
+  Vulkan::DescriptorSet ssaodescriptors[2];
 
-  size_t sceneoffsets[2];
-  Vulkan::DescriptorSet scenedescriptors[2];
+  Vulkan::DescriptorSet lightingdescriptors[2];
 
   Vulkan::DescriptorSet skyboxdescriptors[2];
   Vulkan::CommandBuffer skyboxcommands[2];
@@ -260,6 +262,7 @@ struct RenderContext
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline luminancepipeline;
   Vulkan::Pipeline bloompipeline[4];
   Vulkan::Pipeline spritepipeline;
 
@@ -270,7 +273,6 @@ struct RenderContext
 
   ResourcePool resourcepool;
 
-  std::atomic<size_t> offset;
   Vulkan::MemoryView<uint8_t> transfermemory;
 
   size_t frame;
@@ -280,6 +282,8 @@ struct RenderContext
   Camera camera;
   lml::Matrix4f proj;
   lml::Matrix4f view;
+
+  float luminance = 1.0;
 
   Camera prevcamera;
 };
@@ -301,7 +305,10 @@ struct RenderParams
   float lightfalloff = 0.66f;
 
   bool ssao = true;
+  float ssaoscale = 1.0f;
+
   bool bloom = true;
+  float bloomstrength = 1.0f;
 };
 
 

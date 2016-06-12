@@ -39,7 +39,7 @@ struct Material
   vec3 specular;
   float emissive;
   float metalness;
-  float smoothness;
+  float roughness;
   float reflectivity;
   float alpha;
 };
@@ -63,9 +63,7 @@ const vec2 PoissonDisk[8] = {
 //----------------------- Functions -----------------------------------------
 //---------------------------------------------------------------------------
 
-#define NSLICES 4
 #define PI 3.1415926535897932384626433832795
-
 
 ///////////////////////// poisson ///////////////////////////////////////////
 float poisson(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
@@ -74,7 +72,7 @@ float poisson(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
 
   float sum = 0.0;
 
-  for(int k = 0; k < 8; ++k)
+  for(uint k = 0; k < 8; ++k)
   {
     sum += texture(shadowmap, vec4(texel.xy + PoissonDisk[k]*texelsize, texel.z, texel.w));
   }
@@ -91,13 +89,13 @@ Material unpack_material(vec4 rt0, vec4 rt1)
   material.albedo = rt0.rgb;
   material.emissive = rt0.a;
   material.metalness = rt1.r;
-  material.smoothness = rt1.a;
+  material.roughness = rt1.a;
   material.reflectivity = rt1.g;
   
   material.diffuse = material.albedo * (1 - material.metalness);
   material.specular = mix(vec3(0.16 * material.reflectivity * material.reflectivity), material.albedo, material.metalness);
   
-  material.alpha = (1 - material.smoothness) * (1 - material.smoothness);
+  material.alpha = material.roughness * material.roughness;
 
   return material;
 }
@@ -109,14 +107,14 @@ float ambient_intensity(MainLight light, sampler2DArray ssaomap, vec2 uv)
   return texture(ssaomap, vec3(uv, 0)).x;
 }
 
-
+/*
 ///////////////////////// shadow_intensity //////////////////////////////////
 float shadow_intensity(MainLight light, mat4 shadowview[NSLICES], sampler2DArrayShadow shadowmap, vec3 position, vec3 normal)
 {
   const float bias[NSLICES] = { 0.05, 0.06, 0.10, 0.25 };
   const float spread[NSLICES] = { 1.5, 1.2, 1.0, 0.2 };
 
-  for(int i = 0; i < NSLICES; ++i)
+  for(uint i = 0; i < NSLICES; ++i)
   {
     vec4 shadowspace = shadowview[i] * vec4(position + bias[i] * normal, 1);
     
@@ -140,7 +138,7 @@ float shadow_intensity(MainLight light, mat4 shadowview[NSLICES], sampler2DArray
   
   return 1.0;
 }
-
+*/
 
 ///////////////////////// diffuse_intensity /////////////////////////////////
 float diffuse_intensity(vec3 N, vec3 L)
@@ -157,17 +155,16 @@ float specular_intensity(vec3 N, vec3 V, vec3 L)
 
 
 ///////////////////////// specular_dominantdirection ////////////////////////
-vec3 specular_dominantdirection(vec3 N, vec3 R, float smoothness)
+vec3 specular_dominantdirection(vec3 N, vec3 R, float roughness)
 {
-  float roughness = 1 - smoothness;
+  float smoothness = 1 - roughness;
 
   return mix(N, R, smoothness * (sqrt(smoothness) + roughness));
 }
 
 ///////////////////////// dffuse_dominantdirection //////////////////////////
-vec3 dffuse_dominantdirection(vec3 N, vec3 V, float smoothness)
+vec3 dffuse_dominantdirection(vec3 N, vec3 V, float roughness)
 {
-  float roughness = 1 - smoothness;  
   float a = 1.02341f * roughness - 1.51174f;
   float b = -0.511705f * roughness + 0.755868f;  
   
@@ -246,9 +243,9 @@ void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 n
 	float NdotH = max(dot(normal, halfvec), 0.0);
 	float LdotH = max(dot(lightvec, halfvec), 0.0);
 
-  float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) / PI;
+  float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 
-  vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) / PI;
+  vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) * (1/PI);
 
   diffuse += NdotL * Fd * light.intensity * shadowfactor;
 
@@ -268,9 +265,9 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
 	float NdotH = max(dot(normal, halfvec), 0.0);
 	float LdotH = max(dot(lightvec, halfvec), 0.0);
 
-  float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) / PI;
+  float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 
-  vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) / PI;
+  vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) * (1/PI);
 
   float lightdistance = length(light.position - position);
   

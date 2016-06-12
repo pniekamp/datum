@@ -164,6 +164,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
+#if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
@@ -183,6 +184,16 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
 
     draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
   }
+#else
+   ModelSet modelset;
+   modelset.xbasis = xbasis;
+   modelset.ybasis = ybasis;
+   modelset.position = Vec4(position, floor(layer), 1);
+
+   push(commandlist, context.pipelinelayout, 0, sizeof(modelset), &modelset, VK_SHADER_STAGE_VERTEX_BIT);
+
+   draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
+#endif
 }
 
 

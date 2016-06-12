@@ -20,8 +20,8 @@ class OcclusionBuffer
   public:
     OcclusionBuffer();
 
-    static const int kWidth = 256;
-    static const int kHeight = 144;
+    static const int Width = 256;
+    static const int Height = 144;
 
     void clear();
 
@@ -33,7 +33,7 @@ class OcclusionBuffer
 
   private:
 
-    float m_buffer[kHeight][kWidth];
+    float m_buffer[Height][Width];
 };
 
 

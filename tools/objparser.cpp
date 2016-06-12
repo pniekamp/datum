@@ -181,9 +181,9 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &metalpath
     {
       auto metalness = qRed(metalmap.pixel(x, y)) / 255.0f;
       auto reflectivity = 1.0f;
-      auto smoothness = 1.0f - qRed(roughmap.pixel(x, y)) / 255.0f;
+      auto roughness = qRed(roughmap.pixel(x, y)) / 255.0f;
 
-      image.setPixel(x, y, qRgba(metalness * 255, reflectivity * 255, 0, smoothness * 255));
+      image.setPixel(x, y, qRgba(metalness * 255, reflectivity * 255, 0, roughness * 255));
     }
   }
 
@@ -641,7 +641,7 @@ void write_model(string const &filename)
     materialtable[i].color[1] = materials[i].color.g;
     materialtable[i].color[2] = materials[i].color.b;
     materialtable[i].metalness = 1.0f;
-    materialtable[i].smoothness = 1.0f;
+    materialtable[i].roughness = 1.0f;
     materialtable[i].reflectivity = 0.5f;
     materialtable[i].albedomap = materials[i].albedomap;
     materialtable[i].specularmap = materials[i].specularmap;

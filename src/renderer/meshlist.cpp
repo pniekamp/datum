@@ -44,7 +44,7 @@ struct MaterialSet
 {
   Color4 color;
   float metalness;
-  float smoothness;
+  float roughness;
   float reflectivity;
 };
 
@@ -151,7 +151,7 @@ void MeshList::push_material(BuildState &state, Material const *material)
 
       materialset->color = material->color;
       materialset->metalness = material->metalness;
-      materialset->smoothness = material->smoothness;
+      materialset->roughness = material->roughness;
       materialset->reflectivity = material->reflectivity;
 
       bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
@@ -195,6 +195,7 @@ void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform
     state.mesh = mesh;
   }
 
+#if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
@@ -212,6 +213,11 @@ void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
+#else
+  push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
+
+  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+#endif
 }
 
 

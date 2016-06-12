@@ -6,7 +6,8 @@ layout(location=1) in vec2 vertex_texcoord;
 layout(location=2) in vec3 vertex_normal;
 layout(location=3) in vec4 vertex_tangent;
 
-layout(std430, set=2, binding=0) buffer ModelSet 
+//layout(std140, push_constant, row_major) uniform ModelSet 
+layout(std430, set=2, binding=0, row_major) buffer ModelSet 
 { 
   Transform modelworld;
 

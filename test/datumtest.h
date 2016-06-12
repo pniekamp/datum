@@ -30,6 +30,8 @@ struct GameState
 
   Camera camera;
 
+  float luminancetarget = 0.1f;
+
   float lastmousex, lastmousey, lastmousez;
 
   Sprite const *loader;
@@ -49,7 +51,8 @@ struct GameState
   Mesh const *testplane;
   Mesh const *testsphere;
   Sprite const *testimage;
-  EnvMap const *testenvmap;
+
+  Mesh const *suzanne;
 
   // Render Frames
 

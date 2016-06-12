@@ -26,7 +26,7 @@ uint32_t write_text_asset(std::ostream &fout, uint32_t id, std::string const &st
 uint32_t write_text_asset(std::ostream &fout, uint32_t id, std::vector<uint8_t> const &str);
 uint32_t write_imag_asset(std::ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, void const *bits, float alignx, float aligny);
 uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, std::vector<PackVertex> const &vertices, std::vector<uint32_t> const &indices);
-uint32_t write_matl_asset(std::ostream &fout, uint32_t id, lml::Color3 const &color, float metalness, float smoothness, float reflectivity, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap);
+uint32_t write_matl_asset(std::ostream &fout, uint32_t id, lml::Color3 const &color, float metalness, float roughness, float reflectivity, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap);
 
 
 //

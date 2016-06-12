@@ -10,6 +10,46 @@ using namespace std;
 using namespace lml;
 using namespace DatumPlatform;
 
+namespace
+{
+
+  ///////////////////////// random_lights ///////////////////////////////////
+  void random_lights(Scene &scene, int count)
+  {
+    Bound3 bound = bound_limits<Bound3>::min();
+
+    for(auto &entity : scene.entities<MeshComponent>())
+    {
+      bound = expand(bound, scene.get_component<MeshComponent>(entity).bound());
+    }
+
+    bound.min.y = 0.5;
+
+    float maxradius = 3 * pow(volume(bound) / count, 1.0f/3.0f);
+    float minradius = maxradius * 0.8;
+
+    for(int i = 0; i < count; ++i)
+    {
+      float range = minradius + (maxradius - minradius) * rand() / float(RAND_MAX);
+
+      Color3 intensity = hsv(360 * rand() / float(RAND_MAX), 1.0f, 0.4f + 0.3f * rand() / float(RAND_MAX));
+
+      Attenuation attenuation = Attenuation(256*max_element(intensity)/(range*range), 0.0f, 1.0f);
+
+      float rx = (bound.max.x - bound.min.x - range/4) * rand() / float(RAND_MAX);
+      float ry = (bound.max.y - bound.min.y - range/4) * rand() / float(RAND_MAX);
+      float rz = (bound.max.z - bound.min.z - range/4) * rand() / float(RAND_MAX);
+
+      Vec3 position = bound.min + Vec3(rx, ry, rz);
+
+      auto light = scene.create<Entity>();
+      scene.add_component<TransformComponent>(light, Transform::translation(position));
+      scene.add_component<PointLightComponent>(light, intensity, attenuation);
+    }
+  }
+
+}
+
 
 ///////////////////////// GameState::Constructor ////////////////////////////
 GameState::GameState(StackAllocator<> const &allocator)
@@ -62,31 +102,31 @@ void datumtest_init(PlatformInterface &platform)
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
 
-  state.testenvmap = state.resources.create<EnvMap>(state.assets.find(CoreAsset::default_skybox));
+  state.suzanne = state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack"));
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 
 #if 1
-  for(float smoothness = 0; smoothness < 1.0f + 1e-3f; smoothness += 0.1)
+  for(float roughness = 0; roughness < 1.0f + 1e-3f; roughness += 0.1)
   {
-    float x = smoothness * 12.0f;
+    float x = (1 - roughness) * 12.0f;
     float y = 1.0f;
     float z = -5.0f;
 
-    auto material = state.resources.create<Material>(Color3(1.0f, 0.0f, 0.0f), 0.0f, smoothness);
+    auto material = state.resources.create<Material>(Color3(1.0f, 0.0f, 0.0f), 0.0f, roughness);
 
     auto entity = state.scene.create<Entity>();
     state.scene.add_component<TransformComponent>(entity, Transform::translation(Vec3(x, y, z)));
     state.scene.add_component<MeshComponent>(entity, state.testsphere, material, MeshComponent::Static | MeshComponent::Visible);
   }
 
-  for(float smoothness = 0; smoothness < 1.0f + 1e-3f; smoothness += 0.1)
+  for(float roughness = 0; roughness < 1.0f + 1e-3f; roughness += 0.1)
   {
-    float x = smoothness * 12.0f;
+    float x = (1 - roughness) * 12.0f;
     float y = 1.0f;
     float z = -3.0f;
 
-    auto material = state.resources.create<Material>(Color3(1.000, 0.766, 0.336), 1.0f, smoothness);
+    auto material = state.resources.create<Material>(Color3(1.000, 0.766, 0.336), 1.0f, roughness);
 
     auto entity = state.scene.create<Entity>();
     state.scene.add_component<TransformComponent>(entity, Transform::translation(Vec3(x, y, z)));
@@ -146,8 +186,10 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.lastmousez = input.mousez;
 
 #ifdef DEBUG
-  state.camera.set_exposure(debug_menu_value("Exposure", state.camera.exposure(), 0.0f, 8.0f));
+  state.luminancetarget = debug_menu_value("Exposure", state.luminancetarget, 0.0f, 8.0f);
 #endif
+
+  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 3.14f*dt);
 
   state.camera = normalise(state.camera);
 
@@ -155,6 +197,17 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   state.writeframe->time = state.time;
   state.writeframe->camera = state.camera;
+
+  float suzannemetalness = 0.0f;
+  DEBUG_MENU_ENTRY("Suzanne Metalness", suzannemetalness = debug_menu_value("Suzanne Metalness", suzannemetalness, 0.0f, 1.0f))
+
+  float suzanneroughness = 0.0f;
+  DEBUG_MENU_ENTRY("Suzanne Roughness", suzanneroughness = debug_menu_value("Suzanne Roughness", suzanneroughness, 0.0f, 1.0f))
+
+  float suzannereflectivity = 0.5f;
+  DEBUG_MENU_ENTRY("Suzanne Reflectivity", suzannereflectivity = debug_menu_value("Suzanne Reflectivity", suzannereflectivity, 0.0f, 2.0f))
+
+  auto suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity));
 
 #if 1
   {
@@ -181,6 +234,8 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
     if (state.writeframe->meshes.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
+      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, suzannematerial);
+
       state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
 
       for(auto &entity : state.scene.entities<MeshComponent>())
@@ -237,7 +292,8 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 #endif
 
   DEBUG_MENU_ENTRY("Position", state.camera.position());
-  DEBUG_MENU_ENTRY("Exposure", state.camera.exposure());
+  DEBUG_MENU_ENTRY("Exposure", state.luminancetarget);
+  DEBUG_MENU_ENTRY("Luminance", state.rendercontext.luminance);
 
   state.writeframe->resourcetoken = state.resources.token();
 
@@ -263,11 +319,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   if (!state.skybox->ready())
   {
     state.resources.request(platform, state.skybox);
-  }
-
-  if (!state.testenvmap->ready())
-  {
-    state.resources.request(platform, state.testenvmap);
   }
 
   while (state.readyframe.load()->time <= state.readframe->time)
@@ -324,6 +375,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.sundirection = normalise(Vec3(0.4, -1, -0.1));
   renderparams.sunintensity = Color3(5, 5, 5);
   renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), -0.1*state.readframe->time);
+  renderparams.ssaoscale = 0.5f;
 
   DEBUG_MENU_ENTRY("Sun Direction", renderparams.sundirection = normalise(debug_menu_value("Sun Direction", renderparams.sundirection, Vec3(-1), Vec3(1))))
 

@@ -280,6 +280,16 @@ namespace Vulkan
     operator VkBuffer() const { return buffer; }
   };
 
+  struct ConstantBuffer
+  {
+    VkDeviceSize size;
+    VkDeviceSize offset;
+    VulkanResource<VkBuffer, BufferDeleter> buffer;
+    VulkanResource<VkDeviceMemory, MemoryDeleter> memory;
+
+    operator VkBuffer() const { return buffer; }
+  };
+
   struct VertexBuffer
   {
     size_t vertexcount, vertexsize;
@@ -342,6 +352,8 @@ namespace Vulkan
   TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
   TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size);
 
+  ConstantBuffer create_constantbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
+
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, size_t vertexcount, size_t vertexsize);
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize);
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize);
@@ -381,11 +393,12 @@ namespace Vulkan
   Semaphore create_semaphore(VulkanDevice const &vulkan, VkSemaphoreCreateFlags flags = 0);
 
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
-  DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkImageView writeimage);
 
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler);
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
+
+  void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView writeimage);
 
   void reset_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPool descriptorpool);
 
@@ -409,6 +422,9 @@ namespace Vulkan
   void clear(VulkanDevice const &vulkan, VkImage image, lml::Color4 const &clearcolor);
 
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data);
+
+  void barrier(VkCommandBuffer commandbuffer);
+  void barrier(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
 
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy);
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter);
@@ -434,6 +450,8 @@ namespace Vulkan
 
   void execute(VkCommandBuffer commandbuffer, VkCommandBuffer buffer);
 
+  void push(VkCommandBuffer commandbuffer, VkPipelineLayout layout, VkDeviceSize offset, VkDeviceSize size, const void *data, VkShaderStageFlags stage);
+
   void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint);
   void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint);
 
@@ -446,5 +464,6 @@ namespace Vulkan
   void draw(VkCommandBuffer commandbuffer, uint32_t indexcount, uint32_t instancecount, uint32_t firstindex, int32_t vertexoffset, uint32_t firstinstance);
 
   void dispatch(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t z);
+  void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3]);
 
 } // namespace

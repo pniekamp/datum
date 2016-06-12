@@ -120,7 +120,7 @@ struct PackMaterialPayload
 {
   float color[3];
   float metalness;
-  float smoothness;
+  float roughness;
   float reflectivity;
 
   uint32_t albedomap;
@@ -151,7 +151,7 @@ struct PackModelPayload
   {
     float color[3];
     float metalness;
-    float smoothness;
+    float roughness;
     float reflectivity;
 
     uint32_t albedomap;

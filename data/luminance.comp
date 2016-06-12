@@ -1,0 +1,49 @@
+#version 450 core
+
+#define SIZEX 48
+#define SIZEY 21
+
+layout(local_size_x = SIZEX, local_size_y = SIZEY) in;
+
+layout(set=0, binding=1) uniform sampler2D src;
+
+layout(std430, set=3, binding=0, row_major) buffer ComputeSet 
+{
+  vec3 noise[16];
+  vec3 kernel[16];
+
+  float luminance;
+
+} compute;
+  
+shared float luminance[SIZEY*SIZEX];
+
+///////////////////////// main //////////////////////////////////////////////
+void main(void)
+{ 
+  ivec2 ij = ivec2(gl_LocalInvocationID.xy);
+  
+  vec3 sum = vec3(0);
+  for(float v = (ij.y + 0.05) / SIZEY, end = (ij.y + 0.95) / SIZEY; v < end; v += 0.1/SIZEY)
+  {
+    for(float u = (ij.x + 0.05) / SIZEX, end = (ij.x + 0.95) / SIZEX; u < end; u += 0.1/SIZEX)
+    {
+      sum += texture(src, vec2(u, v)).rgb;
+    }
+  }
+  
+  luminance[ij.y * SIZEX + ij.x] = log(max(dot(sum / 100.0, vec3(0.299, 0.587, 0.114)), 1e-3));
+
+  barrier();
+
+  if (gl_LocalInvocationIndex == 0)
+  {
+    float result = 0;
+    for(uint k = 0; k < SIZEX*SIZEY; ++k)
+    {
+      result += luminance[k];
+    }
+    
+    compute.luminance = exp(result / (SIZEX*SIZEY));
+  }  
+}

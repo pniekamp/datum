@@ -36,7 +36,7 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
 
   VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
 
-  VkDeviceSize slotsize = alignto(storagesize / kStorageBufferSlots - alignment + 1, alignment);
+  VkDeviceSize slotsize = alignto(storagesize / StorageBufferSlots - alignment + 1, alignment);
 
   assert(slotsize >= alignment);
   assert(alignment >= alignof(max_align_t));
@@ -44,11 +44,11 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
 
   m_storagehead = 0;
 
-  m_transferbuffer = create_transferbuffer(vulkan, slotsize * kStorageBufferSlots);
+  m_transferbuffer = create_transferbuffer(vulkan, slotsize * StorageBufferSlots);
 
   m_transfermemory = map_memory<uint8_t>(vulkan, m_transferbuffer, 0, m_transferbuffer.size);
 
-  for(size_t i = 0; i < kStorageBufferSlots; ++i)
+  for(size_t i = 0; i < StorageBufferSlots; ++i)
   {
     m_storagebuffers[i].base = i * slotsize;
     m_storagebuffers[i].size = slotsize;
@@ -60,9 +60,9 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
 
   VkDescriptorPoolSize typecounts[2] = {};
   typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-  typecounts[0].descriptorCount = kDescriptorSetSlots;
+  typecounts[0].descriptorCount = DescriptorSetSlots;
   typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  typecounts[1].descriptorCount = 8*kDescriptorSetSlots;
+  typecounts[1].descriptorCount = 8*DescriptorSetSlots;
 
   VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
   descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -70,7 +70,7 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
   descriptorpoolinfo.poolSizeCount = extentof(typecounts);
   descriptorpoolinfo.pPoolSizes = typecounts;
 
-  for(size_t i = 0; i < kResourceLumpCount; ++i)
+  for(size_t i = 0; i < ResourceLumpCount; ++i)
   {
     m_lumps[i].storagepool.count = 0;
 
@@ -80,9 +80,9 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
   }
 
   RESOURCE_SET(renderlumpsused, 0)
-  RESOURCE_SET(renderlumpscapacity, kResourceLumpCount)
+  RESOURCE_SET(renderlumpscapacity, ResourceLumpCount)
   RESOURCE_SET(renderstorageused, 0)
-  RESOURCE_SET(renderstoragecapacity, slotsize * kStorageBufferSlots)
+  RESOURCE_SET(renderstoragecapacity, slotsize * StorageBufferSlots)
 
   m_initialised = true;
 }
@@ -108,9 +108,9 @@ ResourcePool::ResourceLump const *ResourcePool::acquire_lump()
 
   static thread_local int lumphead = (tid() % 8) * 8;
 
-  for(size_t i = 0; i < kResourceLumpCount; ++i)
+  for(size_t i = 0; i < ResourceLumpCount; ++i)
   {
-    ResourceLump &lump = m_lumps[(lumphead + i) % kResourceLumpCount];
+    ResourceLump &lump = m_lumps[(lumphead + i) % ResourceLumpCount];
 
     if (lump.lock.test_and_set(std::memory_order_acquire) == false)
     {
@@ -130,7 +130,7 @@ ResourcePool::ResourceLump const *ResourcePool::acquire_lump()
 void ResourcePool::release_lump(ResourceLump const *lumphandle)
 {
   assert(m_initialised);
-  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
@@ -148,7 +148,7 @@ void ResourcePool::release_lump(ResourceLump const *lumphandle)
 ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump const *lumphandle)
 {
   assert(m_initialised);
-  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
@@ -160,16 +160,16 @@ ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump con
 ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump const *lumphandle, size_t required)
 {
   assert(m_initialised);
-  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
   assert(m_lumps[lumphandle - m_lumps].storagepool.count < extent<decltype(StoragePool::buffers)>::value);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
   size_t storagehead = m_storagehead;
 
-  for(size_t i = 0; i < kStorageBufferSlots; ++i)
+  for(size_t i = 0; i < StorageBufferSlots; ++i)
   {
-    StorageSlot &buffer = m_storagebuffers[(storagehead + i) % kStorageBufferSlots];
+    StorageSlot &buffer = m_storagebuffers[(storagehead + i) % StorageBufferSlots];
 
     if (buffer.lock.test_and_set(std::memory_order_acquire) == false)
     {
@@ -210,7 +210,7 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
 void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t used)
 {
   assert(m_initialised);
-  assert(storage.storagebuffer >= m_storagebuffers && storage.storagebuffer - m_storagebuffers < kStorageBufferSlots);
+  assert(storage.storagebuffer >= m_storagebuffers && storage.storagebuffer - m_storagebuffers < StorageBufferSlots);
 
   StorageSlot &buffer = m_storagebuffers[storage.storagebuffer - m_storagebuffers];
 
@@ -228,7 +228,7 @@ void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t us
 ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump const *lumphandle, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
 {
   assert(m_initialised);
-  assert(lumphandle >= m_lumps && lumphandle - m_lumps < kResourceLumpCount);
+  assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
   assert(m_lumps[lumphandle - m_lumps].storagepool.count < extent<decltype(StoragePool::buffers)>::value);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];

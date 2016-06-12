@@ -2,16 +2,14 @@
 #include "camera.glsl"
 #include "gbuffer.glsl"
 
-#define RADIUS 2
-#define WIDTH 32
-#define HEIGHT 32
-#define SIZEX WIDTH + RADIUS + RADIUS
-#define SIZEY HEIGHT + RADIUS + RADIUS
+layout(local_size_x_id = 64, local_size_y_id = 65) in;
 
-layout(local_size_x = SIZEX, local_size_y = SIZEY) in;
+layout(constant_id = 67) const uint Radius = 2;
+layout(constant_id = 62) const uint NoiseSize = 16;
+layout(constant_id = 63) const uint KernelSize = 16;
 
-#define NOISE_SIZE 16
-#define KERNEL_SIZE 16
+const uint SizeX = gl_WorkGroupSize.x - Radius - Radius;
+const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
 
 layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
@@ -24,10 +22,16 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   
   Camera camera;
 
-  vec3 noise[NOISE_SIZE];
-  vec3 kernel[KERNEL_SIZE];
-
 } scene;
+
+layout(std430, set=3, binding=0, row_major) buffer ComputeSet 
+{
+  vec3 noise[NoiseSize];
+  vec3 kernel[KernelSize];
+
+  float luminance;
+
+} compute;
 
 layout(set=0, binding=1) uniform sampler2DArray albedomap;
 layout(set=0, binding=2) uniform sampler2DArray specularmap;
@@ -35,14 +39,14 @@ layout(set=0, binding=3) uniform sampler2DArray normalmap;
 layout(set=0, binding=4) uniform sampler2DArray depthmap;
 layout(set=0, binding=5) uniform sampler2DArray prevmap;
 
-layout(set=3, binding=0) writeonly uniform image2D dest;
+layout(set=3, binding=1) writeonly uniform image2D dest;
 
 const float OcclusionRadius = 0.35;
 const float OcclusionPower = 1.5;
 const float OcclusionBias = 0.1;
 
-shared float texels[SIZEY][SIZEX];
-shared float depths[SIZEY][SIZEX];
+shared float texels[SizeY + Radius + Radius][SizeX + Radius + Radius];
+shared float depths[SizeY + Radius + Radius][SizeX + Radius + Radius];
 
 ///////////////////////// max_element ///////////////////////////////////////
 float max_element(vec4 value)
@@ -54,8 +58,10 @@ float max_element(vec4 value)
 void main()
 { 
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
-  ivec2 xy = ivec2(gl_WorkGroupID.x * WIDTH + ij.x - RADIUS, gl_WorkGroupID.y * HEIGHT + ij.y - RADIUS);
+  ivec2 tile = ivec2(gl_WorkGroupID.x * SizeX, gl_WorkGroupID.y * SizeY); 
   
+  ivec2 xy = ivec2(tile.x + ij.x - Radius, tile.y + ij.y - Radius); 
+ 
   vec2 texcoord = vec2(xy + 0.5) / imageSize(dest);
 
   vec4 depthquad = textureGather(depthmap, vec3(texcoord, 0));
@@ -65,7 +71,7 @@ void main()
   vec3 position = view_position(scene.proj, scene.invproj, texcoord, depth);
   vec3 normal = view_normal(scene.view, texture(normalmap, vec3(texcoord, 0)).xyz);
   
-	vec3 randomvec = scene.noise[(xy.x + xy.y * 4) % NOISE_SIZE];
+	vec3 randomvec = compute.noise[(xy.x + xy.y * 4) % NoiseSize];
 
 	vec3 tangent = normalize(randomvec - normal * dot(randomvec, normal));
 	vec3 bitangent = cross(normal, tangent);
@@ -74,9 +80,9 @@ void main()
 
   float occlusion = 0.0;
 
-  for(int i = 0; i < KERNEL_SIZE; ++i)
+  for(uint i = 0; i < KernelSize; ++i)
   {
-    vec3 samplepos = position + tbnview * scene.kernel[i] * OcclusionRadius;
+    vec3 samplepos = position + tbnview * compute.kernel[i] * OcclusionRadius;
     
     float sampledepth = view_depth(scene.proj, texture(depthmap, vec3(0.5 * project(scene.proj, samplepos) + 0.5, 0)).r);
 
@@ -85,21 +91,21 @@ void main()
     occlusion += rangecheck * step(samplepos.z, -sampledepth - OcclusionBias);
   }
 
-  occlusion = pow(1.0 - (occlusion / KERNEL_SIZE), OcclusionPower);
+  occlusion = pow(1.0 - (occlusion / KernelSize), OcclusionPower);
 
   texels[ij.y][ij.x] = occlusion;
   depths[ij.y][ij.x] = depth;
 
   barrier();
   
-  if (ij.x >= RADIUS && ij.x < SIZEX-RADIUS && ij.y >= RADIUS && ij.y < SIZEY-RADIUS)
+  if (ij.x < SizeX && ij.y < SizeY)
   {
     float avg = 0;
     float spatialweight = 0;
 
-    for(int j = ij.y - RADIUS; j < ij.y + RADIUS; ++j)
+    for(uint j = ij.y, end = ij.y + Radius + Radius; j < end; ++j)
     {
-      for(int i = ij.x - RADIUS; i < ij.x + RADIUS; ++i)
+      for(uint i = ij.x, end = ij.x + Radius + Radius; i < end; ++i)
       {
         float weight = max(1.0 - 250*abs(depths[j][i] - depth), 0.0);
         
@@ -119,7 +125,7 @@ void main()
     float temporalweight = clamp(5.0 * abs(prevocclusion.x - occlusion) + 0.001 * distance(prevposition, position), 0.1, 1.0);
 
     occlusion = mix(prevocclusion.x, occlusion, temporalweight);
-  
-    imageStore(dest, xy, vec4(occlusion, depth, 0, 0));
+
+    imageStore(dest, tile + ij, vec4(occlusion, depth, 0, 0));
   }
 }

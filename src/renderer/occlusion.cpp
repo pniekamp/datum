@@ -57,7 +57,7 @@ namespace
 {
 
   ///////////////////////// rasterize ///////////////////////////////////////
-  void rasterize(float buffer[OcclusionBuffer::kHeight][OcclusionBuffer::kWidth], Vec4 *vertices)
+  void rasterize(float buffer[OcclusionBuffer::Height][OcclusionBuffer::Width], Vec4 *vertices)
   {
     Vec3 positions[3];
 
@@ -65,8 +65,8 @@ namespace
     {
       float invw = 1.0f / vertices[i].w;
 
-      positions[i].x = (0.5f * vertices[i].x * invw + 0.5f) * (OcclusionBuffer::kWidth - 1);
-      positions[i].y = (0.5f * vertices[i].y * invw + 0.5f) * (OcclusionBuffer::kHeight - 1);
+      positions[i].x = (0.5f * vertices[i].x * invw + 0.5f) * (OcclusionBuffer::Width - 1);
+      positions[i].y = (0.5f * vertices[i].y * invw + 0.5f) * (OcclusionBuffer::Height - 1);
       positions[i].z = (vertices[i].z * invw);
     }
 
@@ -127,8 +127,8 @@ namespace
     Edge midbot(gradients, positions[mid], positions[bot]);
 
     int topy = max((int)positions[top].y, 0);
-    int midy = clamp((int)positions[mid].y, 0, OcclusionBuffer::kHeight);
-    int boty = min((int)positions[bot].y, OcclusionBuffer::kHeight);
+    int midy = clamp((int)positions[mid].y, 0, OcclusionBuffer::Height);
+    int boty = min((int)positions[bot].y, OcclusionBuffer::Height);
 
     if (lefttoright)
     {
@@ -138,10 +138,10 @@ namespace
       topbot.z += (topy + 1.0f - positions[top].y) * topbot.zstep;
 
       // topbot to topmid
-      for(float *row = &buffer[0][0] + topy * OcclusionBuffer::kWidth, *end = &buffer[0][0] + midy * OcclusionBuffer::kWidth; row < end; row += OcclusionBuffer::kWidth)
+      for(float *row = &buffer[0][0] + topy * OcclusionBuffer::Width, *end = &buffer[0][0] + midy * OcclusionBuffer::Width; row < end; row += OcclusionBuffer::Width)
       {
         int topx = max((int)topbot.x, 0);
-        int midx = min((int)topmid.x, OcclusionBuffer::kWidth);
+        int midx = min((int)topmid.x, OcclusionBuffer::Width);
 
         float z = topbot.z + (topx + 1.0f - topbot.x) * gradients.dzdx;
 
@@ -159,10 +159,10 @@ namespace
       }
 
       // topbot to midbot
-      for(float *row = &buffer[0][0] + midy * OcclusionBuffer::kWidth, *end = &buffer[0][0] + boty * OcclusionBuffer::kWidth; row < end; row += OcclusionBuffer::kWidth)
+      for(float *row = &buffer[0][0] + midy * OcclusionBuffer::Width, *end = &buffer[0][0] + boty * OcclusionBuffer::Width; row < end; row += OcclusionBuffer::Width)
       {
         int topx = max((int)topbot.x, 0);
-        int midx = min((int)midbot.x, OcclusionBuffer::kWidth);
+        int midx = min((int)midbot.x, OcclusionBuffer::Width);
 
         float z = topbot.z + (topx + 1.0f - topbot.x) * gradients.dzdx;
 
@@ -188,10 +188,10 @@ namespace
       midbot.z += (midy + 1.0f - positions[mid].y) * midbot.zstep;
 
       // topmid to topbot
-      for(float *row = &buffer[0][0] + topy * OcclusionBuffer::kWidth, *end = &buffer[0][0] + midy * OcclusionBuffer::kWidth; row < end; row += OcclusionBuffer::kWidth)
+      for(float *row = &buffer[0][0] + topy * OcclusionBuffer::Width, *end = &buffer[0][0] + midy * OcclusionBuffer::Width; row < end; row += OcclusionBuffer::Width)
       {
         int midx = max((int)topmid.x, 0);
-        int topx = min((int)topbot.x, OcclusionBuffer::kWidth);
+        int topx = min((int)topbot.x, OcclusionBuffer::Width);
 
         float z = topmid.z + (midx + 1.0f - topmid.x) * gradients.dzdx;
 
@@ -209,10 +209,10 @@ namespace
       }
 
       // midbot to topbot
-      for(float *row = &buffer[0][0] + midy * OcclusionBuffer::kWidth, *end = &buffer[0][0] + boty * OcclusionBuffer::kWidth; row < end; row += OcclusionBuffer::kWidth)
+      for(float *row = &buffer[0][0] + midy * OcclusionBuffer::Width, *end = &buffer[0][0] + boty * OcclusionBuffer::Width; row < end; row += OcclusionBuffer::Width)
       {
         int midx = max((int)midbot.x, 0);
-        int topx = min((int)topbot.x, OcclusionBuffer::kWidth);
+        int topx = min((int)topbot.x, OcclusionBuffer::Width);
 
         float z = midbot.z + (midx + 1.0f - midbot.x) * gradients.dzdx;
 
@@ -233,7 +233,7 @@ namespace
 
 
   ///////////////////////// fill_triangle ///////////////////////////////////
-  void fill_triangle(float buffer[OcclusionBuffer::kHeight][OcclusionBuffer::kWidth], Vec4 *vertices)
+  void fill_triangle(float buffer[OcclusionBuffer::Height][OcclusionBuffer::Width], Vec4 *vertices)
   {
     int clipmask[3] = { 0, 0, 0 };
 
@@ -279,8 +279,8 @@ namespace
 //|---------------------- OcclusionBuffer -----------------------------------
 //|--------------------------------------------------------------------------
 
-const int OcclusionBuffer::kWidth;
-const int OcclusionBuffer::kHeight;
+const int OcclusionBuffer::Width;
+const int OcclusionBuffer::Height;
 
 ///////////////////////// OcclusionBuffer::Constructor //////////////////////
 OcclusionBuffer::OcclusionBuffer()
@@ -292,9 +292,9 @@ OcclusionBuffer::OcclusionBuffer()
 ///////////////////////// OcclusionBuffer::clear ////////////////////////////
 void OcclusionBuffer::clear()
 {
-  for(int j = 0; j < kHeight; ++j)
+  for(int j = 0; j < Height; ++j)
   {
-    for(int i = 0; i < kWidth; ++i)
+    for(int i = 0; i < Width; ++i)
     {
       m_buffer[j][i] = 1.0f;
     }
@@ -355,12 +355,12 @@ bool OcclusionBuffer::visible(Matrix4f worldview, Bound3 const &bound) const
     minz = min(minz, corners[i].z * invw);
   }
 
-  int left = max(int((0.5f * minx + 0.5f) * (kWidth - 1) - 1.5f), 0);
-  int right = min(int((0.5f * maxx + 0.5f) * (kWidth - 1) + 1.5f), kWidth);
-  int top = max(int((0.5f * miny + 0.5f) * (kHeight - 1) - 1.5f), 0);
-  int bottom = min(int((0.5f * maxy + 0.5f) * (kHeight- 1) + 1.5f), kHeight);
+  int left = max(int((0.5f * minx + 0.5f) * (Width - 1) - 1.5f), 0);
+  int right = min(int((0.5f * maxx + 0.5f) * (Width - 1) + 1.5f), Width);
+  int top = max(int((0.5f * miny + 0.5f) * (Height - 1) - 1.5f), 0);
+  int bottom = min(int((0.5f * maxy + 0.5f) * (Height- 1) + 1.5f), Height);
 
-  for(float const *row = &m_buffer[0][0] + top * kWidth, *end = &m_buffer[0][0] + bottom * kWidth; row < end; row += kWidth)
+  for(float const *row = &m_buffer[0][0] + top * Width, *end = &m_buffer[0][0] + bottom * Width; row < end; row += Width)
   {
     for(float const *frag = row + left, *end = row + right; frag < end; ++frag)
     {

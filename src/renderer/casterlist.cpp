@@ -120,6 +120,8 @@ void CasterList::push_material(BuildState &state, Material const *material)
 
   if (!material->ready())
   {
+    state.material = nullptr;
+
     state.resources->request(*state.platform, material);
 
     if (!material->ready())
@@ -163,6 +165,9 @@ void CasterList::push_mesh(CasterList::BuildState &state, Transform const &trans
       return;
   }
 
+  if (!state.material)
+    return;
+
   assert(state.commandlist);
 
   auto &context = *state.context;
@@ -175,6 +180,7 @@ void CasterList::push_mesh(CasterList::BuildState &state, Transform const &trans
     state.mesh = mesh;
   }
 
+#if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
@@ -192,6 +198,11 @@ void CasterList::push_mesh(CasterList::BuildState &state, Transform const &trans
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
+#else
+  push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
+
+  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+#endif
 }
 
 

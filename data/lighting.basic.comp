@@ -4,9 +4,12 @@
 #include "transform.glsl"
 #include "lighting.glsl"
 
-#define SIZE 16
+layout(local_size_x_id = 74, local_size_y_id = 75) in;
 
-layout(local_size_x = SIZE, local_size_y = SIZE) in;
+layout(constant_id = 46) const uint ShadowSlices = 4;
+layout(constant_id = 29) const uint MaxPointLights = 256;
+layout(constant_id = 31) const uint MaxEnvironments = 6;
+layout(constant_id = 72) const uint MaxTileLights = 48;
 
 layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
@@ -18,19 +21,16 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   mat4 skyview;
   
   Camera camera;
-
-  vec3 noise[16];
-  vec3 kernel[16];
-
-  mat4 shadowview[4];
   
   MainLight mainlight;
   
   uint environmentcount;
-  Environment environments[6];
+  Environment environments[MaxEnvironments];
+
+  mat4 shadowview[ShadowSlices];
 
   uint pointlightcount;
-  PointLight pointlights[256];
+  PointLight pointlights[MaxPointLights];
 
 } scene;
 
@@ -40,14 +40,16 @@ layout(set=0, binding=3) uniform sampler2DArray normalmap;
 layout(set=0, binding=4) uniform sampler2DArray depthmap;
 layout(set=0, binding=5) uniform sampler2DArray ssaomap;
 layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
-layout(set=0, binding=7) uniform samplerCube envmap[6];
+layout(set=0, binding=7) uniform samplerCube envmap[MaxEnvironments];
 layout(set=0, binding=8) uniform sampler2DArray envbrdfmap;
 
-layout(set=3, binding=0) writeonly uniform image2D dest;
+layout(set=3, binding=1) writeonly uniform image2D dest;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 { 
+  gl_WorkGroupSize;
+
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   
   ivec2 viewport = imageSize(dest);
@@ -68,10 +70,10 @@ void main(void)
 
     float mainlightshadow = shadow_intensity(scene.mainlight, scene.shadowview, shadowmap, position, normal);
 
-    vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.smoothness, 0.0)).rg;
+    vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0.0)).rg;
     
     vec3 envdiffuse = textureLod(envmap[0], normal * vec3(1, -1, -1), 6.3).rgb;
-    vec3 envspecular = textureLod(envmap[0], reflect(-eyevec, normal) * vec3(1, -1, -1), (1 - material.smoothness) * 8.0).rgb;
+    vec3 envspecular = textureLod(envmap[0], reflect(-eyevec, normal) * vec3(1, -1, -1), material.roughness * 8.0).rgb;
     
     vec3 diffuse = vec3(0);
     vec3 specular = vec3(0);

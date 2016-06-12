@@ -6,6 +6,7 @@ struct Camera
 {
   vec3 position;
   float exposure;
+  float bloomstrength;
 };
 
 

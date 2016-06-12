@@ -232,7 +232,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
 
 
 ///////////////////////// write_matl_asset //////////////////////////////////
-uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float metalness, float smoothness, float reflectivity, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap)
+uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float metalness, float roughness, float reflectivity, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap)
 {
   PackAssetHeader aset = { id };
 
@@ -248,7 +248,7 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float
   matl.color[1] = color.g;
   matl.color[2] = color.b;
   matl.metalness = metalness;
-  matl.smoothness = smoothness;
+  matl.roughness = roughness;
   matl.reflectivity = reflectivity;
   matl.albedomap = albedomap;
   matl.specularmap = specularmap;

@@ -1,13 +1,14 @@
 #version 450 core
 #include "transform.glsl"
-#include "lighting.glsl"
+
+/*layout(constant_id = 46)*/ const uint ShadowSlices = 4;
 
 layout(triangles) in;
-layout(triangle_strip, max_vertices = 3*NSLICES) out;
+layout(triangle_strip, max_vertices = 3*ShadowSlices) out;
 
 layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
-  mat4 shadowview[NSLICES];
+  mat4 shadowview[ShadowSlices];
 
 } scene;
 
@@ -17,7 +18,7 @@ layout(location=0) out vec2 texcoord;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  for(int i = 0; i < NSLICES; ++i)
+  for(int i = 0; i < ShadowSlices; ++i)
   {
     gl_Layer = i;
 

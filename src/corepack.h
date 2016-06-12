@@ -35,6 +35,7 @@ namespace CoreAsset
     bloom_hblur_comp,
     bloom_vblur_comp,
     bloom_tone_comp,
+    luminance_comp,
     sprite_vert,
     sprite_frag,
     default_material,

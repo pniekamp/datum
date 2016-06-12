@@ -72,10 +72,10 @@ class ResourcePool
       std::atomic_flag lock = ATOMIC_FLAG_INIT;
     };
 
-    static constexpr int kStorageBufferSlots = 256;
-    static constexpr int kCommandBufferSlots = 128;
-    static constexpr int kDescriptorSetSlots = 512;
-    static constexpr int kResourceLumpCount = 64;
+    static constexpr int StorageBufferSlots = 256;
+    static constexpr int CommandBufferSlots = 128;
+    static constexpr int DescriptorSetSlots = 512;
+    static constexpr int ResourceLumpCount = 64;
 
   public:
 
@@ -109,9 +109,9 @@ class ResourcePool
 
     std::atomic<size_t> m_storagehead;
 
-    StorageSlot m_storagebuffers[kStorageBufferSlots];
+    StorageSlot m_storagebuffers[StorageBufferSlots];
 
-    ResourceLump m_lumps[kResourceLumpCount];
+    ResourceLump m_lumps[ResourceLumpCount];
 
   private:
 

@@ -12,6 +12,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 
 } scene;
 
+//layout(std140, push_constant, row_major) uniform ModelSet 
 layout(std430, set=2, binding=0, row_major) buffer ModelSet 
 { 
   Transform modelworld;

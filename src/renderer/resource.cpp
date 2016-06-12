@@ -19,7 +19,7 @@ using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
-const size_t kBufferAlignment = 4096;
+const size_t BufferAlignment = 4096;
 
 
 //|---------------------- ResourceManager -----------------------------------
@@ -165,7 +165,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 {
   leap::threadlib::SyncLock lock(m_mutex);
 
-  size_t bytes = alignto(size + alignto(sizeof(Buffer), kBufferAlignment), kBufferAlignment);
+  size_t bytes = alignto(size + alignto(sizeof(Buffer), BufferAlignment), BufferAlignment);
 
   for(size_t k = 0; k < 2; ++k)
   {
@@ -192,8 +192,8 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
         buffer->transferlump.fence = create_fence(vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
         buffer->transferlump.commandpool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
         buffer->transferlump.commandbuffer = allocate_commandbuffer(vulkan, buffer->transferlump.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + kBufferAlignment, size);
-        buffer->transferlump.transfermemory = (uint8_t*)buffer + kBufferAlignment;
+        buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
+        buffer->transferlump.transfermemory = (uint8_t*)buffer + BufferAlignment;
 
         buffer->next = (*into)->next;
 
@@ -211,14 +211,14 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 
     if (m_buffersallocated < m_maxallocation)
     {
-      TransferBuffer transferbuffer = create_transferbuffer(vulkan, max(bytes + kBufferAlignment, m_minallocation));
+      TransferBuffer transferbuffer = create_transferbuffer(vulkan, max(bytes + BufferAlignment, m_minallocation));
 
       buffer = new(map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size).release()) Buffer;
 
       buffer->size = transferbuffer.size;
       buffer->offset = 0;
 
-      buffer->used = kBufferAlignment;
+      buffer->used = BufferAlignment;
       buffer->transferlump.transferbuffer = std::move(transferbuffer);
       buffer->transferlump.transfermemory = nullptr;
 

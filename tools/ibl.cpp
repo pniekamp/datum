@@ -129,7 +129,7 @@ namespace
 
   Color3 convolve(float roughness, Vec3 ray, Sampler const &envmap)
   {
-    const int kSamples = 102;//4;
+    const int kSamples = 1024;
 
     Vec3 N = ray;
     Vec3 V = ray;
@@ -251,7 +251,7 @@ void image_pack_envbrdf(int width, int height, void *bits)
     for(int x = 0; x < width; ++x)
     {
       float NdotV = (x + 0.5f) / width;
-      float roughness = 1 - (y + 0.5f) / height;
+      float roughness = (y + 0.5f) / height;
 
       auto lut = integrate(roughness, NdotV);
 

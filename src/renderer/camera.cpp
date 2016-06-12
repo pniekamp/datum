@@ -41,7 +41,7 @@ void Camera::set_projection(float fov, float aspect, float znear, float zfar)
 ///////////////////////// Camera::set_exposure //////////////////////////////
 void Camera::set_exposure(float exposure)
 {
-  m_exposure = exposure;
+  m_exposure = clamp(exposure, 0.0f, 16.0f);
 }
 
 
@@ -51,7 +51,7 @@ void Camera::set_exposure(float aperture, float shutterspeed, float iso)
   float q = 0.65f;
   float l_avg = (1.0f / q) * sqrt(aperture) / (iso * shutterspeed);
 
-  m_exposure = 0.18f / l_avg;
+  set_exposure(0.18f / l_avg);
 }
 
 

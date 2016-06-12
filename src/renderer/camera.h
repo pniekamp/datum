@@ -95,13 +95,25 @@ inline std::ostream &operator <<(std::ostream &os, Camera const &camera)
 }
 
 
-//////////////////////// normalise ////////////////////////////////////////
+//////////////////////// normalise //////////////////////////////////////////
 /// normalise camera
 inline Camera normalise(Camera const &camera)
 {
   Camera result = camera;
 
   result.m_transform = normalise(camera.m_transform);
+
+  return result;
+}
+
+
+//////////////////////// adapt //////////////////////////////////////////////
+/// adapt camera exposure
+inline Camera adapt(Camera const &camera, float currentluminance, float targetluminance, float rate)
+{
+  Camera result = camera;
+
+  result.set_exposure(camera.exposure() * lml::lerp(1.0f, targetluminance/(currentluminance + 1e-3f), rate));
 
   return result;
 }

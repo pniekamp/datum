@@ -1,23 +1,23 @@
 #version 450 core
 #include "camera.glsl"
 
-#define SIZE 32
-
-layout(local_size_x = SIZE, local_size_y = SIZE) in;
+layout(local_size_x_id = 88, local_size_y_id = 89) in;
 
 layout(set=0, binding=1) uniform sampler2D src;
 layout(set=0, binding=2) uniform sampler2D bloom;
 
-layout(set=3, binding=0, rgba16f) uniform image2D image;
+layout(set=3, binding=1, rgba16f) uniform image2D image;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
-{ 
+{
+  gl_WorkGroupSize;
+
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   
   vec2 uv = vec2(xy) / imageSize(image);
 
   vec4 fragcolor = imageLoad(image, xy) + texture(bloom, 0.5 * uv);
-  
+
   imageStore(image, xy, vec4(tonemap(fragcolor.rgb), 1.0));
 }
