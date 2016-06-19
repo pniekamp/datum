@@ -183,6 +183,7 @@ struct ShadowMap
 
   Vulkan::Texture shadowmap;
 
+  std::array<float, nslices> splits;
   std::array<lml::Matrix4f, nslices> shadowview;
 };
 
@@ -232,7 +233,7 @@ struct RenderContext
 
   Vulkan::Texture envbrdf;
 
-  bool ssao;
+  float ssaoscale;
   lml::Vec4 ssaonoise[16];
   lml::Vec4 ssaokernel[16];
   Vulkan::Texture ssaobuffers[2];
@@ -244,7 +245,8 @@ struct RenderContext
   Vulkan::DescriptorSet skyboxdescriptors[2];
   Vulkan::CommandBuffer skyboxcommands[2];
 
-  bool bloom;
+  Vulkan::DescriptorSet ssrdescriptor;
+
   Vulkan::DescriptorSet bloomdescriptor;
 
   Vulkan::DescriptorSet scratchtargets[2];
@@ -262,6 +264,7 @@ struct RenderContext
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline ssrpipeline[2];
   Vulkan::Pipeline luminancepipeline;
   Vulkan::Pipeline bloompipeline[4];
   Vulkan::Pipeline spritepipeline;
@@ -288,8 +291,6 @@ struct RenderContext
   Camera prevcamera;
 };
 
-
-
 struct RenderParams
 {
   int width = 1280;
@@ -303,11 +304,8 @@ struct RenderParams
   lml::Transform skyboxorientation = lml::Transform::identity();
 
   float lightfalloff = 0.66f;
-
-  bool ssao = true;
   float ssaoscale = 1.0f;
-
-  bool bloom = true;
+  float ssrstrength = 1.0f;
   float bloomstrength = 1.0f;
 };
 

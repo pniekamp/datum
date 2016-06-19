@@ -56,8 +56,7 @@ void Scene::clear()
 
   m_slots.push_back({ 0, (size_t)-1, nullptr });
 
-  RESOURCE_SET(entityslotsused, m_slots.size());
-  RESOURCE_SET(entityslotscapacity, m_slots.capacity());
+  RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())
 }
 
 
@@ -66,7 +65,7 @@ void Scene::reserve(size_t capacity)
 {
   m_slots.reserve(capacity);
 
-  RESOURCE_SET(entityslotscapacity, m_slots.capacity());
+  RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())
 }
 
 
@@ -92,8 +91,7 @@ Scene::Slot *Scene::acquire_slot()
 
   slot->id = { ((slot->id.generation() + 1) << kIndexBits) + (slot - &m_slots.front()) };
 
-  RESOURCE_SET(entityslotsused, m_slots.size());
-  RESOURCE_SET(entityslotscapacity, m_slots.capacity());
+  RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())
 
   return slot;
 }
@@ -121,7 +119,6 @@ void Scene::destroy(Scene::EntityId entity)
   for(auto &system : m_systems)
     system.second->destroyed(entity);
 
-  RESOURCE_SET(entityslotsused, m_slots.size());
-  RESOURCE_SET(entityslotscapacity, m_slots.capacity());
+  RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())
 }
 

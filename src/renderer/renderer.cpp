@@ -37,6 +37,8 @@ enum VertexLayout
 
 enum ShaderLocation
 {
+  // Bindings
+
   vertex_position = 0,
   vertex_texcoord = 1,
   vertex_normal = 2,
@@ -56,14 +58,18 @@ enum ShaderLocation
   envmaps = 7,
   envbrdf = 8,
 
+  colorbuffer = 1,
+
   imagetarget = 1,
 
-  scratchmap0 = 1,
-  scratchmap1 = 2,
-  scratchmap2 = 3,
-  scratchmap3 = 4,
+  scratchmap0 = 5,
+  scratchmap1 = 6,
 
-  // Constants
+  // Constant Ids
+
+  SizeX = 1,
+  SizeY = 2,
+  SizeZ = 3,
 
   ShadowSlices = 46,
 
@@ -77,21 +83,10 @@ enum ShaderLocation
   KernelSize = 63,
 
   SSAORadius = 67,
-  SSAOSizeX = 64,
-  SSAOSizeY = 65,
-
-  LightingSizeX = 74,
-  LightingSizeY = 75,
 
   BloomCutoff = 81,
   BloomBlurRadius = 84,
   BloomBlurSigma = 85,
-  BloomLumaSizeX = 82,
-  BloomLumaSizeY = 83,
-  BloomHBlurSize = 86,
-  BloomVBlurSize = 87,
-  BloomToneSizeX = 88,
-  BloomToneSizeY = 89,
 };
 
 constexpr size_t PushConstantSize = 64;
@@ -121,6 +116,7 @@ struct alignas(16) CameraView
 {
   Vec3 position;
   float exposure;
+  float ssrstrength;
   float bloomstrength;
 };
 
@@ -140,6 +136,7 @@ struct SceneSet
   uint32_t envcount;
   Environment environments[6];
 
+  float splits[4];
   Matrix4f shadowview[4];
 
   uint32_t pointlightcount;
@@ -174,8 +171,12 @@ struct ComputeConstants
   uint32_t LightingSizeX = LightingDispatch[0];
   uint32_t LightingSizeY = LightingDispatch[1];
 
-  float BloomCutoff = 1.0f;
-  uint32_t BloomLumaDispatch[3] = { 4, 64, 1 };
+  uint32_t SSRDispatch[3] = { 4, 32, 1 };
+  uint32_t SSRSizeX = SSRDispatch[0];
+  uint32_t SSRSizeY = SSRDispatch[1];
+
+  float BloomCutoff = 7.8f;
+  uint32_t BloomLumaDispatch[3] = { 4, 32, 1 };
   uint32_t BloomLumaSizeX = BloomLumaDispatch[0];
   uint32_t BloomLumaSizeY = BloomLumaDispatch[1];
 
@@ -186,7 +187,7 @@ struct ComputeConstants
   uint32_t BloomVBlurDispatch[3] = { 1, 575, 1 };
   uint32_t BloomVBlurSize = BloomVBlurDispatch[1] + BloomBlurRadius + BloomBlurRadius;
 
-  uint32_t BloomToneDispatch[3] = { 4, 64, 1 };
+  uint32_t BloomToneDispatch[3] = { 4, 32, 1 };
   uint32_t BloomToneSizeX = BloomToneDispatch[0];
   uint32_t BloomToneSizeY = BloomToneDispatch[1];
 
@@ -838,11 +839,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[5] = {};
-    specializationmap[0] = { ShaderLocation::NoiseSize, offsetof(ComputeConstants, NoiseSize), sizeof(ComputeConstants::NoiseSize) };
-    specializationmap[1] = { ShaderLocation::KernelSize, offsetof(ComputeConstants, KernelSize), sizeof(ComputeConstants::KernelSize) };
-    specializationmap[2] = { ShaderLocation::SSAORadius, offsetof(ComputeConstants, SSAORadius), sizeof(ComputeConstants::SSAORadius) };
-    specializationmap[3] = { ShaderLocation::SSAOSizeX, offsetof(ComputeConstants, SSAOSizeX), sizeof(ComputeConstants::SSAOSizeX) };
-    specializationmap[4] = { ShaderLocation::SSAOSizeY, offsetof(ComputeConstants, SSAOSizeY), sizeof(ComputeConstants::SSAOSizeY) };
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, SSAOSizeX), sizeof(ComputeConstants::SSAOSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, SSAOSizeY), sizeof(ComputeConstants::SSAOSizeY) };
+    specializationmap[2] = { ShaderLocation::NoiseSize, offsetof(ComputeConstants, NoiseSize), sizeof(ComputeConstants::NoiseSize) };
+    specializationmap[3] = { ShaderLocation::KernelSize, offsetof(ComputeConstants, KernelSize), sizeof(ComputeConstants::KernelSize) };
+    specializationmap[4] = { ShaderLocation::SSAORadius, offsetof(ComputeConstants, SSAORadius), sizeof(ComputeConstants::SSAORadius) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -899,12 +900,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[6] = {};
-    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
-    specializationmap[1] = { ShaderLocation::MaxPointLights, offsetof(ComputeConstants, MaxPointLights), sizeof(ComputeConstants::MaxPointLights) };
-    specializationmap[2] = { ShaderLocation::MaxTileLights, offsetof(ComputeConstants, MaxTileLights), sizeof(ComputeConstants::MaxTileLights) };
-    specializationmap[3] = { ShaderLocation::MaxEnvironments, offsetof(ComputeConstants, MaxEnvironments), sizeof(ComputeConstants::MaxEnvironments) };
-    specializationmap[4] = { ShaderLocation::LightingSizeX, offsetof(ComputeConstants, LightingSizeX), sizeof(ComputeConstants::LightingSizeX) };
-    specializationmap[5] = { ShaderLocation::LightingSizeY, offsetof(ComputeConstants, LightingSizeY), sizeof(ComputeConstants::LightingSizeY) };
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, LightingSizeX), sizeof(ComputeConstants::LightingSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, LightingSizeY), sizeof(ComputeConstants::LightingSizeY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::MaxPointLights, offsetof(ComputeConstants, MaxPointLights), sizeof(ComputeConstants::MaxPointLights) };
+    specializationmap[4] = { ShaderLocation::MaxTileLights, offsetof(ComputeConstants, MaxTileLights), sizeof(ComputeConstants::MaxTileLights) };
+    specializationmap[5] = { ShaderLocation::MaxEnvironments, offsetof(ComputeConstants, MaxEnvironments), sizeof(ComputeConstants::MaxEnvironments) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1036,6 +1037,92 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     }
   }
 
+  if (context.ssrpipeline[0] == 0)
+  {
+    //
+    // SSR Gen Pipeline
+    //
+
+    auto cs = assets->find(CoreAsset::ssr_gen_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets->request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[2] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, SSRSizeX), sizeof(ComputeConstants::SSRSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, SSRSizeY), sizeof(ComputeConstants::SSRSizeY) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+    pipelineinfo.stage.pName = "main";
+
+    context.ssrpipeline[0] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+
+    context.ssrdescriptor = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+  }
+
+  if (context.ssrpipeline[1] == 0)
+  {
+    //
+    // SSR Blend Pipeline
+    //
+
+    auto cs = assets->find(CoreAsset::ssr_blend_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets->request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[2] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, SSRSizeX), sizeof(ComputeConstants::SSRSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, SSRSizeY), sizeof(ComputeConstants::SSRSizeY) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+    pipelineinfo.stage.pName = "main";
+
+    context.ssrpipeline[1] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+  }
+
   if (context.luminancepipeline == 0)
   {
     //
@@ -1088,9 +1175,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[3] = {};
-    specializationmap[0] = { ShaderLocation::BloomCutoff, offsetof(ComputeConstants, BloomCutoff), sizeof(ComputeConstants::BloomCutoff) };
-    specializationmap[1] = { ShaderLocation::BloomLumaSizeX, offsetof(ComputeConstants, BloomLumaSizeX), sizeof(ComputeConstants::BloomLumaSizeX) };
-    specializationmap[2] = { ShaderLocation::BloomLumaSizeY, offsetof(ComputeConstants, BloomLumaSizeY), sizeof(ComputeConstants::BloomLumaSizeY) };
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, BloomLumaSizeX), sizeof(ComputeConstants::BloomLumaSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, BloomLumaSizeY), sizeof(ComputeConstants::BloomLumaSizeY) };
+    specializationmap[2] = { ShaderLocation::BloomCutoff, offsetof(ComputeConstants, BloomCutoff), sizeof(ComputeConstants::BloomCutoff) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1115,7 +1202,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   if (context.bloompipeline[1] == 0)
   {
     //
-    // Bloom H-Blur  Pipeline
+    // Bloom H-Blur Pipeline
     //
 
     auto cs = assets->find(CoreAsset::bloom_hblur_comp);
@@ -1133,9 +1220,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[3] = {};
-    specializationmap[0] = { ShaderLocation::BloomBlurSigma, offsetof(ComputeConstants, BloomBlurSigma), sizeof(ComputeConstants::BloomBlurSigma) };
-    specializationmap[1] = { ShaderLocation::BloomBlurRadius, offsetof(ComputeConstants, BloomBlurRadius), sizeof(ComputeConstants::BloomBlurRadius) };
-    specializationmap[2] = { ShaderLocation::BloomHBlurSize, offsetof(ComputeConstants, BloomHBlurSize), sizeof(ComputeConstants::BloomHBlurSize) };
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, BloomHBlurSize), sizeof(ComputeConstants::BloomHBlurSize) };
+    specializationmap[1] = { ShaderLocation::BloomBlurSigma, offsetof(ComputeConstants, BloomBlurSigma), sizeof(ComputeConstants::BloomBlurSigma) };
+    specializationmap[2] = { ShaderLocation::BloomBlurRadius, offsetof(ComputeConstants, BloomBlurRadius), sizeof(ComputeConstants::BloomBlurRadius) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1176,9 +1263,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[3] = {};
-    specializationmap[0] = { ShaderLocation::BloomBlurSigma, offsetof(ComputeConstants, BloomBlurSigma), sizeof(ComputeConstants::BloomBlurSigma) };
-    specializationmap[1] = { ShaderLocation::BloomBlurRadius, offsetof(ComputeConstants, BloomBlurRadius), sizeof(ComputeConstants::BloomBlurRadius) };
-    specializationmap[2] = { ShaderLocation::BloomVBlurSize, offsetof(ComputeConstants, BloomVBlurSize), sizeof(ComputeConstants::BloomVBlurSize) };
+    specializationmap[0] = { ShaderLocation::SizeY, offsetof(ComputeConstants, BloomVBlurSize), sizeof(ComputeConstants::BloomVBlurSize) };
+    specializationmap[1] = { ShaderLocation::BloomBlurSigma, offsetof(ComputeConstants, BloomBlurSigma), sizeof(ComputeConstants::BloomBlurSigma) };
+    specializationmap[2] = { ShaderLocation::BloomBlurRadius, offsetof(ComputeConstants, BloomBlurRadius), sizeof(ComputeConstants::BloomBlurRadius) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1219,8 +1306,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[2] = {};
-    specializationmap[0] = { ShaderLocation::BloomToneSizeX, offsetof(ComputeConstants, BloomToneSizeX), sizeof(ComputeConstants::BloomToneSizeX) };
-    specializationmap[1] = { ShaderLocation::BloomToneSizeY, offsetof(ComputeConstants, BloomToneSizeY), sizeof(ComputeConstants::BloomToneSizeY) };
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, BloomToneSizeX), sizeof(ComputeConstants::BloomToneSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, BloomToneSizeY), sizeof(ComputeConstants::BloomToneSizeY) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1428,7 +1515,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 {
   bool dirty = false;
   dirty |= (context.fbowidth != params.width || context.fboheight != params.height);
-  dirty |= (context.ssao != params.ssao) || (context.ssao && context.ssaobuffers[0].width != params.width*params.ssaoscale);
+  dirty |= (context.ssaoscale != params.ssaoscale);
 
   if (dirty)
   {
@@ -1586,7 +1673,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     context.ssaobuffers[0] = {};
     context.ssaobuffers[1] = {};
 
-    if (params.ssao)
+    if (params.ssaoscale != 0)
     {
       for(size_t i = 0; i < extentof(context.ssaodescriptors); ++i)
       {
@@ -1602,15 +1689,15 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
         bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::rt1, context.rt1buffer);
         bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
         bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
+
+        clear(context.device, context.ssaobuffers[0].image, Color4(1.0, 1.0, 1.0, 1.0));
       }
 
       bindtexture(context.device, context.ssaodescriptors[0], ShaderLocation::ssaomap, context.ssaobuffers[1]);
       bindtexture(context.device, context.ssaodescriptors[1], ShaderLocation::ssaomap, context.ssaobuffers[0]);
-
-      clear(context.device, context.ssaobuffers[0].image, Color4(1.0, 1.0, 1.0, 1.0));
     }
 
-    context.ssao = params.ssao;
+    context.ssaoscale = params.ssaoscale;
 
     //
     // Lighting
@@ -1622,20 +1709,28 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::rt1, context.rt1buffer);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::ssaomap, context.ssao ? context.ssaobuffers[i] : context.whitediffuse);
+      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::ssaomap, context.ssaoscale ? context.ssaobuffers[i] : context.whitediffuse);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
     }
 
     //
-    // Bloom Commands
+    // SSR
     //
 
-    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap0, context.colorbuffer);
-    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap1, context.scratchbuffers[0]);
-    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap2, context.scratchbuffers[1]);
+    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::colorbuffer, context.colorbuffer);
+    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::rt1, context.rt1buffer);
+    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::normalmap, context.normalbuffer);
+    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::depthmap, context.depthbuffer);
+    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::scratchmap0, context.scratchbuffers[0]);
 
-    context.bloom = params.bloom;
+    //
+    // Bloom
+    //
+
+    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::colorbuffer, context.colorbuffer);
+    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap0, context.scratchbuffers[0]);
+    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap1, context.scratchbuffers[1]);
 
     return false;
   }
@@ -1687,6 +1782,7 @@ void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &
 
     auto lightproj = OrthographicProjection(-radius, -radius, radius, radius, 0.1f, extrusion + radius) * ScaleMatrix(Vector4(1.0f, -1.0f, 1.0f, 1.0f));
 
+    shadowmap.splits[i] = splits[i+1];
     shadowmap.shadowview[i] = lightproj * inverse(lightview).matrix();
   }
 }
@@ -1705,9 +1801,11 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
   scene->skyview = (inverse(params.skyboxorientation) * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
   scene->camera.position = context.camera.position();
   scene->camera.exposure = context.camera.exposure();
+  scene->camera.ssrstrength = params.ssrstrength;
   scene->camera.bloomstrength = params.bloomstrength;
 
   assert(sizeof(scene->shadowview) <= sizeof(context.shadows.shadowview));
+  memcpy(scene->splits, context.shadows.splits.data(), sizeof(context.shadows.splits));
   memcpy(scene->shadowview, context.shadows.shadowview.data(), sizeof(context.shadows.shadowview));
 
   auto &mainlight = scene->mainlight;
@@ -1815,7 +1913,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
     memcpy(context.transfermemory ? (void*)context.transfermemory : (void*)map_memory<uint8_t>(context.device, context.transferbuffer, 0, size), bitmap, size);
 
-    blit(commandbuffer, context.transferbuffer, 0, width, height, viewport.image, (viewport.width - width)/2, (viewport.height - height)/2, width, height);
+    blit(commandbuffer, context.transferbuffer, 0, width, height, viewport.image, max(viewport.width - width, 0)/2, max(viewport.height - height, 0)/2, width, height);
   }
 
   transition_present(commandbuffer, viewport.image);
@@ -1919,7 +2017,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Lighting
   //
 
-  if (params.ssao)
+  if (params.ssaoscale != 0)
   {
     bindresource(commandbuffer, context.ssaopipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -1955,6 +2053,29 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   querytimestamp(commandbuffer, context.timingquerypool, 5);
 
   //
+  // SSR
+  //
+
+  if (params.ssrstrength != 0)
+  {
+    bindresource(commandbuffer, context.ssrpipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.ssrdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.scratchtargets[0], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.fbowidth, context.fboheight, 1, computeconstants.SSRDispatch);
+
+    bindresource(commandbuffer, context.ssrpipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    bindresource(commandbuffer, context.colorbuffertarget, context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.fbowidth, context.fboheight, 1, computeconstants.SSRDispatch);
+  }
+
+  querytimestamp(commandbuffer, context.timingquerypool, 6);
+
+  //
   // Luminance
   //
 
@@ -1966,13 +2087,13 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   dispatch(commandbuffer, 1, 1, 1);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 6);
+  querytimestamp(commandbuffer, context.timingquerypool, 7);
 
   //
   // Bloom
   //
 
-  if (params.bloom)
+  if (params.bloomstrength != 0)
   {
     bindresource(commandbuffer, context.bloompipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -2001,7 +2122,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     dispatch(commandbuffer, context.fbowidth, context.fboheight, 1, computeconstants.BloomToneDispatch);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 7);
+  querytimestamp(commandbuffer, context.timingquerypool, 8);
 
   //
   // Sprite
@@ -2022,7 +2143,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     }
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 8);
+  querytimestamp(commandbuffer, context.timingquerypool, 9);
 
   endpass(commandbuffer, context.renderpass);
 
@@ -2036,7 +2157,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   transition_present(commandbuffer, viewport.image);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 9);
+  querytimestamp(commandbuffer, context.timingquerypool, 10);
 
   barrier(commandbuffer);
 
@@ -2059,17 +2180,18 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.device, context.timingquerypool, 0, 10, timings);
+  retreive_querypool(context.device, context.timingquerypool, 0, 11, timings);
 
   GPU_TIMED_BLOCK(Shadows, Color3(0.0, 0.4, 0.0), timings[0], timings[1])
   GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])
   GPU_TIMED_BLOCK(SSAO, Color3(0.2, 0.8, 0.2), timings[2], timings[3])
   GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[3], timings[4])
   GPU_TIMED_BLOCK(SkyBox, Color3(0.0, 0.4, 0.4), timings[4], timings[5])
-  GPU_TIMED_BLOCK(Luminance, Color3(0.8, 0.4, 0.2), timings[5], timings[6])
-  GPU_TIMED_BLOCK(Bloom, Color3(0.2, 0.2, 0.8), timings[6], timings[7])
-  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[7], timings[8])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[8], timings[9])
+  GPU_TIMED_BLOCK(SSR, Color3(0.0, 0.4, 0.8), timings[5], timings[6])
+  GPU_TIMED_BLOCK(Luminance, Color3(0.8, 0.4, 0.2), timings[6], timings[7])
+  GPU_TIMED_BLOCK(Bloom, Color3(0.2, 0.2, 0.6), timings[7], timings[8])
+  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[8], timings[9])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[9], timings[10])
 
   GPU_SUBMIT();
 

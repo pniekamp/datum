@@ -28,6 +28,8 @@ namespace CoreAsset
     ssao_comp,
     envbrdf_lut,
     lighting_comp,
+    ssr_gen_comp,
+    ssr_blend_comp,
     skybox_vert,
     skybox_frag,
     default_skybox,

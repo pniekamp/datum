@@ -1,0 +1,199 @@
+#version 450 core
+#include "camera.glsl"
+#include "gbuffer.glsl"
+#include "transform.glsl"
+#include "lighting.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x_id = 1, local_size_y_id = 2) in;
+
+layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 prevview;
+  mat4 skyview;
+  
+  Camera camera;
+  
+} scene;
+
+layout(set=0, binding=1) uniform sampler2D src;
+layout(set=0, binding=2) uniform sampler2DArray rt1map;
+layout(set=0, binding=3) uniform sampler2DArray normalmap;
+layout(set=0, binding=4) uniform sampler2DArray depthmap;
+
+layout(set=3, binding=1) writeonly uniform image2D dest;
+
+const float Stride = 1.0;
+const float Jitter = 1.0;
+const float Multiplier = 16.0;
+const float Thickness = 0.1f;
+const float MaxSteps = 450.0;
+const float MaxDistance = 5.0;
+
+///////////////////////// traceray //////////////////////////////////////////
+// http://casual-effects.blogspot.com.au/2014/08/screen-space-ray-tracing.html
+bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec3 hitpoint)
+{
+  float raylength = ((origin.z + direction.z * MaxDistance) > -0.5) ? (0.5 + origin.z) / -direction.z : MaxDistance;
+
+  vec3 endpoint = origin + direction * raylength;
+
+  vec4 H0 = proj * vec4(origin, 1.0f);
+  vec4 H1 = proj * vec4(endpoint, 1.0f);
+
+  float k0 = 1.0f / H0.w;
+  float k1 = 1.0f / H1.w;
+
+  vec3 Q0 = origin * k0;
+  vec3 Q1 = endpoint * k1;
+
+  vec2 P0 = H0.xy * k0;
+  vec2 P1 = H1.xy * k1;
+
+  P1 += (distance(P0, P1) < 0.01f) ? 0.01f : 0.0f;
+  
+  vec2 delta = P1 - P0;
+
+  bool permute = false;
+  if(abs(delta.x) < abs(delta.y))
+  {
+    // This is a more-vertical line
+    permute = true;
+    delta = delta.yx;
+    P0 = P0.yx;
+    P1 = P1.yx;
+  }
+
+  float stepdir = sign(delta.x);
+  float invdx = stepdir / delta.x;
+
+  vec3 dQ = (Q1 - Q0) * invdx;
+  float dk = (k1 - k0) * invdx;
+  vec2 dP = vec2(stepdir, delta.y * invdx);
+
+  dP *= Stride;
+  dQ *= Stride;
+  dk *= Stride;
+
+  P0 += dP * Jitter;
+  Q0 += dQ * Jitter; 
+  k0 += dk * Jitter;
+   
+  float k = k0;
+  float stepcount = 0.0f;
+  float prevzmaxestimate = origin.z;
+  float rayzmin = prevzmaxestimate;
+  float rayzmax = prevzmaxestimate;
+  float scenezmax = rayzmax - 100.0f;
+  float end = P1.x * stepdir;
+    
+  vec2 P = P0;
+  vec3 Q = Q0;
+
+  while (P.x * stepdir <= end && stepcount < MaxSteps-Multiplier)
+  { 
+    rayzmin = prevzmaxestimate;
+    rayzmax = (Q.z + 0.5f * dQ.z) / (k + 0.5f * dk);
+    prevzmaxestimate = rayzmax;
+    
+    if (rayzmin < rayzmax)
+    {
+      float t = rayzmin;
+      rayzmin = rayzmax;
+      rayzmax = t;
+    }
+    
+    hitpixel = permute ? P.yx : P.xy;
+
+    scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec3(hitpixel, 0), 0).z);
+    
+    if (rayzmax <= scenezmax && rayzmin > scenezmax - Thickness)
+      break;
+
+    P += Multiplier*dP; Q.z += Multiplier*dQ.z; k += Multiplier*dk; stepcount += Multiplier;
+  }
+
+  P -= Multiplier*dP; Q.z -= Multiplier*dQ.z; k -= Multiplier*dk; stepcount -= Multiplier;
+
+  prevzmaxestimate = Q.z / k;
+  
+  bool result = false;
+
+  while (P.x * stepdir <= end && stepcount < MaxSteps)
+  {  
+    rayzmin = prevzmaxestimate;
+    rayzmax = (Q.z + 0.5f * dQ.z) / (k + 0.5f * dk);
+    prevzmaxestimate = rayzmax;
+
+    if (rayzmin < rayzmax)
+    {
+      float t = rayzmin;
+      rayzmin = rayzmax;
+      rayzmax = t;
+    }
+
+    hitpixel = permute ? P.yx : P.xy;
+
+    scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec3(hitpixel, 0), 0).z);
+
+    if (rayzmax <= scenezmax && rayzmin > scenezmax - Thickness)
+    {
+      result = true;
+      break;
+    }
+    
+    P += dP; Q.z += dQ.z; k += dk; stepcount += 1;
+  }
+
+  Q.xy += dQ.xy * stepcount;
+
+  hitpoint = Q * (1.0 / k);
+  
+  return result;
+}
+ 
+///////////////////////// main //////////////////////////////////////////////
+void main(void)
+{ 
+  gl_WorkGroupSize;
+
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+  
+  ivec2 viewport = textureSize(src, 0).xy;//imageSize(dest);
+  
+  float depth = texelFetch(depthmap, ivec3(xy, 0), 0).z;
+
+  vec3 fragcolor = vec3(0);
+
+  Material material = unpack_material(texelFetch(src, xy, 0), texelFetch(rt1map, ivec3(xy, 0), 0)); 
+  
+  if (depth < 1.0 && material.roughness < 0.4)
+  {
+    vec3 position = view_position(scene.proj, scene.invproj, xy, viewport, depth);
+    vec3 normal = view_normal(scene.view, texelFetch(normalmap, ivec3(xy, 0), 0).xyz);
+
+    vec3 direction = normalize(position);
+    vec3 reflection = normalize(reflect(direction, normal));
+
+    mat4 proj = mat4(vec4(0.5*viewport.x, 0, 0, 0), vec4(0, 0.5*viewport.y, 0, 0), vec4(0, 0, 1, 0), vec4(0.5*viewport, 0, 1)) * scene.proj;
+    
+    vec2 hitpixel = vec2(0);
+    vec3 hitpoint  = vec3(0);
+    
+    if (traceray(position, reflection, proj, hitpixel, hitpoint) && dot(reflection, direction) > 0) 
+    {
+      float edgefade = 1.0f - 10 * max(max(abs(hitpixel.x / viewport.x - 0.5), abs(hitpixel.y / viewport.y - 0.5)) - 0.4, 0.0);
+
+      float distancefade = 1.0f - min(distance(hitpoint, position) / (0.5*MaxDistance), 1.0);
+      float roughnessfade = 1.0f - min(3 * material.roughness, 1.0);
+
+      fragcolor = scene.camera.exposure * edgefade * distancefade * roughnessfade * scene.camera.ssrstrength * texelFetch(src, ivec2(hitpixel), 0).rgb * material.specular;
+    }
+  }
+
+  imageStore(dest, xy, vec4(fragcolor, 1));
+}

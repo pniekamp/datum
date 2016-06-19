@@ -48,15 +48,19 @@ struct Material
 //----------------------- Poisson Disk --------------------------------------
 //---------------------------------------------------------------------------
 
-const vec2 PoissonDisk[8] = { 
-  vec2(-0.168855, -0.446941),
-  vec2(-0.645265, 0.0602261),
-  vec2(-0.841704, -0.468692),
-  vec2(0.296674, 0.437577),
-  vec2(0.389539, -0.806041),
-  vec2(-0.298654, 0.561369),
-  vec2(0.910996, -0.295452),
-  vec2(0.379805, -0.158868)
+const vec2 PoissonDisk[12] = { 
+  vec2(-0.1711046, -0.425016),
+  vec2(-0.7829809, 0.2162201),
+  vec2(-0.2380269, -0.8835521),
+  vec2(0.4198045, 0.1687819),
+  vec2(-0.684418, -0.3186957),
+  vec2(0.6026866, -0.2587841),
+  vec2(-0.2412762, 0.3913516),
+  vec2(0.4720655, -0.7664126),
+  vec2(0.9571564, 0.2680693),
+  vec2(-0.5238616, 0.802707),
+  vec2(0.5653144, 0.60262),
+  vec2(0.0123658, 0.8627419)
 };
 
 
@@ -65,21 +69,6 @@ const vec2 PoissonDisk[8] = {
 
 #define PI 3.1415926535897932384626433832795
 
-///////////////////////// poisson ///////////////////////////////////////////
-float poisson(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
-{
-  vec2 texelsize = spread / textureSize(shadowmap, 0).xy;
-
-  float sum = 0.0;
-
-  for(uint k = 0; k < 8; ++k)
-  {
-    sum += texture(shadowmap, vec4(texel.xy + PoissonDisk[k]*texelsize, texel.z, texel.w));
-  }
-
-  return sum / 8;
-}
-
 
 ///////////////////////// unpack_material ///////////////////////////////////
 Material unpack_material(vec4 rt0, vec4 rt1)
@@ -87,7 +76,7 @@ Material unpack_material(vec4 rt0, vec4 rt1)
   Material material;
   
   material.albedo = rt0.rgb;
-  material.emissive = rt0.a;
+  material.emissive = rt0.a * 10.0;
   material.metalness = rt1.r;
   material.roughness = rt1.a;
   material.reflectivity = rt1.g;
@@ -102,43 +91,39 @@ Material unpack_material(vec4 rt0, vec4 rt1)
 
 
 ///////////////////////// ambient_intensity /////////////////////////////////
-float ambient_intensity(MainLight light, sampler2DArray ssaomap, vec2 uv)
+float ambient_intensity(MainLight light, sampler2DArray ssaomap, ivec2 xy, ivec2 viewport)
 {
-  return texture(ssaomap, vec3(uv, 0)).x;
+  return texture(ssaomap, vec3(vec2(xy+0.5)/viewport, 0)).x;
 }
 
-/*
+///////////////////////// shadow_split //////////////////////////////////////
+vec4 shadow_split(float splits[4], uint nslices, float depth)
+{ 
+  vec4 a = vec4(smoothstep(0.75*vec3(splits[0], splits[1], splits[2]), vec3(splits[0], splits[1], splits[2]), vec3(depth)), 0);
+  vec4 b = vec4(1, smoothstep(0.75*vec3(splits[0], splits[1], splits[2]), vec3(splits[0], splits[1], splits[2]), vec3(depth)));
+
+  return mix((1-a)*b, vec4(0), lessThan(vec4(nslices), vec4(1, 2, 3, 4)));
+}
+
 ///////////////////////// shadow_intensity //////////////////////////////////
-float shadow_intensity(MainLight light, mat4 shadowview[NSLICES], sampler2DArrayShadow shadowmap, vec3 position, vec3 normal)
+float shadow_intensity(mat4 shadowview, vec3 position, uint split, sampler2DArrayShadow shadowmap, float spread)
 {
-  const float bias[NSLICES] = { 0.05, 0.06, 0.10, 0.25 };
-  const float spread[NSLICES] = { 1.5, 1.2, 1.0, 0.2 };
+  vec4 shadowspace = shadowview * vec4(position, 1);
 
-  for(uint i = 0; i < NSLICES; ++i)
+  vec4 texel = vec4(0.5 * shadowspace.xy + 0.5, split, shadowspace.z);
+
+  vec2 texelsize = spread / textureSize(shadowmap, 0).xy;
+
+  float sum = 0.0;
+
+  for(uint k = 0; k < 12; ++k)
   {
-    vec4 shadowspace = shadowview[i] * vec4(position + bias[i] * normal, 1);
-    
-    vec4 texel = vec4(0.5 * shadowspace.xy + 0.5, i, shadowspace.z);
-
-    if (texel.x > 0.0 && texel.x < 1.0 && texel.y > 0.0 && texel.y < 1.0 && texel.w > 0.0 && texel.w < 1.0)
-    {    
-     	float weight = max(4 * max(max(abs(shadowspace.x), abs(shadowspace.y)) - 0.75, 0.0), 500 * max(shadowspace.z - 0.998, 0.0));
-
-      if (i+i < NSLICES && weight > 0.0)
-      {
-        vec4 shadowspace2 = shadowview[i+1] * vec4(position + bias[i+1] * normal, 1);
-        vec4 texel2 = vec4(0.5 * shadowspace2.xy + 0.5, i+1, shadowspace2.z);
-      
-        return mix(poisson(shadowmap, texel, spread[i]), poisson(shadowmap, texel2, spread[i+1]), weight);
-      }
-
-      return poisson(shadowmap, texel, spread[i]);
-    }
+    sum += texture(shadowmap, vec4(texel.xy + PoissonDisk[k]*texelsize, texel.z, texel.w));
   }
-  
-  return 1.0;
+
+  return sum * (1.0/12.0);
 }
-*/
+
 
 ///////////////////////// diffuse_intensity /////////////////////////////////
 float diffuse_intensity(vec3 N, vec3 L)
@@ -222,17 +207,17 @@ vec3 specular_ggx(vec3 f0, float f90, float NdotV, float NdotL, float LdotH, flo
 
 
 ///////////////////////// env_light  ////////////////////////////////////////
-void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 envdiffuse, vec3 envspecular, vec2 envbrdf)
+void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 envdiffuse, vec3 envspecular, vec2 envbrdf, float ambientintensity)
 { 
   float f90 = 0.8f;
   
-  diffuse += envdiffuse * material.diffuse;
-  specular += envspecular * (material.specular * envbrdf.x + f90 * envbrdf.y);
+  diffuse += envdiffuse * material.diffuse * ambientintensity;
+  specular += envspecular * (material.specular * envbrdf.x + f90 * envbrdf.y) * ambientintensity;
 }
 
 
 ///////////////////////// main_light  ///////////////////////////////////////
-void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 normal, vec3 eyevec, Material material, float ambientocclusion, float shadowfactor)
+void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 normal, vec3 eyevec, Material material, float shadowfactor)
 { 
   vec3 lightvec = -light.direction;
 

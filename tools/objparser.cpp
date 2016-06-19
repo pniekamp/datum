@@ -515,9 +515,6 @@ void write_model(string const &filename)
       if (fields[0] == "map_kd")
       {
         material->albedobase = fields[1];
-
-        if (norm(material->color) < 0.01)
-          material->color = Color3(1, 1, 1);
       }
 
       if (fields[0] == "map_ns")
@@ -643,6 +640,7 @@ void write_model(string const &filename)
     materialtable[i].metalness = 1.0f;
     materialtable[i].roughness = 1.0f;
     materialtable[i].reflectivity = 0.5f;
+    materialtable[i].emissive = 0.0f;
     materialtable[i].albedomap = materials[i].albedomap;
     materialtable[i].specularmap = materials[i].specularmap;
     materialtable[i].normalmap = materials[i].normalmap;

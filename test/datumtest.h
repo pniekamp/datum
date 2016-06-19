@@ -30,7 +30,7 @@ struct GameState
 
   Camera camera;
 
-  float luminancetarget = 0.1f;
+  float luminancetarget = 0.15f;
 
   float lastmousex, lastmousey, lastmousez;
 

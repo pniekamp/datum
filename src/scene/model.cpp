@@ -87,12 +87,13 @@ Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, R
     auto metalness = materialtable[i].metalness;
     auto roughness = materialtable[i].roughness;
     auto reflectivity = materialtable[i].reflectivity;
+    auto emissive = materialtable[i].emissive;
 
     auto albedomap = model->textures[materialtable[i].albedomap];
     auto specularmap = model->textures[materialtable[i].specularmap];
     auto normalmap = model->textures[materialtable[i].normalmap];
 
-    model->materials[i] = resources->create<Material>(color, metalness, roughness, reflectivity, albedomap, specularmap, normalmap);
+    model->materials[i] = resources->create<Material>(color, metalness, roughness, reflectivity, emissive, albedomap, specularmap, normalmap);
   }
 
   auto meshtable = reinterpret_cast<PackModelPayload::Mesh const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material));

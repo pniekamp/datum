@@ -22,5 +22,5 @@ layout(location=0) out vec4 fragcolor;
 
 void main()
 {
-  fragcolor = vec4(tonemap(scene.camera.exposure * textureLod(skyboxmap, texcoord, 0).rgb), 1);
+  fragcolor = vec4(scene.camera.exposure * textureLod(skyboxmap, texcoord, 0).rgb, 1);
 }

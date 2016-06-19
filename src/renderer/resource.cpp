@@ -53,8 +53,7 @@ void ResourceManager::initialise_slab(size_t slabsize)
 
   m_slothandles.resize(nslots);
 
-  RESOURCE_SET(resourceslotsused, 0)
-  RESOURCE_SET(resourceslotscapacity, m_slat.size())
+  RESOURCE_USE(ResourceSlot, (m_slatused = 0), m_slat.size())
 
   m_deletershead = 0;
   m_deleterstail = 0;
@@ -85,7 +84,7 @@ void *ResourceManager::acquire_slot(size_t size)
         for(size_t j = i; j < i+nslots; ++j)
           m_slat[j] = 1;
 
-        RESOURCE_ACQUIRE(resourceslotsused, nslots)
+        RESOURCE_USE(ResourceSlot, (m_slatused += nslots), m_slat.size())
 
         m_slathead = i + nslots;
 
@@ -114,7 +113,7 @@ void ResourceManager::release_slot(void *slot, size_t size)
   for(size_t j = i; j < i+nslots; ++j)
     m_slat[j] = 0;
 
-  RESOURCE_RELEASE(resourceslotsused, nslots)
+  RESOURCE_USE(ResourceSlot, (m_slatused -= nslots), m_slat.size())
 
   m_slathead = i;
 }
@@ -155,8 +154,7 @@ void ResourceManager::initialise_device(VkPhysicalDevice physicaldevice, VkDevic
   m_minallocation = buffersize;
   m_maxallocation = maxbuffersize;
 
-  RESOURCE_SET(resourcebufferused, 0)
-  RESOURCE_SET(resourcebuffercapacity, 0)
+  RESOURCE_USE(ResourceBuffer, (m_bufferused = 0), m_buffersallocated)
 }
 
 
@@ -200,7 +198,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
         (*into)->size = (*into)->used;
         (*into)->next = buffer;
 
-        RESOURCE_ACQUIRE(resourcebufferused, bytes)
+        RESOURCE_USE(ResourceBuffer, (m_bufferused += bytes), m_buffersallocated)
 
         return &buffer->transferlump;
       }
@@ -228,7 +226,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 
       m_buffersallocated += buffer->size;
 
-      RESOURCE_ACQUIRE(resourcebuffercapacity, buffer->size)
+      RESOURCE_USE(ResourceBuffer, m_bufferused, m_buffersallocated)
     }
   }
 
@@ -254,7 +252,7 @@ void ResourceManager::release_lump(TransferLump const *lump)
 
       buffer->next->~Buffer();
 
-      RESOURCE_RELEASE(resourcebufferused, buffer->next->used);
+      RESOURCE_USE(ResourceBuffer, (m_bufferused -= buffer->next->used), m_buffersallocated)
 
       buffer->size += buffer->next->size;
       buffer->next = buffer->next->next;
@@ -266,7 +264,7 @@ void ResourceManager::release_lump(TransferLump const *lump)
 
       buffer->~Buffer();
 
-      RESOURCE_RELEASE(resourcebuffercapacity, buffer->size)
+      RESOURCE_USE(ResourceBuffer, m_bufferused, m_buffersallocated)
 
       *into = buffer->next;
       buffer = buffer->next;

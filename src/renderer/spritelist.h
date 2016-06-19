@@ -76,6 +76,8 @@ class SpriteList
 
     void push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 
+    void push_texture(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, Vulkan::Texture const &texture, float layer = 0, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+
     void push_scissor(BuildState &state, lml::Rect2 const &cliprect);
 
     void finalise(BuildState &state);

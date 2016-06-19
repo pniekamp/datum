@@ -113,6 +113,11 @@ class ResourcePool
 
     ResourceLump m_lumps[ResourceLumpCount];
 
+#ifndef NDEBUG
+    std::atomic<size_t> m_lumpsused;
+    std::atomic<size_t> m_storageused;
+#endif
+
   private:
 
     Vulkan::TransferBuffer m_transferbuffer;

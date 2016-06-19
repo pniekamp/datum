@@ -76,7 +76,7 @@ void datumtest_init(PlatformInterface &platform)
 
   initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024);
 
-  initialise_resource_pool(platform, state.rendercontext.resourcepool, 16*1024*1024);
+  initialise_resource_pool(platform, state.rendercontext.resourcepool, 8*1024*1024);
 
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 
@@ -186,10 +186,10 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.lastmousez = input.mousez;
 
 #ifdef DEBUG
-  state.luminancetarget = debug_menu_value("Exposure", state.luminancetarget, 0.0f, 8.0f);
+  state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
 #endif
 
-  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 3.14f*dt);
+//  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
 
   state.camera = normalise(state.camera);
 
@@ -199,15 +199,18 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.writeframe->camera = state.camera;
 
   float suzannemetalness = 0.0f;
-  DEBUG_MENU_ENTRY("Suzanne Metalness", suzannemetalness = debug_menu_value("Suzanne Metalness", suzannemetalness, 0.0f, 1.0f))
+  DEBUG_MENU_VALUE("Suzanne/Metalness", &suzannemetalness, 0.0f, 1.0f)
 
   float suzanneroughness = 0.0f;
-  DEBUG_MENU_ENTRY("Suzanne Roughness", suzanneroughness = debug_menu_value("Suzanne Roughness", suzanneroughness, 0.0f, 1.0f))
+  DEBUG_MENU_VALUE("Suzanne/Roughness", &suzanneroughness, 0.0f, 1.0f)
 
   float suzannereflectivity = 0.5f;
-  DEBUG_MENU_ENTRY("Suzanne Reflectivity", suzannereflectivity = debug_menu_value("Suzanne Reflectivity", suzannereflectivity, 0.0f, 2.0f))
+  DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 2.0f)
 
-  auto suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity));
+  float suzanneemissive = 0.0f;
+  DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 10.0f)
+
+  auto suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity, suzanneemissive));
 
 #if 1
   {
@@ -291,9 +294,10 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   }
 #endif
 
-  DEBUG_MENU_ENTRY("Position", state.camera.position());
-  DEBUG_MENU_ENTRY("Exposure", state.luminancetarget);
-  DEBUG_MENU_ENTRY("Luminance", state.rendercontext.luminance);
+  DEBUG_MENU_ENTRY("Camera/Position", state.camera.position());
+  DEBUG_MENU_ENTRY("Camera/Exposure", state.camera.exposure());
+  DEBUG_MENU_ENTRY("Camera/LumaTarget", state.luminancetarget);
+  DEBUG_MENU_ENTRY("Camera/Luminance", state.rendercontext.luminance);
 
   state.writeframe->resourcetoken = state.resources.token();
 
@@ -318,6 +322,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   if (!state.skybox->ready())
   {
+    asset_guard lock(&state.assets);
+
     state.resources.request(platform, state.skybox);
   }
 
@@ -355,29 +361,19 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
 //  renderlist.push_environment(Vec3(6, 12, 26), Transform::translation(0, 6, 0) * Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), state.testenvmap);
 
-#ifdef DEBUG
-  if (state.rendercontext.frame % 600 == 0)
-  {
-    cout << "Slots: " << g_debugstatistics.resourceslotsused << " / " << g_debugstatistics.resourceslotscapacity << "  ";
-    cout << "Buffers: " << g_debugstatistics.resourcebufferused << " / " << g_debugstatistics.resourcebuffercapacity << "  ";
-    cout << "Storage: " << g_debugstatistics.renderstorageused << " / " << g_debugstatistics.renderstoragecapacity << "  ";
-    cout << "Lumps: " << g_debugstatistics.renderlumpsused << " / " << g_debugstatistics.renderlumpscapacity << "  ";
-    cout << "Entities: " << g_debugstatistics.entityslotsused << " / " << g_debugstatistics.entityslotscapacity << "  ";
-    cout << endl;
-  }
-#endif 
-
   RenderParams renderparams;
   renderparams.width = viewport.width;
   renderparams.height = viewport.height;
   renderparams.aspect = state.aspect;
   renderparams.skybox = state.skybox;
   renderparams.sundirection = normalise(Vec3(0.4, -1, -0.1));
-  renderparams.sunintensity = Color3(5, 5, 5);
+  renderparams.sunintensity = Color3(8.0, 7.56, 7.88);
   renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), -0.1*state.readframe->time);
   renderparams.ssaoscale = 0.5f;
 
-  DEBUG_MENU_ENTRY("Sun Direction", renderparams.sundirection = normalise(debug_menu_value("Sun Direction", renderparams.sundirection, Vec3(-1), Vec3(1))))
+  DEBUG_MENU_ENTRY("Lighting/Sun Direction", renderparams.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", renderparams.sundirection, Vec3(-1), Vec3(1))))
+  DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
+  DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 8.0f);
 
   render_debug_overlay(platform, state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);
 

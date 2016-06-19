@@ -21,7 +21,7 @@ float view_depth(mat4 proj, float depth)
 ///////////////////////// view_normal ///////////////////////////////////////
 vec3 view_normal(mat4 view, vec3 normal)
 {
-  return (view * vec4(2.0 * normal - 1.0, 0.0)).xyz;
+  return normalize((view * vec4(2.0 * normal - 1.0, 0.0)).xyz);
 }
 
 

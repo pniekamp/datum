@@ -87,6 +87,10 @@ class ResourceManager
 
     std::vector<bool, StackAllocator<>> m_slat;
 
+#ifndef NDEBUG
+    size_t m_slatused;
+#endif
+
   private:
 
     template<typename T>
@@ -139,6 +143,10 @@ class ResourceManager
     void release_lump(TransferLump const *lump);
 
     void submit_transfer(TransferLump const *lump);
+
+#ifndef NDEBUG
+    size_t m_bufferused;
+#endif
 
   private:
 

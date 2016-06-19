@@ -122,6 +122,7 @@ struct PackMaterialPayload
   float metalness;
   float roughness;
   float reflectivity;
+  float emissive;
 
   uint32_t albedomap;
   uint32_t specularmap;
@@ -153,6 +154,7 @@ struct PackModelPayload
     float metalness;
     float roughness;
     float reflectivity;
+    float emissive;
 
     uint32_t albedomap;
     uint32_t specularmap;

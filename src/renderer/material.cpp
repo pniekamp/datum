@@ -54,7 +54,7 @@ Material const *ResourceManager::create<Material>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
+Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
 {
   auto slot = acquire_slot(sizeof(Material));
 
@@ -70,6 +70,7 @@ Material const *ResourceManager::create<Material>(Color3 color, float metalness,
   material->metalness = metalness;
   material->roughness = roughness;
   material->reflectivity = reflectivity;
+  material->emissive = emissive;
   material->specularmap = specularmap;
   material->normalmap = normalmap;
 
@@ -81,21 +82,33 @@ Material const *ResourceManager::create<Material>(Color3 color, float metalness,
 }
 
 template<>
-Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity)
+Material const *ResourceManager::create<Material>(Color3 color, float emissive)
 {
-  return create<Material>(color, metalness, roughness, reflectivity, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
+  return create<Material>(color, 0.0f, 1.0f, 0.5f, emissive, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
 }
 
 template<>
 Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness)
 {
-  return create<Material>(color, metalness, roughness, 0.5f, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
+  return create<Material>(color, metalness, roughness, 0.5f, 0.0f, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
+}
+
+template<>
+Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity)
+{
+  return create<Material>(color, metalness, roughness, reflectivity, 0.0f, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
+}
+
+template<>
+Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity, float emissive)
+{
+  return create<Material>(color, metalness, roughness, reflectivity, emissive, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
 }
 
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Material>(Material const *material, Color3 color, float metalness, float roughness, float reflectivity)
+void ResourceManager::update<Material>(Material const *material, Color3 color, float metalness, float roughness, float reflectivity, float emissive)
 {
   assert(material);
 
@@ -105,6 +118,7 @@ void ResourceManager::update<Material>(Material const *material, Color3 color, f
   slot->metalness = metalness;
   slot->roughness = roughness;
   slot->reflectivity = reflectivity;
+  slot->emissive = emissive;
 }
 
 
@@ -135,6 +149,7 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
         slot->metalness = material->metalness;
         slot->roughness = material->roughness;
         slot->reflectivity = material->reflectivity;
+        slot->emissive = material->emissive;
 
         if (material->albedomap)
         {

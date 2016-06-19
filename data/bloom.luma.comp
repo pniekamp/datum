@@ -1,9 +1,10 @@
 #version 450 core
 #include "camera.glsl"
 
-layout(local_size_x_id = 82, local_size_y_id = 83) in;
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x_id = 1, local_size_y_id = 2) in;
 
-layout(constant_id = 81) const float Cutoff = 1.0;
+layout(constant_id = 81) const float Cutoff = 11.2;
 
 layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
@@ -33,5 +34,5 @@ void main(void)
 
   float luma = dot(texel, vec3(0.299, 0.587, 0.114));
 
-  imageStore(dest, xy, vec4(texel * scene.camera.bloomstrength * max(0.0, luma - Cutoff), 1.0)); 
+  imageStore(dest, xy, vec4(texel * scene.camera.bloomstrength * smoothstep(0.0, 1.0, luma - Cutoff), 1.0)); 
 }

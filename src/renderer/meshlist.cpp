@@ -46,6 +46,7 @@ struct MaterialSet
   float metalness;
   float roughness;
   float reflectivity;
+  float emissive;
 };
 
 struct ModelSet
@@ -153,6 +154,7 @@ void MeshList::push_material(BuildState &state, Material const *material)
       materialset->metalness = material->metalness;
       materialset->roughness = material->roughness;
       materialset->reflectivity = material->reflectivity;
+      materialset->emissive = material->emissive;
 
       bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
       bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);

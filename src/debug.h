@@ -61,12 +61,32 @@ struct DebugLogEntry
     ExitBlock,
     GpuSubmit,
     GpuBlock,
+
+    RenderLump,
+    RenderStorage,
+    ResourceSlot,
+    ResourceBuffer,
+    EntitySlot,
+
+    HitCount
   };
 
-  DebugInfoBlock const *info;
   EntryType type;
   std::thread::id thread;
   unsigned long long timestamp;
+
+  union
+  {     
+    size_t hitcount;
+
+    struct
+    {
+      uint32_t resourceused;
+      uint32_t resourcecapacity;
+    };
+
+    DebugInfoBlock const *info;
+  };
 };
 
 extern DebugLogEntry g_debuglog[4096];
@@ -78,7 +98,6 @@ double clock_frequency();
   {                                                                                   \
     unsigned int p;                                                                   \
     size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].info = nullptr;                                                 \
     g_debuglog[entry].type = DebugLogEntry::FrameMarker;                              \
     g_debuglog[entry].thread = std::this_thread::get_id();                            \
     g_debuglog[entry].timestamp = __rdtscp(&p);                                       \
@@ -97,7 +116,6 @@ double clock_frequency();
 #define END_TIMED_BLOCK(name) \
   {                                                                                   \
     size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].info = nullptr;                                                 \
     g_debuglog[entry].type = DebugLogEntry::ExitBlock;                                \
     g_debuglog[entry].thread = std::this_thread::get_id();                            \
     g_debuglog[entry].timestamp = __rdtsc();                                          \
@@ -107,7 +125,6 @@ double clock_frequency();
 #define GPU_SUBMIT() \
   {                                                                                   \
     size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].info = nullptr;                                                 \
     g_debuglog[entry].type = DebugLogEntry::GpuSubmit;                                \
     g_debuglog[entry].thread = std::this_thread::get_id();                            \
     g_debuglog[entry].timestamp = __rdtsc();                                          \
@@ -146,28 +163,24 @@ double clock_frequency();
 // Statistics
 //
 
-struct DebugStatistics
-{
-  std::atomic<size_t> renderlumpsused;
-  std::atomic<size_t> renderlumpscapacity;
-  std::atomic<size_t> renderstorageused;
-  std::atomic<size_t> renderstoragecapacity;
+#define RESOURCE_USE(name, used, capacity) \
+  {                                                                                   \
+    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].type = DebugLogEntry::name;                                     \
+    g_debuglog[entry].thread = std::this_thread::get_id();                            \
+    g_debuglog[entry].timestamp = __rdtsc();                                          \
+    g_debuglog[entry].resourceused = used;                                            \
+    g_debuglog[entry].resourcecapacity = capacity;                                    \
+  }
 
-  std::atomic<size_t> resourceslotsused;
-  std::atomic<size_t> resourceslotscapacity;
-  std::atomic<size_t> resourcebufferused;
-  std::atomic<size_t> resourcebuffercapacity;
-
-  std::atomic<size_t> entityslotsused;
-  std::atomic<size_t> entityslotscapacity;
-};
-
-extern DebugStatistics g_debugstatistics;
-
-#define RESOURCE_SET(name, count) g_debugstatistics.name = count;
-#define RESOURCE_ACQUIRE(name, count) g_debugstatistics.name += count;
-#define RESOURCE_RELEASE(name, count) g_debugstatistics.name -= count;
-#define STATISTIC_HIT(name, count) g_debugstatistics.name += count;
+#define STATISTIC_HIT(name, count) \
+  {                                                                                   \
+    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].type = DebugLogEntry::HitCount;                                 \
+    g_debuglog[entry].thread = std::this_thread::get_id();                            \
+    g_debuglog[entry].timestamp = __rdtsc();                                          \
+    g_debuglog[entry].hitcount = count;                                               \
+  }
 
 //
 // Logging
@@ -203,6 +216,10 @@ T debug_menu_value(const char *name, T const &value, T const &min, T const &max)
 
 #define DEBUG_MENU_ENTRY(name, value) \
   debug_menu_entry(name, value);
+
+#define DEBUG_MENU_VALUE(name, value, min, max) \
+  debug_menu_entry(name, *value = debug_menu_value(name, *value, min, max));
+
 
 //
 // Interface

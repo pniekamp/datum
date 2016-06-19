@@ -2,7 +2,8 @@
 #include "camera.glsl"
 #include "gbuffer.glsl"
 
-layout(local_size_x_id = 64, local_size_y_id = 65) in;
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x_id = 1, local_size_y_id = 2) in;
 
 layout(constant_id = 67) const uint Radius = 2;
 layout(constant_id = 62) const uint NoiseSize = 16;
@@ -33,8 +34,8 @@ layout(std430, set=3, binding=0, row_major) buffer ComputeSet
 
 } compute;
 
-layout(set=0, binding=1) uniform sampler2DArray albedomap;
-layout(set=0, binding=2) uniform sampler2DArray specularmap;
+layout(set=0, binding=1) uniform sampler2DArray rt0map;
+layout(set=0, binding=2) uniform sampler2DArray rt1map;
 layout(set=0, binding=3) uniform sampler2DArray normalmap;
 layout(set=0, binding=4) uniform sampler2DArray depthmap;
 layout(set=0, binding=5) uniform sampler2DArray prevmap;
@@ -58,11 +59,9 @@ float max_element(vec4 value)
 void main()
 { 
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
-  ivec2 tile = ivec2(gl_WorkGroupID.x * SizeX, gl_WorkGroupID.y * SizeY); 
+  ivec2 xy = ivec2(gl_WorkGroupID.x * SizeX + ij.x - Radius, gl_WorkGroupID.y * SizeY + ij.y - Radius);
   
-  ivec2 xy = ivec2(tile.x + ij.x - Radius, tile.y + ij.y - Radius); 
- 
-  vec2 texcoord = vec2(xy + 0.5) / imageSize(dest);
+  vec2 texcoord = vec2(xy + 0.5) / textureSize(prevmap, 0).xy;//imageSize(dest);
 
   vec4 depthquad = textureGather(depthmap, vec3(texcoord, 0));
   
@@ -98,14 +97,14 @@ void main()
 
   barrier();
   
-  if (ij.x < SizeX && ij.y < SizeY)
+  if (ij.x >= Radius && ij.x < SizeX+Radius && ij.y >= Radius && ij.y < SizeY+Radius)
   {
     float avg = 0;
     float spatialweight = 0;
 
-    for(uint j = ij.y, end = ij.y + Radius + Radius; j < end; ++j)
+    for(uint j = ij.y - Radius; j < ij.y + Radius; ++j)
     {
-      for(uint i = ij.x, end = ij.x + Radius + Radius; i < end; ++i)
+      for(uint i = ij.x - Radius; i < ij.x + Radius; ++i)
       {
         float weight = max(1.0 - 250*abs(depths[j][i] - depth), 0.0);
         
@@ -125,7 +124,7 @@ void main()
     float temporalweight = clamp(5.0 * abs(prevocclusion.x - occlusion) + 0.001 * distance(prevposition, position), 0.1, 1.0);
 
     occlusion = mix(prevocclusion.x, occlusion, temporalweight);
-
-    imageStore(dest, tile + ij, vec4(occlusion, depth, 0, 0));
+  
+    imageStore(dest, xy, vec4(occlusion, depth, 0, 0));
   }
 }

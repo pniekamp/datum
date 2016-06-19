@@ -390,6 +390,21 @@ void SpriteList::push_text(BuildState &state, Vec2 const &position, float size, 
 }
 
 
+///////////////////////// SpriteList::push_texture //////////////////////////
+void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 const &rect, Vulkan::Texture const &texture, float layer, lml::Color4 const &tint)
+{
+  if (!texture.sampler)
+    return;
+
+  push_material(state, texture, Vec4(0, 0, 1, 1), tint);
+
+  auto xbasis = Vec2(1, 0);
+  auto ybasis = Vec2(0, 1);
+
+  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, layer);
+}
+
+
 ///////////////////////// SpriteList::push_scissor //////////////////////////
 void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {

@@ -79,10 +79,8 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
     m_lumps[i].descriptorpool = create_descriptorpool(vulkan, descriptorpoolinfo);
   }
 
-  RESOURCE_SET(renderlumpsused, 0)
-  RESOURCE_SET(renderlumpscapacity, ResourceLumpCount)
-  RESOURCE_SET(renderstorageused, 0)
-  RESOURCE_SET(renderstoragecapacity, slotsize * StorageBufferSlots)
+  RESOURCE_USE(RenderLump, (m_lumpsused = 0), ResourceLumpCount)
+  RESOURCE_USE(RenderStorage, (m_storageused = 0), m_transferbuffer.size)
 
   m_initialised = true;
 }
@@ -114,7 +112,7 @@ ResourcePool::ResourceLump const *ResourcePool::acquire_lump()
 
     if (lump.lock.test_and_set(std::memory_order_acquire) == false)
     {
-      RESOURCE_ACQUIRE(renderlumpsused, 1)
+      RESOURCE_USE(RenderLump, (m_lumpsused += 1), ResourceLumpCount)
 
       return &lump;
     }
@@ -134,7 +132,7 @@ void ResourcePool::release_lump(ResourceLump const *lumphandle)
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  RESOURCE_RELEASE(renderlumpsused, 1)
+  RESOURCE_USE(RenderLump, (m_lumpsused -= 1), ResourceLumpCount)
 
   reset_storagepool(lump.storagepool);
   reset_commandpool(vulkan, lump.commandpool);
@@ -175,7 +173,7 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
     {
       if (buffer.refcount == 0)
       {
-        RESOURCE_RELEASE(renderstorageused, buffer.used)
+        RESOURCE_USE(RenderStorage, (m_storageused -= buffer.used), m_transferbuffer.size)
 
         buffer.used = 0;
       }
@@ -186,7 +184,7 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
 
         buffer.refcount += 1;
 
-        RESOURCE_ACQUIRE(renderstorageused, buffer.size - buffer.used)
+        RESOURCE_USE(RenderStorage, (m_storageused += buffer.size - buffer.used), m_transferbuffer.size)
 
         m_storagehead = i;
 
@@ -214,7 +212,7 @@ void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t us
 
   StorageSlot &buffer = m_storagebuffers[storage.storagebuffer - m_storagebuffers];
 
-  RESOURCE_RELEASE(renderstorageused, buffer.size - buffer.used - used)
+  RESOURCE_USE(RenderStorage, (m_storageused -= buffer.size - buffer.used - used), m_transferbuffer.size)
 
   VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
 
