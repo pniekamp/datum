@@ -49,6 +49,8 @@ struct DebugInfoBlock
   const char *filename;
   int linenumber;
   lml::Color3 color;
+
+  DebugInfoBlock(const char *name, const char *filename, int linenumber, lml::Color3 color);
 };
 
 struct DebugLogEntry
@@ -105,7 +107,7 @@ double clock_frequency();
 
 #define BEGIN_TIMED_BLOCK(name, color) \
   {                                                                                   \
-    static const DebugInfoBlock blockinfo = { #name, __FILE__, __LINE__, color};      \
+    static const DebugInfoBlock blockinfo(#name, __FILE__, __LINE__, color);          \
     size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
     g_debuglog[entry].info = &blockinfo;                                              \
     g_debuglog[entry].type = DebugLogEntry::EnterBlock;                               \
@@ -132,7 +134,7 @@ double clock_frequency();
 
 #define GPU_TIMED_BLOCK(name, color, start, finish) \
   {                                                                                   \
-    static const DebugInfoBlock blockinfo = { #name, __FILE__, __LINE__, color};      \
+    static const DebugInfoBlock blockinfo(#name, __FILE__, __LINE__, color);          \
     size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
     g_debuglog[entry].info = &blockinfo;                                              \
     g_debuglog[entry].type = DebugLogEntry::GpuBlock;                                 \
@@ -228,6 +230,44 @@ T debug_menu_value(const char *name, T const &value, T const &min, T const &max)
 void update_debug_overlay(struct DatumPlatform::GameInput const &input, bool *accepted);
 void render_debug_overlay(DatumPlatform::PlatformInterface &platform, struct RenderContext &context, class ResourceManager *resources, class PushBuffer &pushbuffer, struct DatumPlatform::Viewport const &viewport, class Font const *font);
 
+
+//
+// Log Dump
+//
+
+#pragma pack(push, 1)
+
+struct DebugLogHeader
+{
+  uint32_t magic = 0x44544d44;
+};
+
+struct DebugLogChunk
+{
+  uint32_t length;
+  uint32_t type;
+};
+
+struct DebugLogInfoChunk // type = 1
+{
+  DebugInfoBlock const *id;
+
+  char name[256];
+  char filename[512];
+  int linenumber;
+  lml::Color3 color;
+};
+
+struct DebugLogEntryChunk // type = 2
+{
+  uint32_t entrycount;
+  DebugLogEntry entries[];
+};
+
+#pragma pack(pop)
+
+void stream_debuglog(const char *filename);
+
 #endif
 
 #ifdef NDEBUG
@@ -238,12 +278,12 @@ void render_debug_overlay(DatumPlatform::PlatformInterface &platform, struct Ren
 #define GPU_TIMED_BLOCK(...)
 #define BEGIN_STAT_BLOCK(...)
 #define END_STAT_BLOCK(...)
-#define RESOURCE_SET(...)
-#define RESOURCE_ACQUIRE(...)
-#define RESOURCE_RELEASE(...)
+#define RESOURCE_USE(...)
 #define STATISTIC_HIT(...)
 #define LOG_ONCE(...)
 #define DEBUG_MENU_ENTRY(...)
+#define DEBUG_MENU_VALUE(...)
 #define update_debug_overlay(...)
 #define render_debug_overlay(...)
+#define stream_debuglog(...)
 #endif

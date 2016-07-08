@@ -158,11 +158,11 @@ uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path, float
   int layers = 1;
   int levels = 1;
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), alignx, aligny);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), alignx, aligny);
 
   return id + 1;
 }
@@ -175,9 +175,10 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &im
   int layers = images.size();
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
-  char *dst = payload.data() + sizeof(PackImagePayload);
+  char *dst = payload.data();
+
   for(size_t i = 0; i < images.size(); i++)
   {
     QImage image = images[i].convertToFormat(QImage::Format_ARGB32);
@@ -194,7 +195,7 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &im
 
   image_buildmips_srgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), alignx, aligny);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), alignx, aligny);
 
   return id + 1;
 }
@@ -271,15 +272,15 @@ uint32_t write_albedomap_asset(ostream &fout, uint32_t id, string const &path)
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_srgb_a(0.5, width, height, layers, levels, payload.data());
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -301,15 +302,15 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload( image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -353,15 +354,15 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &metal
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload( image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -383,13 +384,13 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload( image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -418,9 +419,10 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, vector<string> const &pa
   int layers = 6;
   int levels = 8;
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
-  char *dst = payload.data() + sizeof(PackImagePayload);
+  char *dst = payload.data();
+
   for(size_t i = 0; i < images.size(); i++)
   {
     QImage image = images[i].convertToFormat(QImage::Format_ARGB32);
@@ -445,7 +447,7 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, vector<string> const &pa
 
   image_buildmips_cube_ibl(width, height, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -462,11 +464,11 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, string const &path)
   int layers = 6;
   int levels = 8;
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
   image_pack_cube_ibl(image, width, height, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -479,11 +481,11 @@ uint32_t write_envbrdf_asset(ostream &fout, uint32_t id)
   int layers = 1;
   int levels = 1;
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
   image_pack_envbrdf(width, height, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -682,13 +684,13 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 }
 
 
-void write_material(string const &output, Color3 color, float metalness, float smoothness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
+void write_material(string const &output, Color3 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
 {
   ofstream fout(output, ios::binary | ios::trunc);
 
   write_header(fout);
 
-  write_material_asset(fout, 0, color, metalness, smoothness, reflectivity, emissive, albedomap, specularmap, normalmap);
+  write_material_asset(fout, 0, color, metalness, roughness, reflectivity, emissive, albedomap, specularmap, normalmap);
 
   write_chunk(fout, "HEND", 0, nullptr);
 
@@ -745,7 +747,9 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
-  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+//  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+//  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
+  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
 
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");

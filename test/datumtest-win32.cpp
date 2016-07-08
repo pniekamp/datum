@@ -41,7 +41,7 @@ class Platform : public PlatformInterface
 
     virtual handle_t open_handle(const char *identifier) override;
 
-    virtual void read_handle(handle_t handle, uint64_t position, void *buffer, size_t n) override;
+    virtual void read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
 
     virtual void close_handle(handle_t handle) override;
 
@@ -112,9 +112,9 @@ PlatformInterface::handle_t Platform::open_handle(const char *identifier)
 
 
 ///////////////////////// PlatformCore::read_handle /////////////////////////
-void Platform::read_handle(PlatformInterface::handle_t handle, uint64_t position, void *buffer, size_t n)
+void Platform::read_handle(PlatformInterface::handle_t handle, uint64_t position, void *buffer, size_t bytes)
 {
-  static_cast<FileHandle*>(handle)->read(position, buffer, n);
+  static_cast<FileHandle*>(handle)->read(position, buffer, bytes);
 }
 
 
@@ -378,6 +378,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   devicefeatures.shaderCullDistance = true;
   devicefeatures.geometryShader = true;
   devicefeatures.shaderTessellationAndGeometryPointSize = true;
+  devicefeatures.shaderStorageImageWriteWithoutFormat = true;
 
   VkDeviceCreateInfo deviceinfo = {};
   deviceinfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

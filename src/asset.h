@@ -34,6 +34,7 @@ struct Asset
       int height;
       int layers;
       int levels;
+      int format;
       float alignx;
       float aligny;
     };

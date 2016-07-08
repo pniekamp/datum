@@ -17,7 +17,7 @@
 //|---------------------- SpriteComponentStorage ---------------------------
 //|--------------------------------------------------------------------------
 
-class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float, lml::Color4>
+class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float, float, lml::Color4>
 {
   public:
 
@@ -26,7 +26,8 @@ class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float
       spriteflags = 0,
       spriteresource = 1,
       spritesize = 2,
-      spritetint = 3,
+      spritelayer = 3,
+      spritetint = 4,
     };
 
   public:
@@ -37,6 +38,8 @@ class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float
     Sprite const *sprite(EntityId entity) const { return data<spriteresource>(index(entity)); }
 
     float const &size(EntityId entity) const { return data<spritesize>(index(entity)); }
+
+    float const &layer(EntityId entity) const { return data<spritelayer>(index(entity)); }
 
     lml::Color4 const &tint(EntityId entity) const { return data<spritetint>(index(entity)); }
 };
@@ -65,10 +68,12 @@ class SpriteComponent
     long const &flags() const { return storage->data<SpriteComponentStorage::spriteflags>(index); }
     Sprite const *sprite() const { return storage->data<SpriteComponentStorage::spriteresource>(index); }
     float const &size() const { return storage->data<SpriteComponentStorage::spritesize>(index); }
+    float const &layer() const { return storage->data<SpriteComponentStorage::spritelayer>(index); }
     lml::Color4 const &tint() const { return storage->data<SpriteComponentStorage::spritetint>(index); }
     lml::Rect2 bound() const { return lml::Rect2(-sprite()->align, lml::Vec2(size() * sprite()->aspect, size()) - sprite()->align); }
 
     void set_size(float size);
+    void set_layer(float layer);
     void set_sprite(Sprite const *sprite, float size);
     void set_sprite(Sprite const *sprite, float size, lml::Color4 const &tint);
     void set_tint(lml::Color4 const &tint);

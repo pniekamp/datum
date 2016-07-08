@@ -144,15 +144,15 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload( image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_srgb_a(0.5, width, height, layers, levels, payload.data());
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -194,15 +194,15 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &metalpath
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload( image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -250,13 +250,13 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }
@@ -276,13 +276,13 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload(sizeof(PackImagePayload) + image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
-  memcpy(payload.data() + sizeof(PackImagePayload), image.bits(), image.byteCount());
+  memcpy(payload.data(), image.bits(), image.byteCount());
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), 0.0f, 0.0f);
 
   return id + 1;
 }

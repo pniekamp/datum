@@ -31,7 +31,6 @@ Color4 HDRImage::sample(Vec2 const &texcoords) const
   auto v = modf(fmod2(texcoords.y, 1.0f) * (height - 1), &j);
 
   return lerp(lerp(sample(i, j), sample(i+1, j), u), lerp(sample(i, j+1), sample(i+1, j+1), u), v);
-
 }
 
 
@@ -167,7 +166,7 @@ HDRImage load_hdr(string const &path)
 ///////////////////////// image_blend_edges /////////////////////////////////
 void image_blend_edges(int width, int height, int levels, void *bits)
 {
-  uint32_t *img = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *img = (uint32_t*)bits;
 
   for(int level = 0; level < levels && width > 1 && height > 1; ++level)
   {
@@ -325,7 +324,7 @@ void image_buildmips_cube(int width, int height, int levels, void *bits)
 ///////////////////////// image_pack_cube ///////////////////////////////////
 void image_pack_cube(HDRImage const &image, int width, int height, int levels, void *bits)
 {
-  uint32_t *dst = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *dst = (uint32_t*)bits;
 
   Transform transforms[] =
   {

@@ -16,6 +16,8 @@ set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR} CACHE INTERNAL "")
 
 find_package(Threads REQUIRED)
 
+find_package(Qt5Gui  QUIET)
+
 #
 # leap
 #
@@ -80,4 +82,6 @@ add_subdirectory(test)
 # tools
 #
 
-add_subdirectory(tools)
+if(Qt5Gui_FOUND)
+  add_subdirectory(tools)
+endif(Qt5Gui_FOUND)

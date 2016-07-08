@@ -194,7 +194,7 @@ namespace
 ///////////////////////// image_pack_cubemap_ibl ////////////////////////////
 void image_buildmips_cube_ibl(int width, int height, int levels, void *bits)
 {
-  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *src = (uint32_t*)bits;
   uint32_t *dst = src + width * height * 6;
 
   for(int level = 1; level < levels; ++level)
@@ -244,7 +244,7 @@ void image_pack_cube_ibl(HDRImage const &image, int width, int height, int level
 ///////////////////////// image_pack_envbrdf ////////////////////////////////
 void image_pack_envbrdf(int width, int height, void *bits)
 {
-  uint32_t *dst = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *dst = (uint32_t*)bits;
 
   for(int y = 0; y < height; ++y)
   {

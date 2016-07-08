@@ -27,7 +27,9 @@ class SpriteStoragePrivate : public SpriteComponentStorage
 
   public:
 
-    void add(EntityId entity, Sprite const *sprite, float size, Color4 const &tint, long flags);
+    void add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 const &tint, long flags);
+
+    void set_layer(size_t index, float layer);
 
     void set_sprite(size_t index, Sprite const *sprite, float size, Color4 const &tint);
 };
@@ -48,7 +50,7 @@ SpriteStoragePrivate::SpriteStoragePrivate(Scene *scene, allocator_type const &a
 
 
 ///////////////////////// SpriteStorage::add ////////////////////////////////
-void SpriteStoragePrivate::add(EntityId entity, Sprite const *sprite, float size, Color4 const &tint, long flags)
+void SpriteStoragePrivate::add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 const &tint, long flags)
 {
   DefaultStorage::add(entity);
 
@@ -57,7 +59,15 @@ void SpriteStoragePrivate::add(EntityId entity, Sprite const *sprite, float size
   get<spriteflags>(m_data)[index] = flags;
   get<spriteresource>(m_data)[index] = sprite;
   get<spritesize>(m_data)[index] = size;
+  get<spritelayer>(m_data)[index] = layer;
   get<spritetint>(m_data)[index] = tint;
+}
+
+
+///////////////////////// SpriteStorage::set_layer //////////////////////////
+void SpriteStoragePrivate::set_layer(size_t index, float layer)
+{
+  get<spritelayer>(m_data)[index] = layer;
 }
 
 
@@ -92,7 +102,7 @@ SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sp
 
   auto storage = static_cast<SpriteStoragePrivate*>(system<SpriteComponentStorage>());
 
-  storage->add(entity, sprite, size, tint, flags);
+  storage->add(entity, sprite, size, 0.0f, tint, flags);
 
   return { storage->index(entity), storage };
 }
@@ -152,6 +162,13 @@ SpriteComponent::SpriteComponent(size_t index, SpriteComponentStorage *storage)
 void SpriteComponent::set_size(float size)
 {
   static_cast<SpriteStoragePrivate*>(storage)->set_sprite(index, sprite(), size, tint());
+}
+
+
+///////////////////////// SpriteComponent::set_layer ////////////////////////
+void SpriteComponent::set_layer(float layer)
+{
+  static_cast<SpriteStoragePrivate*>(storage)->set_layer(index, layer);
 }
 
 

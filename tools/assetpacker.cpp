@@ -158,7 +158,7 @@ uint32_t write_text_asset(ostream &fout, uint32_t id, std::vector<uint8_t> const
 
 
 ///////////////////////// write_imag_asset //////////////////////////////////
-uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, void const *bits, float alignx, float aligny)
+uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, uint32_t format, void const *bits, float alignx, float aligny)
 {
   assert(layers > 0);
   assert(levels > 0 && levels <= (uint32_t)image_maxlevels(width, height));
@@ -167,15 +167,16 @@ uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t h
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  uint32_t datasize = sizeof(PackImagePayload);
+  uint32_t datasize = 0;
 
-  switch(((PackImagePayload*)bits)->compression)
+  switch(format)
   {
-    case PackImagePayload::none:
+    case PackImageHeader::rgba:
+    case PackImageHeader::rgbe:
       datasize += image_datasize(width, height, layers, levels);
       break;
 
-    case PackImagePayload::bc3:
+    case PackImageHeader::rgba_bc3:
       datasize += image_datasize_bc3(width, height, layers, levels);
       break;
 
@@ -183,7 +184,7 @@ uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t h
       assert(false);
   }
 
-  PackImageHeader ihdr = { width, height, layers, levels, alignx, aligny, datasize, (size_t)fout.tellp() + sizeof(ihdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackImageHeader ihdr = { width, height, layers, levels, format, alignx, aligny, datasize, (size_t)fout.tellp() + sizeof(ihdr) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "IMAG", sizeof(ihdr), &ihdr);
 
@@ -308,7 +309,7 @@ size_t image_datasize_bc3(int width, int height, int layers, int levels)
 ///////////////////////// image_buildmips ///////////////////////////////////
 void image_buildmips_rgb(int width, int height, int layers, int levels, void *bits)
 {
-  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *src = (uint32_t*)bits;
   uint32_t *dst = src + width * height * layers;
 
   for(int level = 1; level < levels; ++level)
@@ -340,7 +341,7 @@ void image_buildmips_rgb(int width, int height, int layers, int levels, void *bi
 ///////////////////////// image_buildmips ///////////////////////////////////
 void image_buildmips_rgbe(int width, int height, int layers, int levels, void *bits)
 {
-  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *src = (uint32_t*)bits;
   uint32_t *dst = src + width * height * layers;
 
   for(int level = 1; level < levels; ++level)
@@ -372,7 +373,7 @@ void image_buildmips_rgbe(int width, int height, int layers, int levels, void *b
 ///////////////////////// image_buildmips ///////////////////////////////////
 void image_buildmips_srgb(int width, int height, int layers, int levels, void *bits)
 {
-  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *src = (uint32_t*)bits;
   uint32_t *dst = src + width * height * layers;
 
   for(int level = 1; level < levels; ++level)
@@ -404,7 +405,7 @@ void image_buildmips_srgb(int width, int height, int layers, int levels, void *b
 ///////////////////////// image_buildmips ///////////////////////////////////
 void image_buildmips_srgb_a(float alpharef, int width, int height, int layers, int levels, void *bits)
 {
-  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *src = (uint32_t*)bits;
   uint32_t *dst = src + width * height * layers;
 
   for(int level = 1; level < levels; ++level)
@@ -452,7 +453,7 @@ void image_buildmips_srgb_a(float alpharef, int width, int height, int layers, i
 ///////////////////////// image_premultiply /////////////////////////////////
 void image_premultiply_srgb(int width, int height, int layers, int levels, void *bits)
 {
-  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *src = (uint32_t*)bits;
   uint32_t *dst = src;
 
   size_t datasize = image_datasize(width, height, layers, levels);
@@ -467,7 +468,7 @@ void image_premultiply_srgb(int width, int height, int layers, int levels, void 
 ///////////////////////// image_compress_bc3 ////////////////////////////////
 void image_compress_bc3(int width, int height, int layers, int levels, void *bits)
 {
-  uint32_t *src = (uint32_t*)((char*)bits + sizeof(PackImagePayload));
+  uint32_t *src = (uint32_t*)bits;
   BC3 *dst = (BC3*)src;
 
   for(int level = 0; level < levels; ++level)
@@ -500,6 +501,4 @@ void image_compress_bc3(int width, int height, int layers, int levels, void *bit
     width /= 2;
     height /= 2;
   }
-
-  ((PackImagePayload*)bits)->compression = PackImagePayload::bc3;
 }

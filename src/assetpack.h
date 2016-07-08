@@ -49,10 +49,13 @@ struct PackTextPayload
 
 struct PackImageHeader
 {
+  enum { rgba = 0, rgba_bc3 = 3, rgbe = 5 };
+
   uint32_t width;
   uint32_t height;
   uint32_t layers;
   uint32_t levels;
+  uint32_t format;
   float alignx;
   float aligny;
   uint32_t datasize;
@@ -61,9 +64,6 @@ struct PackImageHeader
 
 struct PackImagePayload
 {
-  enum { none = 0, bc3 = 3 };
-
-  uint32_t compression;
 // uint32_t image[levels][layers][height][width];
 };
 

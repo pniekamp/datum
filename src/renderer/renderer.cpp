@@ -1445,7 +1445,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.envbrdf = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, (char*)bits + sizeof(PackImagePayload), VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+    context.envbrdf = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, bits, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
   }
 
   if (context.whitediffuse == 0)
@@ -1462,7 +1462,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.whitediffuse = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
+    context.whitediffuse = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, bits);
   }
 
   if (context.nominalnormal == 0)
@@ -1479,7 +1479,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.nominalnormal = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, (char*)bits + sizeof(PackImagePayload));
+    context.nominalnormal = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, bits);
   }
 
   if (context.unitquad == 0)
@@ -1677,7 +1677,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     {
       for(size_t i = 0; i < extentof(context.ssaodescriptors); ++i)
       {
-        context.ssaobuffers[i] = create_attachment(context.device, width*params.ssaoscale, height*params.ssaoscale, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+        context.ssaobuffers[i] = create_attachment(context.device, width*params.ssaoscale, height*params.ssaoscale, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
         setimagelayout(context.device, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
@@ -1870,7 +1870,14 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
     envcount += 1;
   }
 
-  bindtexture(context.device, context.lightingdescriptors[context.frame & 1], ShaderLocation::envmaps, imageinfos, envcount);
+  for(size_t i = envcount; i < extentof(imageinfos); ++i)
+  {
+    imageinfos[i].sampler = context.whitediffuse.sampler;
+    imageinfos[i].imageView = context.whitediffuse.imageview;
+    imageinfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  }
+
+  bindtexture(context.device, context.lightingdescriptors[context.frame & 1], ShaderLocation::envmaps, imageinfos, extentof(imageinfos));
 }
 
 
@@ -2143,9 +2150,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     }
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 9);
-
   endpass(commandbuffer, context.renderpass);
+
+  querytimestamp(commandbuffer, context.timingquerypool, 9);
 
   //
   // Blit

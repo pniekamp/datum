@@ -48,7 +48,7 @@ struct Material
 //----------------------- Poisson Disk --------------------------------------
 //---------------------------------------------------------------------------
 
-const vec2 PoissonDisk[12] = { 
+const vec2 PoissonDisk[12] = {
   vec2(-0.1711046, -0.425016),
   vec2(-0.7829809, 0.2162201),
   vec2(-0.2380269, -0.8835521),
@@ -74,16 +74,16 @@ const vec2 PoissonDisk[12] = {
 Material unpack_material(vec4 rt0, vec4 rt1)
 {
   Material material;
-  
+
   material.albedo = rt0.rgb;
   material.emissive = rt0.a * 10.0;
   material.metalness = rt1.r;
   material.roughness = rt1.a;
   material.reflectivity = rt1.g;
-  
+
   material.diffuse = material.albedo * (1 - material.metalness);
   material.specular = mix(vec3(0.16 * material.reflectivity * material.reflectivity), material.albedo, material.metalness);
-  
+
   material.alpha = material.roughness * material.roughness;
 
   return material;
@@ -98,7 +98,7 @@ float ambient_intensity(MainLight light, sampler2DArray ssaomap, ivec2 xy, ivec2
 
 ///////////////////////// shadow_split //////////////////////////////////////
 vec4 shadow_split(float splits[4], uint nslices, float depth)
-{ 
+{
   vec4 a = vec4(smoothstep(0.75*vec3(splits[0], splits[1], splits[2]), vec3(splits[0], splits[1], splits[2]), vec3(depth)), 0);
   vec4 b = vec4(1, smoothstep(0.75*vec3(splits[0], splits[1], splits[2]), vec3(splits[0], splits[1], splits[2]), vec3(depth)));
 
@@ -151,8 +151,8 @@ vec3 specular_dominantdirection(vec3 N, vec3 R, float roughness)
 vec3 dffuse_dominantdirection(vec3 N, vec3 V, float roughness)
 {
   float a = 1.02341f * roughness - 1.51174f;
-  float b = -0.511705f * roughness + 0.755868f;  
-  
+  float b = -0.511705f * roughness + 0.755868f;
+
   return mix(N, V, clamp((dot(N, V) * a + b) * roughness, 0.0, 1.0));
 }
 
@@ -175,20 +175,20 @@ float visibility_smith(float NdotL, float NdotV, float alpha)
 
 ///////////////////////// distribution_ggx //////////////////////////////////
 float distribution_ggx(float NdotH, float alpha)
-{ 
+{
   float alpha2 = alpha * alpha;
   float f = (NdotH * alpha2 - NdotH) * NdotH + 1;
-  
+
   return alpha2 / (f * f);
 }
-  
+
 /////////////////////////  diffuse_disney ///////////////////////////////////
 float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
 {
   float energybias = mix(0.0, 0.5, alpha);
   float energyfactor = mix(1.0, 1.0 / 1.51, alpha);
   float f90 = energybias + 2.0 * LdotH*LdotH * alpha;
-  
+
   float lightscatter = fresnel_schlick(vec3(1.0f), f90, NdotL).r;
   float viewscatter = fresnel_schlick(vec3(1.0f), f90, NdotV).r;
 
@@ -197,20 +197,20 @@ float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
 
 ///////////////////////// specular_ggx ////////////////////////////////////
 vec3 specular_ggx(vec3 f0, float f90, float NdotV, float NdotL, float LdotH, float NdotH, float alpha)
-{ 
+{
   vec3 F = fresnel_schlick(f0, f90, LdotH);
   float Vis = visibility_smith(NdotV, NdotL, alpha);
   float D = distribution_ggx(NdotH, alpha);
-  
+
   return D * F * Vis;
 }
 
 
 ///////////////////////// env_light  ////////////////////////////////////////
 void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 envdiffuse, vec3 envspecular, vec2 envbrdf, float ambientintensity)
-{ 
+{
   float f90 = 0.8f;
-  
+
   diffuse += envdiffuse * material.diffuse * ambientintensity;
   specular += envspecular * (material.specular * envbrdf.x + f90 * envbrdf.y) * ambientintensity;
 }
@@ -218,15 +218,15 @@ void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 
 
 ///////////////////////// main_light  ///////////////////////////////////////
 void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 normal, vec3 eyevec, Material material, float shadowfactor)
-{ 
+{
   vec3 lightvec = -light.direction;
 
   vec3 halfvec = normalize(lightvec + eyevec);
 
-	float NdotV = max(dot(normal, eyevec), 0.0);
-	float NdotL = max(dot(normal, lightvec), 0.0);
-	float NdotH = max(dot(normal, halfvec), 0.0);
-	float LdotH = max(dot(lightvec, halfvec), 0.0);
+  float NdotV = max(dot(normal, eyevec), 0.0);
+  float NdotL = max(dot(normal, lightvec), 0.0);
+  float NdotH = max(dot(normal, halfvec), 0.0);
+  float LdotH = max(dot(lightvec, halfvec), 0.0);
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 
@@ -240,26 +240,26 @@ void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 n
 
 ///////////////////////// point_light  //////////////////////////////////////
 void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3 position, vec3 normal, vec3 eyevec, Material material)
-{ 
-  vec3 lightvec = normalize(light.position - position); 
-  
+{
+  vec3 lightvec = normalize(light.position - position);
+
   vec3 halfvec = normalize(lightvec + eyevec);
 
-	float NdotV = max(dot(normal, eyevec), 0.0);
-	float NdotL = max(dot(normal, lightvec), 0.0);
-	float NdotH = max(dot(normal, halfvec), 0.0);
-	float LdotH = max(dot(lightvec, halfvec), 0.0);
+  float NdotV = max(dot(normal, eyevec), 0.0);
+  float NdotL = max(dot(normal, lightvec), 0.0);
+  float NdotH = max(dot(normal, halfvec), 0.0);
+  float LdotH = max(dot(lightvec, halfvec), 0.0);
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 
   vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) * (1/PI);
 
   float lightdistance = length(light.position - position);
-  
+
   float attenuation = sign(NdotL) / (light.attenuation.z + light.attenuation.y * lightdistance + light.attenuation.x * lightdistance * lightdistance);
 
   attenuation *= pow(clamp(1.0 - pow(lightdistance/light.attenuation.w, 4.0), 0.0, 1.0), 2.0);
-  
+
   diffuse += NdotL * Fd * light.intensity * attenuation;
 
   specular += NdotL * Fr * light.intensity * attenuation;

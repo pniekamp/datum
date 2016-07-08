@@ -228,48 +228,33 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
         switch(slot->format)
         {
           case Texture::Format::RGBA:
-            switch(((PackImagePayload*)bits)->compression)
-            {
-              case PackImagePayload::none:
-                vkformat = VK_FORMAT_B8G8R8A8_UNORM;
-                break;
-
-              case PackImagePayload::bc3:
-                vkformat = VK_FORMAT_BC3_UNORM_BLOCK;
-                break;
-            }
+            if (asset->format == PackImageHeader::rgba)
+              vkformat = VK_FORMAT_B8G8R8A8_UNORM;
+            if (asset->format == PackImageHeader::rgba_bc3)
+              vkformat = VK_FORMAT_BC3_UNORM_BLOCK;
             break;
 
           case Texture::Format::SRGBA:
-            switch(((PackImagePayload*)bits)->compression)
-            {
-              case PackImagePayload::none:
-                vkformat = VK_FORMAT_B8G8R8A8_SRGB;
-                break;
-
-              case PackImagePayload::bc3:
-                vkformat = VK_FORMAT_BC3_SRGB_BLOCK;
-                break;
-            }
+            if (asset->format == PackImageHeader::rgba)
+              vkformat = VK_FORMAT_B8G8R8A8_SRGB;
+            if (asset->format == PackImageHeader::rgba_bc3)
+              vkformat = VK_FORMAT_BC3_SRGB_BLOCK;
             break;
 
           case Texture::Format::RGBM:
-            switch(((PackImagePayload*)bits)->compression)
-            {
-              case PackImagePayload::none:
-                vkformat = VK_FORMAT_B8G8R8A8_UNORM;
-                break;
-
-              case PackImagePayload::bc3:
-                vkformat = VK_FORMAT_BC3_UNORM_BLOCK;
-                break;
-            }
+            if (asset->format == PackImageHeader::rgba)
+              vkformat = VK_FORMAT_B8G8R8A8_UNORM;
+            if (asset->format == PackImageHeader::rgba_bc3)
+              vkformat = VK_FORMAT_BC3_UNORM_BLOCK;
             break;
 
           case Texture::Format::RGBE:
-            vkformat = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+            if (asset->format == PackImageHeader::rgbe)
+              vkformat = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
             break;
         }
+
+        assert(vkformat != VK_FORMAT_UNDEFINED);
 
         auto lump = acquire_lump(image_datasize(asset->width, asset->height, asset->layers, asset->levels, vkformat));
 
@@ -283,7 +268,7 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
 
           slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat);
 
-          memcpy(lump->transfermemory, (char*)bits + sizeof(PackImagePayload), lump->transferbuffer.size);
+          memcpy(lump->transfermemory, (char*)bits, lump->transferbuffer.size);
 
           update_texture(lump->commandbuffer, lump->transferbuffer, slot->texture);
 

@@ -14,6 +14,7 @@
 #include <atomic>
 #include <typeindex>
 #include <algorithm>
+#include <fstream>
 #include <sys/time.h>
 
 using namespace std;
@@ -26,6 +27,9 @@ using namespace DatumPlatform;
 
 DebugLogEntry g_debuglog[4096];
 std::atomic<size_t> g_debuglogtail;
+
+DebugInfoBlock *g_infoblocks[256];
+std::atomic<size_t> g_infoblockcount;
 
 namespace
 {
@@ -745,6 +749,23 @@ namespace
 
 }
 
+///////////////////////// DebugInfoBlock ////////////////////////////////////
+DebugInfoBlock::DebugInfoBlock(const char *name, const char *filename, int linenumber, Color3 color)
+  : name(name), filename(filename), linenumber(linenumber), color(color)
+{
+  static SpinLock mutex;
+
+  mutex.wait();
+
+  assert(g_infoblockcount < extentof(g_infoblocks));
+
+  g_infoblocks[g_infoblockcount] = this;
+
+  g_infoblockcount += 1;
+
+  mutex.release();
+}
+
 
 ///////////////////////// cycle_frequency /////////////////////////////////
 double clock_frequency()
@@ -995,6 +1016,70 @@ void render_debug_overlay(DatumPlatform::PlatformInterface &platform, RenderCont
   }
 
   g_interaction.nexthot = interaction;
+}
+
+
+///////////////////////// stream_debuglog ///////////////////////////////////
+void stream_debuglog(const char *filename)
+{
+  static ofstream fout;
+  static size_t lastinfo;
+  static size_t lastentry;
+
+  if (!fout.is_open())
+  {
+    fout.open(filename, ios_base::out | ios_base::trunc | ios_base::binary);
+
+    assert(fout.is_open());
+
+    DebugLogHeader header;
+
+    fout.write((const char *)&header, sizeof(header));
+
+    lastinfo = 0;
+    lastentry = max(g_debuglogtail.load(), extentof(g_debuglog)) - extentof(g_debuglog);
+  }
+
+  char buffer[8192];
+
+  for(size_t i = 0, end = g_infoblockcount - lastinfo; i < end; ++i, ++lastinfo)
+  {
+    DebugLogChunk *chunk = (DebugLogChunk *)buffer;
+    chunk->type = 1;
+    chunk->length = sizeof(DebugLogInfoChunk);
+
+    DebugLogInfoChunk *infochunk = (DebugLogInfoChunk *)(buffer + sizeof(DebugLogChunk));
+
+    infochunk->id = g_infoblocks[lastinfo];
+    strncpy(infochunk->name, g_infoblocks[lastinfo]->name, sizeof(infochunk->name));
+    strncpy(infochunk->filename, g_infoblocks[lastinfo]->filename, sizeof(infochunk->filename));
+    infochunk->linenumber = g_infoblocks[lastinfo]->linenumber;
+    infochunk->color = g_infoblocks[lastinfo]->color;
+
+    fout.write(buffer, sizeof(DebugLogChunk) + chunk->length);
+  }
+
+  for(size_t end = g_debuglogtail; lastentry < end; )
+  {
+    constexpr size_t MaxEntries = (sizeof(buffer) - sizeof(DebugLogChunk) - sizeof(DebugLogEntryChunk)) / sizeof(DebugLogEntry);
+
+    DebugLogChunk *chunk = (DebugLogChunk *)buffer;
+    chunk->type = 2;
+    chunk->length = sizeof(DebugLogEntryChunk);
+
+    DebugLogEntryChunk *entrychunk = (DebugLogEntryChunk *)(buffer + sizeof(DebugLogChunk));
+    entrychunk->entrycount = 0;
+
+    for(size_t i = 0, end = min(g_debuglogtail - lastentry, MaxEntries); i < end; ++i, ++lastentry)
+    {
+      entrychunk->entrycount += 1;
+      entrychunk->entries[i] = g_debuglog[lastentry % extentof(g_debuglog)];
+
+      chunk->length += sizeof(DebugLogEntry);
+    }
+
+    fout.write(buffer, sizeof(DebugLogChunk) + chunk->length);
+  }
 }
 
 #endif

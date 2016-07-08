@@ -106,6 +106,35 @@ void datumtest_init(PlatformInterface &platform)
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 
+#if 0
+  state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sibenik.pack"));
+#endif
+
+#if 0
+  state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
+
+  random_lights(state.scene, 128);
+
+  auto light1 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light1, Transform::translation(Vec3(4.85,1.45,1.45)));
+  state.scene.add_component<PointLightComponent>(light1, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  auto light2 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light2, Transform::translation(Vec3(4.85,1.45,-2.20)));
+  state.scene.add_component<PointLightComponent>(light2, Color3(1, 0.3, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  auto light3 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light3, Transform::translation(Vec3(-6.20,1.45,-2.20)));
+  state.scene.add_component<PointLightComponent>(light3, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  auto light4 = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(light4, Transform::translation(Vec3(-6.20,1.45,1.45)));
+  state.scene.add_component<PointLightComponent>(light4, Color3(1, 0.4, 0), Attenuation(0.4f, 0.0f, 1.0f));
+
+  state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
+  state.camera.lookat(Vec3(1, 1, 0), Vec3(0, 1, 0));
+#endif
+
 #if 1
   for(float roughness = 0; roughness < 1.0f + 1e-3f; roughness += 0.1)
   {
@@ -189,7 +218,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
 #endif
 
-//  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
+  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
 
   state.camera = normalise(state.camera);
 
@@ -201,11 +230,11 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   float suzannemetalness = 0.0f;
   DEBUG_MENU_VALUE("Suzanne/Metalness", &suzannemetalness, 0.0f, 1.0f)
 
-  float suzanneroughness = 0.0f;
-  DEBUG_MENU_VALUE("Suzanne/Roughness", &suzanneroughness, 0.0f, 1.0f)
+  float suzanneroughness = 1.0f;
+  DEBUG_MENU_VALUE("Suzanne/Roughness", &suzanneroughness, 0.0f, 4.0f)
 
-  float suzannereflectivity = 0.5f;
-  DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 2.0f)
+  float suzannereflectivity = 0.2f;
+  DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 8.0f)
 
   float suzanneemissive = 0.0f;
   DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 10.0f)
@@ -304,6 +333,8 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.writeframe = state.readyframe.exchange(state.writeframe);
 
   END_TIMED_BLOCK(Update)
+
+  stream_debuglog("debuglog.dump");
 }
 
 
@@ -373,7 +404,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   DEBUG_MENU_ENTRY("Lighting/Sun Direction", renderparams.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", renderparams.sundirection, Vec3(-1), Vec3(1))))
   DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
-  DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 8.0f);
+  DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
 
   render_debug_overlay(platform, state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);
 

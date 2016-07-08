@@ -150,7 +150,7 @@ void main(void)
 
   Material material = unpack_material(texelFetch(src, xy, 0), texelFetch(rt1map, ivec3(xy, 0), 0)); 
   
-  if (depth < 1.0 && material.roughness < 0.4)
+  if (depth < 0.99 && material.roughness < 0.4)
   {
     vec3 position = view_position(scene.proj, scene.invproj, xy, viewport, depth);
     vec3 normal = view_normal(scene.view, texelFetch(normalmap, ivec3(xy, 0), 0).xyz);

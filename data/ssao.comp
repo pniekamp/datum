@@ -70,12 +70,12 @@ void main()
   vec3 position = view_position(scene.proj, scene.invproj, texcoord, depth);
   vec3 normal = view_normal(scene.view, texture(normalmap, vec3(texcoord, 0)).xyz);
   
-	vec3 randomvec = compute.noise[(xy.x + xy.y * 4) % NoiseSize];
+  vec3 randomvec = compute.noise[(xy.x + xy.y * 4) % NoiseSize];
 
-	vec3 tangent = normalize(randomvec - normal * dot(randomvec, normal));
-	vec3 bitangent = cross(normal, tangent);
+  vec3 tangent = normalize(randomvec - normal * dot(randomvec, normal));
+  vec3 bitangent = cross(normal, tangent);
   
-	mat3 tbnview = mat3(tangent, bitangent, normal);
+  mat3 tbnview = mat3(tangent, bitangent, normal);
 
   float occlusion = 0.0;
 

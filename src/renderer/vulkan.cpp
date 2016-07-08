@@ -285,7 +285,7 @@ namespace Vulkan
   {
     VkBufferCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createinfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     createinfo.size = size;
 
     VkBuffer transferbuffer;
@@ -308,7 +308,7 @@ namespace Vulkan
   {
     VkBufferCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createinfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     createinfo.size = size;
 
     VkBuffer transferbuffer;
@@ -325,7 +325,7 @@ namespace Vulkan
   {
     VkBufferCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createinfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     createinfo.size = size;
 
     VkBuffer constantbuffer;

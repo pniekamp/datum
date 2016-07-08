@@ -137,6 +137,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.height = imag.height;
             asset.layers = imag.layers;
             asset.levels = imag.levels;
+            asset.format = imag.format;
             asset.alignx = imag.alignx;
             asset.aligny = imag.aligny;
             asset.datasize = imag.datasize;
