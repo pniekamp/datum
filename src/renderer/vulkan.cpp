@@ -801,6 +801,23 @@ namespace Vulkan
 
 
   ///////////////////////// allocate_descriptorset //////////////////////////
+  DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout)
+  {
+    VkDescriptorSetAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocateinfo.descriptorPool = pool;
+    allocateinfo.descriptorSetCount = 1;
+    allocateinfo.pSetLayouts = &layout;
+
+    VkDescriptorSet descriptorset;
+    if (vkAllocateDescriptorSets(vulkan.device, &allocateinfo, &descriptorset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateDescriptorSets failed");
+
+    return { descriptorset, { vulkan.device, pool } };
+  }
+
+
+  ///////////////////////// allocate_descriptorset //////////////////////////
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type)
   {
     VkDescriptorSetAllocateInfo allocateinfo = {};
@@ -867,21 +884,28 @@ namespace Vulkan
 
 
   ///////////////////////// bindimageview ///////////////////////////////////
+  void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
+  {
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = binding;
+    writeset.descriptorCount = count;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    writeset.pImageInfo = imageinfos;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
+
+
+  ///////////////////////// bindimageview ///////////////////////////////////
   void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView writeimage)
   {
     VkDescriptorImageInfo imageinfo = {};
     imageinfo.imageView = writeimage;
     imageinfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-    VkWriteDescriptorSet writeset = {};
-    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeset.dstSet = descriptorset;
-    writeset.dstBinding = binding;
-    writeset.descriptorCount = 1;
-    writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    writeset.pImageInfo = &imageinfo;
-
-    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+    bindimageview(vulkan, descriptorset, binding, &imageinfo, 1);
   }
 
 
@@ -1108,6 +1132,34 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
+  void mip(VkCommandBuffer commandbuffer, VkImage image, int width, int height, uint32_t layers, uint32_t levels)
+  {
+    for(uint32_t level = 1; level < levels; ++level)
+    {
+      VkImageBlit imageblit = {};
+
+      imageblit.srcOffsets[0].x = 0;
+      imageblit.srcOffsets[0].y = 0;
+      imageblit.srcOffsets[0].z = 0;
+      imageblit.srcOffsets[1].x = width >> (level-1);
+      imageblit.srcOffsets[1].y = height >> (level-1);
+      imageblit.srcOffsets[1].z = 1;
+      imageblit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, (level-1), 0, layers };
+
+      imageblit.dstOffsets[0].x = 0;
+      imageblit.dstOffsets[0].y = 0;
+      imageblit.dstOffsets[0].z = 0;
+      imageblit.dstOffsets[1].x = width >> level;
+      imageblit.dstOffsets[1].y = height >> level;
+      imageblit.dstOffsets[1].z = 1;
+      imageblit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, layers };
+
+      vkCmdBlitImage(commandbuffer, image, VK_IMAGE_LAYOUT_GENERAL, image, VK_IMAGE_LAYOUT_GENERAL, 1, &imageblit, VK_FILTER_LINEAR);
+    }
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy)
   {
     VkImageCopy imagecopy = {};
@@ -1141,7 +1193,7 @@ namespace Vulkan
     imageblit.srcOffsets[1].x = sw + sx;
     imageblit.srcOffsets[1].y = sh + sy;
     imageblit.srcOffsets[1].z = 1;
-    imageblit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0,  0, 1 };
+    imageblit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
     imageblit.dstOffsets[0].x = dx;
     imageblit.dstOffsets[0].y = dy;
@@ -1445,5 +1497,6 @@ namespace Vulkan
   {
     dispatch(commandbuffer, (width + dim[0] - 1)/dim[0], (height + dim[1] - 1)/dim[1], (depth + dim[2] - 1)/dim[2]);
   }
+
 
 } // namespace vulkan

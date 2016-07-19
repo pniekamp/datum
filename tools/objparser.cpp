@@ -373,7 +373,7 @@ void write_model(string const &filename)
 
     if (fields[0] == "mtllib")
     {
-      mtllib = pathstring(pathstring(filename).base(), fields[1]);
+      mtllib = pathstring(pathstring(filename).base(), fields[1]).c_str();
     }
 
     if (fields[0] == "usemtl")

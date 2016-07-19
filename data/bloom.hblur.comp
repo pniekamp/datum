@@ -40,10 +40,8 @@ void main(void)
 { 
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   ivec2 tile = ivec2(gl_WorkGroupID.x * SizeX, gl_WorkGroupID.y); 
-  
-  vec2 texelsize = 1.0 / textureSize(src, 0);
-  
-  texels[ij.x] = texture(src, vec2(2*(tile.x + ij.x - Radius) + 0.5, tile.y + ij.y) * texelsize).rgb;
+
+  texels[ij.x] = texelFetch(src, ivec2(tile.x + ij.x - Radius, tile.y + ij.y), 0).rgb;
   
   barrier();
   

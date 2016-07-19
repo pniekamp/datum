@@ -2108,13 +2108,13 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     bindresource(commandbuffer, context.scratchtargets[0], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.fbowidth, context.fboheight, 1, computeconstants.BloomLumaDispatch);
+    dispatch(commandbuffer, context.fbowidth/2, context.fboheight/2, 1, computeconstants.BloomLumaDispatch);
 
     bindresource(commandbuffer, context.bloompipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
     bindresource(commandbuffer, context.scratchtargets[1], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.fbowidth/2, context.fboheight, 1, computeconstants.BloomHBlurDispatch);
+    dispatch(commandbuffer, context.fbowidth/2, context.fboheight/2, 1, computeconstants.BloomHBlurDispatch);
 
     bindresource(commandbuffer, context.bloompipeline[2], VK_PIPELINE_BIND_POINT_COMPUTE);
 

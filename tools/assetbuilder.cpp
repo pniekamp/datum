@@ -680,7 +680,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
   write_sprite_asset(fout, id + 1, { atlas }, 0.0f, 0.0f);
 
-  return id + 1 + count;
+  return id + 2;
 }
 
 
@@ -747,6 +747,7 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
+  write_shader_asset(fout, CoreAsset::skybox_comp, "../../data/skybox.comp");
 //  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 //  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
   write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");

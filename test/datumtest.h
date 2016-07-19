@@ -54,6 +54,11 @@ struct GameState
 
   Mesh const *suzanne;
 
+  Vec3 sundirection = normalise(Vec3(0.4, -1, -0.1));
+  Color3 sunintensity = Color3(8.0, 7.56, 7.88);
+
+  SkyboxContext skyboxcontext;
+
   // Render Frames
 
   struct RenderFrame
@@ -66,6 +71,8 @@ struct GameState
     LightList lights;
     SpriteList sprites;
     CasterList casters;
+
+    SkyBox const *skybox;
 
     size_t resourcetoken;
 

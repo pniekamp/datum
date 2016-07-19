@@ -366,7 +366,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   VkDeviceQueueCreateInfo queueinfo = {};
   queueinfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
   queueinfo.queueFamilyIndex = queueindex;
-  queueinfo.queueCount = 2;
+  queueinfo.queueCount = 3;
   queueinfo.pQueuePriorities = queuepriorities.data();
 
   const char* deviceextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

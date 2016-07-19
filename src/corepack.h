@@ -32,6 +32,7 @@ namespace CoreAsset
     ssr_blend_comp,
     skybox_vert,
     skybox_frag,
+    skybox_comp,
     default_skybox,
     bloom_luma_comp,
     bloom_hblur_comp,

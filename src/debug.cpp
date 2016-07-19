@@ -689,7 +689,7 @@ namespace
                 x += font->width(buffer);
               }
 
-              if (entry.type == typeid(float) || entry.type == typeid(Vec2) || entry.type == typeid(Vec3))
+              if (entry.type == typeid(float) || entry.type == typeid(Vec2) || entry.type == typeid(Vec3) || entry.type == typeid(Color3))
               {
                 snprintf(buffer, sizeof(buffer), "%f", entry.value<float[]>()[0]);
 
@@ -701,7 +701,7 @@ namespace
                 x += font->width(buffer);
               }
 
-              if (entry.type == typeid(Vec2) || entry.type == typeid(Vec3))
+              if (entry.type == typeid(Vec2) || entry.type == typeid(Vec3) || entry.type == typeid(Color3))
               {
                 snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[1]);
 
@@ -714,7 +714,7 @@ namespace
                 x += font->width(buffer);
               }
 
-              if (entry.type == typeid(Vec3))
+              if (entry.type == typeid(Vec3) || entry.type == typeid(Color3))
               {
                 snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[2]);
 
@@ -889,6 +889,7 @@ template void debug_menu_entry<bool>(const char *name, bool const &value);
 template void debug_menu_entry<float>(const char *name, float const &value);
 template void debug_menu_entry<Vec2>(const char *name, Vec2 const &value);
 template void debug_menu_entry<Vec3>(const char *name, Vec3 const &value);
+template void debug_menu_entry<Color3>(const char *name, Color3 const &value);
 
 
 ///////////////////////// debug_menu_value //////////////////////////////////
@@ -913,6 +914,7 @@ template bool debug_menu_value<bool>(const char *name, bool const &value, bool c
 template float debug_menu_value<float>(const char *name, float const &value, float const &min, float const &max);
 template Vec2 debug_menu_value<Vec2>(const char *name, Vec2 const &value, Vec2 const &min, Vec2 const &max);
 template Vec3 debug_menu_value<Vec3>(const char *name, Vec3 const &value, Vec3 const &min, Vec3 const &max);
+template Color3 debug_menu_value<Color3>(const char *name, Color3 const &value, Color3 const &min, Color3 const &max);
 
 
 ///////////////////////// update_debug_overlay //////////////////////////////
