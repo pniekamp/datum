@@ -668,7 +668,7 @@ void write_model(string const &filename)
     write_mesh_asset(fout, id++, mesh.vertices, mesh.indices);
   }
 
-  for(auto &texture: textures)
+  for(auto &texture : textures)
   {
     cout << "  Writing: (" << id << ") texture " << texture.paths[0] << endl;
 

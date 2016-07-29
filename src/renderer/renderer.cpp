@@ -207,6 +207,13 @@ PushBuffer::PushBuffer(allocator_type const &allocator, size_t slabsize)
 }
 
 
+///////////////////////// PushBuffer::reset /////////////////////////////////
+void PushBuffer::reset()
+{
+  m_tail = m_slab;
+}
+
+
 ///////////////////////// PushBuffer::push //////////////////////////////////
 void *PushBuffer::push(Renderable::Type type, size_t size, size_t alignment)
 {
@@ -314,18 +321,22 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Vertex Attribute Array
 
+    context.vertexattributes[0] = {};
     context.vertexattributes[0].location = ShaderLocation::vertex_position;
     context.vertexattributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     context.vertexattributes[0].offset = VertexLayout::position_offset;
 
+    context.vertexattributes[1] = {};
     context.vertexattributes[1].location = ShaderLocation::vertex_texcoord;
     context.vertexattributes[1].format = VK_FORMAT_R32G32_SFLOAT;
     context.vertexattributes[1].offset = VertexLayout::texcoord_offset;
 
+    context.vertexattributes[2] = {};
     context.vertexattributes[2].location = ShaderLocation::vertex_normal;
     context.vertexattributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
     context.vertexattributes[2].offset = VertexLayout::normal_offset;
 
+    context.vertexattributes[3] = {};
     context.vertexattributes[3].location = ShaderLocation::vertex_tangent;
     context.vertexattributes[3].format = VK_FORMAT_R32G32B32_SFLOAT;
     context.vertexattributes[3].offset = VertexLayout::tangent_offset;
@@ -1376,6 +1387,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     VkPipelineColorBlendStateCreateInfo colorblend = {};
@@ -1668,8 +1682,8 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // SSAO
     //
 
-    context.ssaotargets[0] = 0;
-    context.ssaotargets[1] = 0;
+    context.ssaotargets[0] = {};
+    context.ssaotargets[1] = {};
     context.ssaobuffers[0] = {};
     context.ssaobuffers[1] = {};
 
@@ -1736,6 +1750,36 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
   }
 
   return true;
+}
+
+
+///////////////////////// release_render_pipeline ///////////////////////////
+void release_render_pipeline(RenderContext &context)
+{
+  vkDeviceWaitIdle(context.device);
+  vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+  vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+
+  context.shadowbuffer = {};
+
+  context.colorbuffer = {};
+
+  context.rt0buffer = {};
+  context.rt1buffer = {};
+  context.normalbuffer = {};
+  context.depthbuffer = {};
+
+  context.geometrybuffer = {};
+  context.framebuffer = {};
+
+  context.scratchbuffers[0] = {};
+  context.scratchbuffers[1] = {};
+
+  context.ssaobuffers[0] = {};
+  context.ssaobuffers[1] = {};
+
+  context.fbowidth = 0;
+  context.fboheight = 0;
 }
 
 
@@ -1967,9 +2011,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   update(commandbuffer, context.transferbuffer, 0, sizeof(computeset), &computeset);
 
   VkClearValue clearvalues[4];
-  clearvalues[0].color = { 1.0f, 0.0f, 0.0f, 1.0f };
-  clearvalues[1].color = { 1.0f, 0.0f, 0.0f, 1.0f };
-  clearvalues[2].color = { 1.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[1].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[2].color = { 0.0f, 0.0f, 0.0f, 1.0f };
   clearvalues[3].depthStencil = { 1, 0 };
 
   querytimestamp(commandbuffer, context.timingquerypool, 0);
@@ -2158,11 +2202,14 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Blit
   //
 
-  transition_acquire(commandbuffer, viewport.image);
+  if (viewport.image)
+  {
+    transition_acquire(commandbuffer, viewport.image);
 
-  blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_LINEAR);
+    blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_LINEAR);
 
-  transition_present(commandbuffer, viewport.image);
+    transition_present(commandbuffer, viewport.image);
+  }
 
   querytimestamp(commandbuffer, context.timingquerypool, 10);
 
@@ -2208,3 +2255,4 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   ++context.frame;
 }
+

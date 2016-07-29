@@ -41,7 +41,9 @@ namespace Vulkan
   class VulkanResource
   {
     public:
-      VulkanResource(Handle object = {}, Deleter deleter = Deleter())
+      VulkanResource() = default;
+
+      VulkanResource(Handle object, Deleter deleter)
         : m_t(object, deleter)
       {
       }
@@ -95,6 +97,24 @@ namespace Vulkan
   };
 
   using Semaphore = VulkanResource<VkSemaphore, SemaphoreDeleter>;
+
+  struct SurfaceDeleter
+  {
+    VkInstance instance;
+
+    void operator()(VkSurfaceKHR surface) { vkDestroySurfaceKHR(instance, surface, nullptr); }
+  };
+
+  using Surface = VulkanResource<VkSurfaceKHR, SurfaceDeleter>;
+
+  struct SwapchainDeleter
+  {
+    VkDevice device;
+
+    void operator()(VkSwapchainKHR swapchain) { vkDeviceWaitIdle(device); vkDestroySwapchainKHR(device, swapchain, nullptr); }
+  };
+
+  using Swapchain = VulkanResource<VkSwapchainKHR, SwapchainDeleter>;
 
   struct CommandPoolDeleter
   {
@@ -392,6 +412,8 @@ namespace Vulkan
 
   Semaphore create_semaphore(VulkanDevice const &vulkan, VkSemaphoreCreateFlags flags = 0);
 
+  void signal(VulkanDevice const &vulkan, VkSemaphore semaphore);
+
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout);
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
 
@@ -415,6 +437,7 @@ namespace Vulkan
 
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFence fence);
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkFence fence);
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence);
 
   void transition_acquire(VkCommandBuffer commandbuffer, VkImage image);

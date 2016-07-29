@@ -786,7 +786,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_semaphore ////////////////////////////////
-  Semaphore create_semaphore(const VulkanDevice &vulkan, VkSemaphoreCreateFlags flags)
+  Semaphore create_semaphore(VulkanDevice const &vulkan, VkSemaphoreCreateFlags flags)
   {
     VkSemaphoreCreateInfo semaphoreinfo = {};
     semaphoreinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -797,6 +797,18 @@ namespace Vulkan
       throw runtime_error("Vulkan vkCreateSemaphore failed");
 
     return { semaphore, { vulkan.device } };
+  }
+
+
+  ///////////////////////// signal //////////////////////////////////////////
+  void signal(VulkanDevice const &vulkan, VkSemaphore semaphore)
+  {
+    VkSubmitInfo submitinfo = {};
+    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.signalSemaphoreCount = 1;
+    submitinfo.pSignalSemaphores = &semaphore;
+
+    vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
   }
 
 
@@ -1004,6 +1016,22 @@ namespace Vulkan
   {
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.commandBufferCount = 1;
+    submitinfo.pCommandBuffers = &commandbuffer;
+
+    vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
+  }
+
+  ///////////////////////// submit //////////////////////////////////////////
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkFence fence)
+  {
+    VkPipelineStageFlags waitdststagemask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    VkSubmitInfo submitinfo = {};
+    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.pWaitDstStageMask = &waitdststagemask;
+    submitinfo.waitSemaphoreCount = 1;
+    submitinfo.pWaitSemaphores = &waitsemaphore;
     submitinfo.commandBufferCount = 1;
     submitinfo.pCommandBuffers = &commandbuffer;
 

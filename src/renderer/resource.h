@@ -238,6 +238,9 @@ class unique_resource
 
     operator Resource const *() const { return m_resource; }
 
+    Resource const *operator *() const { return m_resource; }
+    Resource const *operator ->() const { return m_resource; }
+
   private:
 
     ResourceManager *m_resources;

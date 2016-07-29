@@ -122,7 +122,7 @@ class ResourcePool
 
     Vulkan::TransferBuffer m_transferbuffer;
 
-    uint8_t *m_transfermemory;
+    Vulkan::MemoryView<uint8_t> m_transfermemory;
 
     bool m_initialised = false;
 };

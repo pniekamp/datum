@@ -34,16 +34,16 @@ class Platform : public PlatformInterface
 
     // device
 
-    virtual RenderDevice render_device() override;
+    RenderDevice render_device() override;
 
 
     // data access
 
-    virtual handle_t open_handle(const char *identifier) override;
+    handle_t open_handle(const char *identifier) override;
 
-    virtual void read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
+    void read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
 
-    virtual void close_handle(handle_t handle) override;
+    void close_handle(handle_t handle) override;
 
 
     // work queue
@@ -285,8 +285,6 @@ struct Vulkan
   VkCommandPool commandpool;
 
   VkImage presentimages[3];
-
-  VkRenderPass renderpass;
 
   VkSemaphore rendercomplete;
   VkSemaphore acquirecomplete;

@@ -20,5 +20,5 @@ void main(void)
 
   vec3 fragcolor = tonemap(texelFetch(src, xy, 0).rgb) + texture(bloom, 0.5 * uv).rgb;
 
-  imageStore(image, xy, vec4(fragcolor.rgb, 1.0));
+  imageStore(image, xy, vec4(fragcolor.rgb, 1));
 }

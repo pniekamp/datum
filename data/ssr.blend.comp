@@ -20,5 +20,5 @@ void main(void)
  
   vec3 fragcolor = texelFetch(src, xy, 0).rgb + texelFetch(ssr, xy, 0).rgb;
 
-  imageStore(image, xy, vec4(fragcolor.rgb, 1.0));
+  imageStore(image, xy, vec4(fragcolor.rgb, 1));
 }

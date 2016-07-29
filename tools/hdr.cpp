@@ -5,7 +5,6 @@
 #include "hdr.h"
 #include "datum/math.h"
 #include "assetpacker.h"
-#include <iostream>
 #include <fstream>
 
 using namespace std;
@@ -27,10 +26,10 @@ Color4 HDRImage::sample(int i, int j) const
 Color4 HDRImage::sample(Vec2 const &texcoords) const
 {
   float i, j;
-  auto u = modf(fmod2(texcoords.x, 1.0f) * (width - 1), &i);
-  auto v = modf(fmod2(texcoords.y, 1.0f) * (height - 1), &j);
+  auto u = modf(fmod2(texcoords.x * width - 0.5f, (float)width), &i);
+  auto v = modf(fmod2(texcoords.y * height - 0.5f, (float)height), &j);
 
-  return lerp(lerp(sample(i, j), sample(i+1, j), u), lerp(sample(i, j+1), sample(i+1, j+1), u), v);
+  return lerp(lerp(sample(i, j), sample(((int)i+1)%width, j), u), lerp(sample(i, ((int)j+1)%height), sample(((int)i+1)%width, ((int)j+1)%height), u), v);
 }
 
 

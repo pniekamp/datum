@@ -133,7 +133,7 @@ Model::Model(Scene *scene, ResourceManager *resourcemanager, StackAllocatorWithF
 ///////////////////////// Model::Destructor /////////////////////////////////
 Model::~Model()
 {
-  for(auto &dependant: dependants)
+  for(auto &dependant : dependants)
   {
     if (m_scene->get(dependant))
       m_scene->destroy(dependant);
@@ -145,7 +145,7 @@ Model::~Model()
       m_resourcemanager->release(mesh);
   }
 
-  for(auto &material: materials)
+  for(auto &material : materials)
   {
     if (material)
       m_resourcemanager->release(material);

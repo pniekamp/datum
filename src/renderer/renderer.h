@@ -129,6 +129,8 @@ class PushBuffer
 
   public:
 
+    void reset();
+
     // Add a renderable to the push buffer
     template<typename T>
     T *push()
@@ -313,6 +315,7 @@ struct RenderParams
 // Prepare
 bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets);
 bool prepare_render_pipeline(RenderContext &context, RenderParams const &params);
+void release_render_pipeline(RenderContext &context);
 
 // Fallback
 void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap = nullptr, int width = 0, int height = 0);
