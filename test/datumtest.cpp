@@ -97,7 +97,7 @@ void datumtest_init(PlatformInterface &platform)
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
 
-  state.testimage = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image));
+  state.testimage = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image), Vec2(0.0, 0.0));
 
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
@@ -117,7 +117,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sibenik.pack"));
 #endif
 
-#if 0
+#if 1
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
@@ -398,7 +398,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   if (overlay.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
-    overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
+    overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
 
 //    overlay.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
 
@@ -414,8 +414,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.width = viewport.width;
   renderparams.height = viewport.height;
   renderparams.aspect = state.aspect;
-  //renderparams.skybox = state.skybox;
-  renderparams.skybox = state.readframe->skybox;
+  renderparams.skybox = state.skybox;
+//  renderparams.skybox = state.readframe->skybox;
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
   //renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), -0.1*state.readframe->time);

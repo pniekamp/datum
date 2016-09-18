@@ -21,9 +21,9 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 } scene;
 
 layout(set=0, binding=1) uniform sampler2D src;
-layout(set=0, binding=2) uniform sampler2DArray rt1map;
-layout(set=0, binding=3) uniform sampler2DArray normalmap;
-layout(set=0, binding=4) uniform sampler2DArray depthmap;
+layout(set=0, binding=2) uniform sampler2D rt1map;
+layout(set=0, binding=3) uniform sampler2D normalmap;
+layout(set=0, binding=4) uniform sampler2D depthmap;
 
 layout(set=3, binding=1) writeonly uniform image2D dest;
 
@@ -38,18 +38,18 @@ const float MaxDistance = 2.5;
 // http://casual-effects.blogspot.com.au/2014/08/screen-space-ray-tracing.html
 bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec3 hitpoint, out float stepcount)
 {
-  stepcount = 0.0f;
+  stepcount = 0;
 
   if (direction.z >= 0)
     return false;
 
   vec3 endpoint = origin + direction * MaxDistance;
 
-  vec4 H0 = proj * vec4(origin, 1.0f);
-  vec4 H1 = proj * vec4(endpoint, 1.0f);
+  vec4 H0 = proj * vec4(origin, 1);
+  vec4 H1 = proj * vec4(endpoint, 1);
 
-  float k0 = 1.0f / H0.w;
-  float k1 = 1.0f / H1.w;
+  float k0 = 1 / H0.w;
+  float k1 = 1 / H1.w;
 
   vec3 Q0 = origin * k0;
   vec3 Q1 = endpoint * k1;
@@ -57,7 +57,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
   vec2 P0 = H0.xy * k0;
   vec2 P1 = H1.xy * k1;
 
-  P1 += (distance(P0, P1) < 0.01f) ? 0.01f : 0.0f;
+  P1 += (distance(P0, P1) < 0.01) ? 0.01 : 0.0;
   
   vec2 delta = P1 - P0;
 
@@ -98,7 +98,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 
     hitpixel = permute ? P.yx : P.xy;
 
-    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec3(hitpixel, 0), 0).z);
+    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec2(hitpixel), 0).z);
     
     if (Q.z / k <= scenezmax)
       break;
@@ -117,7 +117,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 
     hitpixel = permute ? P.yx : P.xy;
 
-    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec3(hitpixel, 0), 0).z);
+    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec2(hitpixel), 0).z);
 
     if (rayzmax <= scenezmax && rayzmin > scenezmax - Thickness)
     {
@@ -130,7 +130,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 
   Q.xy += dQ.xy * stepcount;
 
-  hitpoint = Q * (1.0 / k);
+  hitpoint = Q * (1 / k);
   
   return result;
 }
@@ -144,16 +144,16 @@ void main(void)
   
   ivec2 viewport = textureSize(src, 0).xy;//imageSize(dest);
   
-  float depth = texelFetch(depthmap, ivec3(xy, 0), 0).z;
+  float depth = texelFetch(depthmap, xy, 0).z;
 
   vec3 fragcolor = vec3(0);
 
-  Material material = unpack_material(texelFetch(src, xy, 0), texelFetch(rt1map, ivec3(xy, 0), 0)); 
+  Material material = unpack_material(texelFetch(src, xy, 0), texelFetch(rt1map, xy, 0)); 
   
   if (depth < 0.99 && material.roughness < 0.4)
   {
     vec3 position = view_position(scene.proj, scene.invproj, xy, viewport, depth);
-    vec3 normal = view_normal(scene.view, texelFetch(normalmap, ivec3(xy, 0), 0).xyz);
+    vec3 normal = view_normal(scene.view, texelFetch(normalmap, xy, 0).xyz);
 
     vec3 direction = normalize(position);
     vec3 reflection = normalize(reflect(direction, normal));
@@ -162,14 +162,14 @@ void main(void)
     
     vec2 hitpixel = vec2(0);
     vec3 hitpoint  = vec3(0);
-    float stepcount = 0.0f;
+    float stepcount = 0;
     
     if (traceray(position, reflection, proj, hitpixel, hitpoint, stepcount))
     {
-      float edgefade = 1.0f - 10 * max(max(abs(hitpixel.x / viewport.x - 0.5), abs(hitpixel.y / viewport.y - 0.5)) - 0.4, 0.0);
+      float edgefade = 1 - 10 * max(max(abs(hitpixel.x / viewport.x - 0.5), abs(hitpixel.y / viewport.y - 0.5)) - 0.4, 0);
 
-      float distancefade = 1.0f - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1.0);
-      float roughnessfade = 1.0f - min(3 * material.roughness, 1.0);
+      float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
+      float roughnessfade = 1 - min(3 * material.roughness, 1);
 
       fragcolor = scene.camera.exposure * edgefade * distancefade * roughnessfade * scene.camera.ssrstrength * texelFetch(src, ivec2(hitpixel), 0).rgb * material.specular;
     }

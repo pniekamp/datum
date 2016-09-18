@@ -19,19 +19,21 @@ class EnvMap
 {
   public:
     friend EnvMap const *ResourceManager::create<EnvMap>(Asset const *asset);
+    friend EnvMap const *ResourceManager::create<EnvMap>(int width, int height);
 
     bool ready() const { return (state == State::Ready); }
 
-    Vulkan::Texture envmap;
+    int width;
+    int height;
+
+    Vulkan::Texture texture;
 
   public:
 
-    Texture const *texture;
-
     enum class State
     {
+      Empty,
       Loading,
-      Finalising,
       Ready,
     };
 

@@ -138,8 +138,6 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.layers = imag.layers;
             asset.levels = imag.levels;
             asset.format = imag.format;
-            asset.alignx = imag.alignx;
-            asset.aligny = imag.aligny;
             asset.datasize = imag.datasize;
             asset.datapos = imag.dataoffset;
 
@@ -238,7 +236,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
 
     return &m_assets[file.baseid];
   }
-  catch(std::exception &e)
+  catch(exception &e)
   {
     cerr << e.what() << endl;
   }

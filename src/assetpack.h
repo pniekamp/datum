@@ -56,8 +56,6 @@ struct PackImageHeader
   uint32_t layers;
   uint32_t levels;
   uint32_t format;
-  float alignx;
-  float aligny;
   uint32_t datasize;
   uint64_t dataoffset;
 };
@@ -142,7 +140,7 @@ struct PackModelPayload
 {
   struct Texture
   {
-    enum { defaulttexture, albedomap, normalmap, specularmap };
+    enum { nullmap, albedomap, normalmap, specularmap };
 
     uint32_t type;
     uint32_t texture;

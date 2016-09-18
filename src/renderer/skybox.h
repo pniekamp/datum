@@ -9,7 +9,7 @@
 #pragma once
 
 #include "resource.h"
-#include "texture.h"
+#include "envmap.h"
 
 
 //|---------------------- SkyBox --------------------------------------------
@@ -21,22 +21,9 @@ class SkyBox
     friend SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset);
     friend SkyBox const *ResourceManager::create<SkyBox>(int width, int height);
 
-    bool ready() const { return (state == State::Ready); }
+    bool ready() const { return envmap->ready(); }
 
-    Vulkan::Texture envmap;
-
-  public:
-
-    Texture const *texture;
-
-    enum class State
-    {
-      Loading,
-      Finalising,
-      Ready,
-    };
-
-    std::atomic<State> state;
+    EnvMap const *envmap;
 
   private:
     SkyBox() = default;

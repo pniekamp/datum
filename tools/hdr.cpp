@@ -39,9 +39,9 @@ Color4 HDRImage::sample(Vec2 const &texcoords, Vec2 const &area) const
   Color4 sum(0, 0, 0);
   float totalweight = 0;
 
-  for(float y = texcoords.y - 0.5*area.y; y < texcoords.y + 0.5*area.y; y += 1.0f/height)
+  for(float y = texcoords.y - 0.5f*area.y + 0.5f/height, end = texcoords.y + 0.5f*area.y; y < end; y += 1.0f/height)
   {
-    for(float x = texcoords.x - 0.5*area.x; x < texcoords.x + 0.5*area.x; x += 1.0f/width)
+    for(float x = texcoords.x - 0.5f*area.x + 0.5f/width, end = texcoords.x + 0.5f*area.x; x < end; x += 1.0f/width)
     {
       sum += sample(Vec2(x, y));
 

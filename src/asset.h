@@ -35,8 +35,6 @@ struct Asset
       int layers;
       int levels;
       int format;
-      float alignx;
-      float aligny;
     };
 
     struct // font info

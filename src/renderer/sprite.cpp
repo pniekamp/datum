@@ -25,7 +25,7 @@ enum SpriteFlags
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Sprite const *ResourceManager::create<Sprite>(Asset const *asset)
+Sprite const *ResourceManager::create<Sprite>(Asset const *asset, Vec2 align)
 {
   if (!asset)
     return nullptr;
@@ -43,7 +43,7 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset)
   sprite->height = asset->height;
   sprite->layers = asset->layers;
   sprite->aspect = (float)asset->width / (float)asset->height;
-  sprite->align = Vec2(asset->alignx, asset->aligny);
+  sprite->align = align;
   sprite->extent = Vec4(0.0f, 0.0f, 1.0f, 1.0f);
 
   sprite->atlas = create<Texture>(asset, Texture::Format::SRGBA);
@@ -53,6 +53,12 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset)
   set_slothandle(slot, asset);
 
   return sprite;
+}
+
+template<>
+Sprite const *ResourceManager::create<Sprite>(Asset const *asset)
+{
+  return create<Sprite>(asset, Vec2(0.5, 1.0));
 }
 
 

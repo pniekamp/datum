@@ -76,7 +76,7 @@ Transform transform_multiply(Transform t1, Transform t2)
 ///////////////////////// transform_multiply ////////////////////////////////
 vec3 transform_multiply(Transform t, vec3 v)
 {
-  Transform pt = { vec4(1, 0, 0, 0), {0.0f, v.x, v.y, v.z} };
+  Transform pt = { vec4(1, 0, 0, 0), vec4(0, v.x, v.y, v.z) };
   
   return transform_multiply(transform_multiply(t, pt), transform_conjugate(t)).dual.yzw;
 }
@@ -90,24 +90,24 @@ mat4 transform_matrix(Transform transform)
   vec4 real = transform.real;
   vec4 dual = transform.dual;
 
-  vec3 shift = 2.0 * quaternion_multiply(dual, quaternion_conjugate(real)).yzw;
+  vec3 shift = 2 * quaternion_multiply(dual, quaternion_conjugate(real)).yzw;
 
   result[0][0] = 1 - 2*real.z*real.z - 2*real.w*real.w;
   result[0][1] = 2*real.y*real.z + 2*real.w*real.x;
   result[0][2] = 2*real.y*real.w - 2*real.z*real.x;
-  result[0][3] = 0.0f;
+  result[0][3] = 0;
   result[1][0] = 2*real.y*real.z - 2*real.w*real.x;
   result[1][1] = 1 - 2*real.y*real.y - 2*real.w*real.w;
   result[1][2] = 2*real.z*real.w + 2*real.y*real.x;
-  result[1][3] = 0.0f;
+  result[1][3] = 0;
   result[2][0] = 2*real.y*real.w + 2*real.z*real.x;
   result[2][1] = 2*real.z*real.w - 2*real.y*real.x;
   result[2][2] = 1 - 2*real.y*real.y - 2*real.z*real.z;
-  result[2][3] = 0.0f;
+  result[2][3] = 0;
   result[3][0] = shift.x;
   result[3][1] = shift.y;
   result[3][2] = shift.z;
-  result[3][3] = 1.0f;
+  result[3][3] = 1;
 
   return result;
 }

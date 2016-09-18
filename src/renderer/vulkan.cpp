@@ -513,7 +513,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter, VkSamplerAddressMode addressmode)
+  Texture create_texture(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageUsageFlags usage)
   {
     Texture texture = {};
 
@@ -534,8 +534,11 @@ namespace Vulkan
     imageinfo.arrayLayers = layers;
     imageinfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageinfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    imageinfo.usage = usage;
     imageinfo.flags = 0;
+
+    if (type == VK_IMAGE_VIEW_TYPE_CUBE)
+      imageinfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
     texture.image = create_image(vulkan, imageinfo);
 
@@ -559,15 +562,24 @@ namespace Vulkan
 
     VkImageViewCreateInfo viewinfo = {};
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+    viewinfo.viewType = type;
     viewinfo.format = format;
     viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-    viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
+    viewinfo.subresourceRange = { (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
     viewinfo.image = texture.image;
 
     texture.imageview = create_imageview(vulkan, viewinfo);
 
-    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+    return texture;
+  }
+
+
+  ///////////////////////// create_texture //////////////////////////////////
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter, VkSamplerAddressMode addressmode)
+  {
+    Texture texture = create_texture(vulkan, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, filter, addressmode, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers });
 
     return texture;
   }
@@ -600,63 +612,6 @@ namespace Vulkan
     submit(vulkan, setupbuffer);
 
     vkQueueWaitIdle(vulkan.queue);
-
-    return texture;
-  }
-
-
-  ///////////////////////// create_attachment ///////////////////////////////
-  Texture create_attachment(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageUsageFlags usage)
-  {
-    Texture texture = {};
-
-    texture.width = width;
-    texture.height = height;
-    texture.layers = layers;
-    texture.levels = levels;
-    texture.format = format;
-
-    VkImageCreateInfo imageinfo = {};
-    imageinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageinfo.imageType = VK_IMAGE_TYPE_2D;
-    imageinfo.format = format;
-    imageinfo.extent.width = width;
-    imageinfo.extent.height = height;
-    imageinfo.extent.depth = 1;
-    imageinfo.mipLevels = levels;
-    imageinfo.arrayLayers = layers;
-    imageinfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageinfo.usage = usage;
-    imageinfo.flags = 0;
-
-    texture.image = create_image(vulkan, imageinfo);
-
-    VkSamplerCreateInfo samplerinfo = {};
-    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerinfo.magFilter = VK_FILTER_LINEAR;
-    samplerinfo.minFilter = VK_FILTER_LINEAR;
-    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    samplerinfo.mipLodBias = 0.0f;
-    samplerinfo.compareOp = VK_COMPARE_OP_NEVER;
-    samplerinfo.minLod = 0.0f;
-    samplerinfo.maxLod = levels;
-    samplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-
-    texture.sampler = create_sampler(vulkan, samplerinfo);
-
-    VkImageViewCreateInfo viewinfo = {};
-    viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-    viewinfo.format = format;
-    viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-    viewinfo.subresourceRange = { (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
-    viewinfo.image = texture.image;
-
-    texture.imageview = create_imageview(vulkan, viewinfo);
 
     return texture;
   }

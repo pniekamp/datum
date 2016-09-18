@@ -91,9 +91,9 @@ Material unpack_material(vec4 rt0, vec4 rt1)
 
 
 ///////////////////////// ambient_intensity /////////////////////////////////
-float ambient_intensity(MainLight light, sampler2DArray ssaomap, ivec2 xy, ivec2 viewport)
+float ambient_intensity(MainLight light, sampler2D ssaomap, ivec2 xy, ivec2 viewport)
 {
-  return texture(ssaomap, vec3(vec2(xy+0.5)/viewport, 0)).x;
+  return texture(ssaomap, vec2(xy+0.5)/viewport).x;
 }
 
 ///////////////////////// shadow_split //////////////////////////////////////
@@ -114,7 +114,7 @@ float shadow_intensity(mat4 shadowview, vec3 position, uint split, sampler2DArra
 
   vec2 texelsize = spread / textureSize(shadowmap, 0).xy;
 
-  float sum = 0.0;
+  float sum = 0;
 
   for(uint k = 0; k < 12; ++k)
   {
@@ -128,14 +128,14 @@ float shadow_intensity(mat4 shadowview, vec3 position, uint split, sampler2DArra
 ///////////////////////// diffuse_intensity /////////////////////////////////
 float diffuse_intensity(vec3 N, vec3 L)
 {
-  return max(dot(N, L), 0.0);
+  return max(dot(N, L), 0);
 }
 
 ///////////////////////// specular_intensity ////////////////////////////////
 float specular_intensity(vec3 N, vec3 V, vec3 L)
 {
-  //return max(dot(reflect(-L, N), V), 0.0);
-  return max(dot(normalize(L + V), N), 0.0);
+  //return max(dot(reflect(-L, N), V), 0);
+  return max(dot(normalize(L + V), N), 0);
 }
 
 
@@ -153,24 +153,24 @@ vec3 dffuse_dominantdirection(vec3 N, vec3 V, float roughness)
   float a = 1.02341f * roughness - 1.51174f;
   float b = -0.511705f * roughness + 0.755868f;
 
-  return mix(N, V, clamp((dot(N, V) * a + b) * roughness, 0.0, 1.0));
+  return mix(N, V, clamp((dot(N, V) * a + b) * roughness, 0, 1));
 }
 
 
 ///////////////////////// fresnel_schlick ///////////////////////////////////
 vec3 fresnel_schlick(vec3 f0, float f90, float u)
 {
-  return f0 + (f90 - f0) * pow(1.0f - u, 5.0f);
+  return f0 + (f90 - f0) * pow(1 - u, 5.0);
 }
 
 ///////////////////////// visibility_smith //////////////////////////////////
-float visibility_smith(float NdotL, float NdotV, float alpha)
+float visibility_smith(float NdotV, float NdotL, float alpha)
 {
   float k = alpha / 2;
   float GGXL = NdotL * (1-k) + k;
   float GGXV = NdotV * (1-k) + k;
 
-  return 0.25f / (GGXV * GGXL + 1e-5);
+  return 0.25 / (GGXV * GGXL + 1e-5);
 }
 
 ///////////////////////// distribution_ggx //////////////////////////////////
@@ -189,8 +189,8 @@ float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
   float energyfactor = mix(1.0, 1.0 / 1.51, alpha);
   float f90 = energybias + 2.0 * LdotH*LdotH * alpha;
 
-  float lightscatter = fresnel_schlick(vec3(1.0f), f90, NdotL).r;
-  float viewscatter = fresnel_schlick(vec3(1.0f), f90, NdotV).r;
+  float lightscatter = fresnel_schlick(vec3(1), f90, NdotL).r;
+  float viewscatter = fresnel_schlick(vec3(1), f90, NdotV).r;
 
   return lightscatter * viewscatter * energyfactor;
 }
@@ -223,10 +223,10 @@ void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 n
 
   vec3 halfvec = normalize(lightvec + eyevec);
 
-  float NdotV = max(dot(normal, eyevec), 0.0);
-  float NdotL = max(dot(normal, lightvec), 0.0);
-  float NdotH = max(dot(normal, halfvec), 0.0);
-  float LdotH = max(dot(lightvec, halfvec), 0.0);
+  float NdotV = max(dot(normal, eyevec), 0);
+  float NdotL = max(dot(normal, lightvec), 0);
+  float NdotH = max(dot(normal, halfvec), 0);
+  float LdotH = max(dot(lightvec, halfvec), 0);
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 
@@ -245,10 +245,10 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
 
   vec3 halfvec = normalize(lightvec + eyevec);
 
-  float NdotV = max(dot(normal, eyevec), 0.0);
-  float NdotL = max(dot(normal, lightvec), 0.0);
-  float NdotH = max(dot(normal, halfvec), 0.0);
-  float LdotH = max(dot(lightvec, halfvec), 0.0);
+  float NdotV = max(dot(normal, eyevec), 0);
+  float NdotL = max(dot(normal, lightvec), 0);
+  float NdotH = max(dot(normal, halfvec), 0);
+  float LdotH = max(dot(lightvec, halfvec), 0);
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 
@@ -258,7 +258,7 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
 
   float attenuation = sign(NdotL) / (light.attenuation.z + light.attenuation.y * lightdistance + light.attenuation.x * lightdistance * lightdistance);
 
-  attenuation *= pow(clamp(1.0 - pow(lightdistance/light.attenuation.w, 4.0), 0.0, 1.0), 2.0);
+  attenuation *= pow(clamp(1 - pow(lightdistance/light.attenuation.w, 4.0), 0, 1), 2);
 
   diffuse += NdotL * Fd * light.intensity * attenuation;
 

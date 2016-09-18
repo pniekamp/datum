@@ -23,7 +23,7 @@ void main(void)
 {
   vec2 pos = (2 * vertex_position.xy - 1);
 
-  texcoord = (scene.skyview * vec4(pos, -1.0, 1.0)).xyz * vec3(1, -1, -1);
+  texcoord = (scene.skyview * vec4(pos, -1, 1)).xyz * vec3(1, -1, -1);
 
-  gl_Position = vec4(pos, 1.0, 1.0);
+  gl_Position = vec4(pos, 1, 1);
 }

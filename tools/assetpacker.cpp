@@ -120,36 +120,17 @@ uint32_t write_catl_asset(ostream &fout, uint32_t id)
 
 
 ///////////////////////// write_text_asset //////////////////////////////////
-uint32_t write_text_asset(ostream &fout, uint32_t id, std::string const &str)
+uint32_t write_text_asset(ostream &fout, uint32_t id, uint32_t length, void const *data)
 {
   PackAssetHeader aset = { id };
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackTextHeader shdr = { (uint32_t)str.length() + 1, (size_t)fout.tellp() + sizeof(shdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackTextHeader shdr = { length, (size_t)fout.tellp() + sizeof(shdr) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "TEXT", sizeof(shdr), &shdr);
 
-  write_chunk(fout, "DATA", str.length() + 1, str.c_str());
-
-  write_chunk(fout, "AEND", 0, nullptr);
-
-  return id + 1;
-}
-
-
-///////////////////////// write_text_asset //////////////////////////////////
-uint32_t write_text_asset(ostream &fout, uint32_t id, std::vector<uint8_t> const &str)
-{
-  PackAssetHeader aset = { id };
-
-  write_chunk(fout, "ASET", sizeof(aset), &aset);
-
-  PackTextHeader shdr = { (uint32_t)str.size(), (size_t)fout.tellp() + sizeof(shdr) + sizeof(PackChunk) + sizeof(uint32_t) };
-
-  write_chunk(fout, "TEXT", sizeof(shdr), &shdr);
-
-  write_chunk(fout, "DATA", str.size(), str.data());
+  write_chunk(fout, "DATA", length, data);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -158,7 +139,7 @@ uint32_t write_text_asset(ostream &fout, uint32_t id, std::vector<uint8_t> const
 
 
 ///////////////////////// write_imag_asset //////////////////////////////////
-uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, uint32_t format, void const *bits, float alignx, float aligny)
+uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, uint32_t format, void const *bits)
 {
   assert(layers > 0);
   assert(levels > 0 && levels <= (uint32_t)image_maxlevels(width, height));
@@ -184,7 +165,7 @@ uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t h
       assert(false);
   }
 
-  PackImageHeader ihdr = { width, height, layers, levels, format, alignx, aligny, datasize, (size_t)fout.tellp() + sizeof(ihdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackImageHeader ihdr = { width, height, layers, levels, format, datasize, (size_t)fout.tellp() + sizeof(ihdr) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "IMAG", sizeof(ihdr), &ihdr);
 

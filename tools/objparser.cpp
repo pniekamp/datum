@@ -152,7 +152,7 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data());
 
   return id + 1;
 }
@@ -202,7 +202,7 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &metalpath
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data());
 
   return id + 1;
 }
@@ -256,7 +256,7 @@ uint32_t write_bumpmap_asset(ostream &fout, uint32_t id, string const &path, flo
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data());
 
   return id + 1;
 }
@@ -282,7 +282,7 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data());
 
   return id + 1;
 }
@@ -304,7 +304,7 @@ void write_model(string const &filename)
 
   vector<Texture> textures;
 
-  textures.push_back({ PackModelPayload::Texture::defaulttexture, "default" });
+  textures.push_back({ PackModelPayload::Texture::nullmap, "default" });
 
   struct Material
   {
@@ -674,7 +674,7 @@ void write_model(string const &filename)
 
     switch (texture.type)
     {
-      case PackModelPayload::Texture::defaulttexture:
+      case PackModelPayload::Texture::nullmap:
         id++;
         break;
 
@@ -748,7 +748,7 @@ int main(int argc, char **argv)
   {
     write_model(objfile);
   }
-  catch(std::exception &e)
+  catch(exception &e)
   {
     cerr << "Critical Error: " << e.what() << endl;
   }

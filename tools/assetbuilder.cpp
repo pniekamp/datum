@@ -136,13 +136,13 @@ uint32_t write_shader_asset(ostream &fout, uint32_t id, string const &path)
 
   auto spirv = compile_shader(text, stage);
 
-  write_text_asset(fout, id, spirv);
+  write_text_asset(fout, id, spirv.size(), spirv.data());
 
   return id + 1;
 }
 
 
-uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path, float alignx = 0.5f, float aligny = 0.5f)
+uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path)
 {
   QImage image(path.c_str());
 
@@ -162,13 +162,13 @@ uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path, float
 
   memcpy(payload.data(), image.bits(), image.byteCount());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), alignx, aligny);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data());
 
   return id + 1;
 }
 
 
-uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &images, float alignx = 0.5f, float aligny = 0.5f)
+uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &images)
 {
   int width = images.front().width();
   int height = images.front().height();
@@ -195,13 +195,13 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &im
 
   image_buildmips_srgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), alignx, aligny);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data());
 
   return id + 1;
 }
 
 
-uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<string> const &paths, float alignx = 0.5f, float aligny = 0.5f)
+uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<string> const &paths)
 {
   vector<QImage> layers;
 
@@ -217,21 +217,21 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<string> const &pa
     layers.push_back(image);
   }
 
-  write_sprite_asset(fout, id, layers, alignx, aligny);
+  write_sprite_asset(fout, id, layers);
 
   return id + 1;
 }
 
 
-uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, float alignx = 0.5f, float aligny = 0.5f)
+uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path)
 {
-  write_sprite_asset(fout, id, vector<string>{ path }, alignx, aligny);
+  write_sprite_asset(fout, id, vector<string>{ path });
 
   return id + 1;
 }
 
 
-uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, int count, float alignx = 0.5f, float aligny = 0.5f)
+uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, int count)
 {
   QImage sheet(path.c_str());
 
@@ -250,7 +250,7 @@ uint32_t write_sprite_asset(ostream &fout, uint32_t id, string const &path, int 
     layers.push_back(sheet.copy(i, 0, width, height));
   }
 
-  write_sprite_asset(fout, id, layers, alignx, aligny);
+  write_sprite_asset(fout, id, layers);
 
   return id + 1;
 }
@@ -280,7 +280,7 @@ uint32_t write_albedomap_asset(ostream &fout, uint32_t id, string const &path)
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data());
 
   return id + 1;
 }
@@ -310,7 +310,7 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data());
 
   return id + 1;
 }
@@ -362,7 +362,7 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &metal
 
   image_compress_bc3(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba_bc3, payload.data());
 
   return id + 1;
 }
@@ -390,7 +390,7 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
 
   image_buildmips_rgb(width, height, layers, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data());
 
   return id + 1;
 }
@@ -447,7 +447,7 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, vector<string> const &pa
 
   image_buildmips_cube_ibl(width, height, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data());
 
   return id + 1;
 }
@@ -468,7 +468,7 @@ uint32_t write_skybox_asset(ostream &fout, uint32_t id, string const &path)
 
   image_pack_cube_ibl(image, width, height, levels, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data());
 
   return id + 1;
 }
@@ -485,7 +485,7 @@ uint32_t write_envbrdf_asset(ostream &fout, uint32_t id)
 
   image_pack_envbrdf(width, height, payload.data());
 
-  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data(), 0.0f, 0.0f);
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data());
 
   return id + 1;
 }
@@ -678,7 +678,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
     painter.drawText(QRectF(position->x + 1, position->y + 1, position->width - 2, position->height - 2), QString(QChar(codepoint)));
   }
 
-  write_sprite_asset(fout, id + 1, { atlas }, 0.0f, 0.0f);
+  write_sprite_asset(fout, id + 1, { atlas });
 
   return id + 2;
 }
@@ -792,7 +792,7 @@ int main(int argc, char **argv)
     write_mesh("teapot.pack", "../../data/teapot.obj");
     write_mesh("suzanne.pack", "../../data/suzanne.obj");
   }
-  catch(std::exception &e)
+  catch(exception &e)
   {
     cerr << "Critical Error: " << e.what() << endl;
   }

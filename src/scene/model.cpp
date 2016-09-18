@@ -58,7 +58,7 @@ Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, R
   {
     switch (texturetable[i].type)
     {
-      case PackModelPayload::Texture::defaulttexture:
+      case PackModelPayload::Texture::nullmap:
         model->textures[i] = nullptr;
         break;
 

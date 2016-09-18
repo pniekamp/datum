@@ -386,11 +386,11 @@ namespace Vulkan
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
 
+  Texture create_texture(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageUsageFlags usage);
+
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
   Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
-
-  Texture create_attachment(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageUsageFlags usage);
 
   void update_texture(VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture);
   void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture, const void *bits);
@@ -420,6 +420,7 @@ namespace Vulkan
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler);
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
+  void bindtexturebase(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
 
   void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
   void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView writeimage);

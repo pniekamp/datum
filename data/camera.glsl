@@ -6,6 +6,7 @@ struct Camera
 {
   vec3 position;
   float exposure;
+  float skyboxlod;
   float ssrstrength;
   float bloomstrength;
 };
@@ -28,7 +29,7 @@ vec3 reinhard(vec3 color)
 ///////////////////////// filmic ////////////////////////////////////////////
 vec3 filmic(vec3 color)
 {
-  vec3 x = max(vec3(0.0), color - 0.004);
+  vec3 x = max(vec3(0), color - 0.004);
 
   return (x * (6.2 * x + 0.5)) / (x * (6.2 * x + 1.7) + 0.06);
 }
@@ -58,5 +59,5 @@ vec3 whitepoint()
 ///////////////////////// tonemap ///////////////////////////////////////////
 vec3 tonemap(vec3 color)
 {
-  return max(filmic_uncharted2(2.0 * color) / whitepoint(), 0.0);
+  return max(filmic_uncharted2(2.0 * color) / whitepoint(), 0);
 }

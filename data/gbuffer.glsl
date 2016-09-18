@@ -21,7 +21,7 @@ float view_depth(mat4 proj, float depth)
 ///////////////////////// view_normal ///////////////////////////////////////
 vec3 view_normal(mat4 view, vec3 normal)
 {
-  return normalize((view * vec4(2.0 * normal - 1.0, 0.0)).xyz);
+  return normalize((view * vec4(2 * normal - 1, 0)).xyz);
 }
 
 
@@ -33,7 +33,7 @@ vec3 view_position(mat4 proj, vec3 viewray, float depth)
 
 vec3 view_position(mat4 proj, mat4 invproj, vec2 texcoord, float depth)
 {
-  return view_position(proj, vec3(invproj[0][0] * (2.0 * texcoord.x - 1.0), invproj[1][1] * (2.0 * texcoord.y - 1.0), -1.0), depth);
+  return view_position(proj, vec3(invproj[0][0] * (2 * texcoord.x - 1), invproj[1][1] * (2 * texcoord.y - 1), -1), depth);
 }
 
 vec3 view_position(mat4 proj, mat4 invproj, ivec2 xy, ivec2 viewport, float depth)
@@ -50,7 +50,7 @@ vec3 view_position(mat4 view, vec3 position)
 ///////////////////////// world_normal //////////////////////////////////////
 vec3 world_normal(vec3 normal)
 {
-  return normalize(2.0 * normal - 1.0);
+  return normalize(2 * normal - 1);
 }
 
 

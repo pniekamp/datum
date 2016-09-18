@@ -34,11 +34,11 @@ layout(std430, set=3, binding=0, row_major) buffer ComputeSet
 
 } compute;
 
-layout(set=0, binding=1) uniform sampler2DArray rt0map;
-layout(set=0, binding=2) uniform sampler2DArray rt1map;
-layout(set=0, binding=3) uniform sampler2DArray normalmap;
-layout(set=0, binding=4) uniform sampler2DArray depthmap;
-layout(set=0, binding=5) uniform sampler2DArray prevmap;
+layout(set=0, binding=1) uniform sampler2D rt0map;
+layout(set=0, binding=2) uniform sampler2D rt1map;
+layout(set=0, binding=3) uniform sampler2D normalmap;
+layout(set=0, binding=4) uniform sampler2D depthmap;
+layout(set=0, binding=5) uniform sampler2D prevmap;
 
 layout(set=3, binding=1) writeonly uniform image2D dest;
 
@@ -63,12 +63,12 @@ void main()
   
   vec2 texcoord = vec2(xy + 0.5) / textureSize(prevmap, 0).xy;//imageSize(dest);
 
-  vec4 depthquad = textureGather(depthmap, vec3(texcoord, 0));
+  vec4 depthquad = textureGather(depthmap, texcoord);
   
   float depth = max_element(mix(vec4(0), depthquad, lessThan(depthquad, vec4(1))));
   
   vec3 position = view_position(scene.proj, scene.invproj, texcoord, depth);
-  vec3 normal = view_normal(scene.view, texture(normalmap, vec3(texcoord, 0)).xyz);
+  vec3 normal = view_normal(scene.view, texture(normalmap, texcoord).xyz);
   
   vec3 randomvec = compute.noise[(xy.x + xy.y * 4) % NoiseSize];
 
@@ -77,20 +77,20 @@ void main()
   
   mat3 tbnview = mat3(tangent, bitangent, normal);
 
-  float occlusion = 0.0;
+  float occlusion = 0;
 
   for(uint i = 0; i < KernelSize; ++i)
   {
     vec3 samplepos = position + tbnview * compute.kernel[i] * OcclusionRadius;
     
-    float sampledepth = view_depth(scene.proj, texture(depthmap, vec3(0.5 * project(scene.proj, samplepos) + 0.5, 0)).r);
+    float sampledepth = view_depth(scene.proj, texture(depthmap, 0.5 * project(scene.proj, samplepos) + 0.5).r);
 
-    float rangecheck = smoothstep(0.0, 1.0, OcclusionRadius / abs(position.z - -sampledepth));
+    float rangecheck = smoothstep(0, 1, OcclusionRadius / abs(position.z - -sampledepth));
     
     occlusion += rangecheck * step(samplepos.z, -sampledepth - OcclusionBias);
   }
 
-  occlusion = pow(1.0 - (occlusion / KernelSize), OcclusionPower);
+  occlusion = pow(1 - (occlusion / KernelSize), OcclusionPower);
 
   texels[ij.y][ij.x] = occlusion;
   depths[ij.y][ij.x] = depth;
@@ -106,7 +106,7 @@ void main()
     {
       for(uint i = ij.x - Radius; i < ij.x + Radius; ++i)
       {
-        float weight = max(1.0 - 250*abs(depths[j][i] - depth), 0.0);
+        float weight = max(1 - 250*abs(depths[j][i] - depth), 0);
         
         avg += weight * texels[j][i];
         spatialweight += weight;
@@ -115,9 +115,9 @@ void main()
     
     occlusion = avg / spatialweight;
 
-    vec2 prevtexcoord = 0.5 * project(scene.proj, (scene.prevview * scene.invview * vec4(position, 1.0)).xyz) + 0.5;
+    vec2 prevtexcoord = 0.5 * project(scene.proj, (scene.prevview * scene.invview * vec4(position, 1)).xyz) + 0.5;
 
-    vec4 prevocclusion = texture(prevmap, vec3(prevtexcoord, 0));
+    vec4 prevocclusion = texture(prevmap, prevtexcoord);
     
     vec3 prevposition = view_position(scene.proj, scene.invproj, prevtexcoord, prevocclusion.y);
     

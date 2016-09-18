@@ -16,6 +16,11 @@ using namespace lml;
 using leap::alignto;
 using leap::extentof;
 
+enum SkyboxFlags
+{
+  SkyboxOwnsTexture = 0x01,
+};
+
 enum RenderPasses
 {
   skyboxpass = 0,
@@ -52,7 +57,7 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   bindresource(skyboxcommands, context.skyboxpipeline, context.fbox, context.fboy, context.fbowidth - 2*context.fbox, context.fboheight - 2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindtexture(context.device, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap);
+  bindtexture(context.device, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap->texture);
 
   bindresource(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -85,9 +90,7 @@ SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset)
 
   auto skybox = new(slot) SkyBox;
 
-  skybox->texture = create<Texture>(asset, Texture::Format::RGBE);
-
-  skybox->state = SkyBox::State::Loading;
+  skybox->envmap = create<EnvMap>(asset);
 
   set_slothandle(slot, asset);
 
@@ -106,21 +109,7 @@ SkyBox const *ResourceManager::create<SkyBox>(int width, int height)
 
   auto skybox = new(slot) SkyBox;
 
-  skybox->texture = nullptr;
-
-  skybox->envmap = create_attachment(vulkan, width, height, 6, 8, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-  VkImageViewCreateInfo viewinfo = {};
-  viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  viewinfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-  viewinfo.format = skybox->envmap.format;
-  viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-  viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, skybox->envmap.levels, 0, skybox->envmap.layers };
-  viewinfo.image = skybox->envmap.image;
-
-  skybox->envmap.imageview = create_imageview(vulkan, viewinfo);
-
-  skybox->state = SkyBox::State::Ready;
+  skybox->envmap = create<EnvMap>(width, height);
 
   set_slothandle(slot, nullptr);
 
@@ -133,48 +122,9 @@ template<>
 void ResourceManager::request<SkyBox>(DatumPlatform::PlatformInterface &platform, SkyBox const *skybox)
 {
   assert(skybox);
-  assert(skybox->texture);
+  assert(skybox->envmap);
 
-  request(platform, skybox->texture);
-
-  if (skybox->texture->ready())
-  {
-    auto slot = const_cast<SkyBox*>(skybox);
-
-    SkyBox::State loading = SkyBox::State::Loading;
-
-    if (slot->state.compare_exchange_strong(loading, SkyBox::State::Finalising))
-    {
-      slot->envmap.width = skybox->texture->texture.width;
-      slot->envmap.height = skybox->texture->texture.height;
-      slot->envmap.layers = skybox->texture->texture.layers;
-      slot->envmap.levels = skybox->texture->texture.levels;
-      slot->envmap.format = skybox->texture->texture.format;
-
-      VkSamplerCreateInfo samplerinfo = {};
-      samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-      samplerinfo.magFilter = VK_FILTER_LINEAR;
-      samplerinfo.minFilter = VK_FILTER_LINEAR;
-      samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-      samplerinfo.minLod = 0.0f;
-      samplerinfo.maxLod = skybox->envmap.levels;
-      samplerinfo.compareOp = VK_COMPARE_OP_NEVER;
-
-      slot->envmap.sampler = create_sampler(vulkan, samplerinfo);
-
-      VkImageViewCreateInfo viewinfo = {};
-      viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      viewinfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-      viewinfo.format = skybox->texture->texture.format;
-      viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-      viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, skybox->envmap.levels, 0, skybox->envmap.layers };
-      viewinfo.image = skybox->texture->texture.image;
-
-      slot->envmap.imageview = create_imageview(vulkan, viewinfo);
-
-      slot->state = SkyBox::State::Ready;
-    }
-  }
+  request(platform, skybox->envmap);
 }
 
 
@@ -196,7 +146,7 @@ void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 
   auto slot = const_cast<SkyBox*>(skybox);
 
-  destroy(skybox->texture);
+  destroy(skybox->envmap);
 
   skybox->~SkyBox();
 
@@ -341,7 +291,7 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   auto &commandbuffer = context.commandbuffer;
 
-  bindimageview(context.device, context.descriptorset, 0, skybox->envmap.imageview);
+  bindimageview(context.device, context.descriptorset, 0, skybox->envmap->texture.imageview);
 
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -351,9 +301,9 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(skyboxset), &skyboxset, VK_SHADER_STAGE_COMPUTE_BIT);
 
-  dispatch(commandbuffer, (skybox->envmap.width + 15)/16, (skybox->envmap.height + 15)/16, 1);
+  dispatch(commandbuffer, (skybox->envmap->texture.width + 15)/16, (skybox->envmap->texture.height + 15)/16, 1);
 
-  mip(commandbuffer, skybox->envmap.image, skybox->envmap.width, skybox->envmap.height, skybox->envmap.layers, skybox->envmap.levels);
+  mip(commandbuffer, skybox->envmap->texture.image, skybox->envmap->texture.width, skybox->envmap->texture.height, skybox->envmap->texture.layers, skybox->envmap->texture.levels);
 
   end(context.device, commandbuffer);
 
@@ -365,3 +315,4 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   wait(context.device, context.fence);
 }
+

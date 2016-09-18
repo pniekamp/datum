@@ -172,7 +172,7 @@ int main(int argc, char **argv)
       compress(argv[i]);
     }
   }
-  catch(std::exception &e)
+  catch(exception &e)
   {
     cerr << "Critical Error: " << e.what() << endl;
   }

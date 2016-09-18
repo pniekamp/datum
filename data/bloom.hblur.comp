@@ -17,8 +17,8 @@ shared vec3 texels[SizeX + Radius + Radius];
 ///////////////////////// blur //////////////////////////////////////////////
 vec3 blur(uint k, vec3 coefficients)
 {
-  vec3 avg = vec3(0.0);
-  float weight = 0.0;
+  vec3 avg = vec3(0);
+  float weight = 0;
 
   avg += texels[k] * coefficients.x;    
   weight += coefficients.x;

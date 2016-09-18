@@ -304,6 +304,7 @@ struct RenderParams
 
   SkyBox const *skybox = nullptr;
   lml::Transform skyboxorientation = lml::Transform::identity();
+  float skyboxlod = 0.0f;
 
   float lightfalloff = 0.66f;
   float ssaoscale = 1.0f;

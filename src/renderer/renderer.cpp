@@ -116,6 +116,7 @@ struct alignas(16) CameraView
 {
   Vec3 position;
   float exposure;
+  float skyboxlod;
   float ssrstrength;
   float bloomstrength;
 };
@@ -532,7 +533,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    attachments[1].format = VK_FORMAT_B8G8R8A8_SRGB;
+    attachments[1].format = VK_FORMAT_B8G8R8A8_UNORM;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -693,6 +694,15 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
+    VkSpecializationMapEntry specializationmap[1] = {};
+    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
     VkPipelineShaderStageCreateInfo shaders[3] = {};
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -701,6 +711,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_GEOMETRY_BIT;
     shaders[1].module = gsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
     shaders[1].pName = "main";
     shaders[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -1547,7 +1558,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Shadow Map
     //
 
-    context.shadows.shadowmap = create_attachment(context.device, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    context.shadows.shadowmap = create_texture(context.device, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
     VkSamplerCreateInfo shadowsamplerinfo = {};
     shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1583,7 +1594,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Color Attachment
     //
 
-    context.colorbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+    context.colorbuffer = create_texture(context.device, width, height, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
     setimagelayout(context.device, context.colorbuffer.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
@@ -1595,15 +1606,15 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Geometry Attachment
     //
 
-    context.rt0buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    context.rt1buffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    context.normalbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    context.rt0buffer = create_texture(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    context.rt1buffer = create_texture(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    context.normalbuffer = create_texture(context.device, width, height, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
     //
     // Depth Attachment
     //
 
-    context.depthbuffer = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    context.depthbuffer = create_texture(context.device, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
     VkSamplerCreateInfo depthsamplerinfo = {};
     depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1669,8 +1680,8 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
     {
-      context.scratchbuffers[i] = create_attachment(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
 
+      context.scratchbuffers[i] = create_texture(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
       setimagelayout(context.device, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
       context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
@@ -1691,7 +1702,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     {
       for(size_t i = 0; i < extentof(context.ssaodescriptors); ++i)
       {
-        context.ssaobuffers[i] = create_attachment(context.device, width*params.ssaoscale, height*params.ssaoscale, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+        context.ssaobuffers[i] = create_texture(context.device, width*params.ssaoscale, height*params.ssaoscale, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
         setimagelayout(context.device, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
@@ -1845,6 +1856,7 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
   scene->skyview = (inverse(params.skyboxorientation) * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
   scene->camera.position = context.camera.position();
   scene->camera.exposure = context.camera.exposure();
+  scene->camera.skyboxlod = params.skyboxlod;
   scene->camera.ssrstrength = params.ssrstrength;
   scene->camera.bloomstrength = params.bloomstrength;
 
@@ -1890,8 +1902,8 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
 
       if (environment.envmap && environment.envmap->ready() && envcount + 1 < extentof(imageinfos))
       {
-        imageinfos[envcount].sampler = environment.envmap->envmap.sampler;
-        imageinfos[envcount].imageView = environment.envmap->envmap.imageview;
+        imageinfos[envcount].sampler = environment.envmap->texture.sampler;
+        imageinfos[envcount].imageView = environment.envmap->texture.imageview;
         imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         scene->environments[envcount].halfdim = Vec4(environment.dimension/2, 0);
@@ -1904,8 +1916,8 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
 
   if (params.skybox && params.skybox->ready())
   {
-    imageinfos[envcount].sampler = params.skybox->envmap.sampler;
-    imageinfos[envcount].imageView = params.skybox->envmap.imageview;
+    imageinfos[envcount].sampler = params.skybox->envmap->texture.sampler;
+    imageinfos[envcount].imageView = params.skybox->envmap->texture.imageview;
     imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     scene->environments[envcount].halfdim = Vec4(1e5f, 1e5f, 1e5f, 0);
@@ -1914,14 +1926,10 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
     envcount += 1;
   }
 
-  for(size_t i = envcount; i < extentof(imageinfos); ++i)
+  if (envcount != 0)
   {
-    imageinfos[i].sampler = context.whitediffuse.sampler;
-    imageinfos[i].imageView = context.whitediffuse.imageview;
-    imageinfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    bindtexture(context.device, context.lightingdescriptors[context.frame & 1], ShaderLocation::envmaps, imageinfos, envcount);
   }
-
-  bindtexture(context.device, context.lightingdescriptors[context.frame & 1], ShaderLocation::envmaps, imageinfos, extentof(imageinfos));
 }
 
 
