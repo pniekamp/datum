@@ -50,10 +50,12 @@ class Font
       Ready,
     };
 
-    std::atomic<State> state;
+    Asset const *asset;
 
     void *memory;
     size_t memorysize;
+
+    std::atomic<State> state;
 
   private:
     Font() = default;

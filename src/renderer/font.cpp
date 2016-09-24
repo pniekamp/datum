@@ -37,9 +37,8 @@ Font const *ResourceManager::create<Font>(Asset const *asset)
   font->glyphcount = asset->glyphcount;
   font->glyphs = nullptr;
   font->memory = nullptr;
+  font->asset = asset;
   font->state = Font::State::Empty;
-
-  set_slothandle(slot, asset);
 
   return font;
 }
@@ -57,53 +56,54 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
 
   if (slot->state.compare_exchange_strong(empty, Font::State::Loading))
   {
-    auto asset = get_slothandle<Asset const *>(slot);
-
-    auto bits = m_assets->request(platform, asset);
-
-    if (bits)
+    if (auto asset = slot->asset)
     {
-      auto count = (size_t)asset->glyphcount;
-      auto glyphs = reinterpret_cast<uint32_t const*>((size_t)bits);
-      auto xtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 0 * count * sizeof(uint16_t));
-      auto ytable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 1 * count * sizeof(uint16_t));
-      auto widthtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 2 * count * sizeof(uint16_t));
-      auto heighttable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 3 * count * sizeof(uint16_t));
-      auto offsetxtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 4 * count * sizeof(uint16_t));
-      auto offsetytable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 5 * count * sizeof(uint16_t));
-      auto advancetable = reinterpret_cast<uint8_t const*>((size_t)bits + sizeof(uint32_t) + 6 * count * sizeof(uint16_t));
-
-      slot->memorysize = 8*count*sizeof(float) + count*count*sizeof(uint8_t);
-
-      slot->memory = acquire_slot(font->memorysize);
-
-      if (slot->memory)
+      if (auto bits = m_assets->request(platform, asset))
       {
-        slot->glyphs = create<Texture>(assets()->find(asset->id + *glyphs), Texture::Format::RGBA);
+        auto count = (size_t)asset->glyphcount;
+        auto glyphs = reinterpret_cast<uint32_t const*>((size_t)bits);
+        auto xtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 0 * count * sizeof(uint16_t));
+        auto ytable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 1 * count * sizeof(uint16_t));
+        auto widthtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 2 * count * sizeof(uint16_t));
+        auto heighttable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 3 * count * sizeof(uint16_t));
+        auto offsetxtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 4 * count * sizeof(uint16_t));
+        auto offsetytable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 5 * count * sizeof(uint16_t));
+        auto advancetable = reinterpret_cast<uint8_t const*>((size_t)bits + sizeof(uint32_t) + 6 * count * sizeof(uint16_t));
 
-        float sx = 1.0f / font->glyphs->width;
-        float sy = 1.0f / font->glyphs->height;
+        slot->memorysize = 8*count*sizeof(float) + count*count*sizeof(uint8_t);
 
-        slot->texcoords = reinterpret_cast<Vec4*>((size_t)slot->memory + 0*count*sizeof(float));
+        slot->memory = acquire_slot(font->memorysize);
 
-        for(size_t codepoint = 0; codepoint < count; ++codepoint)
-          slot->texcoords[codepoint] = Vec4(sx * xtable[codepoint], sy * ytable[codepoint], sx * widthtable[codepoint], sy * heighttable[codepoint]);
+        if (slot->memory)
+        {
+          slot->glyphs = create<Texture>(assets()->find(asset->id + *glyphs), Texture::Format::RGBA);
 
-        slot->alignment = reinterpret_cast<Vec2*>((size_t)slot->memory + 4*count*sizeof(float));
+          float sx = 1.0f / font->glyphs->width;
+          float sy = 1.0f / font->glyphs->height;
 
-        for(size_t codepoint = 0; codepoint < count; ++codepoint)
-          slot->alignment[codepoint] = Vec2(offsetxtable[codepoint], offsetytable[codepoint]);
+          slot->texcoords = reinterpret_cast<Vec4*>((size_t)slot->memory + 0*count*sizeof(float));
 
-        slot->dimension = reinterpret_cast<Vec2*>((size_t)slot->memory + 6*count*sizeof(float));
+          for(size_t codepoint = 0; codepoint < count; ++codepoint)
+            slot->texcoords[codepoint] = Vec4(sx * xtable[codepoint], sy * ytable[codepoint], sx * widthtable[codepoint], sy * heighttable[codepoint]);
 
-        for(size_t codepoint = 0; codepoint < count; ++codepoint)
-          slot->dimension[codepoint] = Vec2(widthtable[codepoint], heighttable[codepoint]);
+          slot->alignment = reinterpret_cast<Vec2*>((size_t)slot->memory + 4*count*sizeof(float));
 
-        slot->advance = reinterpret_cast<uint8_t*>((size_t)slot->memory + 8*count*sizeof(float));
+          for(size_t codepoint = 0; codepoint < count; ++codepoint)
+            slot->alignment[codepoint] = Vec2(offsetxtable[codepoint], offsetytable[codepoint]);
 
-        memcpy(slot->advance, advancetable, count*count*sizeof(uint8_t));
+          slot->dimension = reinterpret_cast<Vec2*>((size_t)slot->memory + 6*count*sizeof(float));
 
-        slot->state = Font::State::Waiting;
+          for(size_t codepoint = 0; codepoint < count; ++codepoint)
+            slot->dimension[codepoint] = Vec2(widthtable[codepoint], heighttable[codepoint]);
+
+          slot->advance = reinterpret_cast<uint8_t*>((size_t)slot->memory + 8*count*sizeof(float));
+
+          memcpy(slot->advance, advancetable, count*count*sizeof(uint8_t));
+
+          slot->state = Font::State::Waiting;
+        }
+        else
+          slot->state = Font::State::Empty;
       }
       else
         slot->state = Font::State::Empty;

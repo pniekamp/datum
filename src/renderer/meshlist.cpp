@@ -75,7 +75,7 @@ void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderab
 ///////////////////////// MeshList::begin ///////////////////////////////////
 bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
 {
-  m_commandlist = nullptr;
+  m_commandlist = {};
 
   state = {};
   state.platform = &platform;

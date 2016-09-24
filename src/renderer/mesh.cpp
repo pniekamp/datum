@@ -43,12 +43,8 @@ Mesh const *ResourceManager::create<Mesh>(Asset const *asset)
   auto mesh = new(slot) Mesh;
 
   mesh->bound = Bound3(Vec3(asset->mincorner[0], asset->mincorner[1], asset->mincorner[2]), Vec3(asset->maxcorner[0], asset->maxcorner[1], asset->maxcorner[2]));
-  mesh->vertices = nullptr;
-  mesh->indices = nullptr;
-  mesh->transferlump = nullptr;
+  mesh->asset = asset;
   mesh->state = Mesh::State::Empty;
-
-  set_slothandle(slot, asset);
 
   return mesh;
 }
@@ -63,47 +59,48 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
   if (!slot)
     return nullptr;
 
-  auto lump = acquire_lump(mesh_datasize(vertexcount, indexcount));
-
-  if (!lump)
-    return nullptr;
-
   auto mesh = new(slot) Mesh;
 
-  mesh->transferlump = lump;
+  mesh->bound = {};
+  mesh->asset = nullptr;
+  mesh->state = Mesh::State::Empty;
 
-  wait(vulkan, lump->fence);
+  if (auto lump = acquire_lump(0))
+  {
+    wait(vulkan, lump->fence);
 
-  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  mesh->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, vertexcount, sizeof(Vertex), indexcount, sizeof(uint32_t));
+    mesh->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, vertexcount, sizeof(Vertex), indexcount, sizeof(uint32_t));
 
-  end(vulkan, lump->commandbuffer);
+    end(vulkan, lump->commandbuffer);
 
-  submit_transfer(lump);
+    submit_transfer(lump);
 
-  mesh->vertices = (Vertex*)((uint8_t*)lump->transfermemory + mesh->vertexbuffer.verticiesoffset);
-  mesh->indices = (uint32_t*)((uint8_t*)lump->transfermemory + mesh->vertexbuffer.indicesoffset);
+    release_lump(lump);
 
-  mesh->state = Mesh::State::Ready;
-
-  set_slothandle(slot, nullptr);
+    mesh->state = Mesh::State::Ready;
+  }
 
   return mesh;
+}
+
+template<>
+Mesh const *ResourceManager::create<Mesh>(uint32_t vertexcount, uint32_t indexcount)
+{
+  return create<Mesh>((int)vertexcount, (int)indexcount);
 }
 
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh)
+void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump)
 {
+  assert(lump);
   assert(mesh);
-  assert(mesh->vertices && mesh->indices);
   assert(mesh->state == Mesh::State::Ready);
 
   auto slot = const_cast<Mesh*>(mesh);
-
-  auto lump = slot->transferlump;
 
   wait(vulkan, lump->fence);
 
@@ -117,49 +114,6 @@ void ResourceManager::update<Mesh>(Mesh const *mesh)
 
   while (!test(vulkan, lump->fence))
     ;
-}
-
-template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh, Vertex const *vertices, uint32_t const *indices)
-{
-  assert(mesh);
-  assert(mesh->vertices && mesh->indices);
-  assert(mesh->state == Mesh::State::Ready);
-
-  auto slot = const_cast<Mesh*>(mesh);
-
-  memcpy(slot->vertices, vertices, mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize);
-  memcpy(slot->indices, indices, mesh->vertexbuffer.indexcount * mesh->vertexbuffer.indexsize);
-
-  update(mesh);
-}
-
-template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh, Vertex *vertices, uint32_t *indices)
-{
-  update<Mesh>(mesh, (Vertex const *)vertices, (uint32_t const *)indices);
-}
-
-
-///////////////////////// ResourceManager::update ///////////////////////////
-template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh, Vertex const *vertices)
-{
-  assert(mesh);
-  assert(mesh->vertices);
-  assert(mesh->state == Mesh::State::Ready);
-
-  auto slot = const_cast<Mesh*>(mesh);
-
-  memcpy(slot->vertices, vertices, mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize);
-
-  update(mesh);
-}
-
-template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh, Vertex *vertices)
-{
-  update<Mesh>(mesh, (Vertex const *)vertices);
 }
 
 
@@ -187,23 +141,15 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
   if (slot->state.compare_exchange_strong(empty, Mesh::State::Loading))
   {
-    auto asset = get_slothandle<Asset const *>(slot);
-
-    if (asset)
+    if (auto asset = slot->asset)
     {
-      auto bits = m_assets->request(platform, asset);
-
-      if (bits)
+      if (auto bits = m_assets->request(platform, asset))
       {
         auto vertextable = reinterpret_cast<Vertex const *>((size_t)bits);
         auto indextable = reinterpret_cast<uint32_t const *>((size_t)bits + asset->vertexcount*sizeof(Vertex));
 
-        auto lump = acquire_lump(mesh_datasize(asset->vertexcount, asset->indexcount));
-
-        if (lump)
+        if (auto lump = acquire_lump(mesh_datasize(asset->vertexcount, asset->indexcount)))
         {
-          slot->transferlump = lump;
-
           wait(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -218,6 +164,8 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
           end(vulkan, lump->commandbuffer);
 
           submit_transfer(lump);
+
+          slot->transferlump = lump;
 
           slot->state = Mesh::State::Waiting;
         }

@@ -44,9 +44,8 @@ Material const *ResourceManager::create<Material>(Asset const *asset)
   material->albedomap = nullptr;
   material->specularmap = nullptr;
   material->normalmap = nullptr;
+  material->asset = asset;
   material->state = Material::State::Empty;
-
-  set_slothandle(slot, asset);
 
   return material;
 }
@@ -73,10 +72,8 @@ Material const *ResourceManager::create<Material>(Color3 color, float metalness,
   material->emissive = emissive;
   material->specularmap = specularmap;
   material->normalmap = normalmap;
-
+  material->asset = nullptr;
   material->state = Material::State::Waiting;
-
-  set_slothandle(slot, nullptr);
 
   return material;
 }
@@ -134,13 +131,9 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
 
   if (slot->state.compare_exchange_strong(empty, Material::State::Loading))
   {
-    auto asset = get_slothandle<Asset const *>(slot);
-
-    if (asset)
+    if (auto asset = slot->asset)
     {
-      auto bits = m_assets->request(platform, asset);
-
-      if (bits)
+      if (auto bits = m_assets->request(platform, asset))
       {
         auto material = reinterpret_cast<PackMaterialPayload const *>(bits);
 

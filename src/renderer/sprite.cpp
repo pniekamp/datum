@@ -38,7 +38,6 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset, Vec2 align)
   auto sprite = new(slot) Sprite;
 
   sprite->flags = 0;
-
   sprite->width = asset->width;
   sprite->height = asset->height;
   sprite->layers = asset->layers;
@@ -49,8 +48,6 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset, Vec2 align)
   sprite->atlas = create<Texture>(asset, Texture::Format::SRGBA);
 
   sprite->flags |= SpriteOwnsAtlas;
-
-  set_slothandle(slot, asset);
 
   return sprite;
 }
@@ -74,7 +71,6 @@ Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 extent
   auto sprite = new(slot) Sprite;
 
   sprite->flags = 0;
-
   sprite->width = (extent.max.x - extent.min.x) * atlas->width;
   sprite->height = (extent.max.y - extent.min.y) * atlas->height;
   sprite->layers = atlas->layers;
@@ -83,8 +79,6 @@ Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 extent
   sprite->extent = Vec4(extent.min.x, extent.min.y, extent.max.x - extent.min.x, extent.max.y - extent.min.y);
 
   sprite->atlas = atlas;
-
-  set_slothandle(slot, nullptr);
 
   return sprite;
 }

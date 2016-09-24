@@ -32,9 +32,7 @@ class Mesh
     friend Mesh const *ResourceManager::create<Mesh>(Asset const *asset);
     friend Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount);
 
-    friend void ResourceManager::update<Mesh>(Mesh const *Mesh);
-    friend void ResourceManager::update<Mesh>(Mesh const *Mesh, Vertex const *vertices, uint32_t const *indices);
-    friend void ResourceManager::update<Mesh>(Mesh const *Mesh, Vertex const *vertices);
+    friend void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump);
     friend void ResourceManager::update<Mesh>(Mesh const *mesh, lml::Bound3 bound);
 
     bool ready() const { return (state == State::Ready); }
@@ -42,9 +40,6 @@ class Mesh
     lml::Bound3 bound;
 
     Vulkan::VertexBuffer vertexbuffer;
-
-    Vertex *vertices;
-    uint32_t *indices;
 
   public:
 
@@ -57,9 +52,10 @@ class Mesh
       Ready,
     };
 
-    std::atomic<State> state;
-
+    Asset const *asset;
     ResourceManager::TransferLump const *transferlump;
+
+    std::atomic<State> state;
 
   private:
     Mesh() = default;

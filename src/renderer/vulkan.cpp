@@ -64,6 +64,12 @@ namespace Vulkan
       case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
         return width * height * sizeof(uint32_t);
 
+      case VK_FORMAT_R16G16B16A16_SFLOAT:
+        return width * height * 4*sizeof(uint16_t);
+
+      case VK_FORMAT_R32G32B32A32_SFLOAT:
+        return width * height * 4*sizeof(uint32_t);
+
       default:
         assert(false); return 0;
     }

@@ -92,15 +92,13 @@ SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset)
 
   skybox->envmap = create<EnvMap>(asset);
 
-  set_slothandle(slot, asset);
-
   return skybox;
 }
 
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-SkyBox const *ResourceManager::create<SkyBox>(int width, int height)
+SkyBox const *ResourceManager::create<SkyBox>(int width, int height, EnvMap::Format format)
 {
   auto slot = acquire_slot(sizeof(SkyBox));
 
@@ -109,11 +107,28 @@ SkyBox const *ResourceManager::create<SkyBox>(int width, int height)
 
   auto skybox = new(slot) SkyBox;
 
-  skybox->envmap = create<EnvMap>(width, height);
-
-  set_slothandle(slot, nullptr);
+  skybox->envmap = create<EnvMap>(width, height, format);
 
   return skybox;
+}
+
+
+template<>
+SkyBox const *ResourceManager::create<SkyBox>(uint32_t width, uint32_t height, EnvMap::Format format)
+{
+  return create<SkyBox>((int)width, (int)height, format);
+}
+
+
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
+void ResourceManager::update<SkyBox>(SkyBox const *skybox, ResourceManager::TransferLump const *lump)
+{
+  assert(lump);
+  assert(skybox);
+  assert(skybox->envmap);
+
+  update<EnvMap>(skybox->envmap, lump);
 }
 
 

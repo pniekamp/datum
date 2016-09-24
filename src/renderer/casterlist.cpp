@@ -68,7 +68,7 @@ void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 ///////////////////////// CasterList::begin /////////////////////////////////
 bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
 {
-  m_commandlist = nullptr;
+  m_commandlist = {};
 
   state = {};
   state.platform = &platform;

@@ -19,7 +19,9 @@ class SkyBox
 {
   public:
     friend SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset);
-    friend SkyBox const *ResourceManager::create<SkyBox>(int width, int height);
+    friend SkyBox const *ResourceManager::create<SkyBox>(int width, int height, EnvMap::Format format);
+
+    friend void ResourceManager::update<SkyBox>(SkyBox const *skybox, ResourceManager::TransferLump const *lump);
 
     bool ready() const { return envmap->ready(); }
 

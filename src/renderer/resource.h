@@ -91,22 +91,6 @@ class ResourceManager
     size_t m_slatused;
 #endif
 
-  private:
-
-    template<typename T>
-    T get_slothandle(void *slot)
-    {
-      return reinterpret_cast<T>(m_slothandles[reinterpret_cast<Slot*>(slot) - m_slots]);
-    }
-
-    template<typename T>
-    void set_slothandle(void *slot, T const &handle)
-    {
-      m_slothandles[reinterpret_cast<Slot*>(slot) - m_slots] = reinterpret_cast<uintptr_t>(handle);
-    }
-
-    std::vector<uintptr_t, StackAllocator<>> m_slothandles;
-
   public:
 
     struct TransferLump
@@ -118,6 +102,12 @@ class ResourceManager
 
       void *transfermemory;
     };
+
+    TransferLump const *acquire_lump(size_t size);
+
+    void release_lump(TransferLump const *lump);
+
+    void submit_transfer(TransferLump const *lump);
 
   private:
 
@@ -137,12 +127,6 @@ class ResourceManager
     Buffer *m_buffers;
 
     size_t m_buffersallocated, m_minallocation, m_maxallocation;
-
-    TransferLump const *acquire_lump(size_t size);
-
-    void release_lump(TransferLump const *lump);
-
-    void submit_transfer(TransferLump const *lump);
 
 #ifndef NDEBUG
     size_t m_bufferused;
@@ -200,15 +184,19 @@ class ResourceManager
     mutable leap::threadlib::SpinLock m_mutex;
 };
 
-
 // unique_resource
 
 template<typename Resource>
 class unique_resource
 {
   public:
-    unique_resource(ResourceManager *resources = nullptr, Resource const *resource = nullptr)
-      : m_resources(resources), m_resource(resource)
+    unique_resource()
+      : m_resource(nullptr), m_resources(nullptr)
+    {
+    }
+
+    unique_resource(ResourceManager *resources, Resource const *resource)
+      : m_resource(resource), m_resources(resources)
     {
     }
 
@@ -243,8 +231,8 @@ class unique_resource
 
   private:
 
-    ResourceManager *m_resources;
     Resource const *m_resource;
+    ResourceManager *m_resources;
 };
 
 

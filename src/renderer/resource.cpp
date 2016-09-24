@@ -29,7 +29,6 @@ const size_t BufferAlignment = 4096;
 ResourceManager::ResourceManager(AssetManager *assets, allocator_type const &allocator)
   : m_allocator(allocator),
     m_slat(allocator),
-    m_slothandles(allocator),
     m_deleters(allocator),
     m_assets(assets)
 {
@@ -50,8 +49,6 @@ void ResourceManager::initialise_slab(size_t slabsize)
   m_slots = ::allocate<Slot>(m_allocator, nslots);
 
   m_slat.resize(nslots);
-
-  m_slothandles.resize(nslots);
 
   RESOURCE_USE(ResourceSlot, (m_slatused = 0), m_slat.size())
 
@@ -190,8 +187,13 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
         buffer->transferlump.fence = create_fence(vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
         buffer->transferlump.commandpool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
         buffer->transferlump.commandbuffer = allocate_commandbuffer(vulkan, buffer->transferlump.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
-        buffer->transferlump.transfermemory = (uint8_t*)buffer + BufferAlignment;
+        buffer->transferlump.transfermemory = nullptr;
+
+        if (size != 0)
+        {
+          buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
+          buffer->transferlump.transfermemory = (uint8_t*)buffer + BufferAlignment;
+        }
 
         buffer->next = (*into)->next;
 

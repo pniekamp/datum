@@ -73,7 +73,7 @@ void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 ///////////////////////// SpriteList::begin /////////////////////////////////
 bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
 {
-  m_commandlist = nullptr;
+  m_commandlist = {};
 
   state = {};
   state.platform = &platform;

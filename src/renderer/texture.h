@@ -22,15 +22,16 @@ class Texture
       RGBA,
       SRGBA,
       RGBM,
-      RGBE
+      RGBE,
+      FLOAT16,
+      FLOAT32
     };
 
   public:
     friend Texture const *ResourceManager::create<Texture>(Asset const *asset, Format format);
     friend Texture const *ResourceManager::create<Texture>(int width, int height, int layers, int levels, Format format);
 
-    friend void ResourceManager::update<Texture>(Texture const *texture);
-    friend void ResourceManager::update<Texture>(Texture const *texture, void const *bits);
+    friend void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump);
 
     bool ready() const { return (state == State::Ready); }
 
@@ -38,8 +39,6 @@ class Texture
     int height;
     int layers;
     Format format;
-
-    uint32_t *memory;
 
     Vulkan::Texture texture;
 
@@ -54,9 +53,10 @@ class Texture
       Ready,
     };
 
-    std::atomic<State> state;
-
+    Asset const *asset;
     ResourceManager::TransferLump const *transferlump;
+
+    std::atomic<State> state;
 
   private:
     Texture() = default;

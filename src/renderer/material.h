@@ -55,6 +55,7 @@ class Material
       Ready,
     };
 
+    Asset const *asset;
     std::atomic<State> state;
 
   private:
