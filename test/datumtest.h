@@ -54,8 +54,8 @@ struct GameState
 
   Mesh const *suzanne;
 
-  Vec3 sundirection = normalise(Vec3(0.4, -1, -0.1));
-  Color3 sunintensity = Color3(8.0, 7.56, 7.88);
+  Vec3 sundirection = normalise(Vec3(0.4f, -1.0f, -0.1f));
+  Color3 sunintensity = Color3(8.0f, 7.56f, 7.88f);
 
   SkyboxContext skyboxcontext;
 

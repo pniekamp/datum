@@ -10,7 +10,7 @@
 #include "assetpack.h"
 #include "vulkan.h"
 #include <leap.h>
-#include <algorithm>
+#include <numeric>
 #include <memory>
 #include "debug.h"
 

@@ -152,7 +152,7 @@ class AssetManager
       Slot *prev;
       Slot *next;
 
-      alignas(16) uint8_t data[];
+      alignas(16) uint8_t data[1];
     };
 
     Slot *m_head;

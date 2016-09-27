@@ -15,7 +15,8 @@
 #include <leap/lml/matrixconstants.h>
 #include <vector>
 #include <limits>
-#include <algorithm>
+#include <random>
+#include <numeric>
 #include "debug.h"
 
 using namespace std;
@@ -1798,9 +1799,9 @@ void release_render_pipeline(RenderContext &context)
 void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &lightdirection)
 {
   const float lambda = shadowmap.shadowsplitlambda;
-  const float znear = 0.1;
+  const float znear = 0.1f;
   const float zfar = shadowmap.shadowsplitfar;
-  const float extrusion = 1000.0;
+  const float extrusion = 1000.0f;
   constexpr int nsplits = ShadowMap::nslices;
 
   float splits[nsplits+1] = { znear };
@@ -2229,7 +2230,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Submit
   //
 
-  BEGIN_TIMED_BLOCK(Wait, Color3(0.1, 0.1, 0.1))
+  BEGIN_TIMED_BLOCK(Wait, Color3(0.1f, 0.1f, 0.1f))
 
   wait(context.device, context.framefence);
 
@@ -2237,23 +2238,23 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   // Feedback
 
-  context.luminance = ((ComputeSet volatile *)(context.transfermemory + 0))->luminance;
+  context.luminance = ((ComputeSet volatile *)(context.transfermemory.data()))->luminance;
 
   // Timing Queries
 
   uint64_t timings[16];
   retreive_querypool(context.device, context.timingquerypool, 0, 11, timings);
 
-  GPU_TIMED_BLOCK(Shadows, Color3(0.0, 0.4, 0.0), timings[0], timings[1])
-  GPU_TIMED_BLOCK(Geometry, Color3(0.4, 0.0, 0.4), timings[1], timings[2])
-  GPU_TIMED_BLOCK(SSAO, Color3(0.2, 0.8, 0.2), timings[2], timings[3])
-  GPU_TIMED_BLOCK(Lighting, Color3(0.0, 0.6, 0.4), timings[3], timings[4])
-  GPU_TIMED_BLOCK(SkyBox, Color3(0.0, 0.4, 0.4), timings[4], timings[5])
-  GPU_TIMED_BLOCK(SSR, Color3(0.0, 0.4, 0.8), timings[5], timings[6])
-  GPU_TIMED_BLOCK(Luminance, Color3(0.8, 0.4, 0.2), timings[6], timings[7])
-  GPU_TIMED_BLOCK(Bloom, Color3(0.2, 0.2, 0.6), timings[7], timings[8])
-  GPU_TIMED_BLOCK(Sprites, Color3(0.4, 0.4, 0.0), timings[8], timings[9])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4, 0.4, 0.4), timings[9], timings[10])
+  GPU_TIMED_BLOCK(Shadows, Color3(0.0f, 0.4f, 0.0f), timings[0], timings[1])
+  GPU_TIMED_BLOCK(Geometry, Color3(0.4f, 0.0f, 0.4f), timings[1], timings[2])
+  GPU_TIMED_BLOCK(SSAO, Color3(0.2f, 0.8f, 0.2f), timings[2], timings[3])
+  GPU_TIMED_BLOCK(Lighting, Color3(0.0f, 0.6f, 0.4f), timings[3], timings[4])
+  GPU_TIMED_BLOCK(SkyBox, Color3(0.0f, 0.4f, 0.4f), timings[4], timings[5])
+  GPU_TIMED_BLOCK(SSR, Color3(0.0f, 0.4f, 0.8f), timings[5], timings[6])
+  GPU_TIMED_BLOCK(Luminance, Color3(0.8f, 0.4f, 0.2f), timings[6], timings[7])
+  GPU_TIMED_BLOCK(Bloom, Color3(0.2f, 0.2f, 0.6f), timings[7], timings[8])
+  GPU_TIMED_BLOCK(Sprites, Color3(0.4f, 0.4f, 0.0f), timings[8], timings[9])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4f, 0.4f, 0.4f), timings[9], timings[10])
 
   GPU_SUBMIT();
 

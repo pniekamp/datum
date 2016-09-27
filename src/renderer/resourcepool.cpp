@@ -9,6 +9,7 @@
 #include "resourcepool.h"
 #include "renderer.h"
 #include <leap.h>
+#include <numeric>
 #include "debug.h"
 
 using namespace std;

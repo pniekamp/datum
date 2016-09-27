@@ -22,6 +22,7 @@
 #include <thread>
 #include "math/color.h"
 
+#if 0
 inline __attribute__((always_inline)) void *operator new(std::size_t)
 {
   assert(false);
@@ -38,6 +39,7 @@ inline __attribute__((always_inline)) void operator delete(void *ptr, size_t) no
 {
   assert(false);
 }
+#endif
 
 //
 // Timing
@@ -97,68 +99,68 @@ extern std::atomic<size_t> g_debuglogtail;
 double clock_frequency();
 
 #define BEGIN_FRAME() \
-  {                                                                                   \
-    unsigned int p;                                                                   \
-    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].type = DebugLogEntry::FrameMarker;                              \
-    g_debuglog[entry].thread = std::this_thread::get_id();                            \
-    g_debuglog[entry].timestamp = __rdtscp(&p);                                       \
+  {                                                                                        \
+    unsigned int p;                                                                        \
+    size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].type = DebugLogEntry::FrameMarker;                                   \
+    g_debuglog[entry].thread = std::this_thread::get_id();                                 \
+    g_debuglog[entry].timestamp = __rdtscp(&p);                                            \
   }
 
 #define BEGIN_TIMED_BLOCK(name, color) \
-  {                                                                                   \
-    static const DebugInfoBlock blockinfo(#name, __FILE__, __LINE__, color);          \
-    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].info = &blockinfo;                                              \
-    g_debuglog[entry].type = DebugLogEntry::EnterBlock;                               \
-    g_debuglog[entry].thread = std::this_thread::get_id();                            \
-    g_debuglog[entry].timestamp = __rdtsc();                                          \
+  {                                                                                        \
+    static const DebugInfoBlock blockinfo(#name, __FILE__, __LINE__, color);               \
+    size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].info = &blockinfo;                                                   \
+    g_debuglog[entry].type = DebugLogEntry::EnterBlock;                                    \
+    g_debuglog[entry].thread = std::this_thread::get_id();                                 \
+    g_debuglog[entry].timestamp = __rdtsc();                                               \
   }
 
 #define END_TIMED_BLOCK(name) \
-  {                                                                                   \
-    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].type = DebugLogEntry::ExitBlock;                                \
-    g_debuglog[entry].thread = std::this_thread::get_id();                            \
-    g_debuglog[entry].timestamp = __rdtsc();                                          \
+  {                                                                                        \
+    size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].type = DebugLogEntry::ExitBlock;                                     \
+    g_debuglog[entry].thread = std::this_thread::get_id();                                 \
+    g_debuglog[entry].timestamp = __rdtsc();                                               \
   }
 
 
 #define GPU_SUBMIT() \
-  {                                                                                   \
-    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].type = DebugLogEntry::GpuSubmit;                                \
-    g_debuglog[entry].thread = std::this_thread::get_id();                            \
-    g_debuglog[entry].timestamp = __rdtsc();                                          \
+  {                                                                                        \
+    size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].type = DebugLogEntry::GpuSubmit;                                     \
+    g_debuglog[entry].thread = std::this_thread::get_id();                                 \
+    g_debuglog[entry].timestamp = __rdtsc();                                               \
   }
 
 #define GPU_TIMED_BLOCK(name, color, start, finish) \
-  {                                                                                   \
-    static const DebugInfoBlock blockinfo(#name, __FILE__, __LINE__, color);          \
-    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].info = &blockinfo;                                              \
-    g_debuglog[entry].type = DebugLogEntry::GpuBlock;                                 \
-    g_debuglog[entry].thread = std::this_thread::get_id();                            \
-    g_debuglog[entry].timestamp = finish - start;                                     \
+  {                                                                                        \
+    static const DebugInfoBlock blockinfo(#name, __FILE__, __LINE__, color);               \
+    size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].info = &blockinfo;                                                   \
+    g_debuglog[entry].type = DebugLogEntry::GpuBlock;                                      \
+    g_debuglog[entry].thread = std::this_thread::get_id();                                 \
+    g_debuglog[entry].timestamp = finish - start;                                          \
   }
 
 #define BEGIN_STAT_BLOCK(name) \
   auto stat_start_##name = __rdtsc();
 
 #define END_STAT_BLOCK(name) \
-  {                                                                                   \
-    static int stat_count = 0;                                                        \
-    static double stat_time = 0;                                                      \
-                                                                                      \
-    auto stat_end = __rdtsc();                                                        \
-    stat_time += (stat_end - stat_start_##name) / clock_frequency();                  \
-    stat_count += 1;                                                                  \
-    if (stat_time > 1.0)                                                              \
-    {                                                                                 \
-      std::cout << #name << ": " << 1000 * stat_time / stat_count << "ms" << std::endl; \
-      stat_count = 0;                                                                 \
-      stat_time = 0.0;                                                                \
-    }                                                                                 \
+  {                                                                                        \
+    static int stat_count = 0;                                                             \
+    static double stat_time = 0;                                                           \
+                                                                                           \
+    auto stat_end = __rdtsc();                                                             \
+    stat_time += (stat_end - stat_start_##name) / clock_frequency();                       \
+    stat_count += 1;                                                                       \
+    if (stat_time > 1.0)                                                                   \
+    {                                                                                      \
+      std::cout << #name << ": " << 1000 * stat_time / stat_count << "ms" << std::endl;    \
+      stat_count = 0;                                                                      \
+      stat_time = 0.0;                                                                     \
+    }                                                                                      \
   }
 
 //
@@ -166,22 +168,22 @@ double clock_frequency();
 //
 
 #define RESOURCE_USE(name, used, capacity) \
-  {                                                                                   \
-    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].type = DebugLogEntry::name;                                     \
-    g_debuglog[entry].thread = std::this_thread::get_id();                            \
-    g_debuglog[entry].timestamp = __rdtsc();                                          \
-    g_debuglog[entry].resourceused = used;                                            \
-    g_debuglog[entry].resourcecapacity = capacity;                                    \
+  {                                                                                        \
+    size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].type = DebugLogEntry::name;                                          \
+    g_debuglog[entry].thread = std::this_thread::get_id();                                 \
+    g_debuglog[entry].timestamp = __rdtsc();                                               \
+    g_debuglog[entry].resourceused = used;                                                 \
+    g_debuglog[entry].resourcecapacity = capacity;                                         \
   }
 
 #define STATISTIC_HIT(name, count) \
-  {                                                                                   \
-    size_t entry = g_debuglogtail.fetch_add(1) % extent<decltype(g_debuglog)>::value; \
-    g_debuglog[entry].type = DebugLogEntry::HitCount;                                 \
-    g_debuglog[entry].thread = std::this_thread::get_id();                            \
-    g_debuglog[entry].timestamp = __rdtsc();                                          \
-    g_debuglog[entry].hitcount = count;                                               \
+  {                                                                                        \
+    size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
+    g_debuglog[entry].type = DebugLogEntry::HitCount;                                      \
+    g_debuglog[entry].thread = std::this_thread::get_id();                                 \
+    g_debuglog[entry].timestamp = __rdtsc();                                               \
+    g_debuglog[entry].hitcount = count;                                                    \
   }
 
 //
@@ -189,13 +191,13 @@ double clock_frequency();
 //
 
 #define LOG_ONCE(msg) \
-  {                                                                                   \
-    static bool logged = false;                                                       \
-    if (!logged)                                                                      \
-    {                                                                                 \
-      std::cout << msg << std::endl;                                                  \
-      logged = true;                                                                  \
-    }                                                                                 \
+  {                                                                                        \
+    static bool logged = false;                                                            \
+    if (!logged)                                                                           \
+    {                                                                                      \
+      std::cout << msg << std::endl;                                                       \
+      logged = true;                                                                       \
+    }                                                                                      \
   }
 
 //
@@ -261,7 +263,7 @@ struct DebugLogInfoChunk // type = 1
 struct DebugLogEntryChunk // type = 2
 {
   uint32_t entrycount;
-  DebugLogEntry entries[];
+  DebugLogEntry entries[1];
 };
 
 #pragma pack(pop)

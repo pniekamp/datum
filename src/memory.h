@@ -141,7 +141,17 @@ class FreeList
     }
 
     size_t bucket(size_t n)
-    {
+    {      
+#if defined(_MSC_VER) && defined(_WIN64)
+      auto __builtin_clzll = [](unsigned long long mask)
+      {
+        unsigned long where = 0;
+
+        _BitScanReverse64(&where, mask);
+
+        return 63 - where;
+      };
+#endif
       return std::min(std::max(8*sizeof(unsigned long long) - __builtin_clzll(n*n-n), (size_t)10) - 10, std::extent<decltype(m_freelist)>::value);
     }
 

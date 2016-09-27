@@ -15,7 +15,6 @@
 #include <typeindex>
 #include <algorithm>
 #include <fstream>
-#include <sys/time.h>
 
 using namespace std;
 using namespace lml;
@@ -379,7 +378,7 @@ namespace
   ///////////////////////// push_debug_overlay //////////////////////////////
   void push_debug_overlay(DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font, Ui::Interaction *interaction)
   {
-    BEGIN_TIMED_BLOCK(DebugOverlay, Color3(1.0, 0.0, 0.0))
+    BEGIN_TIMED_BLOCK(DebugOverlay, Color3(1.0f, 0.0f, 0.0f))
 
     SpriteList overlay;
     SpriteList::BuildState buildstate;
@@ -576,7 +575,7 @@ namespace
           auto a = g_fpshistory[(fpsbase + i - 1) % extentof(g_fpshistory)] * FpsScale;
           auto b = g_fpshistory[(fpsbase + i) % extentof(g_fpshistory)] * FpsScale;
 
-          overlay.push_line(buildstate, cursor + Vec2(j, max(GraphHeight-a, 0.0f)), cursor + Vec2(j+1, max(GraphHeight-b, 0.0f)), Color4(0.5, 0.8, 0.5, 1.0));
+          overlay.push_line(buildstate, cursor + Vec2(j, max(GraphHeight-a, 0.0f)), cursor + Vec2(j+1, max(GraphHeight-b, 0.0f)), Color4(0.5f, 0.8f, 0.5f, 1.0f));
         }
 
         size_t resbase = viewport.width - 70;
@@ -584,7 +583,7 @@ namespace
         char tiptxt[128] = {};
 
         auto resourceslots = g_resources.resourceslotsused / (float)g_resources.resourceslotscapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase, 0), Rect2({0, GraphHeight * (1 - resourceslots)}, {12, GraphHeight}), Color4(0.2, 0.2, 0.7, 1.0));
+        overlay.push_rect(buildstate, cursor + Vec2(resbase, 0), Rect2({0, GraphHeight * (1 - resourceslots)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
         if (contains(Rect2(cursor + Vec2(resbase, 0), cursor + Vec2(resbase + 12, GraphHeight)), mousepos))
         {
@@ -592,7 +591,7 @@ namespace
         }
 
         auto resourcebuffer = g_resources.resourcebufferused / (float)g_resources.resourcebuffercapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase + 15, 0), Rect2({0, GraphHeight * (1 - resourcebuffer)}, {12, GraphHeight}), Color4(0.2, 0.2, 0.7, 1.0));
+        overlay.push_rect(buildstate, cursor + Vec2(resbase + 15, 0), Rect2({0, GraphHeight * (1 - resourcebuffer)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
         if (contains(Rect2(cursor + Vec2(resbase + 15, 0), cursor + Vec2(resbase + 27, GraphHeight)), mousepos))
         {
@@ -600,7 +599,7 @@ namespace
         }
 
         auto renderstorage = g_resources.renderstorageused / (float)g_resources.renderstoragecapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase + 30, 0), Rect2({0, GraphHeight * (1 - renderstorage)}, {12, GraphHeight}), Color4(0.2, 0.2, 0.7, 1.0));
+        overlay.push_rect(buildstate, cursor + Vec2(resbase + 30, 0), Rect2({0, GraphHeight * (1 - renderstorage)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
         if (contains(Rect2(cursor + Vec2(resbase + 30, 0), cursor + Vec2(resbase + 42, GraphHeight)), mousepos))
         {
@@ -608,7 +607,7 @@ namespace
         }
 
         auto renderlumps = g_resources.renderlumpsused / (float)g_resources.renderlumpscapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase + 45, 0), Rect2({0, GraphHeight * (1 - renderlumps)}, {12, GraphHeight}), Color4(0.2, 0.2, 0.7, 1.0));
+        overlay.push_rect(buildstate, cursor + Vec2(resbase + 45, 0), Rect2({0, GraphHeight * (1 - renderlumps)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
         if (contains(Rect2(cursor + Vec2(resbase + 45, 0), cursor + Vec2(resbase + 57, GraphHeight)), mousepos))
         {
@@ -774,6 +773,7 @@ double clock_frequency()
 
   if (frequency == 0)
   {
+#if 0
     struct timezone tz;
     struct timeval tvstart, tvstop;
     unsigned long long int cycles[2];
@@ -796,6 +796,7 @@ double clock_frequency()
     frequency = (cycles[1]-cycles[0]) / microseconds * 1000000.0;
 
     cout << "Detected CPU Frequency: " << frequency / 1000000.0 << "MHz" << endl;
+ #endif
   }
 
   return frequency;

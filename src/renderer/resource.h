@@ -121,7 +121,7 @@ class ResourceManager
 
       Buffer *next;
 
-      uint8_t data[];
+      uint8_t data[1];
     };
 
     Buffer *m_buffers;

@@ -416,7 +416,7 @@ void AssetManager::release_barrier(uintptr_t barrier)
 ///////////////////////// AssetManager::background_loader ///////////////////
 void AssetManager::background_loader(DatumPlatform::PlatformInterface &platform, void *ldata, void *rdata)
 {
-  BEGIN_TIMED_BLOCK(Asset, lml::Color3(0.2, 1.0, 0.4))
+  BEGIN_TIMED_BLOCK(Asset, lml::Color3(0.2f, 1.0f, 0.4f))
 
   auto &manager = *static_cast<AssetManager*>(ldata);
 

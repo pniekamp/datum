@@ -177,7 +177,7 @@ class Game
     Platform m_platform;
 
     int m_fpscount;
-    chrono::system_clock::time_point m_fpstimer;
+    chrono::high_resolution_clock::time_point m_fpstimer;
 };
 
 

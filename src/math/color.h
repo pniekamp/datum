@@ -156,7 +156,7 @@ namespace lml
     auto r = ((color >> 0) & 0x1FF) / 511.0f;
     auto g = ((color >> 9) & 0x1FF) / 511.0f;
     auto b = ((color >> 18) & 0x1FF) / 511.0f;
-    auto e = (int)((color >> 27) & 0x1F) - 15;
+    auto e = ((color >> 27) & 0x1F) - 15.0f;
 
     return Color4(r * std::exp2(e), g * std::exp2(e), b * std::exp2(e), 1.0f);
   }

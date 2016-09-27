@@ -107,9 +107,9 @@ void datumtest_init(PlatformInterface &platform)
   while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
     ;
 
-  state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512);
-  state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512);
-  state.renderframes[2].skybox = state.resources.create<SkyBox>(512, 512);
+  state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+  state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+  state.renderframes[2].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 
@@ -117,7 +117,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sibenik.pack"));
 #endif
 
-#if 1
+#if 0
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
@@ -143,7 +143,7 @@ void datumtest_init(PlatformInterface &platform)
 #endif
 
 #if 1
-  for(float roughness = 0; roughness < 1.0f + 1e-3f; roughness += 0.1)
+  for(float roughness = 0; roughness < 1.0f + 1e-3f; roughness += 0.1f)
   {
     float x = (1 - roughness) * 12.0f;
     float y = 1.0f;
@@ -156,13 +156,13 @@ void datumtest_init(PlatformInterface &platform)
     state.scene.add_component<MeshComponent>(entity, state.testsphere, material, MeshComponent::Static | MeshComponent::Visible);
   }
 
-  for(float roughness = 0; roughness < 1.0f + 1e-3f; roughness += 0.1)
+  for(float roughness = 0; roughness < 1.0f + 1e-3f; roughness += 0.1f)
   {
     float x = (1 - roughness) * 12.0f;
     float y = 1.0f;
     float z = -3.0f;
 
-    auto material = state.resources.create<Material>(Color3(1.000, 0.766, 0.336), 1.0f, roughness);
+    auto material = state.resources.create<Material>(Color3(1.000f, 0.766f, 0.336f), 1.0f, roughness);
 
     auto entity = state.scene.create<Entity>();
     state.scene.add_component<TransformComponent>(entity, Transform::translation(Vec3(x, y, z)));
@@ -175,7 +175,7 @@ void datumtest_init(PlatformInterface &platform)
 ///////////////////////// game_update ///////////////////////////////////////
 void datumtest_update(PlatformInterface &platform, GameInput const &input, float dt)
 {
-  BEGIN_TIMED_BLOCK(Update, Color3(1.0, 1.0, 0.4))
+  BEGIN_TIMED_BLOCK(Update, Color3(1.0f, 1.0f, 0.4f))
 
   GameState &state = *static_cast<GameState*>(platform.gamememory.data);
 
@@ -193,7 +193,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
       state.camera.pitch(1.5f * (state.lastmousey - input.mousey));
     }
 
-    float speed = 0.02;
+    float speed = 0.02f;
 
     if (input.modifiers & GameInput::Shift)
       speed *= 10;
@@ -381,7 +381,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   state.readframe = state.readyframe.exchange(state.readframe);
 
-  BEGIN_TIMED_BLOCK(Render, Color3(0.0, 0.2, 1.0))
+  BEGIN_TIMED_BLOCK(Render, Color3(0.0f, 0.2f, 1.0f))
 
   auto &camera = state.readframe->camera;
 
@@ -414,8 +414,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.width = viewport.width;
   renderparams.height = viewport.height;
   renderparams.aspect = state.aspect;
-  renderparams.skybox = state.skybox;
-//  renderparams.skybox = state.readframe->skybox;
+//  renderparams.skybox = state.skybox;
+  renderparams.skybox = state.readframe->skybox;
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
   //renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), -0.1*state.readframe->time);
