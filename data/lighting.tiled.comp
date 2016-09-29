@@ -233,7 +233,7 @@ void main(void)
 
     float mainlightshadow = mainlight_shadow(scene.mainlight, position, normal);
     
-    vec3 envdiffuse = vec3(1);
+    vec3 envdiffuse = vec3(0.2);
     vec3 envspecular = vec3(0);
 
     environment(envdiffuse, envspecular, position, normal, eyevec, material);

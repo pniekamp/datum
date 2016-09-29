@@ -773,30 +773,24 @@ double clock_frequency()
 
   if (frequency == 0)
   {
-#if 0
-    struct timezone tz;
-    struct timeval tvstart, tvstop;
     unsigned long long int cycles[2];
-    unsigned long microseconds;
+    chrono::high_resolution_clock::time_point tvstart, tvstop;
 
-    memset(&tz, 0, sizeof(tz));
-
-    gettimeofday(&tvstart, &tz);
+    tvstart = std::chrono::high_resolution_clock::now();
     cycles[0] = __rdtsc();
-    gettimeofday(&tvstart, &tz);
+    tvstart = std::chrono::high_resolution_clock::now();
 
     this_thread::sleep_for(chrono::milliseconds(250));
 
-    gettimeofday(&tvstop, &tz);
+    tvstop = std::chrono::high_resolution_clock::now();
     cycles[1] = __rdtsc();
-    gettimeofday(&tvstop, &tz);
+    tvstop = std::chrono::high_resolution_clock::now();
 
-    microseconds = ((tvstop.tv_sec-tvstart.tv_sec)*1000000) + (tvstop.tv_usec-tvstart.tv_usec);
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(tvstop - tvstart).count();
 
-    frequency = (cycles[1]-cycles[0]) / microseconds * 1000000.0;
+    frequency = (cycles[1] - cycles[0]) / microseconds * 1000000.0;
 
     cout << "Detected CPU Frequency: " << frequency / 1000000.0 << "MHz" << endl;
- #endif
   }
 
   return frequency;

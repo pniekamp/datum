@@ -202,8 +202,8 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
   auto vertextable = reinterpret_cast<PackVertex*>(payload.data());
   auto indextable = reinterpret_cast<uint32_t*>(payload.data() + vertices.size() * sizeof(PackVertex));
 
-  memcpy(vertextable, &vertices[0], vertices.size()*sizeof(PackVertex));
-  memcpy(indextable, &indices[0], indices.size()*sizeof(uint32_t));
+  memcpy(vertextable, vertices.data(), vertices.size()*sizeof(PackVertex));
+  memcpy(indextable, indices.data(), indices.size()*sizeof(uint32_t));
 
   write_chunk(fout, "DATA", payload.size(), payload.data());
 
@@ -238,6 +238,39 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float
   matl.normalmap = normalmap;
 
   write_chunk(fout, "DATA", sizeof(matl), &matl);
+
+  write_chunk(fout, "AEND", 0, nullptr);
+
+  return id + 1;
+}
+
+
+///////////////////////// write_modl_asset //////////////////////////////////
+uint32_t write_modl_asset(ostream &fout, uint32_t id, vector<PackModelPayload::Texture> const &textures, vector<PackModelPayload::Material> const &materials, vector<PackModelPayload::Mesh> const &meshes, vector<PackModelPayload::Instance> const &instances)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackModelHeader modl = { (uint32_t)textures.size(), (uint32_t)materials.size(), (uint32_t)meshes.size(), (uint32_t)meshes.size(), (size_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "MODL", sizeof(modl), &modl);
+
+  size_t datasize = modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
+
+  vector<char> payload(datasize);
+
+  auto texturetable = reinterpret_cast<PackModelPayload::Texture*>(payload.data());
+  auto materialtable = reinterpret_cast<PackModelPayload::Material*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture));
+  auto meshtable = reinterpret_cast<PackModelPayload::Mesh*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material));
+  auto instancetable = reinterpret_cast<PackModelPayload::Instance*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material) + meshes.size()*sizeof(PackModelPayload::Mesh));
+
+  memcpy(texturetable, textures.data(), textures.size()*sizeof(PackModelPayload::Texture));
+  memcpy(materialtable, materials.data(), materials.size()*sizeof(PackModelPayload::Material));
+  memcpy(meshtable, meshes.data(), meshes.size()*sizeof(PackModelPayload::Mesh));
+  memcpy(instancetable, instances.data(), instances.size()*sizeof(PackModelPayload::Instance));
+
+  write_chunk(fout, "DATA", payload.size(), payload.data());
 
   write_chunk(fout, "AEND", 0, nullptr);
 

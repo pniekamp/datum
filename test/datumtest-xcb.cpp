@@ -6,7 +6,7 @@
 #include <leap/pathstring.h>
 #include <vulkan/vulkan.h>
 #include <iostream>
-#include <algorithm>
+#include <array>
 
 using namespace std;
 using namespace leap;

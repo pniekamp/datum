@@ -571,7 +571,7 @@ namespace Vulkan
     viewinfo.viewType = type;
     viewinfo.format = format;
     viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-    viewinfo.subresourceRange = { (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
+    viewinfo.subresourceRange = { (VkImageAspectFlags)((usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT), 0, levels, 0, layers };
     viewinfo.image = texture.image;
 
     texture.imageview = create_imageview(vulkan, viewinfo);

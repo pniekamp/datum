@@ -122,7 +122,7 @@ namespace lml
 
 
   //////////////////////// Frustum operator == //////////////////////////////
-  constexpr bool operator ==(Frustum const &lhs, Frustum const &rhs)
+  inline bool operator ==(Frustum const &lhs, Frustum const &rhs)
   {
     bool result = true;
 
@@ -134,7 +134,7 @@ namespace lml
 
 
   //////////////////////// Frustum operator != //////////////////////////////
-  constexpr bool operator !=(Frustum const &lhs, Frustum const &rhs)
+  inline bool operator !=(Frustum const &lhs, Frustum const &rhs)
   {
     return !(lhs == rhs);
   }

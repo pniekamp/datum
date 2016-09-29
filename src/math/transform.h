@@ -24,11 +24,11 @@ namespace lml
     public:
       Transform() = default;
 
-      static constexpr Transform identity();
-      static constexpr Transform rotation(Quaternion3f const &quaternion);
-      static constexpr Transform rotation(Vec3 const &axis, float angle);
-      static constexpr Transform translation(Vec3 const &vector);
-      static constexpr Transform translation(float x, float y, float z);
+      static Transform identity();
+      static Transform rotation(Quaternion3f const &quaternion);
+      static Transform rotation(Vec3 const &axis, float angle);
+      static Transform translation(Vec3 const &vector);
+      static Transform translation(float x, float y, float z);
       static Transform lookat(Vec3 const &eye, Vec3 const &target, Vec3 const &up);
 
       Quaternion3f rotation() const { return real; }
@@ -43,49 +43,49 @@ namespace lml
 
 
   //////////////////////// Transform::identity //////////////////////////////
-  constexpr Transform Transform::identity()
+  inline Transform Transform::identity()
   {
     return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
 
   //////////////////////// Transform::rotation //////////////////////////////
-  constexpr Transform Transform::rotation(Quaternion3f const &quaternion)
+  inline Transform Transform::rotation(Quaternion3f const &quaternion)
   {
     return { quaternion, Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
 
   //////////////////////// Transform::rotation //////////////////////////////
-  constexpr Transform Transform::rotation(Vec3 const &axis, float angle)
+  inline Transform Transform::rotation(Vec3 const &axis, float angle)
   {
     return { Quaternion3f({axis.x, axis.y, axis.z}, angle), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
 
   //////////////////////// Transform::translation ///////////////////////////
-  constexpr Transform Transform::translation(Vec3 const &vector)
+  inline Transform Transform::translation(Vec3 const &vector)
   {
     return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5f*vector.x, 0.5f*vector.y, 0.5f*vector.z) };
   }
 
 
   //////////////////////// Transform::translation ///////////////////////////
-  constexpr Transform Transform::translation(float x, float y, float z)
+  inline Transform Transform::translation(float x, float y, float z)
   {
     return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5f*x, 0.5f*y, 0.5f*z) };
   }
 
 
   //////////////////////// Transform operator == ////////////////////////////
-  constexpr bool operator ==(Transform const &lhs, Transform const &rhs)
+  inline bool operator ==(Transform const &lhs, Transform const &rhs)
   {
     return (lhs.real == rhs.real) && (lhs.dual == rhs.dual);
   }
 
 
   //////////////////////// Transform operator != ////////////////////////////
-  constexpr bool operator !=(Transform const &lhs, Transform const &rhs)
+  inline bool operator !=(Transform const &lhs, Transform const &rhs)
   {
     return !(lhs == rhs);
   }

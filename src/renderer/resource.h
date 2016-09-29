@@ -162,7 +162,7 @@ class ResourceManager
       deleterbase *operator ->() { return (deleterbase*)storage; }
 
       void const *resource;
-      alignas(alignof(deleterbase)) char storage[sizeof(deleterbase)];
+      alignas(std::max_align_t) char storage[sizeof(deleterbase)];
     };
 
     size_t m_deletershead;

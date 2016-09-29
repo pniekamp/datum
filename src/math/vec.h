@@ -99,7 +99,7 @@ namespace lml
 
 
   //|///////////////////// Matrix Multiply //////////////////////////////////
-  constexpr Vec3 operator *(Matrix3f const &m, Vec3 const &v)
+  inline Vec3 operator *(Matrix3f const &m, Vec3 const &v)
   {
     auto x = m(0,0)*v.x + m(0,1)*v.y + m(0,2)*v.z;
     auto y = m(1,0)*v.x + m(1,1)*v.y + m(1,2)*v.z;
@@ -168,7 +168,7 @@ namespace lml
 
 
   //|///////////////////// Matrix Multiply //////////////////////////////////
-  constexpr Vec4 operator *(Matrix4f const &m, Vec4 const &v)
+  inline Vec4 operator *(Matrix4f const &m, Vec4 const &v)
   {
     auto x = m(0,0)*v.x + m(0,1)*v.y + m(0,2)*v.z + m(0,3)*v.w;
     auto y = m(1,0)*v.x + m(1,1)*v.y + m(1,2)*v.z + m(1,3)*v.w;

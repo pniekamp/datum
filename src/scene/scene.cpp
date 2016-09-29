@@ -54,7 +54,7 @@ void Scene::clear()
   m_slots.clear();
   m_freeslots.clear();
 
-  m_slots.push_back({ 0, (size_t)-1, nullptr });
+  m_slots.push_back({ {}, (size_t)-1, nullptr });
 
   RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())
 }
@@ -84,12 +84,12 @@ Scene::Slot *Scene::acquire_slot()
   {
     assert(m_slots.size() < ((1 << kIndexBits) - 1));
 
-    m_slots.push_back({ 0, 0, nullptr });
+    m_slots.push_back({ {}, 0, nullptr });
 
     slot = &m_slots.back();
   }
 
-  slot->id = { ((slot->id.generation() + 1) << kIndexBits) + (slot - &m_slots.front()) };
+  slot->id.id = ((slot->id.generation() + 1) << kIndexBits) + (slot - &m_slots.front());
 
   RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())
 

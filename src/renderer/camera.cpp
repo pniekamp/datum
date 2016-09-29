@@ -158,3 +158,21 @@ void Camera::yaw(float angle)
 {
   m_transform = m_transform * Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), angle);
 }
+
+
+///////////////////////// Camera::dolly /////////////////////////////////////
+void Camera::dolly(Vec3 const &target, float amount)
+{
+  auto speed = clamp(0.1f * norm(position() - target), 0.1f, 10.0f);
+
+  m_transform = Transform::lookat(position() + speed * amount * forward(), target, up());
+}
+
+
+///////////////////////// Camera::orbit /////////////////////////////////////
+void Camera::orbit(Vec3 const &target, Quaternion3f const &rotation)
+{
+  auto speed = clamp(0.1f * norm(position() - target), 0.1f, 10.0f);
+
+  m_transform = Transform::lookat(target + normalise(slerp(Quaternion3f(1, 0, 0, 0), rotation, speed)) * (position() - target), target, up());
+}

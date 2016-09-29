@@ -22,24 +22,7 @@ find_package(Qt5Gui  QUIET)
 # leap
 #
 
-find_path(LEAP_INCLUDE leap.h PATHS ${PROJECT_SOURCE_DIR}/../leap/include NO_DEFAULT_PATH)
-
-find_library(LEAP_LIBRARIES NAMES leap PATHS ${PROJECT_SOURCE_DIR}/../leap/lib)
-
-if(LEAP_INCLUDE AND LEAP_LIBRARIES)
-  add_library(leap STATIC IMPORTED)
-  set_property(TARGET leap PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${LEAP_INCLUDE})
-  set_property(TARGET leap PROPERTY IMPORTED_LOCATION ${LEAP_LIBRARIES})
-  set_property(TARGET leap PROPERTY INTERFACE_LINK_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
-
-  if(WIN32)
-    set_property(TARGET leap APPEND PROPERTY INTERFACE_LINK_LIBRARIES WS2_32)
-  endif(WIN32)
-
-  message(STATUS "Found Leap: ${LEAP_INCLUDE}")
-else(LEAP_INCLUDE AND LEAP_LIBRARIES)
-  message(FATAL_ERROR "Could not find Leap Library")
-endif(LEAP_INCLUDE AND LEAP_LIBRARIES)
+add_subdirectory(src/leap)
 
 #
 # vulkan
