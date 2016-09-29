@@ -70,6 +70,9 @@ class Camera
     void pitch(float angle);
     void yaw(float angle);
 
+    void dolly(lml::Vec3 const &target, float amount);
+    void orbit(lml::Vec3 const &target, lml::Quaternion3f const &rotation);
+
   protected:
 
     friend Camera normalise(Camera const &camera);

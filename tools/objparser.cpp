@@ -609,57 +609,64 @@ void write_model(string const &filename)
 
   cout << "  Writing: (" << id << ") model " << output << endl;
 
-  PackAssetHeader aset = { id++ };
-
-  write_chunk(fout, "ASET", sizeof(aset), &aset);
-
-  PackModelHeader modl = { (uint32_t)textures.size(), (uint32_t)materials.size(), (uint32_t)meshes.size(), (uint32_t)meshes.size(), (size_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
-
-  write_chunk(fout, "MODL", sizeof(modl), &modl);
-
-  size_t datasize = modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
-
-  vector<char> payload(datasize);
-
-  auto texturetable = reinterpret_cast<PackModelPayload::Texture*>(payload.data());
-  auto materialtable = reinterpret_cast<PackModelPayload::Material*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture));
-  auto meshtable = reinterpret_cast<PackModelPayload::Mesh*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material));
-  auto instancetable = reinterpret_cast<PackModelPayload::Instance*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material) + meshes.size()*sizeof(PackModelPayload::Mesh));
+  vector<PackModelPayload::Texture> texturetable;
 
   for(size_t i = 0; i < textures.size(); ++i)
   {
-    texturetable[i].type = textures[i].type;
-    texturetable[i].texture = 1 + meshes.size() + i;
+    PackModelPayload::Texture entry;
+
+    entry.type = textures[i].type;
+    entry.texture = 1 + meshes.size() + i;
+
+    texturetable.push_back(entry);
   }
+
+  vector<PackModelPayload::Material> materialtable;
 
   for(size_t i = 0; i < materials.size(); ++i)
   {
-    materialtable[i].color[0] = materials[i].color.r;
-    materialtable[i].color[1] = materials[i].color.g;
-    materialtable[i].color[2] = materials[i].color.b;
-    materialtable[i].metalness = 1.0f;
-    materialtable[i].roughness = 1.0f;
-    materialtable[i].reflectivity = 0.5f;
-    materialtable[i].emissive = 0.0f;
-    materialtable[i].albedomap = materials[i].albedomap;
-    materialtable[i].specularmap = materials[i].specularmap;
-    materialtable[i].normalmap = materials[i].normalmap;
+    PackModelPayload::Material entry;
+
+    entry.color[0] = materials[i].color.r;
+    entry.color[1] = materials[i].color.g;
+    entry.color[2] = materials[i].color.b;
+    entry.metalness = 1.0f;
+    entry.roughness = 1.0f;
+    entry.reflectivity = 0.5f;
+    entry.emissive = 0.0f;
+    entry.albedomap = materials[i].albedomap;
+    entry.specularmap = materials[i].specularmap;
+    entry.normalmap = materials[i].normalmap;
+
+    materialtable.push_back(entry);
   }
+
+  vector<PackModelPayload::Mesh> meshtable;
 
   for(size_t i = 0; i < meshes.size(); ++i)
   {
-    meshtable[i].mesh = 1 + i;
+    PackModelPayload::Mesh entry;
 
-    instancetable[i].mesh = i;
-    instancetable[i].material = meshes[i].material;
-    memcpy(&instancetable[i].transform, &meshes[i].transform, sizeof(Transform));
+    entry.mesh = 1 + i;
 
-    instancetable[i].childcount = 0;
+    meshtable.push_back(entry);
   }
 
-  write_chunk(fout, "DATA", payload.size(), payload.data());
+  vector<PackModelPayload::Instance> instancetable;
 
-  write_chunk(fout, "AEND", 0, nullptr);
+  for(size_t i = 0; i < meshes.size(); ++i)
+  {
+    PackModelPayload::Instance entry;
+
+    entry.mesh = i;
+    entry.material = meshes[i].material;
+    memcpy(&entry.transform, &meshes[i].transform, sizeof(Transform));
+    entry.childcount = 0;
+
+    instancetable.push_back(entry);
+  }
+
+  write_modl_asset(fout, id++, texturetable, materialtable, meshtable, instancetable);
 
   for(auto &mesh : meshes)
   {
