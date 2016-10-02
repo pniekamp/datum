@@ -51,8 +51,8 @@ namespace
 
   void calculatetangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
   {
-    vector<Vec3> tan1(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
-    vector<Vec3> tan2(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
+    vector<Vec3> tan1(vertices.size(), Vec3(0));
+    vector<Vec3> tan2(vertices.size(), Vec3(0));
 
     for(size_t i = 0; i < indices.size(); i += 3)
     {
@@ -144,7 +144,7 @@ uint32_t write_diffmap_asset(ostream &fout, uint32_t id, string const &path, str
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload( image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
   memcpy(payload.data(), image.bits(), image.byteCount());
 
@@ -194,7 +194,7 @@ uint32_t write_specmap_asset(ostream &fout, uint32_t id, string const &metalpath
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload( image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
   memcpy(payload.data(), image.bits(), image.byteCount());
 

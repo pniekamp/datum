@@ -65,22 +65,30 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
   mesh->asset = nullptr;
   mesh->state = Mesh::State::Empty;
 
-  if (auto lump = acquire_lump(0))
+  auto lump = acquire_lump(0);
+
+  if (!lump)
   {
-    wait(vulkan, lump->fence);
+    mesh->~Mesh();
 
-    begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    release_slot(slot, sizeof(Mesh));
 
-    mesh->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, vertexcount, sizeof(Vertex), indexcount, sizeof(uint32_t));
-
-    end(vulkan, lump->commandbuffer);
-
-    submit_transfer(lump);
-
-    release_lump(lump);
-
-    mesh->state = Mesh::State::Ready;
+    return nullptr;
   }
+
+  wait(vulkan, lump->fence);
+
+  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  mesh->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, vertexcount, sizeof(Vertex), indexcount, sizeof(uint32_t));
+
+  end(vulkan, lump->commandbuffer);
+
+  submit_transfer(lump);
+
+  release_lump(lump);
+
+  mesh->state = Mesh::State::Ready;
 
   return mesh;
 }
@@ -145,8 +153,10 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
     {
       if (auto bits = m_assets->request(platform, asset))
       {
-        auto vertextable = reinterpret_cast<Vertex const *>((size_t)bits);
-        auto indextable = reinterpret_cast<uint32_t const *>((size_t)bits + asset->vertexcount*sizeof(Vertex));
+        auto payload = reinterpret_cast<PackMeshPayload const *>(bits);
+
+        auto vertextable = PackMeshPayload::vertextable(payload, asset->vertexcount, asset->indexcount);
+        auto indextable = PackMeshPayload::indextable(payload, asset->vertexcount, asset->indexcount);
 
         if (auto lump = acquire_lump(mesh_datasize(asset->vertexcount, asset->indexcount)))
         {

@@ -117,29 +117,28 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sibenik.pack"));
 #endif
 
-#if 0
+#if 1
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
 
   auto light1 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light1, Transform::translation(Vec3(4.85,1.45,1.45)));
-  state.scene.add_component<PointLightComponent>(light1, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
+  state.scene.add_component<TransformComponent>(light1, Transform::translation(Vec3(4.85f, 1.45f, 1.45f)));
+  state.scene.add_component<PointLightComponent>(light1, Color3(1.0f, 0.5f, 0.0f), Attenuation(0.4f, 0.0f, 1.0f));
 
   auto light2 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light2, Transform::translation(Vec3(4.85,1.45,-2.20)));
-  state.scene.add_component<PointLightComponent>(light2, Color3(1, 0.3, 0), Attenuation(0.4f, 0.0f, 1.0f));
+  state.scene.add_component<TransformComponent>(light2, Transform::translation(Vec3(4.85f, 1.45f, -2.20f)));
+  state.scene.add_component<PointLightComponent>(light2, Color3(1.0f, 0.3f, 0.0f), Attenuation(0.4f, 0.0f, 1.0f));
 
   auto light3 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light3, Transform::translation(Vec3(-6.20,1.45,-2.20)));
-  state.scene.add_component<PointLightComponent>(light3, Color3(1, 0.5, 0), Attenuation(0.4f, 0.0f, 1.0f));
+  state.scene.add_component<TransformComponent>(light3, Transform::translation(Vec3(-6.20f, 1.45f, -2.20f)));
+  state.scene.add_component<PointLightComponent>(light3, Color3(1.0f, 0.5f, 0.0f), Attenuation(0.4f, 0.0f, 1.0f));
 
   auto light4 = state.scene.create<Entity>();
-  state.scene.add_component<TransformComponent>(light4, Transform::translation(Vec3(-6.20,1.45,1.45)));
-  state.scene.add_component<PointLightComponent>(light4, Color3(1, 0.4, 0), Attenuation(0.4f, 0.0f, 1.0f));
+  state.scene.add_component<TransformComponent>(light4, Transform::translation(Vec3(-6.20f, 1.45f, 1.45f)));
+  state.scene.add_component<PointLightComponent>(light4, Color3(1.0f, 0.4f, 0.0f), Attenuation(0.4f, 0.0f, 1.0f));
 
-  state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
-  state.camera.lookat(Vec3(1, 1, 0), Vec3(0, 1, 0));
+  state.camera.lookat(Vec3(0, 1, 0), Vec3(1, 1, 0), Vec3(0, 1, 0));
 #endif
 
 #if 1
@@ -189,7 +188,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   {
     if (input.mousebuttons[GameInput::Left].down())
     {
-      state.camera.yaw(1.5f * (state.lastmousex - input.mousex), Vec3(0.0f, 1.0f, 0.0f));
+      state.camera.yaw(1.5f * (state.lastmousex - input.mousex), Vec3(0, 1, 0));
       state.camera.pitch(1.5f * (state.lastmousey - input.mousey));
     }
 
@@ -199,22 +198,22 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
       speed *= 10;
 
     if (input.controllers[0].move_up.down() && !(input.modifiers & GameInput::Control))
-      state.camera.offset(speed*Vec3(0.0f, 0.0f, -1.0f));
+      state.camera.offset(speed*Vec3(0, 0, -1));
 
     if (input.controllers[0].move_down.down() && !(input.modifiers & GameInput::Control))
-      state.camera.offset(speed*Vec3(0.0f, 0.0f, 1.0f));
+      state.camera.offset(speed*Vec3(0, 0, 1));
 
     if (input.controllers[0].move_up.down() && (input.modifiers & GameInput::Control))
-      state.camera.offset(speed*Vec3(0.0f, 1.0f, 0.0f));
+      state.camera.offset(speed*Vec3(0, 1, 0));
 
     if (input.controllers[0].move_down.down() && (input.modifiers & GameInput::Control))
-      state.camera.offset(speed*Vec3(0.0f, -1.0f, 0.0f));
+      state.camera.offset(speed*Vec3(0, -1, 0));
 
     if (input.controllers[0].move_left.down())
-      state.camera.offset(speed*Vec3(-1.0f, 0.0f, 0.0f));
+      state.camera.offset(speed*Vec3(-1, 0, 0));
 
     if (input.controllers[0].move_right.down())
-      state.camera.offset(speed*Vec3(+1.0f, 0.0f, 0.0f));
+      state.camera.offset(speed*Vec3(1, 0, 0));
   }
 
   state.lastmousex = input.mousex;
@@ -418,7 +417,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.skybox = state.readframe->skybox;
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
-  //renderparams.skyboxorientation = Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), -0.1*state.readframe->time);
+  //renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1*state.readframe->time);
   renderparams.ssaoscale = 0.5f;
 
   DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);

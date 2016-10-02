@@ -102,7 +102,7 @@ namespace lml
 
   //////////////////////// normalise ////////////////////////////////////////
   /// normalise transform
-  inline Transform normalise(Transform const &t)
+  constexpr Transform normalise(Transform const &t)
   {
     auto len = norm(t.real);
     auto real = t.real/len;
@@ -114,7 +114,7 @@ namespace lml
 
   //////////////////////// conjugate ////////////////////////////////////////
   /// conjugate transform
-  inline Transform conjugate(Transform const &t)
+  constexpr Transform conjugate(Transform const &t)
   {
     auto real = Quaternion3f(t.real.scalar, -t.real.vector);
     auto dual = Quaternion3f(-t.dual.scalar, t.dual.vector);
@@ -125,7 +125,7 @@ namespace lml
 
   //////////////////////// inverse //////////////////////////////////////////
   /// inverse transform
-  inline Transform inverse(Transform const &t)
+  constexpr Transform inverse(Transform const &t)
   {
     auto real = Quaternion3f(t.real.scalar, -t.real.vector);
     auto dual = Quaternion3f(t.dual.scalar, -t.dual.vector);
@@ -136,7 +136,7 @@ namespace lml
 
   //////////////////////// operator * ///////////////////////////////////////
   /// Transform Multiplication
-  inline Transform operator *(Transform const &t1, Transform const &t2)
+  constexpr Transform operator *(Transform const &t1, Transform const &t2)
   {
     auto real = t1.real*t2.real;
     auto dual = t1.real*t2.dual + t1.dual*t2.real;
@@ -147,7 +147,7 @@ namespace lml
 
   //////////////////////// transform ////////////////////////////////////////
   /// Transform Point
-  inline Vec3 operator *(Transform const &t, Vec3 const &v)
+  constexpr Vec3 operator *(Transform const &t, Vec3 const &v)
   {
     auto result = t * Transform{{1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, v.x, v.y, v.z}} * conjugate(t);
 

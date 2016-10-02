@@ -82,7 +82,7 @@ void write_chunk(ostream &fout, const char type[4], uint32_t length, void const 
 ///////////////////////// write_compressed_chunk ////////////////////////////
 void write_compressed_chunk(ostream &fout, const char type[4], uint32_t length, void const *data)
 {
-  vector<uint8_t> payload;
+  vector<char> payload;
 
   while(length)
   {
@@ -191,16 +191,14 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  size_t datasize = vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t);
+  PackMeshHeader mesh = { (uint32_t)vertices.size(), (uint32_t)indices.size(), bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
 
-  PackMeshHeader vhdr = { (uint32_t)vertices.size(), (uint32_t)indices.size(), bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, (size_t)fout.tellp() + sizeof(vhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  write_chunk(fout, "MESH", sizeof(mesh), &mesh);
 
-  write_chunk(fout, "MESH", sizeof(vhdr), &vhdr);
+  vector<char> payload(pack_payload_size(mesh));
 
-  vector<uint8_t> payload(datasize);
-
-  auto vertextable = reinterpret_cast<PackVertex*>(payload.data());
-  auto indextable = reinterpret_cast<uint32_t*>(payload.data() + vertices.size() * sizeof(PackVertex));
+  auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
+  auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
 
   memcpy(vertextable, vertices.data(), vertices.size()*sizeof(PackVertex));
   memcpy(indextable, indices.data(), indices.size()*sizeof(uint32_t));
@@ -252,18 +250,16 @@ uint32_t write_modl_asset(ostream &fout, uint32_t id, vector<PackModelPayload::T
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackModelHeader modl = { (uint32_t)textures.size(), (uint32_t)materials.size(), (uint32_t)meshes.size(), (uint32_t)meshes.size(), (size_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackModelHeader modl = { (uint32_t)textures.size(), (uint32_t)materials.size(), (uint32_t)meshes.size(), (uint32_t)instances.size(), (size_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "MODL", sizeof(modl), &modl);
 
-  size_t datasize = modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
+  vector<char> payload(pack_payload_size(modl));
 
-  vector<char> payload(datasize);
-
-  auto texturetable = reinterpret_cast<PackModelPayload::Texture*>(payload.data());
-  auto materialtable = reinterpret_cast<PackModelPayload::Material*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture));
-  auto meshtable = reinterpret_cast<PackModelPayload::Mesh*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material));
-  auto instancetable = reinterpret_cast<PackModelPayload::Instance*>(payload.data() + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material) + meshes.size()*sizeof(PackModelPayload::Mesh));
+  auto texturetable = const_cast<PackModelPayload::Texture*>(PackModelPayload::texturetable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
+  auto materialtable = const_cast<PackModelPayload::Material*>(PackModelPayload::materialtable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
+  auto meshtable = const_cast<PackModelPayload::Mesh*>(PackModelPayload::meshtable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
+  auto instancetable = const_cast<PackModelPayload::Instance*>(PackModelPayload::instancetable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
 
   memcpy(texturetable, textures.data(), textures.size()*sizeof(PackModelPayload::Texture));
   memcpy(materialtable, materials.data(), materials.size()*sizeof(PackModelPayload::Material));

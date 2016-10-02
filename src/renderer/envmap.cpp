@@ -16,6 +16,42 @@ using namespace lml;
 using leap::alignto;
 using leap::extentof;
 
+namespace
+{
+  size_t envmap_datasize(int width, int height, int layers, int levels, VkFormat format)
+  {
+    assert(width > 0 && height > 0 && layers > 0 && levels > 0);
+
+    size_t size = 0;
+    for(int i = 0; i < levels; ++i)
+    {
+      switch(format)
+      {
+        case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+          size += width * height * sizeof(uint32_t) * layers;
+          break;
+
+        case VK_FORMAT_R16G16B16A16_SFLOAT:
+          size += width * height * 4*sizeof(uint16_t) * layers;
+          break;
+
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+          size += width * height * 4*sizeof(uint32_t) * layers;
+          break;
+
+        default:
+          assert(false);
+          break;
+      }
+
+      width /= 2;
+      height /= 2;
+    }
+
+    return size;
+  }
+}
+
 
 //|---------------------- EnvMap --------------------------------------------
 //|--------------------------------------------------------------------------
@@ -28,6 +64,7 @@ EnvMap const *ResourceManager::create<EnvMap>(Asset const *asset)
     return nullptr;
 
   assert(asset->layers == 6);
+  assert(asset->format == PackImageHeader::rgbe);
 
   auto slot = acquire_slot(sizeof(EnvMap));
 
@@ -80,24 +117,32 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
       break;
   }
 
-  if (auto lump = acquire_lump(0))
+  auto lump = acquire_lump(0);
+
+  if (!lump)
   {
-    wait(vulkan, lump->fence);
+    envmap->~EnvMap();
 
-    begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    release_slot(slot, sizeof(EnvMap));
 
-    envmap->texture = create_texture(vulkan, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-    setimagelayout(lump->commandbuffer, envmap->texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, envmap->texture.levels, 0, envmap->texture.layers });
-
-    end(vulkan, lump->commandbuffer);
-
-    submit_transfer(lump);
-
-    release_lump(lump);
-
-    envmap->state = EnvMap::State::Ready;
+    return nullptr;
   }
+
+  wait(vulkan, lump->fence);
+
+  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  envmap->texture = create_texture(vulkan, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+  setimagelayout(lump->commandbuffer, envmap->texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, envmap->texture.levels, 0, envmap->texture.layers });
+
+  end(vulkan, lump->commandbuffer);
+
+  submit_transfer(lump);
+
+  release_lump(lump);
+
+  envmap->state = EnvMap::State::Ready;
 
   return envmap;
 }
@@ -151,23 +196,15 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
     {
       if (auto bits = m_assets->request(platform, asset))
       {
-        size_t datasize = 0;
+        VkFormat vkformat = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
 
-        for(int i = 0, width = asset->width, height = asset->height, layers = asset->layers; i < asset->levels; ++i)
-        {
-          datasize += width * height * layers * sizeof(uint32_t);
-
-          width /= 2;
-          height /= 2;
-        }
-
-        if (auto lump = acquire_lump(datasize))
+        if (auto lump = acquire_lump(envmap_datasize(asset->width, asset->height, asset->layers, asset->levels, vkformat)))
         {
           wait(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, asset->width, asset->height, asset->layers, asset->levels, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+          slot->texture = create_texture(vulkan, asset->width, asset->height, asset->layers, asset->levels, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
           setimagelayout(lump->commandbuffer, slot->texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, slot->texture.levels, 0, slot->texture.layers });
 

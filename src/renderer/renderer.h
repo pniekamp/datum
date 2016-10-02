@@ -300,7 +300,7 @@ struct RenderParams
   float aspect = 1.7777778f;
 
   lml::Vec3 sundirection = { -0.57735f, -0.57735f, -0.57735f };
-  lml::Color3 sunintensity = { 1.0f, 1.0f, 1.0f };
+  lml::Color3 sunintensity = { 8.0f, 7.56f, 7.88f };
 
   SkyBox const *skybox = nullptr;
   lml::Transform skyboxorientation = lml::Transform::identity();
