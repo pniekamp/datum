@@ -21,4 +21,4 @@
 Head branch is tested against gcc/clang on Linux and Mingw 5.3 on Windows.
 
 ### Visual Studio
-There is a ![datum-vs branch](https://github.com/pniekamp/datum/tree/datum-vs) for VS2015 x64 Update 3.
+There is a [datum-vs branch](https://github.com/pniekamp/datum/tree/datum-vs) for VS2015 x64 Update 3.
