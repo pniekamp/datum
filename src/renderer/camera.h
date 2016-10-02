@@ -23,11 +23,11 @@ class Camera
 
     lml::Quaternion3f rotation() const { return m_transform.rotation(); }
 
-    lml::Vec3 up() const { return m_transform.rotation() * lml::Vec3(0.0f, 1.0f, 0.0f); }
-    lml::Vec3 right() const { return m_transform.rotation() * lml::Vec3(1.0f, 0.0f, 0.0f); }
-    lml::Vec3 backward() const { return m_transform.rotation() * lml::Vec3(0.0f, 0.0f, 1.0f); }
+    lml::Vec3 up() const { return m_transform.rotation() * lml::Vec3(0, 1, 0); }
+    lml::Vec3 right() const { return m_transform.rotation() * lml::Vec3(1, 0, 0); }
+    lml::Vec3 backward() const { return m_transform.rotation() * lml::Vec3(0, 0, 1); }
 
-    lml::Vec3 forward() const { return m_transform.rotation() * lml::Vec3(0.0f, 0.0f, -1.0f); }
+    lml::Vec3 forward() const { return m_transform.rotation() * lml::Vec3(0, 0, -1); }
 
     float fov() const { return m_fov; }
     float aspect() const { return m_aspect; }
@@ -60,6 +60,7 @@ class Camera
     void yaw(float angle, lml::Vec3 const &up);
 
     void lookat(lml::Vec3 const &target, lml::Vec3 const &up);
+    void lookat(lml::Vec3 const &position, lml::Vec3 const &target, lml::Vec3 const &up);
 
     // camera space
 

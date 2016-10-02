@@ -108,7 +108,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
 
             platform.read_handle(file.handle, position + sizeof(chunk), &catl, sizeof(catl));
 
-//            asset.datasize = catl.length;
+//            asset.datasize = pack_payload_size(catl);
 //            asset.datapos = catl.dataoffset;
 
             break;
@@ -121,7 +121,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             platform.read_handle(file.handle, position + sizeof(chunk), &text, sizeof(text));
 
             asset.length = text.length;
-            asset.datasize = text.length;
+            asset.datasize = pack_payload_size(text);
             asset.datapos = text.dataoffset;
 
             break;
@@ -138,7 +138,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.layers = imag.layers;
             asset.levels = imag.levels;
             asset.format = imag.format;
-            asset.datasize = imag.datasize;
+            asset.datasize = pack_payload_size(imag);
             asset.datapos = imag.dataoffset;
 
             break;
@@ -154,7 +154,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.descent = font.descent;
             asset.leading = font.leading;
             asset.glyphcount = font.glyphcount;
-            asset.datasize = sizeof(PackFontPayload) + 6*font.glyphcount*sizeof(uint16_t) + font.glyphcount*font.glyphcount*sizeof(uint8_t);
+            asset.datasize = pack_payload_size(font);
             asset.datapos = font.dataoffset;
 
             break;
@@ -174,7 +174,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.maxcorner[0] = mesh.maxcorder[0];
             asset.maxcorner[1] = mesh.maxcorder[1];
             asset.maxcorner[2] = mesh.maxcorder[2];
-            asset.datasize = mesh.vertexcount*sizeof(PackVertex) + mesh.indexcount*sizeof(uint32_t);
+            asset.datasize = pack_payload_size(mesh);
             asset.datapos = mesh.dataoffset;
 
             break;
@@ -186,7 +186,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
 
             platform.read_handle(file.handle, position + sizeof(chunk), &matl, sizeof(matl));
 
-            asset.datasize = sizeof(PackMaterialPayload);
+            asset.datasize = pack_payload_size(matl);
             asset.datapos = matl.dataoffset;
 
             break;
@@ -202,7 +202,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.materialcount = modl.materialcount;
             asset.meshcount = modl.meshcount;
             asset.instancecount = modl.instancecount;
-            asset.datasize = modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
+            asset.datasize = pack_payload_size(modl);
             asset.datapos = modl.dataoffset;
 
             break;

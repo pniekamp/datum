@@ -134,22 +134,30 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
       break;
   }
 
-  if (auto lump = acquire_lump(0))
+  auto lump = acquire_lump(0);
+
+  if (!lump)
   {
-    wait(vulkan, lump->fence);
+    texture->~Texture();
 
-    begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    release_slot(slot, sizeof(Texture));
 
-    texture->texture = create_texture(vulkan, lump->commandbuffer, width, height, layers, levels, vkformat);
-
-    end(vulkan, lump->commandbuffer);
-
-    submit_transfer(lump);
-
-    release_lump(lump);
-
-    texture->state = Texture::State::Ready;
+    return nullptr;
   }
+
+  wait(vulkan, lump->fence);
+
+  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  texture->texture = create_texture(vulkan, lump->commandbuffer, width, height, layers, levels, vkformat);
+
+  end(vulkan, lump->commandbuffer);
+
+  submit_transfer(lump);
+
+  release_lump(lump);
+
+  texture->state = Texture::State::Ready;
 
   return texture;
 }

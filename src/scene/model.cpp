@@ -50,7 +50,12 @@ Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, R
   while (!(bits = assets->request(platform, asset)))
     ;
 
-  auto texturetable = reinterpret_cast<PackModelPayload::Texture const *>(reinterpret_cast<char const *>(bits));
+  auto payload = reinterpret_cast<PackModelPayload const *>(bits);
+
+  auto texturetable = PackModelPayload::texturetable(payload, asset->texturecount, asset->materialcount, asset->meshcount, asset->instancecount);
+  auto materialtable = PackModelPayload::materialtable(payload, asset->texturecount, asset->materialcount, asset->meshcount, asset->instancecount);
+  auto meshtable = PackModelPayload::meshtable(payload, asset->texturecount, asset->materialcount, asset->meshcount, asset->instancecount);
+  auto instancetable = PackModelPayload::instancetable(payload, asset->texturecount, asset->materialcount, asset->meshcount, asset->instancecount);
 
   model->textures.resize(asset->texturecount);
 
@@ -76,8 +81,6 @@ Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, R
     }
   }
 
-  auto materialtable = reinterpret_cast<PackModelPayload::Material const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture));
-
   model->materials.resize(asset->materialcount);
 
   for(int i = 0; i < asset->materialcount; ++i)
@@ -96,16 +99,12 @@ Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, R
     model->materials[i] = resources->create<Material>(color, metalness, roughness, reflectivity, emissive, albedomap, specularmap, normalmap);
   }
 
-  auto meshtable = reinterpret_cast<PackModelPayload::Mesh const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material));
-
   model->meshes.resize(asset->meshcount);
 
   for(int i = 0; i < asset->meshcount; ++i)
   {
     model->meshes[i] = resources->create<Mesh>(assets->find(asset->id + meshtable[i].mesh));
   }
-
-  auto instancetable = reinterpret_cast<PackModelPayload::Instance const *>(reinterpret_cast<char const *>(bits) + asset->texturecount*sizeof(PackModelPayload::Texture) + asset->materialcount*sizeof(PackModelPayload::Material) + asset->meshcount*sizeof(PackModelPayload::Mesh));
 
   for(int i = 0; i < asset->instancecount; ++i)
   {

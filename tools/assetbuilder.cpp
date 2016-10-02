@@ -49,8 +49,8 @@ namespace
 
   void calculatetangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
   {
-    vector<Vec3> tan1(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
-    vector<Vec3> tan2(vertices.size(), Vec3(0.0f, 0.0f, 0.0f));
+    vector<Vec3> tan1(vertices.size(), Vec3(0));
+    vector<Vec3> tan2(vertices.size(), Vec3(0));
 
     for(size_t i = 0; i < indices.size(); i += 3)
     {
@@ -302,7 +302,7 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload( image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
   memcpy(payload.data(), image.bits(), image.byteCount());
 
@@ -354,7 +354,7 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &metal
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload( image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
   memcpy(payload.data(), image.bits(), image.byteCount());
 
@@ -384,7 +384,7 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
   int layers = 1;
   int levels = min(4, image_maxlevels(width, height));
 
-  vector<char> payload( image_datasize(width, height, layers, levels));
+  vector<char> payload(image_datasize(width, height, layers, levels));
 
   memcpy(payload.data(), image.bits(), image.byteCount());
 
@@ -615,23 +615,21 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
   int count = 127;
 
-  size_t datasize = sizeof(PackFontPayload) + 6*count*sizeof(uint16_t) + count*count*sizeof(uint8_t);
-
   PackFontHeader fhdr = { (uint32_t)tm.ascent(), (uint32_t)tm.descent(), (uint32_t)tm.leading(), (uint32_t)count, (size_t)fout.tellp() + sizeof(fhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "FONT", sizeof(fhdr), &fhdr);
 
-  vector<char> payload(datasize);
+  vector<char> payload(pack_payload_size(fhdr));
 
   reinterpret_cast<PackFontPayload*>(payload.data())->glyphatlas = 1;
 
-  auto xtable = reinterpret_cast<uint16_t*>(payload.data() + sizeof(PackFontPayload) + 0 * count * sizeof(uint16_t));
-  auto ytable = reinterpret_cast<uint16_t*>(payload.data() + sizeof(PackFontPayload) + 1 * count * sizeof(uint16_t));
-  auto widthtable = reinterpret_cast<uint16_t*>(payload.data() + sizeof(PackFontPayload) + 2 * count * sizeof(uint16_t));
-  auto heighttable = reinterpret_cast<uint16_t*>(payload.data() + sizeof(PackFontPayload) + 3 * count * sizeof(uint16_t));
-  auto offsetxtable = reinterpret_cast<uint16_t*>(payload.data() + sizeof(PackFontPayload) + 4 * count * sizeof(uint16_t));
-  auto offsetytable = reinterpret_cast<uint16_t*>(payload.data() + sizeof(PackFontPayload) + 5 * count * sizeof(uint16_t));
-  auto advancetable = reinterpret_cast<uint8_t*>(payload.data() + sizeof(PackFontPayload) + 6 * count * sizeof(uint16_t));
+  auto xtable = const_cast<uint16_t*>(PackFontPayload::xtable(payload.data(), fhdr.glyphcount));
+  auto ytable = const_cast<uint16_t*>(PackFontPayload::ytable(payload.data(), fhdr.glyphcount));
+  auto widthtable = const_cast<uint16_t*>(PackFontPayload::widthtable(payload.data(), fhdr.glyphcount));
+  auto heighttable = const_cast<uint16_t*>(PackFontPayload::heighttable(payload.data(), fhdr.glyphcount));
+  auto offsetxtable = const_cast<uint16_t*>(PackFontPayload::offsetxtable(payload.data(), fhdr.glyphcount));
+  auto offsetytable = const_cast<uint16_t*>(PackFontPayload::offsetytable(payload.data(), fhdr.glyphcount));
+  auto advancetable = const_cast<uint8_t*>(PackFontPayload::advancetable(payload.data(), fhdr.glyphcount));
 
   AtlasPacker packer(512, 256);
 

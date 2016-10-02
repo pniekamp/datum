@@ -1,0 +1,246 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="asset.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="debug.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="renderlist.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\camera.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\casterlist.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\commandlist.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\entity.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\envmap.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\font.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\lightcomponent.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\vulkan.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\texture.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\spritelist.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\sprite.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\skybox.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\resourcepool.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\resource.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\renderer.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\occlusion.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\meshlist.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\mesh.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\material.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\lightlist.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\meshcomponent.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\model.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\namecomponent.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\scene.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\spritecomponent.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\transformcomponent.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="asset.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assetpack.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="corepack.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="debug.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="memory.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="renderlist.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="math\attenuation.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\basiccomponent.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="math\bound.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\color.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\frustum.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\line.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\plane.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\rect.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\sphere.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\transform.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\vec.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\camera.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\casterlist.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\commandlist.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\entity.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\envmap.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\font.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\lightcomponent.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\delegate.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\vulkan.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\texture.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\spritelist.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\sprite.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\skybox.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\resourcepool.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\resource.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\renderer.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\occlusion.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\meshlist.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\mesh.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\material.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\lightlist.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\meshcomponent.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\model.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\namecomponent.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\scene.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\spritecomponent.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\storage.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\transformcomponent.h">
+      <Filter>Source Files\scene</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{AADD6CF3-CC50-32F1-B6E7-8BA3FB210001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\scene">
+      <UniqueIdentifier>{550b6d2a-fe6d-463f-83ae-23c52e9861f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer">
+      <UniqueIdentifier>{d172b973-fc95-45a6-ad45-68bef4cc1b57}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\math">
+      <UniqueIdentifier>{aaa04896-5b61-4d71-9e9f-430c304d3f99}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

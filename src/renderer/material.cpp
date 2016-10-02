@@ -135,32 +135,32 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
     {
       if (auto bits = m_assets->request(platform, asset))
       {
-        auto material = reinterpret_cast<PackMaterialPayload const *>(bits);
+        auto payload = reinterpret_cast<PackMaterialPayload const *>(bits);
 
-        slot->color = Color3(material->color[0], material->color[1], material->color[2]);
+        slot->color = Color3(payload->color[0], payload->color[1], payload->color[2]);
 
-        slot->metalness = material->metalness;
-        slot->roughness = material->roughness;
-        slot->reflectivity = material->reflectivity;
-        slot->emissive = material->emissive;
+        slot->metalness = payload->metalness;
+        slot->roughness = payload->roughness;
+        slot->reflectivity = payload->reflectivity;
+        slot->emissive = payload->emissive;
 
-        if (material->albedomap)
+        if (payload->albedomap)
         {
-          slot->albedomap = create<Texture>(assets()->find(asset->id + material->albedomap), Texture::Format::SRGBA);
+          slot->albedomap = create<Texture>(assets()->find(asset->id + payload->albedomap), Texture::Format::SRGBA);
 
           slot->flags |= MaterialOwnsAlbedoMap;
         }
 
-        if (material->specularmap)
+        if (payload->specularmap)
         {
-          slot->specularmap = create<Texture>(assets()->find(asset->id + material->specularmap), Texture::Format::SRGBA);
+          slot->specularmap = create<Texture>(assets()->find(asset->id + payload->specularmap), Texture::Format::SRGBA);
 
           slot->flags |= MaterialOwnsSpecularMap;
         }
 
-        if (material->normalmap)
+        if (payload->normalmap)
         {
-          slot->normalmap = create<Texture>(assets()->find(asset->id + material->normalmap), Texture::Format::RGBA);
+          slot->normalmap = create<Texture>(assets()->find(asset->id + payload->normalmap), Texture::Format::RGBA);
 
           slot->flags |= MaterialOwnsNormalMap;
         }

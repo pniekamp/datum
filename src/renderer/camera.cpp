@@ -125,6 +125,13 @@ void Camera::lookat(Vec3 const &target, Vec3 const &up)
 }
 
 
+///////////////////////// Camera::lookat ////////////////////////////////////
+void Camera::lookat(Vec3 const &position, Vec3 const &target, Vec3 const &up)
+{
+  m_transform = Transform::lookat(position, target, up);
+}
+
+
 ///////////////////////// Camera::offset ////////////////////////////////////
 void Camera::offset(Vec3 const &translation)
 {
@@ -142,21 +149,21 @@ void Camera::rotate(Quaternion3f const &rotation)
 ///////////////////////// Camera::roll //////////////////////////////////////
 void Camera::roll(float angle)
 {
-  m_transform = m_transform * Transform::rotation(Vec3(0.0f, 0.0f, 1.0f), angle);
+  m_transform = m_transform * Transform::rotation(Vec3(0, 0, 1), angle);
 }
 
 
 ///////////////////////// Camera::pitch /////////////////////////////////////
 void Camera::pitch(float angle)
 {
-  m_transform = m_transform * Transform::rotation(Vec3(1.0f, 0.0f, 0.0f), angle);
+  m_transform = m_transform * Transform::rotation(Vec3(1, 0, 0), angle);
 }
 
 
 ///////////////////////// Camera::yaw ///////////////////////////////////////
 void Camera::yaw(float angle)
 {
-  m_transform = m_transform * Transform::rotation(Vec3(0.0f, 1.0f, 0.0f), angle);
+  m_transform = m_transform * Transform::rotation(Vec3(0, 1, 0), angle);
 }
 
 
@@ -172,7 +179,9 @@ void Camera::dolly(Vec3 const &target, float amount)
 ///////////////////////// Camera::orbit /////////////////////////////////////
 void Camera::orbit(Vec3 const &target, Quaternion3f const &rotation)
 {
-  auto speed = clamp(0.1f * norm(position() - target), 0.1f, 10.0f);
+  auto speed = clamp(0.1f * norm(position() - target), 0.1f, 1.0f);
 
-  m_transform = Transform::lookat(target + normalise(slerp(Quaternion3f(1, 0, 0, 0), rotation, speed)) * (position() - target), target, up());
+  auto angle = normalise(slerp(Quaternion3f(1, 0, 0, 0), rotation, speed));
+
+  m_transform = Transform::lookat(target + angle * (position() - target), target, angle * up());
 }

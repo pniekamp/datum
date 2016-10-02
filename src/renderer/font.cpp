@@ -59,16 +59,18 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
     if (auto asset = slot->asset)
     {
       if (auto bits = m_assets->request(platform, asset))
-      {
-        auto count = (size_t)asset->glyphcount;
-        auto glyphs = reinterpret_cast<uint32_t const*>((size_t)bits);
-        auto xtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 0 * count * sizeof(uint16_t));
-        auto ytable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 1 * count * sizeof(uint16_t));
-        auto widthtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 2 * count * sizeof(uint16_t));
-        auto heighttable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 3 * count * sizeof(uint16_t));
-        auto offsetxtable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 4 * count * sizeof(uint16_t));
-        auto offsetytable = reinterpret_cast<uint16_t*>((size_t)bits + sizeof(uint32_t) + 5 * count * sizeof(uint16_t));
-        auto advancetable = reinterpret_cast<uint8_t const*>((size_t)bits + sizeof(uint32_t) + 6 * count * sizeof(uint16_t));
+      {       
+        auto payload = reinterpret_cast<PackFontPayload const *>(bits);
+
+        auto count = asset->glyphcount;
+        auto glyphs = payload->glyphatlas;
+        auto xtable = PackFontPayload::xtable(payload, asset->glyphcount);
+        auto ytable = PackFontPayload::ytable(payload, asset->glyphcount);
+        auto widthtable = PackFontPayload::widthtable(payload, asset->glyphcount);
+        auto heighttable = PackFontPayload::heighttable(payload, asset->glyphcount);
+        auto offsetxtable = PackFontPayload::offsetxtable(payload, asset->glyphcount);
+        auto offsetytable = PackFontPayload::offsetytable(payload, asset->glyphcount);
+        auto advancetable = PackFontPayload::advancetable(payload, asset->glyphcount);
 
         slot->memorysize = 8*count*sizeof(float) + count*count*sizeof(uint8_t);
 
@@ -76,24 +78,24 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
 
         if (slot->memory)
         {
-          slot->glyphs = create<Texture>(assets()->find(asset->id + *glyphs), Texture::Format::RGBA);
+          slot->glyphs = create<Texture>(assets()->find(asset->id + glyphs), Texture::Format::RGBA);
 
           float sx = 1.0f / font->glyphs->width;
           float sy = 1.0f / font->glyphs->height;
 
           slot->texcoords = reinterpret_cast<Vec4*>((size_t)slot->memory + 0*count*sizeof(float));
 
-          for(size_t codepoint = 0; codepoint < count; ++codepoint)
+          for(int codepoint = 0; codepoint < count; ++codepoint)
             slot->texcoords[codepoint] = Vec4(sx * xtable[codepoint], sy * ytable[codepoint], sx * widthtable[codepoint], sy * heighttable[codepoint]);
 
           slot->alignment = reinterpret_cast<Vec2*>((size_t)slot->memory + 4*count*sizeof(float));
 
-          for(size_t codepoint = 0; codepoint < count; ++codepoint)
+          for(int codepoint = 0; codepoint < count; ++codepoint)
             slot->alignment[codepoint] = Vec2(offsetxtable[codepoint], offsetytable[codepoint]);
 
           slot->dimension = reinterpret_cast<Vec2*>((size_t)slot->memory + 6*count*sizeof(float));
 
-          for(size_t codepoint = 0; codepoint < count; ++codepoint)
+          for(int codepoint = 0; codepoint < count; ++codepoint)
             slot->dimension[codepoint] = Vec2(widthtable[codepoint], heighttable[codepoint]);
 
           slot->advance = reinterpret_cast<uint8_t*>((size_t)slot->memory + 8*count*sizeof(float));
