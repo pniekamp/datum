@@ -117,7 +117,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sibenik.pack"));
 #endif
 
-#if 1
+#if 0
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
@@ -329,17 +329,6 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   }
 #endif
 
-  SkyboxParams skyboxparams;
-  skyboxparams.sunintensity = state.sunintensity;
-  skyboxparams.sundirection = state.sundirection;
-
-  DEBUG_MENU_VALUE("Lighting/Sky", &skyboxparams.skycolor, Color3(0, 0, 0), Color3(10, 10, 10));
-  DEBUG_MENU_VALUE("Lighting/Ground", &skyboxparams.groundcolor, Color3(0, 0, 0), Color3(10, 10, 10));
-  DEBUG_MENU_VALUE("Lighting/Sun Intensity", &state.sunintensity, Color3(0, 0, 0), Color3(10, 10, 10));
-  DEBUG_MENU_ENTRY("Lighting/Sun Direction", state.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", state.sundirection, Vec3(-1), Vec3(1))));
-
-  render_skybox(state.skyboxcontext, state.writeframe->skybox, skyboxparams);
-
   DEBUG_MENU_ENTRY("Camera/Position", state.camera.position());
   DEBUG_MENU_ENTRY("Camera/Exposure", state.camera.exposure());
   DEBUG_MENU_ENTRY("Camera/LumaTarget", state.luminancetarget);
@@ -413,8 +402,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.width = viewport.width;
   renderparams.height = viewport.height;
   renderparams.aspect = state.aspect;
-//  renderparams.skybox = state.skybox;
-  renderparams.skybox = state.readframe->skybox;
+  renderparams.skybox = state.skybox;
+//  renderparams.skybox = state.readframe->skybox;
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
   //renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1*state.readframe->time);
