@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <functional>
 
 //|---------------------- delegate ------------------------------------------
@@ -62,5 +63,5 @@ template<typename R, typename... Args> class delegate<R(Args...)>
     };
 
     bool valid = false;
-    alignas(alignof(intptr_t)) char storage[64];
+    alignas(alignof(std::max_align_t)) char storage[64];
 };

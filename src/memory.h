@@ -22,17 +22,17 @@ using Arena = DatumPlatform::GameMemory;
 //|---------------------- StackAllocator ------------------------------------
 //|--------------------------------------------------------------------------
 
-template<typename T = void*, std::size_t alignment = alignof(T)>
+template<typename T = char, std::size_t alignment = alignof(T)>
 class StackAllocator
 {
   public:
 
     typedef T value_type;
 
-    template<typename U, std::size_t ulignment = alignment>
+    template<typename U, std::size_t ulignment = alignof(std::max_align_t)>
     struct rebind
     {
-      typedef StackAllocator<U, ulignment> other;
+      typedef StackAllocator<U, std::max(alignment, ulignment)> other;
     };
 
     static_assert(!(alignment & (alignment - 1)), "alignment must be power-of-two");
@@ -63,7 +63,7 @@ template<typename T, std::size_t alignment>
 StackAllocator<T, alignment>::StackAllocator(Arena &arena)
   : m_arena(&arena)
 {
-  static_assert(alignof(T) <= alignment, "invalid alignment");
+  static_assert(alignment >= alignof(T), "invalid alignment");
 }
 
 
@@ -73,6 +73,7 @@ template<typename U, std::size_t ulignment>
 StackAllocator<T, alignment>::StackAllocator(StackAllocator<U, ulignment> const &other)
   : StackAllocator(other.arena())
 {  
+  static_assert(alignment >= ulignment, "invalid alignment");
 }
 
 
@@ -215,17 +216,17 @@ inline void FreeList::release(void * const ptr, std::size_t bytes)
 //|---------------------- StackAllocatorWithFreelist ------------------------
 //|--------------------------------------------------------------------------
 
-template<typename T = void*, std::size_t alignment = alignof(T)>
+template<typename T = char, std::size_t alignment = alignof(T)>
 class StackAllocatorWithFreelist : public StackAllocator<T, alignment>
 {
   public:
 
     typedef T value_type;
 
-    template<typename U, std::size_t ulignment = alignment>
+    template<typename U, std::size_t ulignment = alignof(std::max_align_t)>
     struct rebind
     {
-      typedef StackAllocatorWithFreelist<U, ulignment> other;
+      typedef StackAllocatorWithFreelist<U, std::max(alignment, ulignment)> other;
     };
 
   public:
