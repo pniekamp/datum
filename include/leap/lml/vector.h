@@ -71,7 +71,10 @@ namespace leap { namespace lml
 
     protected:
       VectorView() = default;
+      VectorView(VectorView const &) = default;
+      VectorView(VectorView &&) = default;
       VectorView &operator =(VectorView const &) = default;
+      VectorView &operator =(VectorView &&) = default;
   };
 
 

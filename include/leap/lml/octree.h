@@ -173,8 +173,8 @@ namespace leap { namespace lml
 
             bound_type bound;
 
-            std::vector<Item, allocator_type> items;
-            std::vector<Node, allocator_type> nodes;
+            std::vector<Item, typename Alloc::template rebind<Item>::other> items;
+            std::vector<Node, typename Alloc::template rebind<Node>::other> nodes;
         };
 
       private:

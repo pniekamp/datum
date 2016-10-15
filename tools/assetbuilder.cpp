@@ -67,15 +67,15 @@ namespace
 
       auto s1 = v2.texcoord[0] - v1.texcoord[0];
       auto s2 = v3.texcoord[0] - v1.texcoord[0];
-      auto t1 = v2.texcoord[1] - v1.texcoord[1];
-      auto t2 = v3.texcoord[1] - v1.texcoord[1];
+      auto t1 = v1.texcoord[1] - v2.texcoord[1];
+      auto t2 = v1.texcoord[1] - v3.texcoord[1];
 
       auto r = s1 * t2 - s2 * t1;
 
       if (r != 0)
       {
-        auto sdir = Vec3(t2 * x1 - t1 * x2, t2 * y1 - t1 * y2, t2 * z1 - t1 * z2)/r;
-        auto tdir = Vec3(s1 * x2 - s2 * x1, s1 * y2 - s2 * y1, s1 * z2 - s2 * z1)/r;
+        auto sdir = Vec3(t2 * x1 - t1 * x2, t2 * y1 - t1 * y2, t2 * z1 - t1 * z2) / r;
+        auto tdir = Vec3(s1 * x2 - s2 * x1, s1 * y2 - s2 * y1, s1 * z2 - s2 * z1) / r;
 
         auto uvarea = area(Vec2(v1.texcoord[0], v1.texcoord[1]), Vec2(v2.texcoord[0], v2.texcoord[1]), Vec2(v3.texcoord[0], v3.texcoord[1]));
 
@@ -94,14 +94,14 @@ namespace
       auto normal = Vec3(vertices[i].normal[0], vertices[i].normal[1], vertices[i].normal[2]);
 
       auto tangent = tan1[i];
-      auto binormal = tan2[i];
+      auto bitangent = tan2[i];
 
-      orthonormalise(normal, tangent, binormal);
+      orthonormalise(normal, tangent, bitangent);
 
       vertices[i].tangent[0] = tangent.x;
       vertices[i].tangent[1] = tangent.y;
       vertices[i].tangent[2] = tangent.z;
-      vertices[i].tangent[3] = (dot(binormal, tan2[i]) < 0.0f) ? -1.0f : 1.0f;
+      vertices[i].tangent[3] = (dot(bitangent, tan2[i]) < 0.0f) ? -1.0f : 1.0f;
     }
   }
 }

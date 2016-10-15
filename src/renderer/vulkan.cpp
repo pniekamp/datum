@@ -1023,7 +1023,7 @@ namespace Vulkan
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imagebarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    imagebarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     imagebarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1042,7 +1042,7 @@ namespace Vulkan
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     imagebarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    imagebarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    imagebarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1279,6 +1279,9 @@ namespace Vulkan
 
     if (oldlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+      imagebarrier.dstAccessMask |= VK_ACCESS_MEMORY_READ_BIT;
 
     if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;

@@ -10,7 +10,6 @@
 
 #include "datum/math.h"
 
-
 //|-------------------- Camera --------------------------------------------
 //|------------------------------------------------------------------------
 
@@ -117,7 +116,7 @@ inline Camera adapt(Camera const &camera, float currentluminance, float targetlu
 {
   Camera result = camera;
 
-  result.set_exposure(camera.exposure() * lml::lerp(1.0f, targetluminance/(currentluminance + 1e-3f), rate));
+  result.set_exposure(lml::clamp(camera.exposure() * lml::lerp(1.0f, targetluminance/(currentluminance + 1e-3f), rate), 0.0f, 8.0f));
 
   return result;
 }

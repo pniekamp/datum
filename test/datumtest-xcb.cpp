@@ -542,6 +542,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   {
     VkImageMemoryBarrier memorybarrier = {};
     memorybarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    memorybarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     memorybarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     memorybarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     memorybarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -651,6 +652,7 @@ void Vulkan::resize()
     {
       VkImageMemoryBarrier memorybarrier = {};
       memorybarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      memorybarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
       memorybarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
       memorybarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
       memorybarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;

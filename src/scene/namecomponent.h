@@ -11,7 +11,6 @@
 #include "scene.h"
 #include "storage.h"
 
-
 //|---------------------- NameComponentStorage ------------------------------
 //|--------------------------------------------------------------------------
 
@@ -29,7 +28,6 @@ class NameComponentStorage : public DefaultStorage<Scene::EntityId, size_t>
 
     std::vector<char, StackAllocator<>> m_names;
 };
-
 
 
 //|---------------------- NameComponent -------------------------------------

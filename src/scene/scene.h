@@ -183,10 +183,10 @@ class Scene
     FreeList m_freelist;
     allocator_type m_allocator;
 
-    template<typename T = void*>
+    template<typename T = char>
     StackAllocatorWithFreelist<T> allocator()
     {
-      return StackAllocatorWithFreelist<T>(m_allocator.arena(), m_freelist);
+      return StackAllocatorWithFreelist<T>(m_allocator, m_freelist);
     }
 
     template<typename Entity, typename ...Args>
@@ -212,7 +212,7 @@ class Scene
 
     friend class Storage;
 
-    std::unordered_map<std::type_index, Storage*, std::hash<std::type_index>, std::equal_to<>, allocator_type> m_systems;
+    std::unordered_map<std::type_index, Storage*, std::hash<std::type_index>, std::equal_to<>, StackAllocator<>> m_systems;
 
   private:
 

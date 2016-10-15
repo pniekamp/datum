@@ -13,7 +13,6 @@
 #include <tuple>
 #include <utility>
 
-
 //|---------------------- Storage -------------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -105,11 +104,11 @@ class DefaultStorage : public Storage
 
   protected:
 
-    std::vector<size_t, allocator_type> m_index;
+    std::vector<size_t, StackAllocator<>> m_index;
 
-    std::tuple<std::vector<Types, allocator_type>...> m_data;
+    std::tuple<std::vector<Types, StackAllocator<Types>>...> m_data;
 
-    std::deque<size_t, allocator_type> m_freeslots;
+    std::deque<size_t, StackAllocator<>> m_freeslots;
 
     friend class Scene;
 };

@@ -11,9 +11,16 @@ using namespace std;
 using namespace lml;
 using namespace leap;
 
-
 //|---------------------- HDRImage ------------------------------------------
 //|--------------------------------------------------------------------------
+
+//|///////////////////// Constructor ////////////////////////////////////////
+HDRImage::HDRImage(int width, int height, Color4 const &color)
+  : width(width), height(height)
+{
+  bits = vector<Color4>(width * height, color);
+}
+
 
 //|///////////////////// sample /////////////////////////////////////////////
 Color4 HDRImage::sample(int i, int j) const
@@ -335,7 +342,7 @@ void image_pack_cube(HDRImage const &image, int width, int height, int levels, v
     Transform::rotation(Vec3(0, 1, 0), pi<float>()),    // back
   };
 
-  Vec2 area = Vec2(1.0f / (4.0f * width), 1.0f / (2.0f * height));
+  Vec2 area = Vec2(1.0f / min(4 * width, image.width), 1.0f / min(2 * height, image.height));
 
   for(auto &transform : transforms)
   {
