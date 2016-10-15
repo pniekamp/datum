@@ -176,7 +176,7 @@ struct PackModelPayload
 {
   struct Texture
   {
-    enum { nullmap, albedomap, normalmap, specularmap };
+    enum { nullmap, albedomap, specularmap, normalmap };
 
     uint32_t type;
     uint32_t texture;

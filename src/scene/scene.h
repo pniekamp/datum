@@ -186,7 +186,7 @@ class Scene
     template<typename T = char>
     StackAllocatorWithFreelist<T> allocator()
     {
-      return StackAllocatorWithFreelist<T>(m_allocator.arena(), m_freelist);
+      return StackAllocatorWithFreelist<T>(m_allocator, m_freelist);
     }
 
     template<typename Entity, typename ...Args>

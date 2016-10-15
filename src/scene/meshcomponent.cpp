@@ -12,7 +12,6 @@
 using namespace std;
 using namespace lml;
 
-
 //|---------------------- MeshStorage ---------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -61,7 +60,7 @@ MeshComponentStorage::MeshComponentStorage(Scene *scene, StackAllocator<> alloca
 ///////////////////////// MeshStorage::Constructor //////////////////////////
 MeshStoragePrivate::MeshStoragePrivate(Scene *scene, allocator_type const &allocator)
   : MeshComponentStorage(scene, allocator),
-    m_tree(StackAllocatorWithFreelist<>(allocator.arena(), m_treefreelist))
+    m_tree(StackAllocatorWithFreelist<>(allocator, m_treefreelist))
 {
   m_staticpartition = 1;
 }

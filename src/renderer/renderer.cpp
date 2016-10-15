@@ -340,7 +340,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     context.vertexattributes[3] = {};
     context.vertexattributes[3].location = ShaderLocation::vertex_tangent;
-    context.vertexattributes[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+    context.vertexattributes[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     context.vertexattributes[3].offset = VertexLayout::tangent_offset;
   }
 
@@ -1699,29 +1699,26 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     context.ssaobuffers[0] = {};
     context.ssaobuffers[1] = {};
 
-    if (params.ssaoscale != 0)
+    for(size_t i = 0; i < extentof(context.ssaodescriptors); ++i)
     {
-      for(size_t i = 0; i < extentof(context.ssaodescriptors); ++i)
-      {
-        context.ssaobuffers[i] = create_texture(context.device, width*params.ssaoscale, height*params.ssaoscale, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+      context.ssaobuffers[i] = create_texture(context.device, max(int(width*params.ssaoscale), 1), max(int(height*params.ssaoscale), 1), 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-        setimagelayout(context.device, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+      setimagelayout(context.device, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
-        context.ssaotargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+      context.ssaotargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
 
-        bindimageview(context.device, context.ssaotargets[i], ShaderLocation::imagetarget, context.ssaobuffers[i].imageview);
+      bindimageview(context.device, context.ssaotargets[i], ShaderLocation::imagetarget, context.ssaobuffers[i].imageview);
 
-        bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::rt0, context.rt0buffer);
-        bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::rt1, context.rt1buffer);
-        bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
-        bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
+      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::rt0, context.rt0buffer);
+      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::rt1, context.rt1buffer);
+      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
+      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
 
-        clear(context.device, context.ssaobuffers[0].image, Color4(1.0, 1.0, 1.0, 1.0));
-      }
-
-      bindtexture(context.device, context.ssaodescriptors[0], ShaderLocation::ssaomap, context.ssaobuffers[1]);
-      bindtexture(context.device, context.ssaodescriptors[1], ShaderLocation::ssaomap, context.ssaobuffers[0]);
+      clear(context.device, context.ssaobuffers[i].image, Color4(1.0, 1.0, 1.0, 1.0));
     }
+
+    bindtexture(context.device, context.ssaodescriptors[0], ShaderLocation::ssaomap, context.ssaobuffers[1]);
+    bindtexture(context.device, context.ssaodescriptors[1], ShaderLocation::ssaomap, context.ssaobuffers[0]);
 
     context.ssaoscale = params.ssaoscale;
 
@@ -1735,7 +1732,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::rt1, context.rt1buffer);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::ssaomap, context.ssaoscale ? context.ssaobuffers[i] : context.whitediffuse);
+      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[i]);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
     }

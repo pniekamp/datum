@@ -14,6 +14,8 @@
 class HDRImage
 {
   public:
+    HDRImage() = default;
+    HDRImage(int width, int height, lml::Color4 const &color = { 0, 0, 0, 0 });
 
     int width;
     int height;

@@ -18,39 +18,34 @@
 
 using Arena = DatumPlatform::GameMemory;
 
-
 //|---------------------- StackAllocator ------------------------------------
 //|--------------------------------------------------------------------------
 
-template<typename T = char, std::size_t alignment = alignof(T)>
+template<typename T = void*>
 class StackAllocator
 {
   public:
 
     typedef T value_type;
 
-    template<typename U, std::size_t ulignment = alignof(std::max_align_t)>
+    template<typename U>
     struct rebind
     {
-      typedef StackAllocator<U, std::max(alignment, ulignment)> other;
+      typedef StackAllocator<U> other;
     };
-
-    static_assert(!(alignment & (alignment - 1)), "alignment must be power-of-two");
 
   public:
 
     StackAllocator(Arena &arena);
 
-    template<typename U, std::size_t ulignment>
-    StackAllocator(StackAllocator<U, ulignment> const &other);
+    template<typename U>
+    StackAllocator(StackAllocator<U> const &other);
 
     Arena &arena() const { return *m_arena; }
 
-    T *allocate(std::size_t n);
+    T *allocate(std::size_t n, std::size_t alignment = alignof(T));
 
     void deallocate(T * const ptr, std::size_t n);
-
-    template<typename, std::size_t> friend class StackAllocator;
 
   private:
 
@@ -59,27 +54,25 @@ class StackAllocator
 
 
 ///////////////////////// StackAllocator::Constructor ///////////////////////
-template<typename T, std::size_t alignment>
-StackAllocator<T, alignment>::StackAllocator(Arena &arena)
+template<typename T>
+StackAllocator<T>::StackAllocator(Arena &arena)
   : m_arena(&arena)
 {
-  static_assert(alignment >= alignof(T), "invalid alignment");
 }
 
 
 ///////////////////////// StackAllocator::rebind ////////////////////////////
-template<typename T, std::size_t alignment>
-template<typename U, std::size_t ulignment>
-StackAllocator<T, alignment>::StackAllocator(StackAllocator<U, ulignment> const &other)
+template<typename T>
+template<typename U>
+StackAllocator<T>::StackAllocator(StackAllocator<U> const &other)
   : StackAllocator(other.arena())
 {  
-  static_assert(alignment >= ulignment, "invalid alignment");
 }
 
 
 ///////////////////////// StackAllocator::allocate //////////////////////////
-template<typename T, std::size_t alignment>
-T *StackAllocator<T, alignment>::allocate(std::size_t n)
+template<typename T>
+T *StackAllocator<T>::allocate(std::size_t n, std::size_t alignment)
 {
   std::size_t size = n * sizeof(T);
 
@@ -97,23 +90,23 @@ T *StackAllocator<T, alignment>::allocate(std::size_t n)
 
 
 ///////////////////////// StackAllocator::deallocate ////////////////////////
-template<typename T, std::size_t alignment>
-void StackAllocator<T, alignment>::deallocate(T * const ptr, std::size_t n)
+template<typename T>
+void StackAllocator<T>::deallocate(T * const ptr, std::size_t n)
 {
 }
 
 
 ///////////////////////// StackAllocator::operator == ///////////////////////
-template<typename T, std::size_t alignment, typename U, std::size_t ulignment>
-bool operator ==(StackAllocator<T, alignment> const &lhs, StackAllocator<U, ulignment> const &rhs)
+template<typename T, typename U>
+bool operator ==(StackAllocator<T> const &lhs, StackAllocator<U> const &rhs)
 {
   return lhs.arena().data == rhs.arena().data;
 }
 
 
 ///////////////////////// StackAllocator::operator != ///////////////////////
-template<typename T, std::size_t alignment, typename U, std::size_t ulignment>
-bool operator !=(StackAllocator<T, alignment> const &lhs, StackAllocator<U, ulignment> const &rhs)
+template<typename T, typename U>
+bool operator !=(StackAllocator<T> const &lhs, StackAllocator<U> const &rhs)
 {
   return !(lhs == rhs);
 }
@@ -216,33 +209,34 @@ inline void FreeList::release(void * const ptr, std::size_t bytes)
 //|---------------------- StackAllocatorWithFreelist ------------------------
 //|--------------------------------------------------------------------------
 
-template<typename T = char, std::size_t alignment = alignof(T)>
-class StackAllocatorWithFreelist : public StackAllocator<T, alignment>
+template<typename T = void*>
+class StackAllocatorWithFreelist : public StackAllocator<T>
 {
   public:
 
     typedef T value_type;
 
-    template<typename U, std::size_t ulignment = alignof(std::max_align_t)>
+    template<typename U>
     struct rebind
     {
-      typedef StackAllocatorWithFreelist<U, std::max(alignment, ulignment)> other;
+      typedef StackAllocatorWithFreelist<U> other;
     };
 
   public:
 
     StackAllocatorWithFreelist(Arena &arena, FreeList &freelist);
 
-    template<typename U, std::size_t ulignment>
-    StackAllocatorWithFreelist(StackAllocatorWithFreelist<U, ulignment> const &other);
+    template<typename U>
+    StackAllocatorWithFreelist(StackAllocator<U> const &other, FreeList &freelist);
+
+    template<typename U>
+    StackAllocatorWithFreelist(StackAllocatorWithFreelist<U> const &other);
 
     FreeList &freelist() const { return *m_freelist; }
 
-    T *allocate(std::size_t n);
+    T *allocate(std::size_t n, std::size_t alignment = alignof(T));
 
     void deallocate(T * const ptr, std::size_t n);
-
-    template<typename, std::size_t> friend class StackAllocatorWithFreelist;
 
   private:
 
@@ -251,32 +245,41 @@ class StackAllocatorWithFreelist : public StackAllocator<T, alignment>
 
 
 ///////////////////////// StackAllocatorWithFreelist::Constructor ///////////
-template<typename T, std::size_t alignment>
-StackAllocatorWithFreelist<T, alignment>::StackAllocatorWithFreelist(Arena &arena, FreeList &freelist)
-  : StackAllocator<T, alignment>(arena)
+template<typename T>
+StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(Arena &arena, FreeList &freelist)
+  : StackAllocator<T>(arena)
 {
   m_freelist = &freelist;
 }
 
 
+///////////////////////// StackAllocatorWithFreelist::Constructor ///////////
+template<typename T>
+template<typename U>
+StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocator<U> const &other, FreeList &freelist)
+  : StackAllocatorWithFreelist(other.arena(), freelist)
+{
+}
+
+
 ///////////////////////// StackAllocatorWithFreelist::rebind ////////////////
-template<typename T, std::size_t alignment>
-template<typename U, std::size_t ulignment>
-StackAllocatorWithFreelist<T, alignment>::StackAllocatorWithFreelist(StackAllocatorWithFreelist<U, ulignment> const &other)
+template<typename T>
+template<typename U>
+StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocatorWithFreelist<U> const &other)
   : StackAllocatorWithFreelist(other.arena(), other.freelist())
 {
 }
 
 
 ///////////////////////// StackAllocatorWithFreelist::allocate //////////////
-template<typename T, std::size_t alignment>
-T *StackAllocatorWithFreelist<T, alignment>::allocate(std::size_t n)
+template<typename T>
+T *StackAllocatorWithFreelist<T>::allocate(std::size_t n, std::size_t alignment)
 {
   auto result = m_freelist->acquire(n*sizeof(T), alignment);
 
   if (!result)
   {
-    result = StackAllocator<T, alignment>::allocate(n);
+    result = StackAllocator<T>::allocate(n, alignment);
   }
 
   return static_cast<T*>(result);
@@ -284,8 +287,8 @@ T *StackAllocatorWithFreelist<T, alignment>::allocate(std::size_t n)
 
 
 ///////////////////////// StackAllocatorWithFreelist::deallocate ////////////
-template<typename T, std::size_t alignment>
-void StackAllocatorWithFreelist<T, alignment>::deallocate(T * const ptr, std::size_t n)
+template<typename T>
+void StackAllocatorWithFreelist<T>::deallocate(T * const ptr, std::size_t n)
 {
   m_freelist->release(ptr, n*sizeof(T));
 }
@@ -294,7 +297,6 @@ void StackAllocatorWithFreelist<T, alignment>::deallocate(T * const ptr, std::si
 
 //|---------------------- misc routines -------------------------------------
 //|--------------------------------------------------------------------------
-
 
 ///////////////////////// inarena ///////////////////////////////////////////
 template<typename T>
@@ -308,7 +310,7 @@ bool inarena(Arena &arena, T *ptr)
 template<typename T, std::size_t alignment = alignof(T)>
 T *allocate(StackAllocator<> const &allocator, std::size_t n = 1)
 {
-  return typename StackAllocator<>::template rebind<T, alignment>::other(allocator).allocate(n);
+  return typename StackAllocator<>::template rebind<T>::other(allocator).allocate(n, alignment);
 }
 
 
