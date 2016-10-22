@@ -165,6 +165,19 @@ void Camera::yaw(float angle)
 }
 
 
+///////////////////////// Camera::pan ///////////////////////////////////////
+void Camera::pan(Vec3 &target, float dx, float dy)
+{
+  auto speed = clamp(0.1f * norm(position() - target), 0.1f, 10.0f);
+
+  auto offset = speed * (dx * right() + dy * up());
+
+  target += offset;
+
+  m_transform = Transform::lookat(position() + offset, target, up());
+}
+
+
 ///////////////////////// Camera::dolly /////////////////////////////////////
 void Camera::dolly(Vec3 const &target, float amount)
 {

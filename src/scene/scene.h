@@ -189,21 +189,24 @@ class Scene
       return StackAllocatorWithFreelist<T>(m_allocator, m_freelist);
     }
 
-    template<typename Entity, typename ...Args>
+    template<typename Entity, typename ...Args, std::enable_if_t<sizeof(Entity) == sizeof(Entity*)>* = nullptr>
     EntityId add_entity(Args ...args)
     {
       Slot *slot = acquire_slot();
 
-      if (sizeof(Entity) == sizeof(slot->entity))
-      {
-        slot->bytes = 0;
-        new(&slot->entity) Entity(std::forward<Args>(args)...);
-      }
-      else
-      {
-        slot->bytes = sizeof(Entity);
-        slot->entity = new(allocator<Entity>().allocate(1)) Entity(std::forward<Args>(args)...);
-      }
+      slot->bytes = 0;
+      new(&slot->entity) Entity(std::forward<Args>(args)...);
+
+      return slot->id;
+    }
+
+    template<typename Entity, typename ...Args, std::enable_if_t<sizeof(Entity) != sizeof(Entity*)>* = nullptr>
+    EntityId add_entity(Args ...args)
+    {
+      Slot *slot = acquire_slot();
+
+      slot->bytes = sizeof(Entity);
+      slot->entity = new(allocator<Entity>().allocate(1)) Entity(std::forward<Args>(args)...);
 
       return slot->id;
     }

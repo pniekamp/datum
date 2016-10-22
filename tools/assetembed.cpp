@@ -15,7 +15,6 @@
 using namespace std;
 using namespace leap;
 
-
 void embed_image(const char *path)
 {
   QImage image = QImage(path).convertToFormat(QImage::Format_ARGB32);

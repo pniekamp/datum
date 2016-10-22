@@ -70,6 +70,7 @@ class Camera
     void pitch(float angle);
     void yaw(float angle);
 
+    void pan(lml::Vec3 &target, float dx, float dy);
     void dolly(lml::Vec3 const &target, float amount);
     void orbit(lml::Vec3 const &target, lml::Quaternion3f const &rotation);
 

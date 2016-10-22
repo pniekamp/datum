@@ -16,7 +16,7 @@ set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR} CACHE INTERNAL "")
 
 find_package(Threads REQUIRED)
 
-find_package(Qt5Gui  QUIET)
+find_package(Qt5Gui QUIET)
 
 #
 # leap

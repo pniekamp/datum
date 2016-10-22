@@ -121,8 +121,8 @@ struct PackMeshHeader
 {
   uint32_t vertexcount;
   uint32_t indexcount;
-  float mincorder[3];
-  float maxcorder[3];
+  float mincorner[3];
+  float maxcorner[3];
   uint64_t dataoffset;
 };
 
@@ -227,6 +227,11 @@ constexpr size_t pack_payload_size(PackModelHeader const &modl)
 struct PackCalalogHeader
 {
 };
+
+constexpr size_t pack_payload_size(PackCalalogHeader const &catl)
+{
+  return 0;
+}
 
 #pragma pack(pop)
 
