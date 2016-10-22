@@ -37,6 +37,15 @@ target_link_libraries(assetbuilder leap Qt5::Gui)
 
 
 #
+# assetdump
+#
+
+add_executable(assetdump assetdump.cpp ${SRCS})
+
+target_link_libraries(assetdump leap Qt5::Gui)
+
+
+#
 # assetcompressor
 #
 

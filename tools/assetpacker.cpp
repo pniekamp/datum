@@ -177,6 +177,73 @@ uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t h
 }
 
 
+///////////////////////// write_font_asset //////////////////////////////////
+uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, void const *bits)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackFontHeader fhdr = { ascent, descent, leading, glyphcount, (size_t)fout.tellp() + sizeof(fhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "FONT", sizeof(fhdr), &fhdr);
+
+  write_chunk(fout, "DATA", pack_payload_size(fhdr), bits);
+
+  write_chunk(fout, "AEND", 0, nullptr);
+
+  return id + 1;
+}
+
+
+///////////////////////// write_font_asset //////////////////////////////////
+uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, uint32_t glyphatlas, vector<uint16_t> const &x, vector<uint16_t> const &y, vector<uint16_t> const &width, vector<uint16_t> const &height, vector<uint16_t> const &offsetx, vector<uint16_t> const &offsety, vector<uint8_t> const &advance)
+{
+  vector<char> payload(sizeof(uint32_t) + 6*glyphcount*sizeof(uint16_t) + glyphcount*glyphcount*sizeof(uint8_t));
+
+  reinterpret_cast<PackFontPayload*>(payload.data())->glyphatlas = glyphatlas;
+
+  auto xtable = const_cast<uint16_t*>(PackFontPayload::xtable(payload.data(), glyphcount));
+  auto ytable = const_cast<uint16_t*>(PackFontPayload::ytable(payload.data(), glyphcount));
+  auto widthtable = const_cast<uint16_t*>(PackFontPayload::widthtable(payload.data(), glyphcount));
+  auto heighttable = const_cast<uint16_t*>(PackFontPayload::heighttable(payload.data(), glyphcount));
+  auto offsetxtable = const_cast<uint16_t*>(PackFontPayload::offsetxtable(payload.data(), glyphcount));
+  auto offsetytable = const_cast<uint16_t*>(PackFontPayload::offsetytable(payload.data(), glyphcount));
+  auto advancetable = const_cast<uint8_t*>(PackFontPayload::advancetable(payload.data(), glyphcount));
+
+  memcpy(xtable, x.data(), x.size()*sizeof(uint16_t));
+  memcpy(ytable, y.data(), y.size()*sizeof(uint16_t));
+  memcpy(widthtable, width.data(), width.size()*sizeof(uint16_t));
+  memcpy(heighttable, height.data(), height.size()*sizeof(uint16_t));
+  memcpy(offsetxtable, offsetx.data(), offsetx.size()*sizeof(uint16_t));
+  memcpy(offsetytable, offsety.data(), offsety.size()*sizeof(uint16_t));
+  memcpy(advancetable, advance.data(), advance.size()*sizeof(uint8_t));
+
+  write_font_asset(fout, id, ascent, descent, leading, glyphcount, payload.data());
+
+  return id + 1;
+}
+
+
+///////////////////////// write_mesh_asset //////////////////////////////////
+uint32_t write_mesh_asset(ostream &fout, uint32_t id, uint32_t vertexcount, uint32_t indexcount, Bound3 const &bound, void const *bits)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackMeshHeader mesh = { vertexcount, indexcount, bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "MESH", sizeof(mesh), &mesh);
+
+  write_chunk(fout, "DATA", pack_payload_size(mesh), bits);
+
+  write_chunk(fout, "AEND", 0, nullptr);
+
+  return id + 1;
+}
+
+
 ///////////////////////// write_mesh_asset //////////////////////////////////
 uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &vertices, vector<uint32_t> const &indices)
 {
@@ -187,15 +254,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
     bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
   }
 
-  PackAssetHeader aset = { id };
-
-  write_chunk(fout, "ASET", sizeof(aset), &aset);
-
-  PackMeshHeader mesh = { (uint32_t)vertices.size(), (uint32_t)indices.size(), bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
-
-  write_chunk(fout, "MESH", sizeof(mesh), &mesh);
-
-  vector<char> payload(pack_payload_size(mesh));
+  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t));
 
   auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
   auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
@@ -203,7 +262,24 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
   memcpy(vertextable, vertices.data(), vertices.size()*sizeof(PackVertex));
   memcpy(indextable, indices.data(), indices.size()*sizeof(uint32_t));
 
-  write_chunk(fout, "DATA", payload.size(), payload.data());
+  write_mesh_asset(fout, id, vertices.size(), indices.size(), bound, payload.data());
+
+  return id + 1;
+}
+
+
+///////////////////////// write_matl_asset //////////////////////////////////
+uint32_t write_matl_asset(ostream &fout, uint32_t id, void const *bits)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackMaterialHeader mhdr = { (size_t)fout.tellp() + sizeof(mhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "MATL", sizeof(mhdr), &mhdr);
+
+  write_chunk(fout, "DATA", sizeof(PackMaterialPayload), bits);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -214,14 +290,6 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
 ///////////////////////// write_matl_asset //////////////////////////////////
 uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float metalness, float roughness, float reflectivity, float emissive, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap)
 {
-  PackAssetHeader aset = { id };
-
-  write_chunk(fout, "ASET", sizeof(aset), &aset);
-
-  PackMaterialHeader mhdr = { (size_t)fout.tellp() + sizeof(mhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
-
-  write_chunk(fout, "MATL", sizeof(mhdr), &mhdr);
-
   PackMaterialPayload matl;
 
   matl.color[0] = color.r;
@@ -235,7 +303,24 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float
   matl.specularmap = specularmap;
   matl.normalmap = normalmap;
 
-  write_chunk(fout, "DATA", sizeof(matl), &matl);
+  write_matl_asset(fout, id, &matl);
+
+  return id + 1;
+}
+
+
+///////////////////////// write_modl_asset //////////////////////////////////
+uint32_t write_modl_asset(ostream &fout, uint32_t id, uint32_t texturecount, uint32_t materialcount, uint32_t meshcount, uint32_t instancecount, void const *bits)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackModelHeader modl = { texturecount, materialcount, meshcount, instancecount, (size_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "MODL", sizeof(modl), &modl);
+
+  write_chunk(fout, "DATA", pack_payload_size(modl), bits);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -246,15 +331,7 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float
 ///////////////////////// write_modl_asset //////////////////////////////////
 uint32_t write_modl_asset(ostream &fout, uint32_t id, vector<PackModelPayload::Texture> const &textures, vector<PackModelPayload::Material> const &materials, vector<PackModelPayload::Mesh> const &meshes, vector<PackModelPayload::Instance> const &instances)
 {
-  PackAssetHeader aset = { id };
-
-  write_chunk(fout, "ASET", sizeof(aset), &aset);
-
-  PackModelHeader modl = { (uint32_t)textures.size(), (uint32_t)materials.size(), (uint32_t)meshes.size(), (uint32_t)instances.size(), (size_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
-
-  write_chunk(fout, "MODL", sizeof(modl), &modl);
-
-  vector<char> payload(pack_payload_size(modl));
+  vector<char> payload(textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material) + meshes.size()*sizeof(PackModelPayload::Mesh) + instances.size()*sizeof(PackModelPayload::Instance));
 
   auto texturetable = const_cast<PackModelPayload::Texture*>(PackModelPayload::texturetable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
   auto materialtable = const_cast<PackModelPayload::Material*>(PackModelPayload::materialtable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
@@ -266,9 +343,7 @@ uint32_t write_modl_asset(ostream &fout, uint32_t id, vector<PackModelPayload::T
   memcpy(meshtable, meshes.data(), meshes.size()*sizeof(PackModelPayload::Mesh));
   memcpy(instancetable, instances.data(), instances.size()*sizeof(PackModelPayload::Instance));
 
-  write_chunk(fout, "DATA", payload.size(), payload.data());
-
-  write_chunk(fout, "AEND", 0, nullptr);
+  write_modl_asset(fout, id, textures.size(), materials.size(), meshes.size(), instances.size(), payload.data());
 
   return id + 1;
 }

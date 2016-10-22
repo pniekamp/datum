@@ -167,12 +167,12 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
 
             asset.vertexcount = mesh.vertexcount;
             asset.indexcount = mesh.indexcount;
-            asset.mincorner[0] = mesh.mincorder[0];
-            asset.mincorner[1] = mesh.mincorder[1];
-            asset.mincorner[2] = mesh.mincorder[2];
-            asset.maxcorner[0] = mesh.maxcorder[0];
-            asset.maxcorner[1] = mesh.maxcorder[1];
-            asset.maxcorner[2] = mesh.maxcorder[2];
+            asset.mincorner[0] = mesh.mincorner[0];
+            asset.mincorner[1] = mesh.mincorner[1];
+            asset.mincorner[2] = mesh.mincorner[2];
+            asset.maxcorner[0] = mesh.maxcorner[0];
+            asset.maxcorner[1] = mesh.maxcorner[1];
+            asset.maxcorner[2] = mesh.maxcorner[2];
             asset.datasize = pack_payload_size(mesh);
             asset.datapos = mesh.dataoffset;
 

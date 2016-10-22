@@ -609,57 +609,43 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
   cout << "  " << fontname << endl;
 
-  PackAssetHeader aset = { id };
-
-  write_chunk(fout, "ASET", sizeof(aset), &aset);
-
   int count = 127;
 
-  PackFontHeader fhdr = { (uint32_t)tm.ascent(), (uint32_t)tm.descent(), (uint32_t)tm.leading(), (uint32_t)count, (size_t)fout.tellp() + sizeof(fhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
-
-  write_chunk(fout, "FONT", sizeof(fhdr), &fhdr);
-
-  vector<char> payload(pack_payload_size(fhdr));
-
-  reinterpret_cast<PackFontPayload*>(payload.data())->glyphatlas = 1;
-
-  auto xtable = const_cast<uint16_t*>(PackFontPayload::xtable(payload.data(), fhdr.glyphcount));
-  auto ytable = const_cast<uint16_t*>(PackFontPayload::ytable(payload.data(), fhdr.glyphcount));
-  auto widthtable = const_cast<uint16_t*>(PackFontPayload::widthtable(payload.data(), fhdr.glyphcount));
-  auto heighttable = const_cast<uint16_t*>(PackFontPayload::heighttable(payload.data(), fhdr.glyphcount));
-  auto offsetxtable = const_cast<uint16_t*>(PackFontPayload::offsetxtable(payload.data(), fhdr.glyphcount));
-  auto offsetytable = const_cast<uint16_t*>(PackFontPayload::offsetytable(payload.data(), fhdr.glyphcount));
-  auto advancetable = const_cast<uint8_t*>(PackFontPayload::advancetable(payload.data(), fhdr.glyphcount));
+  vector<uint16_t> x(count);
+  vector<uint16_t> y(count);
+  vector<uint16_t> width(count);
+  vector<uint16_t> height(count);
+  vector<uint16_t> offsetx(count);
+  vector<uint16_t> offsety(count);
+  vector<uint8_t> advance(count*count);
 
   AtlasPacker packer(512, 256);
 
   for(int codepoint = 33; codepoint < count; ++codepoint)
   {
-    auto position = packer.insert(codepoint, tm.width(QChar(codepoint))+12, tm.height()+2);
+    auto position = packer.insert(codepoint, tm.width(QChar(codepoint))+2, tm.height()+2);
 
     assert(position);
 
-    xtable[codepoint] = position->x;
-    ytable[codepoint] = position->y;
-    widthtable[codepoint] = position->width;
-    heighttable[codepoint] = position->height;
-    offsetxtable[codepoint] = 1;
-    offsetytable[codepoint] = 1 + tm.ascent();
+    x[codepoint] = position->x;
+    y[codepoint] = position->y;
+    width[codepoint] = position->width;
+    height[codepoint] = position->height;
+    offsetx[codepoint] = 1;
+    offsety[codepoint] = 1 + tm.ascent();
   }
 
   for(int codepoint = 0; codepoint < count; ++codepoint)
   {
-    advancetable[codepoint] = 0;
+    advance[codepoint] = 0;
 
     for(int othercodepoint = 1; othercodepoint < count; ++othercodepoint)
     {
-      advancetable[othercodepoint * count + codepoint] = tm.width(QString(QChar(othercodepoint)) + QString(QChar(codepoint))) - tm.width(QChar(codepoint));
+      advance[othercodepoint * count + codepoint] = tm.width(QString(QChar(othercodepoint)) + QString(QChar(codepoint))) - tm.width(QChar(codepoint));
     }
   }
 
-  write_chunk(fout, "DATA", payload.size(), payload.data());
-
-  write_chunk(fout, "AEND", 0, nullptr);
+  write_font_asset(fout, id, tm.ascent(), tm.descent(), tm.leading(), count, 1, x, y, width, height, offsetx, offsety, advance);
 
   QImage atlas(packer.width, packer.height, QImage::Format_ARGB32);
 
