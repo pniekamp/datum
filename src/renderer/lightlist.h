@@ -36,7 +36,7 @@ class LightList
         lml::Color4 intensity;
         lml::Vec4 attenuation;
 
-      } pointlights[1024];
+      } pointlights[256];
     };
 
     struct BuildState

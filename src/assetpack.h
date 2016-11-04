@@ -91,16 +91,16 @@ struct PackFontPayload
 // uint16_t y[glyphcount];
 // uint16_t width[glyphcount];
 // uint16_t height[glyphcount];
-// uint16_t offsetx[glyphcount];
-// uint16_t offsety[glyphcount];
+// int16_t offsetx[glyphcount];
+// int16_t offsety[glyphcount];
 // uint8_t advance[glyphcount][glyphcount];
 
   static auto xtable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t)); }
   static auto ytable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + glyphcount*sizeof(uint16_t)); }
   static auto widthtable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + 2*glyphcount*sizeof(uint16_t)); }
   static auto heighttable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + 3*glyphcount*sizeof(uint16_t)); }
-  static auto offsetxtable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + 4*glyphcount*sizeof(uint16_t)); }
-  static auto offsetytable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + 5*glyphcount*sizeof(uint16_t)); }
+  static auto offsetxtable(void const *bits, int glyphcount) { return reinterpret_cast<int16_t const *>((size_t)bits + sizeof(uint32_t) + 4*glyphcount*sizeof(uint16_t)); }
+  static auto offsetytable(void const *bits, int glyphcount) { return reinterpret_cast<int16_t const *>((size_t)bits + sizeof(uint32_t) + 5*glyphcount*sizeof(uint16_t)); }
   static auto advancetable(void const *bits, int glyphcount) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t) + 6*glyphcount*sizeof(uint16_t)); }
 };
 

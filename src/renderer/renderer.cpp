@@ -90,9 +90,9 @@ enum ShaderLocation
   BloomBlurSigma = 85,
 };
 
-constexpr size_t PushConstantSize = 64;
-constexpr size_t ConstantBufferSize = 64*1024;
-constexpr size_t TransferBufferSize = 512*1024;
+static constexpr size_t PushConstantSize = 64;
+static constexpr size_t ConstantBufferSize = 64*1024;
+static constexpr size_t TransferBufferSize = 512*1024;
 
 struct alignas(16) MainLight
 {

@@ -41,8 +41,8 @@ class BasicComponent
             bool operator ==(iterator const &that) const { return index == that.index; }
             bool operator !=(iterator const &that) const { return index != that.index; }
 
-            Data &operator *() { return *storage->data(index); }
-            Data *operator ->() { return storage->data(index); }
+            Data &operator *() const { return *storage->data(index); }
+            Data *operator ->() const { return storage->data(index); }
 
             iterator &operator++()
             {
@@ -101,6 +101,7 @@ class BasicComponent
   public:
 
     Data *operator ->() { return storage->data(index); }
+    Data const *operator ->() const { return storage->data(index); }
 
   protected:
     BasicComponent(size_t index, Storage *storage)

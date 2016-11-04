@@ -43,7 +43,7 @@ class StackAllocator
 
     Arena &arena() const { return *m_arena; }
 
-    T *allocate(std::size_t n, std::size_t alignment = alignof(T));
+    T *allocate(std::size_t n, std::size_t alignment = alignof(T), std::size_t mask = 0);
 
     void deallocate(T * const ptr, std::size_t n);
 
@@ -72,18 +72,18 @@ StackAllocator<T>::StackAllocator(StackAllocator<U> const &other)
 
 ///////////////////////// StackAllocator::allocate //////////////////////////
 template<typename T>
-T *StackAllocator<T>::allocate(std::size_t n, std::size_t alignment)
+T *StackAllocator<T>::allocate(std::size_t n, std::size_t alignment, std::size_t mask)
 {
-  std::size_t size = n * sizeof(T);
+  std::size_t bytes = (n * sizeof(T) + mask) & ~mask;
 
   void *result = static_cast<char*>(m_arena->data) + m_arena->size;
 
   std::size_t space = m_arena->capacity - m_arena->size;
 
-  if (!std::align(alignment, size, result, space))
+  if (!std::align(alignment, bytes, result, space))
     throw std::bad_alloc();
 
-  m_arena->size = static_cast<char*>(result) + size - static_cast<char*>(m_arena->data);
+  m_arena->size = static_cast<char*>(result) + bytes - static_cast<char*>(m_arena->data);
 
   return static_cast<T*>(result);
 }
@@ -126,16 +126,10 @@ class FreeList
 
     void release(void * const ptr, std::size_t bytes);
 
-  private:
+  public:
 
-    template<typename U, std::size_t ulignment = alignof(U)>
-    U *aligned(void *ptr)
+    size_t bucket(size_t n) const
     {
-      return reinterpret_cast<U*>((reinterpret_cast<std::size_t>(ptr) + ulignment - 1) & -ulignment);
-    }
-
-    size_t bucket(size_t n)
-    {      
 #if defined(_MSC_VER) && defined(_WIN64)
       auto __builtin_clzll = [](unsigned long long mask)
       {
@@ -146,7 +140,24 @@ class FreeList
         return 63 - where;
       };
 #endif
-      return std::min(std::max(8*sizeof(unsigned long long) - __builtin_clzll(n*n-n), (size_t)10) - 10, std::extent<decltype(m_freelist)>::value);
+
+      auto bits = (8*sizeof(unsigned long long) - __builtin_clzll(n | 128) - 3);
+      auto mask = (1 << bits) - 1;
+
+      return std::min(((bits - 5) << 2) + ((n + mask) >> bits), std::extent<decltype(m_freelist)>::value) - 1;
+    }
+
+    size_t bucket_mask(size_t n) const
+    {
+      return (1 << ((bucket(n) >> 2) + 5)) - 1;
+    }
+
+  private:
+
+    template<typename U, std::size_t ulignment = alignof(U)>
+    U *aligned(void *ptr)
+    {
+      return reinterpret_cast<U*>((reinterpret_cast<std::size_t>(ptr) + ulignment - 1) & -ulignment);
     }
 
     struct Node
@@ -275,11 +286,13 @@ StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocatorWithFree
 template<typename T>
 T *StackAllocatorWithFreelist<T>::allocate(std::size_t n, std::size_t alignment)
 {
-  auto result = m_freelist->acquire(n*sizeof(T), alignment);
+  auto mask = m_freelist->bucket_mask(n*sizeof(T));
+
+  auto result = m_freelist->acquire((n*sizeof(T) + mask) & ~mask, alignment);
 
   if (!result)
   {
-    result = StackAllocator<T>::allocate(n, alignment);
+    result = StackAllocator<T>::allocate(n, alignment, mask);
   }
 
   return static_cast<T*>(result);
@@ -290,7 +303,9 @@ T *StackAllocatorWithFreelist<T>::allocate(std::size_t n, std::size_t alignment)
 template<typename T>
 void StackAllocatorWithFreelist<T>::deallocate(T * const ptr, std::size_t n)
 {
-  m_freelist->release(ptr, n*sizeof(T));
+  auto mask = m_freelist->bucket_mask(n*sizeof(T));
+
+  m_freelist->release(ptr, (n*sizeof(T) + mask) & ~mask);
 }
 
 

@@ -19,8 +19,8 @@ class OcclusionBuffer
   public:
     OcclusionBuffer();
 
-    static const int Width = 256;
-    static const int Height = 144;
+    static constexpr int Width = 256;
+    static constexpr int Height = 144;
 
     void clear();
 

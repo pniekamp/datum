@@ -12,49 +12,48 @@
 using namespace std;
 using namespace lml;
 
-enum ClipMask
-{
-  ClipPosX = 0x01,
-  ClipNegX = 0x02,
-  ClipPosY = 0x04,
-  ClipNegY = 0x08,
-  ClipPosZ = 0x10,
-  ClipNegZ = 0x20
-};
-
-struct Gradients
-{
-  Gradients(Vec3 *vertices)
-  {
-    float invdx = 1.0f / ((vertices[1].x - vertices[2].x) * (vertices[0].y - vertices[2].y) - (vertices[0].x - vertices[2].x) * (vertices[1].y - vertices[2].y));
-
-    dzdx = invdx * ((vertices[1].z - vertices[2].z) * (vertices[0].y - vertices[2].y) - (vertices[0].z - vertices[2].z) * (vertices[1].y - vertices[2].y));
-    dzdy = -invdx * ((vertices[1].z - vertices[2].z) * (vertices[0].x - vertices[2].x) - (vertices[0].z - vertices[2].z) * (vertices[1].x - vertices[2].x));
-  }
-
-  float dzdx;
-  float dzdy;
-};
-
-
-struct Edge
-{
-  Edge(Gradients const &gradients, Vec3 top, Vec3 bot)
-  {
-    x = top.x;
-    xstep = (bot.x - top.x) / (bot.y - top.y);
-    z = top.z;
-    zstep = xstep * gradients.dzdx + gradients.dzdy;
-  }
-
-  float x;
-  float xstep;
-  float z;
-  float zstep;
-};
-
 namespace
 {
+  enum ClipMask
+  {
+    ClipPosX = 0x01,
+    ClipNegX = 0x02,
+    ClipPosY = 0x04,
+    ClipNegY = 0x08,
+    ClipPosZ = 0x10,
+    ClipNegZ = 0x20
+  };
+
+  struct Gradients
+  {
+    Gradients(Vec3 *vertices)
+    {
+      float invdx = 1.0f / ((vertices[1].x - vertices[2].x) * (vertices[0].y - vertices[2].y) - (vertices[0].x - vertices[2].x) * (vertices[1].y - vertices[2].y));
+
+      dzdx = invdx * ((vertices[1].z - vertices[2].z) * (vertices[0].y - vertices[2].y) - (vertices[0].z - vertices[2].z) * (vertices[1].y - vertices[2].y));
+      dzdy = -invdx * ((vertices[1].z - vertices[2].z) * (vertices[0].x - vertices[2].x) - (vertices[0].z - vertices[2].z) * (vertices[1].x - vertices[2].x));
+    }
+
+    float dzdx;
+    float dzdy;
+  };
+
+
+  struct Edge
+  {
+    Edge(Gradients const &gradients, Vec3 top, Vec3 bot)
+    {
+      x = top.x;
+      xstep = (bot.x - top.x) / (bot.y - top.y);
+      z = top.z;
+      zstep = xstep * gradients.dzdx + gradients.dzdy;
+    }
+
+    float x;
+    float xstep;
+    float z;
+    float zstep;
+  };
 
   ///////////////////////// rasterize ///////////////////////////////////////
   void rasterize(float buffer[OcclusionBuffer::Height][OcclusionBuffer::Width], Vec4 *vertices)
@@ -279,8 +278,8 @@ namespace
 //|---------------------- OcclusionBuffer -----------------------------------
 //|--------------------------------------------------------------------------
 
-const int OcclusionBuffer::Width;
-const int OcclusionBuffer::Height;
+constexpr int OcclusionBuffer::Width;
+constexpr int OcclusionBuffer::Height;
 
 ///////////////////////// OcclusionBuffer::Constructor //////////////////////
 OcclusionBuffer::OcclusionBuffer()

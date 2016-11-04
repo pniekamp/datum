@@ -25,7 +25,7 @@ uint32_t write_catl_asset(std::ostream &fout, uint32_t id);
 uint32_t write_text_asset(std::ostream &fout, uint32_t id, uint32_t length, void const *data);
 uint32_t write_imag_asset(std::ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, uint32_t format, void const *bits);
 uint32_t write_font_asset(std::ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, void const *bits);
-uint32_t write_font_asset(std::ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, uint32_t glyphatlas, std::vector<uint16_t> const &x, std::vector<uint16_t> const &y, std::vector<uint16_t> const &width, std::vector<uint16_t> const &height, std::vector<uint16_t> const &offsetx, std::vector<uint16_t> const &offsety, std::vector<uint8_t> const &advance);
+uint32_t write_font_asset(std::ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, uint32_t glyphatlas, std::vector<uint16_t> const &x, std::vector<uint16_t> const &y, std::vector<uint16_t> const &width, std::vector<uint16_t> const &height, std::vector<int16_t> const &offsetx, std::vector<int16_t> const &offsety, std::vector<uint8_t> const &advance);
 uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, uint32_t vertexcount, uint32_t indexcount, lml::Bound3 const &bound, void const *bits);
 uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, std::vector<PackVertex> const &vertices, std::vector<uint32_t> const &indices);
 uint32_t write_matl_asset(std::ostream &fout, uint32_t id, void const *bits);

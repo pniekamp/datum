@@ -162,6 +162,8 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
   assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
   assert(m_lumps[lumphandle - m_lumps].storagepool.count < extent<decltype(StoragePool::buffers)>::value);
 
+  assert(required < m_transferbuffer.size / StorageBufferSlots);
+
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
   size_t storagehead = m_storagehead;

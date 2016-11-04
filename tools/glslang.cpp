@@ -32,7 +32,7 @@ string load_shader(string const &path)
       buffer = load_shader(base + "/" + string(buffer.begin() + buffer.find_first_of("\"") + 1, buffer.begin() + buffer.find_last_of("\"")));
     }
 
-    shader += buffer + "\n";
+    shader += buffer + '\n';
   }
 
   return shader;
@@ -63,7 +63,7 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
       break;
   }
 
-  ofstream(tmpname) << text << "\n";
+  ofstream(tmpname) << text << '\n';
 
   if (system(string("glslangValidator.exe -V -o tmp.spv " + tmpname).c_str()) != 0)
     throw runtime_error("Error Executing glslangValidator");
