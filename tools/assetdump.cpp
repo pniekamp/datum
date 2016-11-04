@@ -70,7 +70,7 @@ void dump(const char *path)
 
   while (fin.read((char*)&chunk, sizeof(chunk)))
   {
-    std::vector<char> buffer(chunk.length);
+    vector<char> buffer(chunk.length);
 
     fin.read(buffer.data(), chunk.length);
 

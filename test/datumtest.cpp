@@ -76,7 +76,7 @@ void datumtest_init(PlatformInterface &platform)
 
   initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024);
 
-  initialise_resource_pool(platform, state.rendercontext.resourcepool, 8*1024*1024);
+  initialise_resource_pool(platform, state.rendercontext.resourcepool, 16*1024*1024);
 
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 

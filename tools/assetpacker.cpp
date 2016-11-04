@@ -197,7 +197,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t 
 
 
 ///////////////////////// write_font_asset //////////////////////////////////
-uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, uint32_t glyphatlas, vector<uint16_t> const &x, vector<uint16_t> const &y, vector<uint16_t> const &width, vector<uint16_t> const &height, vector<uint16_t> const &offsetx, vector<uint16_t> const &offsety, vector<uint8_t> const &advance)
+uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, uint32_t glyphatlas, vector<uint16_t> const &x, vector<uint16_t> const &y, vector<uint16_t> const &width, vector<uint16_t> const &height, vector<int16_t> const &offsetx, vector<int16_t> const &offsety, vector<uint8_t> const &advance)
 {
   vector<char> payload(sizeof(uint32_t) + 6*glyphcount*sizeof(uint16_t) + glyphcount*glyphcount*sizeof(uint8_t));
 
@@ -207,16 +207,16 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t 
   auto ytable = const_cast<uint16_t*>(PackFontPayload::ytable(payload.data(), glyphcount));
   auto widthtable = const_cast<uint16_t*>(PackFontPayload::widthtable(payload.data(), glyphcount));
   auto heighttable = const_cast<uint16_t*>(PackFontPayload::heighttable(payload.data(), glyphcount));
-  auto offsetxtable = const_cast<uint16_t*>(PackFontPayload::offsetxtable(payload.data(), glyphcount));
-  auto offsetytable = const_cast<uint16_t*>(PackFontPayload::offsetytable(payload.data(), glyphcount));
+  auto offsetxtable = const_cast<int16_t*>(PackFontPayload::offsetxtable(payload.data(), glyphcount));
+  auto offsetytable = const_cast<int16_t*>(PackFontPayload::offsetytable(payload.data(), glyphcount));
   auto advancetable = const_cast<uint8_t*>(PackFontPayload::advancetable(payload.data(), glyphcount));
 
   memcpy(xtable, x.data(), x.size()*sizeof(uint16_t));
   memcpy(ytable, y.data(), y.size()*sizeof(uint16_t));
   memcpy(widthtable, width.data(), width.size()*sizeof(uint16_t));
   memcpy(heighttable, height.data(), height.size()*sizeof(uint16_t));
-  memcpy(offsetxtable, offsetx.data(), offsetx.size()*sizeof(uint16_t));
-  memcpy(offsetytable, offsety.data(), offsety.size()*sizeof(uint16_t));
+  memcpy(offsetxtable, offsetx.data(), offsetx.size()*sizeof(int16_t));
+  memcpy(offsetytable, offsety.data(), offsety.size()*sizeof(int16_t));
   memcpy(advancetable, advance.data(), advance.size()*sizeof(uint8_t));
 
   write_font_asset(fout, id, ascent, descent, leading, glyphcount, payload.data());

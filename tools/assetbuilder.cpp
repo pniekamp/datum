@@ -615,23 +615,23 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
   vector<uint16_t> y(count);
   vector<uint16_t> width(count);
   vector<uint16_t> height(count);
-  vector<uint16_t> offsetx(count);
-  vector<uint16_t> offsety(count);
+  vector<int16_t> offsetx(count);
+  vector<int16_t> offsety(count);
   vector<uint8_t> advance(count*count);
 
   AtlasPacker packer(512, 256);
 
   for(int codepoint = 33; codepoint < count; ++codepoint)
   {
-    auto position = packer.insert(codepoint, tm.width(QChar(codepoint))+2, tm.height()+2);
+    auto position = packer.insert(codepoint, tm.width(QString(codepoint)) - tm.leftBearing(codepoint) - tm.rightBearing(codepoint) + 4, tm.height() + 4);
 
     assert(position);
 
     x[codepoint] = position->x;
     y[codepoint] = position->y;
-    width[codepoint] = position->width;
-    height[codepoint] = position->height;
-    offsetx[codepoint] = 1;
+    width[codepoint] = position->width - 1;
+    height[codepoint] = position->height - 1;
+    offsetx[codepoint] = 1 - tm.leftBearing(codepoint);
     offsety[codepoint] = 1 + tm.ascent();
   }
 
@@ -641,7 +641,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
     for(int othercodepoint = 1; othercodepoint < count; ++othercodepoint)
     {
-      advance[othercodepoint * count + codepoint] = tm.width(QString(QChar(othercodepoint)) + QString(QChar(codepoint))) - tm.width(QChar(codepoint));
+      advance[othercodepoint * count + codepoint] = tm.width(QString(othercodepoint) + QString(codepoint)) - tm.width(QString(codepoint));
     }
   }
 
@@ -659,7 +659,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
     painter.setFont(font);
     painter.setPen(Qt::white);
-    painter.drawText(QRectF(position->x + 1, position->y + 1, position->width - 2, position->height - 2), QString(QChar(codepoint)));
+    painter.drawText(position->x + offsetx[codepoint] + 1, position->y + offsety[codepoint] + 1, QString(codepoint));
   }
 
   write_sprite_asset(fout, id + 1, { atlas });
@@ -732,9 +732,9 @@ void write_core()
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
   write_shader_asset(fout, CoreAsset::skybox_comp, "../../data/skybox.comp");
-//  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
+  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 //  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
-  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
+//  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
 
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");

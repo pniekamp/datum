@@ -19,7 +19,7 @@ using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
-const size_t BufferAlignment = 4096;
+static constexpr size_t BufferAlignment = 4096;
 
 //|---------------------- ResourceManager -----------------------------------
 //|--------------------------------------------------------------------------
@@ -150,6 +150,8 @@ void ResourceManager::initialise_device(VkPhysicalDevice physicaldevice, VkDevic
   m_minallocation = buffersize;
   m_maxallocation = maxbuffersize;
 
+  assert(vulkan.physicaldeviceproperties.limits.minMemoryMapAlignment >= alignof(Buffer));
+
   RESOURCE_USE(ResourceBuffer, (m_bufferused = 0), m_buffersallocated)
 }
 
@@ -159,7 +161,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 {
   leap::threadlib::SyncLock lock(m_mutex);
 
-  size_t bytes = alignto(size + alignto(sizeof(Buffer), BufferAlignment), BufferAlignment);
+  size_t bytes = alignto(sizeof(Buffer), BufferAlignment) + alignto(size, BufferAlignment);
 
   for(size_t k = 0; k < 2; ++k)
   {
@@ -180,9 +182,9 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
         buffer = new((uint8_t*)buffer + buffer->used) Buffer;
 
         buffer->size = (*into)->size - (*into)->used;
-        buffer->offset = (*into)->offset + (*into)->used;
-
         buffer->used = bytes;
+
+        buffer->offset = (*into)->offset + (*into)->used;
         buffer->transferlump.fence = create_fence(vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
         buffer->transferlump.commandpool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
         buffer->transferlump.commandbuffer = allocate_commandbuffer(vulkan, buffer->transferlump.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
@@ -212,12 +214,16 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
     {
       TransferBuffer transferbuffer = create_transferbuffer(vulkan, max(bytes + BufferAlignment, m_minallocation));
 
-      buffer = new(map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size).release()) Buffer;
+      auto memory = map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size).release();
+
+      assert(((size_t)memory & (alignof(Buffer)-1)) == 0);
+
+      buffer = new(memory) Buffer;
 
       buffer->size = transferbuffer.size;
-      buffer->offset = 0;
+      buffer->used = alignto(sizeof(Buffer), BufferAlignment);
 
-      buffer->used = BufferAlignment;
+      buffer->offset = 0;
       buffer->transferlump.transferbuffer = std::move(transferbuffer);
       buffer->transferlump.transfermemory = nullptr;
 

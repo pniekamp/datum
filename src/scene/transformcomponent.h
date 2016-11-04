@@ -69,8 +69,8 @@ class TransformComponent
         bool operator ==(iterator const &that) const { return node.index == that.node.index; }
         bool operator !=(iterator const &that) const { return node.index != that.node.index; }
 
-        TransformComponent &operator *() { return node; }
-        TransformComponent *operator ->() { return &node; }
+        TransformComponent &operator *() const { return node; }
+        TransformComponent *operator ->() const { return &node; }
 
         iterator &operator++()
         {

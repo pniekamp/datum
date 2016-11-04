@@ -44,7 +44,7 @@ namespace Renderable
 
   struct Sprites
   {
-    static const Type type = Type::Sprites;
+    static constexpr Type type = Type::Sprites;
 
     Rect2 viewport;
 
@@ -53,28 +53,28 @@ namespace Renderable
 
   struct Meshes
   {
-    static const Type type = Type::Meshes;
+    static constexpr Type type = Type::Meshes;
 
     CommandList const *commandlist;
   };
 
   struct Casters
   {
-    static const Type type = Type::Casters;
+    static constexpr Type type = Type::Casters;
 
     CommandList const *commandlist;
   };
 
   struct Lights
   {
-    static const Type type = Type::Lights;
+    static constexpr Type type = Type::Lights;
 
     CommandList const *commandlist;
   };
 
   struct Environment
   {
-    static const Type type = Type::Environment;
+    static constexpr Type type = Type::Environment;
 
     Vec3 dimension;
     Transform transform;
@@ -104,8 +104,8 @@ class PushBuffer
         bool operator ==(const_iterator const &that) const { return m_header == that.m_header; }
         bool operator !=(const_iterator const &that) const { return m_header != that.m_header; }
 
-        Header const &operator *() { return *m_header; }
-        Header const *operator ->() { return &*m_header; }
+        Header const &operator *() const { return *m_header; }
+        Header const *operator ->() const { return &*m_header; }
 
         iterator &operator++()
         {

@@ -35,7 +35,7 @@ class Scene
 
   public:
 
-    static const int kIndexBits = 24;
+    static constexpr int kIndexBits = 24;
 
     struct EntityId
     {
@@ -131,7 +131,7 @@ class Scene
 
         operator EntityId() { return m_scene->m_slots[m_index].id; }
 
-        EntityId const operator *() { return m_scene->m_slots[m_index].id; }
+        EntityId const operator *() const { return m_scene->m_slots[m_index].id; }
 
         iterator &operator++()
         {
