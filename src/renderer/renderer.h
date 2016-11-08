@@ -223,7 +223,7 @@ struct RenderContext
   Vulkan::Texture rt1buffer;
   Vulkan::Texture normalbuffer;
   Vulkan::Texture depthbuffer;
-  Vulkan::Texture scratchbuffers[2];
+  Vulkan::Texture scratchbuffers[4];
   Vulkan::FrameBuffer geometrybuffer;
   Vulkan::FrameBuffer framebuffer;
 
@@ -251,7 +251,7 @@ struct RenderContext
 
   Vulkan::DescriptorSet bloomdescriptor;
 
-  Vulkan::DescriptorSet scratchtargets[2];
+  Vulkan::DescriptorSet scratchtargets[4];
   Vulkan::DescriptorSet colorbuffertarget;
 
   Vulkan::VertexAttribute vertexattributes[4];

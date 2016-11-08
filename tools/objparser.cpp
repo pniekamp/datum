@@ -352,6 +352,8 @@ void write_model(string const &filename)
 
   Mesh *mesh = nullptr;
 
+  string basepath = pathstring(".", filename).base();
+
   ifstream fin(filename);
 
   if (!fin)
@@ -373,7 +375,7 @@ void write_model(string const &filename)
 
     if (fields[0] == "mtllib")
     {
-      mtllib = pathstring(pathstring(filename).base(), fields[1]).c_str();
+      mtllib = pathstring(basepath, fields[1]);
     }
 
     if (fields[0] == "usemtl")
@@ -686,16 +688,16 @@ void write_model(string const &filename)
         break;
 
       case PackModelPayload::Texture::albedomap:
-        write_diffmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[0]), pathstring(pathstring(filename).base(), texture.paths[1]));
+        write_diffmap_asset(fout, id++, pathstring(basepath, texture.paths[0]), pathstring(basepath, texture.paths[1]));
         break;
 
       case PackModelPayload::Texture::specularmap:
-        write_specmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[1]), pathstring(pathstring(filename).base(), texture.paths[0]));
+        write_specmap_asset(fout, id++, pathstring(basepath, texture.paths[1]), pathstring(basepath, texture.paths[0]));
         break;
 
       case PackModelPayload::Texture::normalmap:
-        //write_bumpmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[0]));
-        write_normalmap_asset(fout, id++, pathstring(pathstring(filename).base(), texture.paths[0]));
+        //write_bumpmap_asset(fout, id++, pathstring(basepath, texture.paths[0]));
+        write_normalmap_asset(fout, id++, pathstring(basepath, texture.paths[0]));
         break;
     }
   }

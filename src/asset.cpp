@@ -237,7 +237,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
   }
   catch(exception &e)
   {
-    cerr << e.what() << endl;
+    cerr << "Asset Pack Load Error: " << e.what() << endl;
   }
 
   return nullptr;

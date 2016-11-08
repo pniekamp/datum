@@ -18,7 +18,7 @@ enum MaterialFlags
 {
   MaterialOwnsAlbedoMap = 0x01,
   MaterialOwnsSpecularMap = 0x02,
-  MaterialOwnsNormalMap = 0x004,
+  MaterialOwnsNormalMap = 0x04,
 };
 
 //|---------------------- Material ------------------------------------------
@@ -115,6 +115,26 @@ void ResourceManager::update<Material>(Material const *material, Color3 color, f
   slot->roughness = roughness;
   slot->reflectivity = reflectivity;
   slot->emissive = emissive;
+}
+
+
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
+void ResourceManager::update<Material>(Material const *material, lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
+{
+  assert(material);
+  assert((material->flags & (MaterialOwnsAlbedoMap | MaterialOwnsSpecularMap | MaterialOwnsNormalMap)) == 0);
+
+  auto slot = const_cast<Material*>(material);
+
+  slot->color = color;
+  slot->metalness = metalness;
+  slot->roughness = roughness;
+  slot->reflectivity = reflectivity;
+  slot->emissive = emissive;
+  slot->albedomap = albedomap;
+  slot->specularmap = specularmap;
+  slot->normalmap = normalmap;
 }
 
 

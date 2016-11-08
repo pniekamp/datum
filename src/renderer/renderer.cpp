@@ -1679,10 +1679,13 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Scratch Buffers
     //
 
+    context.scratchbuffers[0] = create_texture(context.device, width/2, height/2, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+    context.scratchbuffers[1] = create_texture(context.device, width/2, height/2, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+    context.scratchbuffers[2] = create_texture(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+    context.scratchbuffers[3] = create_texture(context.device, width, height, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+
     for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
     {
-
-      context.scratchbuffers[i] = create_texture(context.device, width, height, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
       setimagelayout(context.device, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
       context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
@@ -1745,13 +1748,13 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     bindtexture(context.device, context.ssrdescriptor, ShaderLocation::rt1, context.rt1buffer);
     bindtexture(context.device, context.ssrdescriptor, ShaderLocation::normalmap, context.normalbuffer);
     bindtexture(context.device, context.ssrdescriptor, ShaderLocation::depthmap, context.depthbuffer);
-    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::scratchmap0, context.scratchbuffers[0]);
+    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::scratchmap0, context.scratchbuffers[2]);
 
     //
     // Bloom
     //
 
-    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::colorbuffer, context.colorbuffer);
+    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::colorbuffer, context.scratchbuffers[3]);
     bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap0, context.scratchbuffers[0]);
     bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap1, context.scratchbuffers[1]);
 
@@ -1783,6 +1786,8 @@ void release_render_pipeline(RenderContext &context)
 
   context.scratchbuffers[0] = {};
   context.scratchbuffers[1] = {};
+  context.scratchbuffers[2] = {};
+  context.scratchbuffers[3] = {};
 
   context.ssaobuffers[0] = {};
   context.ssaobuffers[1] = {};
@@ -2119,15 +2124,19 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     bindresource(commandbuffer, context.ssrdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    bindresource(commandbuffer, context.scratchtargets[0], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+    bindresource(commandbuffer, context.scratchtargets[2], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
     dispatch(commandbuffer, context.fbowidth, context.fboheight, 1, computeconstants.SSRDispatch);
 
     bindresource(commandbuffer, context.ssrpipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    bindresource(commandbuffer, context.colorbuffertarget, context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+    bindresource(commandbuffer, context.scratchtargets[3], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
     dispatch(commandbuffer, context.fbowidth, context.fboheight, 1, computeconstants.SSRDispatch);
+  }
+  else
+  {
+    blit(commandbuffer, context.colorbuffer.image, 0, 0, context.fbowidth, context.fboheight, context.scratchbuffers[3].image, 0, 0, context.fbowidth, context.fboheight, VK_FILTER_NEAREST);
   }
 
   querytimestamp(commandbuffer, context.timingquerypool, 6);
