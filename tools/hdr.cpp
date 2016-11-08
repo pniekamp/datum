@@ -43,7 +43,7 @@ Color4 HDRImage::sample(Vec2 const &texcoords) const
 //|///////////////////// sample /////////////////////////////////////////////
 Color4 HDRImage::sample(Vec2 const &texcoords, Vec2 const &area) const
 {
-  Color4 sum(0, 0, 0);
+  Color4 sum(0, 0, 0, 0);
   float totalweight = 0;
 
   for(float y = texcoords.y - 0.5f*area.y + 0.5f/height, end = texcoords.y + 0.5f*area.y; y < end; y += 1.0f/height)

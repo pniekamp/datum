@@ -27,6 +27,7 @@ class Material
     friend Material const *ResourceManager::create<Material>(lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
 
     friend void ResourceManager::update<Material>(Material const *material, lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive);
+    friend void ResourceManager::update<Material>(Material const *material, lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
 
     bool ready() const { return (state == State::Ready); }
 

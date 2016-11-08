@@ -255,5 +255,5 @@ void main(void)
     fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), 1);       
   }
 
-  imageStore(dest, xy, fragcolor);
+  imageStore(dest, xy, fragcolor); 
 }

@@ -117,7 +117,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sibenik.pack"));
 #endif
 
-#if 1
+#if 0
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
@@ -239,7 +239,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   float suzanneroughness = 1.0f;
   DEBUG_MENU_VALUE("Suzanne/Roughness", &suzanneroughness, 0.0f, 4.0f)
 
-  float suzannereflectivity = 0.2f;
+  float suzannereflectivity = 0.5f;
   DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 8.0f)
 
   float suzanneemissive = 0.0f;
