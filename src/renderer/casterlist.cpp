@@ -33,11 +33,6 @@ enum ShaderLocation
   albedomap = 1,
 };
 
-struct SceneSet
-{
-  array<Matrix4f, ShadowMap::nslices> shadowview;
-};
-
 struct MaterialSet
 {
 };
@@ -51,14 +46,7 @@ struct ModelSet
 ///////////////////////// draw_casters //////////////////////////////////////
 void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Casters const &casters)
 {
-  auto scene = casters.commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
-
-  if (scene)
-  {
-    scene->shadowview = context.shadows.shadowview;
-
-    execute(commandbuffer, casters.commandlist->commandbuffer());
-  }
+  execute(commandbuffer, casters.commandlist->commandbuffer());
 }
 
 
@@ -93,16 +81,7 @@ bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 
   bindresource(*commandlist, context.shadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
-
-  if (sceneset)
-  {
-    sceneset.reserve(sizeof(SceneSet));
-
-    bindresource(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-    commandlist->release(sceneset);
-  }
+  bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -223,10 +202,8 @@ void CasterList::finalise(BuildState &state)
 {
   assert(state.commandlist);
 
-  auto &commandlist = *state.commandlist;
-
-  commandlist.release(state.modelset);
-  commandlist.release(state.materialset);
+  state.commandlist->release(state.modelset);
+  state.commandlist->release(state.materialset);
 
   state.commandlist->end();
 

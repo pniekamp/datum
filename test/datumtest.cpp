@@ -104,8 +104,8 @@ void datumtest_init(PlatformInterface &platform)
 
   state.suzanne = state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack"));
 
-  while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
-    ;
+//  while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
+//    ;
 
   state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
   state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
@@ -114,7 +114,11 @@ void datumtest_init(PlatformInterface &platform)
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 
 #if 0
-  state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sibenik.pack"));
+  auto catalog = state.assets.load(platform, "test.pack");
+
+  state.scene.load<Model>(platform, &state.resources, state.assets.find(catalog->id + 1));
+
+  random_lights(state.scene, 128);
 #endif
 
 #if 0
@@ -243,9 +247,9 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 8.0f)
 
   float suzanneemissive = 0.0f;
-  DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 10.0f)
+  DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 16.0f)
 
-  auto suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity, suzanneemissive));
+  state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity, suzanneemissive));
 
 #if 1
   {
@@ -272,7 +276,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
     if (state.writeframe->meshes.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, suzannematerial);
+      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
       state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
 
@@ -392,19 +396,58 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
 #if 1
-  SpriteList overlay;
-  SpriteList::BuildState buildstate;
-
-  if (overlay.begin(buildstate, platform, state.rendercontext, &state.resources))
   {
-    overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
+    ForwardList objects;
+    ForwardList::BuildState buildstate;
 
-//    overlay.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
+    if (objects.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      objects.push_transparent(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial);
 
-    overlay.finalise(buildstate);
+      objects.finalise(buildstate);
+    }
+
+    renderlist.push_objects(objects);
   }
+#endif
 
-  renderlist.push_sprites(viewport, overlay);
+#if 1
+  {
+    OverlayList overlays;
+    OverlayList::BuildState buildstate;
+
+    if (overlays.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      overlays.push_wireframe(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, Color4(0.1f, 0.1f, 0.1f, 1.0f));
+
+      overlays.push_stencil(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial);
+      overlays.push_outline(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial, Color4(1.0f, 0.5f, 0.15f, 1.0f));
+
+      overlays.push_gizmo(buildstate, camera.transform() * Transform::translation(8, 5, -12)*Transform::rotation(Vec3(1, 0, 0), 0.4)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time), state.suzanne, state.suzannematerial);
+
+      overlays.finalise(buildstate);
+    }
+
+    renderlist.push_overlays(overlays);
+  }
+#endif
+
+#if 1
+  {
+    SpriteList overlay;
+    SpriteList::BuildState buildstate;
+
+    if (overlay.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
+
+  //    overlay.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
+
+      overlay.finalise(buildstate);
+    }
+
+    renderlist.push_sprites(viewport, overlay);
+  }
 #endif
 
 //  renderlist.push_environment(Vec3(6, 12, 26), Transform::translation(0, 6, 0) * Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), state.testenvmap);

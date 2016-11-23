@@ -33,7 +33,7 @@ void main()
 
   vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
 
-  fragrt0 = vec4(albedo.rgb * material.color.rgb, material.emissive / 10);
+  fragrt0 = vec4(albedo.rgb * material.color.rgb, material.emissive / 16);
   fragrt1 = vec4(material.metalness * specular.r, material.reflectivity * specular.g, 0, material.roughness * specular.a);
   fragnormal  = vec4(0.5 * normal + 0.5, 1);
 }

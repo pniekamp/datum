@@ -54,9 +54,9 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   auto &skyboxdescriptor = context.skyboxdescriptors[context.frame & 1];
 
-  begin(context.device, skyboxcommands, context.framebuffer, context.renderpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  begin(context.device, skyboxcommands, context.forwardbuffer, context.forwardpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
-  bindresource(skyboxcommands, context.skyboxpipeline, context.fbox, context.fboy, context.fbowidth - 2*context.fbox, context.fboheight - 2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindtexture(context.device, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap->texture);
 

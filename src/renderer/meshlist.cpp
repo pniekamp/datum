@@ -35,11 +35,6 @@ enum ShaderLocation
   normalmap = 3,
 };
 
-struct SceneSet
-{
-  Matrix4f worldview;
-};
-
 struct MaterialSet
 {
   Color4 color;
@@ -58,14 +53,7 @@ struct ModelSet
 ///////////////////////// draw_meshes ///////////////////////////////////////
 void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes)
 {
-  auto scene = meshes.commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
-
-  if (scene)
-  {
-    scene->worldview = context.proj * context.view;
-
-    execute(commandbuffer, meshes.commandlist->commandbuffer());
-  }
+  execute(commandbuffer, meshes.commandlist->commandbuffer());
 }
 
 
@@ -98,18 +86,9 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
 
   state.assetbarrier = resources->assets()->acquire_barrier();
 
-  bindresource(*commandlist, context.geometrypipeline, context.fbox, context.fboy, context.fbowidth - 2*context.fbox, context.fboheight - 2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
-
-  if (sceneset)
-  {
-    sceneset.reserve(sizeof(SceneSet));
-
-    bindresource(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-    commandlist->release(sceneset);
-  }
+  bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -240,10 +219,8 @@ void MeshList::finalise(BuildState &state)
 {
   assert(state.commandlist);
 
-  auto &commandlist = *state.commandlist;
-
-  commandlist.release(state.modelset);
-  commandlist.release(state.materialset);
+  state.commandlist->release(state.modelset);
+  state.commandlist->release(state.materialset);
 
   state.commandlist->end();
 

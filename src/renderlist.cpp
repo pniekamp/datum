@@ -38,6 +38,21 @@ void RenderList::push_meshes(MeshList const &meshes)
 }
 
 
+///////////////////////// RenderList::push_objects //////////////////////////
+void RenderList::push_objects(ForwardList const &objects)
+{
+  if (objects)
+  {
+    auto entry = m_buffer.push<Renderable::Objects>();
+
+    if (entry)
+    {
+      entry->commandlist = objects.commandlist();
+    }
+  }
+}
+
+
 ///////////////////////// RenderList::push_casters //////////////////////////
 void RenderList::push_casters(CasterList const &casters)
 {
@@ -88,6 +103,21 @@ void RenderList::push_sprites(Rect2 const &viewport, SpriteList const &sprites)
 void RenderList::push_sprites(DatumPlatform::Viewport const &viewport, SpriteList const &sprites)
 {
   push_sprites(Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height)), sprites);
+}
+
+
+///////////////////////// RenderList::push_overlays /////////////////////////
+void RenderList::push_overlays(OverlayList const &overlays)
+{
+  if (overlays)
+  {
+    auto entry = m_buffer.push<Renderable::Overlays>();
+
+    if (entry)
+    {
+      entry->commandlist = overlays.commandlist();
+    }
+  }
 }
 
 

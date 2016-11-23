@@ -76,7 +76,7 @@ Material unpack_material(vec4 rt0, vec4 rt1)
   Material material;
 
   material.albedo = rt0.rgb;
-  material.emissive = rt0.a * 10.0;
+  material.emissive = rt0.a * 16.0;
   material.metalness = rt1.r;
   material.roughness = rt1.a;
   material.reflectivity = rt1.g;
@@ -226,7 +226,7 @@ void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 n
   float NdotV = max(dot(normal, eyevec), 0);
   float NdotL = max(dot(normal, lightvec), 0);
   float NdotH = max(dot(normal, halfvec), 0);
-  float LdotH = max(dot(lightvec, halfvec), 0);
+  float LdotH = clamp(dot(lightvec, halfvec), 0, 1);
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 

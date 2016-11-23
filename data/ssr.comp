@@ -1,5 +1,4 @@
 #version 450 core
-#include "camera.glsl"
 #include "gbuffer.glsl"
 #include "transform.glsl"
 #include "lighting.glsl"
@@ -13,11 +12,8 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   mat4 invproj;
   mat4 view;
   mat4 invview;
-  mat4 prevview;
-  mat4 skyview;
-  
-  Camera camera;
-  
+  mat4 worldview;
+    
 } scene;
 
 layout(set=0, binding=1) uniform sampler2D src;
@@ -171,7 +167,7 @@ void main(void)
       float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
       float roughnessfade = 1 - min(3 * material.roughness, 1);
 
-      fragcolor = edgefade * distancefade * roughnessfade * scene.camera.ssrstrength * texelFetch(src, ivec2(hitpixel), 0).rgb * material.specular * mix(4, 1, material.metalness);
+      fragcolor = edgefade * distancefade * roughnessfade * texelFetch(src, ivec2(hitpixel), 0).rgb * material.specular;
     }
   }
 

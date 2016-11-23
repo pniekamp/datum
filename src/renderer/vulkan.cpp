@@ -519,7 +519,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageUsageFlags usage)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageUsageFlags usage, VkImageLayout layout)
   {
     Texture texture = {};
 
@@ -574,7 +574,15 @@ namespace Vulkan
     viewinfo.subresourceRange = { (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
     viewinfo.image = texture.image;
 
+    if (format == VK_FORMAT_D16_UNORM_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+      viewinfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
     texture.imageview = create_imageview(vulkan, viewinfo);
+
+    if (layout != VK_IMAGE_LAYOUT_UNDEFINED)
+    {
+      setimagelayout(commandbuffer, viewinfo.image, VK_IMAGE_LAYOUT_UNDEFINED, layout, viewinfo.subresourceRange);
+    }
 
     return texture;
   }
@@ -583,9 +591,7 @@ namespace Vulkan
   ///////////////////////// create_texture //////////////////////////////////
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter, VkSamplerAddressMode addressmode)
   {
-    Texture texture = create_texture(vulkan, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, filter, addressmode, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers });
+    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, filter, addressmode, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     return texture;
   }
@@ -1277,6 +1283,9 @@ namespace Vulkan
     if (oldlayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_SHADER_READ_BIT;
 
+    if (oldlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+      imagebarrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+
     if (oldlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
@@ -1297,6 +1306,9 @@ namespace Vulkan
 
     if (newlayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+      imagebarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
     vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
   }

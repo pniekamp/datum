@@ -21,7 +21,7 @@ using leap::extentof;
 
 enum RenderPasses
 {
-  spritepass = 0,
+  overlaypass = 0,
 };
 
 enum ShaderLocation
@@ -88,13 +88,13 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context.framebuffer, context.renderpass, RenderPasses::spritepass))
+  if (!commandlist->begin(context.framebuffer, context.renderpass, RenderPasses::overlaypass))
   {
     resources->destroy(commandlist);
     return false;
   }
 
-  bindresource(*commandlist, context.spritepipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.spritepipeline, 0, 0, context.targetwidth, context.targetheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
 
@@ -423,10 +423,8 @@ void SpriteList::finalise(BuildState &state)
 {
   assert(state.commandlist);
 
-  auto &commandlist = *state.commandlist;
-
-  commandlist.release(state.modelset);
-  commandlist.release(state.materialset);
+  state.commandlist->release(state.modelset);
+  state.commandlist->release(state.materialset);
 
   state.commandlist->end();
 
