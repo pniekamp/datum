@@ -129,7 +129,7 @@ namespace
 
   Color3 convolve(float roughness, Vec3 ray, Sampler const &envmap)
   {
-    constexpr int kSamples = 1024;
+    constexpr int kSamples = 10;//24;
 
     Vec3 N = ray;
     Vec3 V = ray;
@@ -158,7 +158,7 @@ namespace
 
   Vec2 integrate(float roughness, float NdotV)
   {
-    constexpr int kSamples = 1024;
+    constexpr int kSamples = 10;//24;
 
     Vec3 V = Vec3(sqrt(1.0f - NdotV * NdotV), 0.0f, NdotV);
 

@@ -1,5 +1,7 @@
 #version 450 core
+#include "camera.glsl"
 #include "transform.glsl"
+#include "lighting.glsl"
 
 /*layout(constant_id = 46)*/ const uint ShadowSlices = 4;
 
@@ -8,7 +10,21 @@ layout(triangle_strip, max_vertices = 3*ShadowSlices) out;
 
 layout(std430, set=0, binding=0, row_major) buffer SceneSet 
 {
-  mat4 shadowview[ShadowSlices];
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 worldview;
+  mat4 prevview;
+  mat4 skyview;
+  vec4 viewport;
+
+  Camera camera;
+  
+  MainLight mainlight;
+
+  float splits[4];
+  mat4 shadowview[4];
 
 } scene;
 

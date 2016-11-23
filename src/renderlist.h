@@ -30,12 +30,16 @@ class RenderList
 
     void push_meshes(MeshList const &meshes);
 
+    void push_objects(ForwardList const &objects);
+
     void push_casters(CasterList const &casters);
 
     void push_lights(LightList const &lights);
 
     void push_sprites(lml::Rect2 const &viewport, SpriteList const &sprites);
     void push_sprites(DatumPlatform::Viewport const &viewport, SpriteList const &sprites);
+
+    void push_overlays(OverlayList const &overlays);
 
     void push_environment(lml::Transform const &transform, lml::Vec3 const &dimension, EnvMap const *envmap);
 

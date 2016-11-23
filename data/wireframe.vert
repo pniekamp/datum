@@ -13,6 +13,9 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   mat4 view;
   mat4 invview;
   mat4 worldview;
+  mat4 prevview;
+  mat4 skyview;
+  vec4 viewport;
 
 } scene;
 
@@ -23,19 +26,14 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 
 } model;
 
-layout(location=0) out vec2 texcoord;
-layout(location=1) out mat3 tbnworld;
+layout(location=0) out vec4 fbocoords;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 {
-  vec3 normal = quaternion_multiply(model.modelworld.real, vertex_normal);
-  vec3 tangent = quaternion_multiply(model.modelworld.real, vertex_tangent.xyz);
-  vec3 bitangent = cross(normal, tangent) * vertex_tangent.w;
-
-  tbnworld = mat3(tangent, bitangent, normal);
-
-  texcoord = vertex_texcoord;
+  vec4 ndc = scene.worldview * vec4(transform_multiply(model.modelworld, vertex_position), 1);
   
-  gl_Position = scene.worldview * vec4(transform_multiply(model.modelworld, vertex_position), 1);
+  fbocoords = vec4(0.5 * ndc.xy / ndc.w + 0.5, ndc.z / ndc.w, 1);
+  
+  gl_Position = vec4(ndc.x * scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), ndc.y * scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), ndc.z, ndc.w);
 }

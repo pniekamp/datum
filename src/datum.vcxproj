@@ -179,6 +179,8 @@
     <ClInclude Include="corepack.h" />
     <ClInclude Include="assetpack.h" />
     <ClInclude Include="asset.h" />
+    <ClInclude Include="renderer\forwardlist.h" />
+    <ClInclude Include="renderer\overlaylist.h" />
     <ClInclude Include="scene\storage.h" />
     <ClInclude Include="scene\scene.h" />
     <ClInclude Include="scene\entity.h" />
@@ -211,6 +213,8 @@
     <ClInclude Include="renderlist.h" />
     <ClInclude Include="debug.h" />
     <ClCompile Include="asset.cpp" />
+    <ClCompile Include="renderer\forwardlist.cpp" />
+    <ClCompile Include="renderer\overlaylist.cpp" />
     <ClCompile Include="scene\scene.cpp" />
     <ClCompile Include="scene\entity.cpp" />
     <ClCompile Include="scene\namecomponent.cpp" />

@@ -32,7 +32,7 @@ bool LightList::begin(BuildState &state, DatumPlatform::v1::PlatformInterface &p
   state.context = &context;
   state.resources = resources;
 
-  if (!context.framebuffer)
+  if (!context.forwardbuffer)
     return false;
 
   auto commandlist = resources->allocate<CommandList>(&context);

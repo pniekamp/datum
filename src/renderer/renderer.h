@@ -27,7 +27,9 @@ namespace Renderable
   {
     Clear,
     Sprites,
+    Overlays,
     Meshes,
+    Objects,
     Casters,
     Lights,
     Environment,
@@ -51,9 +53,23 @@ namespace Renderable
     CommandList const *commandlist;
   };
 
+  struct Overlays
+  {
+    static constexpr Type type = Type::Overlays;
+
+    CommandList const *commandlist;
+  };
+
   struct Meshes
   {
     static constexpr Type type = Type::Meshes;
+
+    CommandList const *commandlist;
+  };
+
+  struct Objects
+  {
+    static constexpr Type type = Type::Objects;
 
     CommandList const *commandlist;
   };
@@ -218,17 +234,22 @@ struct RenderContext
 
   Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::Texture colorbuffer;
+  Vulkan::Texture rendertarget;
+  Vulkan::Texture depthstencil;
+
   Vulkan::Texture rt0buffer;
   Vulkan::Texture rt1buffer;
   Vulkan::Texture normalbuffer;
+  Vulkan::Texture colorbuffer;
   Vulkan::Texture depthbuffer;
-  Vulkan::Texture scratchbuffers[4];
+  Vulkan::Texture scratchbuffers[3];
   Vulkan::FrameBuffer geometrybuffer;
+  Vulkan::FrameBuffer forwardbuffer;
   Vulkan::FrameBuffer framebuffer;
 
   Vulkan::RenderPass shadowpass;
   Vulkan::RenderPass geometrypass;
+  Vulkan::RenderPass forwardpass;
   Vulkan::RenderPass renderpass;
 
   Vulkan::ConstantBuffer constantbuffer;
@@ -242,7 +263,11 @@ struct RenderContext
   Vulkan::DescriptorSet ssaotargets[2];
   Vulkan::DescriptorSet ssaodescriptors[2];
 
+  Vulkan::DescriptorSet colorbuffertarget;
+
   Vulkan::DescriptorSet lightingdescriptors[2];
+
+  Vulkan::DescriptorSet scenedescriptor;
 
   Vulkan::DescriptorSet skyboxdescriptors[2];
   Vulkan::CommandBuffer skyboxcommands[2];
@@ -251,8 +276,11 @@ struct RenderContext
 
   Vulkan::DescriptorSet bloomdescriptor;
 
-  Vulkan::DescriptorSet scratchtargets[4];
-  Vulkan::DescriptorSet colorbuffertarget;
+  Vulkan::DescriptorSet scratchtargets[3];
+
+  Vulkan::CommandBuffer compositecommands;
+
+  Vulkan::DescriptorSet overlaydescriptor;
 
   Vulkan::VertexAttribute vertexattributes[4];
 
@@ -263,17 +291,25 @@ struct RenderContext
 
   Vulkan::Pipeline shadowpipeline;
   Vulkan::Pipeline geometrypipeline;
+  Vulkan::Pipeline transparentpipeline;
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
-  Vulkan::Pipeline ssrpipeline[2];
+  Vulkan::Pipeline ssrpipeline;
   Vulkan::Pipeline luminancepipeline;
-  Vulkan::Pipeline bloompipeline[4];
+  Vulkan::Pipeline bloompipeline[3];
+  Vulkan::Pipeline compositepipeline;
   Vulkan::Pipeline spritepipeline;
+  Vulkan::Pipeline gizmopipeline;
+  Vulkan::Pipeline wireframepipeline;
+  Vulkan::Pipeline stencilpipeline;
+  Vulkan::Pipeline outlinepipeline;
 
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
 
+  int width, height;
+  int targetwidth, targetheight;
   int fbowidth, fboheight, fbox, fboy;
 
   ResourcePool resourcepool;

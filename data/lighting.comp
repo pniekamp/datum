@@ -22,18 +22,20 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   mat4 invproj;
   mat4 view;
   mat4 invview;
+  mat4 worldview;
   mat4 prevview;
   mat4 skyview;
-  
+  vec4 viewport;
+
   Camera camera;
   
   MainLight mainlight;
-  
-  uint environmentcount;
-  Environment environments[MaxEnvironments];
 
   float splits[4];
   mat4 shadowview[4];
+  
+  uint environmentcount;
+  Environment environments[MaxEnvironments];
 
   uint pointlightcount;
   PointLight pointlights[MaxPointLights];
@@ -46,8 +48,8 @@ layout(set=0, binding=3) uniform sampler2D normalmap;
 layout(set=0, binding=4) uniform sampler2D depthmap;
 layout(set=0, binding=5) uniform sampler2D ssaomap;
 layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
-layout(set=0, binding=7) uniform samplerCube envmap[MaxEnvironments];
-layout(set=0, binding=8) uniform sampler2D envbrdfmap;
+layout(set=0, binding=7) uniform sampler2DArray envbrdfmap;
+layout(set=0, binding=8) uniform samplerCube envmap[MaxEnvironments];
 
 layout(set=3, binding=1) writeonly uniform image2D dest;
 
@@ -154,7 +156,7 @@ void main(void)
   
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   
-  ivec2 viewport = textureSize(rt0map, 0).xy;//imageSize(dest);
+  ivec2 viewport = ivec2(scene.viewport.zw);
   
   float depth = texelFetch(depthmap, xy, 0).z;
 
@@ -227,7 +229,7 @@ void main(void)
 
     Material material = unpack_material(texelFetch(rt0map, xy, 0), texelFetch(rt1map, xy, 0)); 
 
-    vec2 envbrdf = texture(envbrdfmap, vec2(dot(normal, eyevec), material.roughness)).rg;
+    vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0)).rg;
 
     float ambientintensity = ambient_intensity(scene.mainlight, ssaomap, xy, viewport);
 

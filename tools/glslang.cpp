@@ -65,11 +65,14 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
 
   ofstream(tmpname) << text << '\n';
 
-  if (system(string("glslangValidator.exe -V -o tmp.spv " + tmpname).c_str()) != 0)
-    throw runtime_error("Error Executing glslangValidator");
+//  if (system(string("glslangValidator.exe -V -o tmp.spv " + tmpname).c_str()) != 0)
+//    throw runtime_error("Error Executing glslangValidator");
 
 //  if (system(string("spirv-remap --do-everything --input tmp.spv -o .").c_str()) != 0)
 //    throw runtime_error("Error Executing glslangValidator");
+
+  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 3\" -o tmp.spv " + tmpname).c_str()) != 0)
+    throw runtime_error("Error Executing glslc");
 
   remove(tmpname.c_str());
 

@@ -40,6 +40,8 @@ class Camera
     lml::Frustum frustum() const;
     lml::Frustum frustum(float znear, float zfar) const;
 
+    lml::Transform transform() const { return m_transform; }
+
   public:
 
     void set_projection(float fov, float aspect, float znear = 0.1f, float zfar = 24000.0f);

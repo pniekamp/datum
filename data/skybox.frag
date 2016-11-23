@@ -7,8 +7,10 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   mat4 invproj;
   mat4 view;
   mat4 invview;
+  mat4 worldview;
   mat4 prevview;
   mat4 skyview;
+  vec4 viewport;
   
   Camera camera;
 
@@ -19,6 +21,8 @@ layout(set=0, binding=1) uniform samplerCube skyboxmap;
 layout(location=0) in vec3 texcoord;
 
 layout(location=0) out vec4 fragcolor;
+layout(location=1) out vec4 fragrt1;
+layout(location=2) out vec4 fragnormal;
 
 void main()
 {

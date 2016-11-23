@@ -31,7 +31,7 @@ target_link_libraries(assetembed leap Qt5::Gui)
 # assetbuilder
 #
 
-add_executable(assetbuilder assetbuilder.cpp ${SRCS})
+add_executable(assetbuilder assetbuilder.cpp assetpacker.cpp bc3.cpp hdr.cpp ibl.cpp glslang.cpp)
 
 target_link_libraries(assetbuilder leap Qt5::Gui)
 
@@ -40,7 +40,7 @@ target_link_libraries(assetbuilder leap Qt5::Gui)
 # assetdump
 #
 
-add_executable(assetdump assetdump.cpp ${SRCS})
+add_executable(assetdump assetdump.cpp)
 
 target_link_libraries(assetdump leap Qt5::Gui)
 
@@ -49,7 +49,7 @@ target_link_libraries(assetdump leap Qt5::Gui)
 # assetcompressor
 #
 
-add_executable(assetcompressor assetcompressor.cpp ${SRCS})
+add_executable(assetcompressor assetcompressor.cpp assetpacker.cpp bc3.cpp)
 
 target_link_libraries(assetcompressor leap Qt5::Gui)
 
@@ -58,7 +58,7 @@ target_link_libraries(assetcompressor leap Qt5::Gui)
 # objparser
 #
 
-add_executable(objparser objparser.cpp ${SRCS})
+add_executable(objparser objparser.cpp assetpacker.cpp bc3.cpp)
 
 target_link_libraries(objparser leap Qt5::Gui)
 

@@ -720,14 +720,16 @@ void write_core()
   write_shader_asset(fout, CoreAsset::geometry_vert, "../../data/geometry.vert");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
 
+  write_shader_asset(fout, CoreAsset::transparent_vert, "../../data/transparent.vert");
+  write_shader_asset(fout, CoreAsset::transparent_frag, "../../data/transparent.frag");
+
   write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/ssao.comp");
 
   write_envbrdf_asset(fout, CoreAsset::envbrdf_lut);
 
-  write_shader_asset(fout, CoreAsset::lighting_comp, "../../data/lighting.tiled.comp");
+  write_shader_asset(fout, CoreAsset::lighting_comp, "../../data/lighting.comp");
 
-  write_shader_asset(fout, CoreAsset::ssr_gen_comp, "../../data/ssr.gen.comp");
-  write_shader_asset(fout, CoreAsset::ssr_blend_comp, "../../data/ssr.blend.comp");
+  write_shader_asset(fout, CoreAsset::ssr_comp, "../../data/ssr.comp");
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
@@ -739,12 +741,27 @@ void write_core()
   write_shader_asset(fout, CoreAsset::bloom_luma_comp, "../../data/bloom.luma.comp");
   write_shader_asset(fout, CoreAsset::bloom_hblur_comp, "../../data/bloom.hblur.comp");
   write_shader_asset(fout, CoreAsset::bloom_vblur_comp, "../../data/bloom.vblur.comp");
-  write_shader_asset(fout, CoreAsset::bloom_tone_comp, "../../data/bloom.tone.comp");
 
   write_shader_asset(fout, CoreAsset::luminance_comp, "../../data/luminance.comp");
 
+  write_shader_asset(fout, CoreAsset::composite_vert, "../../data/composite.vert");
+  write_shader_asset(fout, CoreAsset::composite_frag, "../../data/composite.frag");
+
   write_shader_asset(fout, CoreAsset::sprite_vert, "../../data/sprite.vert");
   write_shader_asset(fout, CoreAsset::sprite_frag, "../../data/sprite.frag");
+
+  write_shader_asset(fout, CoreAsset::gizmo_vert, "../../data/gizmo.vert");
+  write_shader_asset(fout, CoreAsset::gizmo_frag, "../../data/gizmo.frag");
+
+  write_shader_asset(fout, CoreAsset::wireframe_vert, "../../data/wireframe.vert");
+  write_shader_asset(fout, CoreAsset::wireframe_geom, "../../data/wireframe.geom");
+  write_shader_asset(fout, CoreAsset::wireframe_frag, "../../data/wireframe.frag");
+
+  write_shader_asset(fout, CoreAsset::stencil_vert, "../../data/stencil.vert");
+  write_shader_asset(fout, CoreAsset::stencil_frag, "../../data/stencil.frag");
+
+  write_shader_asset(fout, CoreAsset::outline_vert, "../../data/outline.vert");
+  write_shader_asset(fout, CoreAsset::outline_frag, "../../data/outline.frag");
 
   write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0f, "", "", "");
 
@@ -773,6 +790,7 @@ int main(int argc, char **argv)
     write_mesh("plane.pack", "../../data/plane.obj");
     write_mesh("sphere.pack", "../../data/sphere.obj");
 
+    write_mesh("cube.pack", "../../data/cube.obj");
     write_mesh("teapot.pack", "../../data/teapot.obj");
     write_mesh("suzanne.pack", "../../data/suzanne.obj");
   }

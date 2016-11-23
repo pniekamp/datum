@@ -88,6 +88,12 @@
     <ClCompile Include="scene\transformcomponent.cpp">
       <Filter>Source Files\scene</Filter>
     </ClCompile>
+    <ClCompile Include="renderer\forwardlist.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\overlaylist.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asset.h">
@@ -227,6 +233,12 @@
     </ClInclude>
     <ClInclude Include="scene\transformcomponent.h">
       <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\forwardlist.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\overlaylist.h">
+      <Filter>Source Files\renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
