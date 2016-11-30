@@ -86,7 +86,10 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.initialise_component_storage<MeshComponent>();
   state.scene.initialise_component_storage<LightComponent>();
 
-  state.assets.load(platform, "core.pack");
+  auto core = state.assets.load(platform, "core.pack");
+
+  if (core->magic != CoreAsset::magic || core->version != CoreAsset::version)
+    throw runtime_error("Core Assets Version Mismatch");
 
   state.loader = state.resources.create<Sprite>(state.assets.find(CoreAsset::loader_image));
 
@@ -423,7 +426,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       overlays.push_stencil(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial);
       overlays.push_outline(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial, Color4(1.0f, 0.5f, 0.15f, 1.0f));
 
-      overlays.push_gizmo(buildstate, camera.transform() * Transform::translation(8, 5, -12)*Transform::rotation(Vec3(1, 0, 0), 0.4)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time), state.suzanne, state.suzannematerial);
+      overlays.push_gizmo(buildstate, camera.transform() * Transform::translation(8, 5, -12)*Transform::rotation(Vec3(1, 0, 0), 0.4f)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time), state.suzanne, state.suzannematerial);
 
       overlays.finalise(buildstate);
     }
@@ -455,6 +458,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   RenderParams renderparams;
   renderparams.width = viewport.width;
   renderparams.height = viewport.height;
+//  renderparams.scale = 0.5f;
   renderparams.aspect = state.aspect;
   renderparams.skybox = state.skybox;
 //  renderparams.skybox = state.readframe->skybox;

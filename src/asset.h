@@ -22,6 +22,12 @@ struct Asset
 
   union
   {
+    struct // catalog info
+    {
+      uint32_t magic;
+      uint32_t version;
+    };
+
     struct // text info
     {
       int length;

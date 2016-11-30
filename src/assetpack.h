@@ -36,6 +36,19 @@ struct PackAssetHeader
   uint32_t id;
 };
 
+struct PackCalalogHeader
+{
+  uint32_t magic;
+  uint32_t version;
+  uint32_t length;
+  uint64_t dataoffset;
+};
+
+constexpr size_t pack_payload_size(PackCalalogHeader const &catl)
+{
+  return catl.length;
+}
+
 struct PackTextHeader
 {
   uint32_t length;
@@ -222,15 +235,6 @@ struct PackModelPayload
 constexpr size_t pack_payload_size(PackModelHeader const &modl)
 {
   return modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
-}
-
-struct PackCalalogHeader
-{
-};
-
-constexpr size_t pack_payload_size(PackCalalogHeader const &catl)
-{
-  return 0;
 }
 
 #pragma pack(pop)

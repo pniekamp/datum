@@ -1079,7 +1079,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     for(size_t i = 0; i < extentof(context.ssaonoise); ++i)
     {
-      context.ssaonoise[i] = normalise(Vec4(2*unit(random)-1, 2*unit(random)-1, 0.0f, 0.0f));
+      context.ssaonoise[i] = Vec4(normalise(Vec2(2*unit(random)-1, 2*unit(random)-1)), unit(random), unit(random));
     }
 
     for(size_t i = 0; i < extentof(context.ssaokernel); ++i)
@@ -1998,6 +1998,120 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.stencilpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
+  if (context.stencilfillpipeline == 0)
+  {
+    //
+    // Stencil Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::stencilfill_vert);
+    auto fs = assets->find(CoreAsset::stencilfill_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
+    blendattachments[0].blendEnable = VK_TRUE;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorblend = {};
+    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorblend.attachmentCount = extentof(blendattachments);
+    colorblend.pAttachments = blendattachments;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_FALSE;
+    depthstate.stencilTestEnable = VK_TRUE;
+    depthstate.front.compareOp = VK_COMPARE_OP_EQUAL;
+    depthstate.front.compareMask = 0xFF;
+    depthstate.front.passOp = VK_STENCIL_OP_INCREMENT_AND_WRAP;
+    depthstate.front.writeMask = 0xFF;
+    depthstate.front.reference = 1;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_STENCIL_REFERENCE };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.renderpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pColorBlendState = &colorblend;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.stencilfillpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+  }
+
   if (context.outlinepipeline == 0)
   {
     //
@@ -2193,25 +2307,24 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 {
   bool dirty = false;
-  dirty |= (context.width != params.width || context.height != params.height);
+  dirty |= (context.width != params.width || context.height != params.height || context.scale != params.scale || context.aspect != params.aspect);
   dirty |= (context.ssaoscale != params.ssaoscale);
 
   if (dirty)
   {
     context.width = params.width;
     context.height = params.height;
-
-    context.targetwidth = params.width;
-    context.targetheight = params.height;
+    context.scale = params.scale;
+    context.aspect = params.aspect;
 
     vkDeviceWaitIdle(context.device);
     vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
     vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
-    context.fbox = (context.width - min((int)(context.height * params.aspect), context.width)) / 2;
-    context.fboy = (context.height - min((int)(context.width / params.aspect), context.height)) / 2;
-    context.fbowidth = context.width - 2 * context.fbox;
-    context.fboheight = context.height - 2 * context.fboy;
+    context.fbox = (context.width - min((int)(context.height * params.aspect), context.width))/2;
+    context.fboy = (context.height - min((int)(context.width / params.aspect), context.height))/2;
+    context.fbowidth = (context.width - 2 * context.fbox) * context.scale;
+    context.fboheight = (context.height - 2 * context.fboy) * context.scale;
 
     if (context.fbowidth == 0 || context.fboheight == 0)
       return false;
@@ -2339,8 +2452,8 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Render Target
     //
 
-    context.rendertarget = create_texture(context.device, setupbuffer, context.targetwidth, context.targetheight, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    context.depthstencil = create_texture(context.device, setupbuffer, context.targetwidth, context.targetheight, 1, 1, VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    context.rendertarget = create_texture(context.device, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    context.depthstencil = create_texture(context.device, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     //
     // Frame Buffer
@@ -2355,8 +2468,8 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     framebufferinfo.renderPass = context.renderpass;
     framebufferinfo.attachmentCount = extentof(framebuffer);
     framebufferinfo.pAttachments = framebuffer;
-    framebufferinfo.width = context.targetwidth;
-    framebufferinfo.height = context.targetheight;
+    framebufferinfo.width = context.width;
+    framebufferinfo.height = context.height;
     framebufferinfo.layers = 1;
 
     context.framebuffer = create_framebuffer(context.device, framebufferinfo);
@@ -2456,7 +2569,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     //
 
     begin(context.device, context.compositecommands, context.framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-    bindresource(context.compositecommands, context.compositepipeline, context.fbox*context.targetwidth/context.width, context.fboy*context.targetheight/context.height, context.fbowidth*context.targetwidth/context.width, context.fboheight*context.targetheight/context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bindresource(context.compositecommands, context.compositepipeline, context.fbox, context.fboy, context.width-2*context.fbox, context.height-2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bindresource(context.compositecommands, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bindresource(context.compositecommands, context.unitquad);
     draw(context.compositecommands, context.unitquad.vertexcount, 1, 0, 0);
@@ -2571,7 +2684,7 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
   scene->prevview = context.prevcamera.view();
   scene->skyview = (inverse(params.skyboxorientation) * Transform::rotation(context.camera.rotation())).matrix() * scene->invproj;
 
-  scene->viewport = Vec4(context.fbox, context.fboy, context.fbowidth, context.fboheight);
+  scene->viewport = Vec4(context.fbox, context.fboy, context.width - 2*context.fbox, context.height - 2*context.fboy);
 
   scene->camera.position = context.camera.position();
   scene->camera.exposure = context.camera.exposure();
@@ -2918,7 +3031,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Sprite
   //
 
-  beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.targetwidth, context.targetheight, 2, &clearvalues[2]);
+  beginpass(commandbuffer, context.renderpass, context.framebuffer, 0, 0, context.width, context.height, 2, &clearvalues[2]);
 
   execute(commandbuffer, context.compositecommands);
 
