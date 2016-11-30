@@ -105,13 +105,17 @@ void write_compressed_chunk(ostream &fout, const char type[4], uint32_t length, 
 
 
 ///////////////////////// write_catl_asset //////////////////////////////////
-uint32_t write_catl_asset(ostream &fout, uint32_t id)
+uint32_t write_catl_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_t version)
 {
   PackAssetHeader aset = { id };
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  write_chunk(fout, "CATL", 0, nullptr);
+  PackCalalogHeader shdr = { magic, version, 0, (size_t)fout.tellp() + sizeof(shdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "CATL", sizeof(shdr), &shdr);
+
+//  write_chunk(fout, "DATA", length, data);
 
   write_chunk(fout, "AEND", 0, nullptr);
 

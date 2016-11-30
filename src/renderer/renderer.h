@@ -303,13 +303,15 @@ struct RenderContext
   Vulkan::Pipeline gizmopipeline;
   Vulkan::Pipeline wireframepipeline;
   Vulkan::Pipeline stencilpipeline;
+  Vulkan::Pipeline stencilfillpipeline;
   Vulkan::Pipeline outlinepipeline;
 
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
 
   int width, height;
-  int targetwidth, targetheight;
+  float scale, aspect;
+
   int fbowidth, fboheight, fbox, fboy;
 
   ResourcePool resourcepool;
@@ -333,6 +335,7 @@ struct RenderParams
 {
   int width = 1280;
   int height = 720;
+  float scale = 1.0f;
   float aspect = 1.7777778f;
 
   lml::Vec3 sundirection = { -0.57735f, -0.57735f, -0.57735f };

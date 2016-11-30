@@ -107,8 +107,10 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
 
             platform.read_handle(file.handle, position + sizeof(chunk), &catl, sizeof(catl));
 
-//            asset.datasize = pack_payload_size(catl);
-//            asset.datapos = catl.dataoffset;
+            asset.magic = catl.magic;
+            asset.version = catl.version;
+            asset.datasize = pack_payload_size(catl);
+            asset.datapos = catl.dataoffset;
 
             break;
           }

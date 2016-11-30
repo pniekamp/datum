@@ -8,8 +8,13 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace CoreAsset
 {
+  const uint32_t magic = 0x65726F43;
+  const uint32_t version = 12;
+
   enum
   {
     catalog,
@@ -50,6 +55,8 @@ namespace CoreAsset
     wireframe_frag,
     stencil_vert,
     stencil_frag,
+    stencilfill_vert,
+    stencilfill_frag,
     outline_vert,
     outline_frag,
     default_material,

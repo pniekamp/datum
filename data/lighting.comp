@@ -156,7 +156,7 @@ void main(void)
   
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   
-  ivec2 viewport = ivec2(scene.viewport.zw);
+  ivec2 viewport = textureSize(depthmap, 0).xy;//imageSize(dest);
   
   float depth = texelFetch(depthmap, xy, 0).z;
 

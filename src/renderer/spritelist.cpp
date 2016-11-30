@@ -94,7 +94,7 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
     return false;
   }
 
-  bindresource(*commandlist, context.spritepipeline, 0, 0, context.targetwidth, context.targetheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(*commandlist, context.spritepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
 

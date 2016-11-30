@@ -107,9 +107,9 @@ namespace
 }
 
 
-uint32_t write_catalog_asset(ostream &fout, uint32_t id)
+uint32_t write_catalog_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_t version)
 {
-  write_catl_asset(fout, id);
+  write_catl_asset(fout, id, magic, version);
 
   return id + 1;
 }
@@ -702,7 +702,7 @@ void write_core()
 
   write_header(fout);
 
-  write_catalog_asset(fout, CoreAsset::catalog);
+  write_catalog_asset(fout, CoreAsset::catalog, CoreAsset::magic, CoreAsset::version);
 
   write_image_asset(fout, CoreAsset::white_diffuse, "../../data/white.png");
   write_image_asset(fout, CoreAsset::nominal_normal, "../../data/normal.png");
@@ -759,6 +759,9 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::stencil_vert, "../../data/stencil.vert");
   write_shader_asset(fout, CoreAsset::stencil_frag, "../../data/stencil.frag");
+
+  write_shader_asset(fout, CoreAsset::stencilfill_vert, "../../data/stencilfill.vert");
+  write_shader_asset(fout, CoreAsset::stencilfill_frag, "../../data/stencilfill.frag");
 
   write_shader_asset(fout, CoreAsset::outline_vert, "../../data/outline.vert");
   write_shader_asset(fout, CoreAsset::outline_frag, "../../data/outline.frag");
