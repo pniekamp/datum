@@ -101,6 +101,9 @@ class Scene
     template<typename Component>
     Component get_component(EntityId entity);
 
+    template<typename Component>
+    Component get_component(EntityId entity) const;
+
     template<typename Component, typename ...Rest>
     bool has_components(EntityId entity) const
     {
@@ -120,33 +123,33 @@ class Scene
     {
       public:
         explicit iterator(Scene const *scene, size_t index)
-          : m_scene(scene), m_index(index)
+          : index(index), scene(scene)
         {
-          if (m_index != m_scene->m_slots.size() && (!m_scene->get(*this) || !m_scene->has_components<Components...>(*this)))
+          if (index != scene->m_slots.size() && (!scene->get(*this) || !scene->has_components<Components...>(*this)))
             ++*this;
         }
 
-        bool operator ==(iterator const &that) const { return m_index == that.m_index; }
-        bool operator !=(iterator const &that) const { return m_index != that.m_index; }
+        bool operator ==(iterator const &that) const { return index == that.index; }
+        bool operator !=(iterator const &that) const { return index != that.index; }
 
-        operator EntityId() { return m_scene->m_slots[m_index].id; }
+        operator EntityId() { return scene->m_slots[index].id; }
 
-        EntityId const operator *() const { return m_scene->m_slots[m_index].id; }
+        EntityId const operator *() const { return scene->m_slots[index].id; }
 
         iterator &operator++()
         {
-          ++m_index;
+          ++index;
 
-          while (m_index != m_scene->m_slots.size() && (!m_scene->get(*this) || !m_scene->has_components<Components...>(*this)))
-            ++m_index;
+          while (index != scene->m_slots.size() && (!scene->get(*this) || !scene->has_components<Components...>(*this)))
+            ++index;
 
           return *this;
         }
 
       private:
 
-        Scene const *m_scene;
-        size_t m_index;
+        size_t index;
+        Scene const *scene;
     };
 
     template<typename Iterator>

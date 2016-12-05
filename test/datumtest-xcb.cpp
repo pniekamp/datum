@@ -3,11 +3,11 @@
 //
 
 #include "platform.h"
+#include <leap.h>
 #include <leap/pathstring.h>
 #include <vulkan/vulkan.h>
 #include <iostream>
 #include <algorithm>
-#include <array>
 
 using namespace std;
 using namespace leap;
@@ -320,9 +320,9 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   VkInstanceCreateInfo instanceinfo = {};
   instanceinfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   instanceinfo.pApplicationInfo = &appinfo;
-  instanceinfo.enabledExtensionCount = std::extent<decltype(instanceextensions)>::value;
+  instanceinfo.enabledExtensionCount = extentof(instanceextensions);
   instanceinfo.ppEnabledExtensionNames = instanceextensions;
-  instanceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;
+  instanceinfo.enabledLayerCount = extentof(validationlayers);
   instanceinfo.ppEnabledLayerNames = validationlayers;
 
   if (vkCreateInstance(&instanceinfo, nullptr, &instance) != VK_SUCCESS)
@@ -360,13 +360,13 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   while (queueindex < queuecount && !(queueproperties[queueindex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
     ++queueindex;
 
-  array<float, 1> queuepriorities = { 0.0f };
+  float queuepriorities[] = { 0.0f, 0.0f, 0.0f };
 
   VkDeviceQueueCreateInfo queueinfo = {};
   queueinfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
   queueinfo.queueFamilyIndex = queueindex;
-  queueinfo.queueCount = 3;
-  queueinfo.pQueuePriorities = queuepriorities.data();
+  queueinfo.queueCount = extentof(queuepriorities);
+  queueinfo.pQueuePriorities = queuepriorities;
 
   const char* deviceextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
   
@@ -383,9 +383,9 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   deviceinfo.queueCreateInfoCount = 1;
   deviceinfo.pQueueCreateInfos = &queueinfo;
   deviceinfo.pEnabledFeatures = &devicefeatures;
-  deviceinfo.enabledExtensionCount = std::extent<decltype(deviceextensions)>::value;
+  deviceinfo.enabledExtensionCount = extentof(deviceextensions);
   deviceinfo.ppEnabledExtensionNames = deviceextensions;
-  deviceinfo.enabledLayerCount = std::extent<decltype(validationlayers)>::value;
+  deviceinfo.enabledLayerCount = extentof(validationlayers);
   deviceinfo.ppEnabledLayerNames = validationlayers;
 
   if (vkCreateDevice(physicaldevice, &deviceinfo, nullptr, &device) != VK_SUCCESS)
@@ -514,7 +514,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   uint32_t imagescount = 0;
   vkGetSwapchainImagesKHR(device, swapchain, &imagescount, nullptr);
 
-  if (extent<decltype(presentimages)>::value < imagescount)
+  if (extentof(presentimages) < imagescount)
     throw runtime_error("Vulkan vkGetSwapchainImagesKHR failed");
 
   vkGetSwapchainImagesKHR(device, swapchain, &imagescount, presentimages);
@@ -1016,20 +1016,29 @@ int main(int argc, char *args[])
       }
     });
 
-    while (game.running())
+    try
     {
-      if (xcb_generic_event_t *event = xcb_poll_for_event(window.connection))
+      while (game.running())
       {
-        window.handle_event(event);
+        if (xcb_generic_event_t *event = xcb_poll_for_event(window.connection))
+        {
+          window.handle_event(event);
 
-        free(event);
+          free(event);
+        }
+        else
+        {
+          vulkan.acquire();
+          game.render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
+          vulkan.present();
+        }
       }
-      else
-      {
-        vulkan.acquire();
-        game.render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
-        vulkan.present();
-      }
+    }
+    catch(const exception &e)
+    {
+      cout << "Critical Error: " << e.what() << endl;
+
+      game.terminate();
     }
 
     updatethread.join();

@@ -169,7 +169,5 @@ NameComponent Scene::get_component<NameComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<NameStoragePrivate*>(system<NameComponentStorage>());
-
-  return { entity, storage };
+  return system<NameComponentStorage>()->get(entity);
 }

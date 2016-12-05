@@ -24,6 +24,12 @@ class NameComponentStorage : public DefaultStorage<Scene::EntityId, size_t>
     // linear search
     EntityId find(const char *name) const;
 
+    template<typename Component = class NameComponent>
+    Component get(EntityId entity)
+    {
+      return { entity, this };
+    }
+
   protected:
 
     std::vector<char, StackAllocator<>> m_names;

@@ -96,4 +96,3 @@ PointLightComponent Scene::get_component<PointLightComponent>(Scene::EntityId en
 
   return system<PointLightComponentStorage>()->get(entity);
 }
-

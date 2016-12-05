@@ -31,6 +31,12 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
     class iterator
     {
       public:
+        explicit iterator(size_t index, BasicComponentStorage const *storage)
+          : index(index), storage(storage)
+        {
+          if (index != storage->size() && storage->template data<0>(index) == 0)
+            ++*this;
+        }
 
         bool operator ==(iterator const &that) const { return index == that.index; }
         bool operator !=(iterator const &that) const { return index != that.index; }
@@ -42,14 +48,16 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
         {
           ++index;
 
-          while (index < storage->size() && storage->template data<0>(index) == 0)
+          while (index != storage->size() && storage->template data<0>(index) == 0)
             ++index;
 
           return *this;
         }
 
+      private:
+
         size_t index;
-        BasicComponentStorage *storage;
+        BasicComponentStorage const *storage;
     };
 
     template<typename Iterator>
@@ -62,9 +70,9 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
         Iterator end() const { return this->second; }
     };
 
-    iterator_pair<iterator> entities()
+    iterator_pair<iterator> entities() const
     {
-      return { ++iterator{ 0, this }, iterator{ this->size(), this } };
+      return { iterator{ 0, this }, iterator{ this->size(), this } };
     }
 
   protected:

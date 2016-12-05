@@ -2485,15 +2485,17 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Scratch Buffers
     //
 
-    context.scratchbuffers[0] = create_texture(context.device, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_LAYOUT_GENERAL);
-    context.scratchbuffers[1] = create_texture(context.device, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_LAYOUT_GENERAL);
-    context.scratchbuffers[2] = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    context.scratchbuffers[0] = create_texture(context.device, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    context.scratchbuffers[1] = create_texture(context.device, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    context.scratchbuffers[2] = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
 
     for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
     {
       context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
 
       bindimageview(context.device, context.scratchtargets[i], ShaderLocation::imagetarget, context.scratchbuffers[i].imageview);
+
+      clear(setupbuffer, context.scratchbuffers[i].image, Color4(0.0, 0.0, 0.0, 0.0));
     }
 
     //
@@ -2518,7 +2520,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
       bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
 
-      clear(context.device, context.ssaobuffers[i].image, Color4(1.0, 1.0, 1.0, 1.0));
+      clear(setupbuffer, context.ssaobuffers[i].image, Color4(1.0, 1.0, 1.0, 1.0));
     }
 
     bindtexture(context.device, context.ssaodescriptors[0], ShaderLocation::ssaomap, context.ssaobuffers[1]);
