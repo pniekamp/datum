@@ -70,7 +70,10 @@ class TransformComponent
     class iterator
     {
       public:
-        explicit iterator(size_t index, TransformComponentStorage *storage) : node(index, storage) { }
+        explicit iterator(size_t index, TransformComponentStorage *storage)
+          : node(index, storage)
+        {
+        }
 
         bool operator ==(iterator const &that) const { return node.index == that.node.index; }
         bool operator !=(iterator const &that) const { return node.index != that.node.index; }
@@ -100,9 +103,14 @@ class TransformComponent
         Iterator end() const { return this->second; }
     };
 
-    auto children()
+    iterator_pair<iterator<TransformComponent>> children()
     {
-      return iterator_pair<iterator<TransformComponent>>{ iterator<TransformComponent>(storage->data<TransformComponentStorage::firstchildindex>(index), storage), iterator<TransformComponent>(0, storage) };
+      return { iterator<TransformComponent>(storage->data<TransformComponentStorage::firstchildindex>(index), storage), iterator<TransformComponent>(0, storage) };
+    }
+
+    iterator_pair<iterator<const TransformComponent>> children() const
+    {
+      return { iterator<const TransformComponent>(storage->data<TransformComponentStorage::firstchildindex>(index), storage), iterator<const TransformComponent>(0, storage) };
     }
 
   protected:

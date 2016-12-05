@@ -1166,7 +1166,7 @@ namespace Vulkan
 
     imagecopy.dstOffset.x = dx;
     imagecopy.dstOffset.y = dy;
-    imagecopy.dstOffset.z = 1;
+    imagecopy.dstOffset.z = 0;
     imagecopy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 
     imagecopy.extent.width = sw;
@@ -1208,12 +1208,10 @@ namespace Vulkan
     VkBufferImageCopy buffercopy = {};
 
     buffercopy.bufferOffset = offset;
-    buffercopy.bufferRowLength = sw;
-    buffercopy.bufferImageHeight = sh;
 
     buffercopy.imageOffset.x = dx;
     buffercopy.imageOffset.y = dy;
-    buffercopy.imageOffset.z = 1;
+    buffercopy.imageOffset.z = 0;
     buffercopy.imageSubresource = subresource;
 
     buffercopy.imageExtent.width = dw;
@@ -1230,12 +1228,10 @@ namespace Vulkan
     VkBufferImageCopy buffercopy = {};
 
     buffercopy.bufferOffset = offset;
-    buffercopy.bufferRowLength = dw;
-    buffercopy.bufferImageHeight = dh;
 
     buffercopy.imageOffset.x = sx;
     buffercopy.imageOffset.y = sy;
-    buffercopy.imageOffset.z = 1;
+    buffercopy.imageOffset.z = 0;
     buffercopy.imageSubresource = subresource;
 
     buffercopy.imageExtent.width = sw;
