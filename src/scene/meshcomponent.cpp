@@ -25,10 +25,10 @@ class MeshStoragePrivate : public MeshComponentStorage
 
   public:
 
-    auto &flags(size_t index) { return std::get<meshflags>(m_data)[index]; }
-    auto &bound(size_t index) { return std::get<boundingbox>(m_data)[index]; }
-    auto &mesh(size_t index) { return std::get<meshresource>(m_data)[index]; }
-    auto &material(size_t index) { return std::get<materialresource>(m_data)[index]; }
+    auto &flags(size_t index) { return data<meshflags>(index); }
+    auto &bound(size_t index) { return data<boundingbox>(index); }
+    auto &mesh(size_t index) { return data<meshresource>(index); }
+    auto &material(size_t index) { return data<materialresource>(index); }
 
   public:
 
@@ -38,7 +38,7 @@ class MeshStoragePrivate : public MeshComponentStorage
 
     void remove(EntityId entity) override;
 
-    void update();
+    void update_mesh_bounds();
 
   public:
 
@@ -84,11 +84,11 @@ void MeshStoragePrivate::add(EntityId entity, Bound3 const &bound, Mesh const *m
 
   auto index = this->index(entity);
 
-  get<meshflags>(m_data)[index] = flags;
-  get<entityid>(m_data)[index] = entity;
-  get<boundingbox>(m_data)[index] = bound;
-  get<meshresource>(m_data)[index] = mesh;
-  get<materialresource>(m_data)[index] = material;
+  data<meshflags>(index) = flags;
+  data<entityid>(index) = entity;
+  data<boundingbox>(index) = bound;
+  data<meshresource>(index) = mesh;
+  data<materialresource>(index) = material;
 
   if (flags & MeshComponent::Static)
   {
@@ -137,26 +137,28 @@ void MeshStoragePrivate::remove(EntityId entity)
 }
 
 
-///////////////////////// MeshStorage::update ///////////////////////////////
-void MeshStoragePrivate::update()
+///////////////////////// MeshStorage::update_mesh_bounds ///////////////////
+void MeshStoragePrivate::update_mesh_bounds()
 {
-  auto transforms = m_scene->system<TransformComponentStorage>();
+  auto transformstorage = m_scene->system<TransformComponentStorage>();
 
   for(size_t index = m_staticpartition; index < size(); ++index)
   {
-    assert(transforms->has(data<entityid>(index)));
+    assert(transformstorage->has(data<entityid>(index)));
 
-    get<boundingbox>(m_data)[index] = transforms->world(data<entityid>(index)) * mesh(index)->bound;
+    auto transform = transformstorage->get(data<entityid>(index));
+
+    data<boundingbox>(index) = transform.world() * mesh(index)->bound;
   }
 }
 
 
-///////////////////////// update_meshes /////////////////////////////////////
-void update_meshes(Scene &scene)
+///////////////////////// update_mesh_bounds ////////////////////////////////
+void update_mesh_bounds(Scene &scene)
 {
   auto storage = static_cast<MeshStoragePrivate*>(scene.system<MeshComponentStorage>());
 
-  storage->update();
+  storage->update_mesh_bounds();
 }
 
 
@@ -174,7 +176,7 @@ MeshComponentStorage::iterator_pair<Scene::EntityId const *> MeshComponentStorag
 {
   auto storage = static_cast<MeshStoragePrivate const*>(this);
 
-  return { &data<entityid>(storage->m_staticpartition), &data<entityid>(0) + size() };
+  return { std::get<entityid>(m_data).data() + storage->m_staticpartition, std::get<entityid>(m_data).data() + size() };
 }
 
 
@@ -190,6 +192,14 @@ void Scene::initialise_component_storage<MeshComponent>()
 //|---------------------- MeshComponent -------------------------------------
 //|--------------------------------------------------------------------------
 
+///////////////////////// MeshComponent::Constructor ////////////////////////
+MeshComponent::MeshComponent(size_t index, MeshComponentStorage *storage)
+  : index(index),
+    storage(storage)
+{
+}
+
+
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
 MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, long flags)
@@ -200,7 +210,9 @@ MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh c
 
   auto storage = static_cast<MeshStoragePrivate*>(system<MeshComponentStorage>());
 
-  auto bound = system<TransformComponentStorage>()->world(entity) * mesh->bound;
+  auto transform = system<TransformComponentStorage>()->get(entity);
+
+  auto bound = transform.world() * mesh->bound;
 
   storage->add(entity, bound, mesh, material, flags);
 
@@ -220,9 +232,7 @@ void Scene::remove_component<MeshComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<MeshStoragePrivate*>(system<MeshComponentStorage>());
-
-  storage->remove(entity);
+  return static_cast<MeshStoragePrivate*>(system<MeshComponentStorage>())->remove(entity);
 }
 
 
@@ -242,15 +252,5 @@ MeshComponent Scene::get_component<MeshComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<MeshStoragePrivate*>(system<MeshComponentStorage>());
-
-  return { storage->index(entity), storage };
-}
-
-
-///////////////////////// MeshComponent::Constructor ////////////////////////
-MeshComponent::MeshComponent(size_t index, MeshComponentStorage *storage)
-  : index(index),
-    storage(storage)
-{
+  return system<MeshComponentStorage>()->get(entity);
 }

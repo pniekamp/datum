@@ -47,6 +47,7 @@ class OverlayList
     bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
 
     void push_gizmo(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material);
+    void push_gizmo(BuildState &state, lml::Transform const &transform, lml::Vec3 const &scale, Mesh const *mesh, Material const *material);
 
     void push_wireframe(BuildState &state, lml::Transform const &transform, Mesh const *mesh, lml::Color4 const &color);
 
@@ -57,6 +58,8 @@ class OverlayList
     void push_stencilfill(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, uint32_t reference = 1);
 
     void push_outline(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, lml::Color4 const &color, uint32_t reference = 1);
+
+    void push_volume(BuildState &state, lml::Bound3 const &bound, Mesh const *mesh, lml::Color4 const &color);
 
     void finalise(BuildState &state);
 

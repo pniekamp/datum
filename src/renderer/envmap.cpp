@@ -123,7 +123,7 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
   {
     envmap->~EnvMap();
 
-    release_slot(slot, sizeof(EnvMap));
+    release_slot(envmap, sizeof(EnvMap));
 
     return nullptr;
   }
@@ -244,9 +244,7 @@ void ResourceManager::destroy<EnvMap>(EnvMap const *envmap)
 {
   assert(envmap);
 
-  auto slot = const_cast<EnvMap*>(envmap);
-
   envmap->~EnvMap();
 
-  release_slot(slot, sizeof(EnvMap));
+  release_slot(const_cast<EnvMap*>(envmap), sizeof(EnvMap));
 }

@@ -141,7 +141,7 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
   {
     texture->~Texture();
 
-    release_slot(slot, sizeof(Texture));
+    release_slot(texture, sizeof(Texture));
 
     return nullptr;
   }
@@ -314,12 +314,10 @@ void ResourceManager::destroy<Texture>(Texture const *texture)
 {
   assert(texture);
 
-  auto slot = const_cast<Texture*>(texture);
-
-  if (slot->transferlump)
-    release_lump(slot->transferlump);
+  if (texture->transferlump)
+    release_lump(texture->transferlump);
 
   texture->~Texture();
 
-  release_slot(slot, sizeof(Texture));
+  release_slot(const_cast<Texture*>(texture), sizeof(Texture));
 }

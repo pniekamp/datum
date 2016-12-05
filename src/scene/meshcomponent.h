@@ -34,12 +34,11 @@ class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::B
   public:
     MeshComponentStorage(Scene *scene, StackAllocator<> allocator);
 
-    long const &flags(EntityId entity) const { return data<meshflags>(index(entity)); }
-
-    lml::Bound3 const &bound(EntityId entity) const { return data<boundingbox>(index(entity)); }
-
-    Mesh const *mesh(EntityId entity) const { return data<meshresource>(index(entity)); }
-    Material const *material(EntityId entity) const { return data<materialresource>(index(entity)); }
+    template<typename Component = class MeshComponent>
+    Component get(EntityId entity)
+    {
+      return { this->index(entity), this };
+    }
 
   public:
 
@@ -79,9 +78,13 @@ class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::B
     iterator_pair<tree_iterator> tree() const;
 
     iterator_pair<EntityId const *> dynamic() const;
+
+    friend class MeshComponent;
 };
 
-void update_meshes(Scene &scene);
+
+///////////////////////// update_mesh_bounds ////////////////////////////////
+void update_mesh_bounds(Scene &scene);
 
 
 //|---------------------- MeshComponent -------------------------------------
@@ -102,6 +105,7 @@ class MeshComponent
     friend MeshComponent Scene::get_component<MeshComponent>(Scene::EntityId entity);
 
   public:
+    MeshComponent(size_t index, MeshComponentStorage *storage);
 
     long const &flags() const { return storage->data<MeshComponentStorage::meshflags>(index); }
 
@@ -111,7 +115,6 @@ class MeshComponent
     Material const *material() const { return storage->data<MeshComponentStorage::materialresource>(index); }
 
   protected:
-    MeshComponent(size_t index, MeshComponentStorage *storage);
 
     size_t index;
     MeshComponentStorage *storage;

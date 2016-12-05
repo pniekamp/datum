@@ -84,7 +84,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.initialise_component_storage<TransformComponent>();
   state.scene.initialise_component_storage<SpriteComponent>();
   state.scene.initialise_component_storage<MeshComponent>();
-  state.scene.initialise_component_storage<LightComponent>();
+  state.scene.initialise_component_storage<PointLightComponent>();
 
   auto core = state.assets.load(platform, "core.pack");
 
@@ -116,15 +116,7 @@ void datumtest_init(PlatformInterface &platform)
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 
-#if 0
-  auto catalog = state.assets.load(platform, "test.pack");
-
-  state.scene.load<Model>(platform, &state.resources, state.assets.find(catalog->id + 1));
-
-  random_lights(state.scene, 128);
-#endif
-
-#if 0
+#if 1
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
@@ -235,7 +227,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   state.camera = normalise(state.camera);
 
-  update_meshes(state.scene);
+  update_mesh_bounds(state.scene);
 
   state.writeframe->time = state.time;
   state.writeframe->camera = state.camera;
@@ -426,7 +418,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       overlays.push_stencil(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial);
       overlays.push_outline(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial, Color4(1.0f, 0.5f, 0.15f, 1.0f));
 
-      overlays.push_gizmo(buildstate, camera.transform() * Transform::translation(8, 5, -12)*Transform::rotation(Vec3(1, 0, 0), 0.4f)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time), state.suzanne, state.suzannematerial);
+      overlays.push_gizmo(buildstate, camera.transform() * Transform::translation(10, 6, -12)*Transform::rotation(Vec3(1, 0, 0), 0.4f)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time), Vec3(0.5f), state.suzanne, state.suzannematerial);
 
       overlays.finalise(buildstate);
     }

@@ -11,7 +11,7 @@ layout(set=1, binding=1) uniform sampler2DArray albedomap;
 layout(set=0, binding=4) uniform sampler2D depthmap;
 
 layout(location=0) in vec2 texcoord;
-layout(location=1) in vec4 fbocoord;
+layout(location=1) noperspective in vec4 fbocoord;
 
 layout(location=0) out vec4 fragcolor;
 

@@ -160,13 +160,11 @@ void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 {
   assert(skybox);
 
-  auto slot = const_cast<SkyBox*>(skybox);
-
   destroy(skybox->envmap);
 
   skybox->~SkyBox();
 
-  release_slot(slot, sizeof(SkyBox));
+  release_slot(const_cast<SkyBox*>(skybox), sizeof(SkyBox));
 }
 
 

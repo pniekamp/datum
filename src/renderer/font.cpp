@@ -73,14 +73,14 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
 
         slot->memorysize = 8*count*sizeof(float) + count*count*sizeof(uint8_t);
 
-        slot->memory = acquire_slot(font->memorysize);
+        slot->memory = acquire_slot(slot->memorysize);
 
         if (slot->memory)
         {
           slot->glyphs = create<Texture>(assets()->find(asset->id + glyphs), Texture::Format::RGBA);
 
-          float sx = 1.0f / font->glyphs->width;
-          float sy = 1.0f / font->glyphs->height;
+          float sx = 1.0f / slot->glyphs->width;
+          float sy = 1.0f / slot->glyphs->height;
 
           slot->texcoords = reinterpret_cast<Vec4*>((size_t)slot->memory + 0*count*sizeof(float));
 
@@ -145,15 +145,13 @@ void ResourceManager::destroy<Font>(Font const *font)
 {
   assert(font);
 
-  auto slot = const_cast<Font*>(font);
-
   if (font->glyphs)
     destroy(font->glyphs);
 
-  if (slot->memory)
-    release_slot(slot->memory, slot->memorysize);
+  if (font->memory)
+    release_slot(font->memory, font->memorysize);
 
   font->~Font();
 
-  release_slot(slot, sizeof(Font));
+  release_slot(const_cast<Font*>(font), sizeof(Font));
 }

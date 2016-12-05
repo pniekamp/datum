@@ -110,12 +110,10 @@ void ResourceManager::destroy<Sprite>(Sprite const *sprite)
 {
   assert(sprite);
 
-  auto slot = const_cast<Sprite*>(sprite);
-
   if (sprite->flags & SpriteOwnsAtlas)
     destroy(sprite->atlas);
 
   sprite->~Sprite();
 
-  release_slot(slot, sizeof(Sprite));
+  release_slot(const_cast<Sprite*>(sprite), sizeof(Sprite));
 }

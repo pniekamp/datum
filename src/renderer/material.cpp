@@ -199,25 +199,25 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
   {
     bool ready = true;
 
-    if (material->albedomap)
+    if (slot->albedomap)
     {
-      request(platform, material->albedomap);
+      request(platform, slot->albedomap);
 
-      ready &= material->albedomap->ready();
+      ready &= slot->albedomap->ready();
     }
 
-    if (material->specularmap)
+    if (slot->specularmap)
     {
-      request(platform, material->specularmap);
+      request(platform, slot->specularmap);
 
-      ready &= material->specularmap->ready();
+      ready &= slot->specularmap->ready();
     }
 
-    if (material->normalmap)
+    if (slot->normalmap)
     {
-      request(platform, material->normalmap);
+      request(platform, slot->normalmap);
 
-      ready &= material->normalmap->ready();
+      ready &= slot->normalmap->ready();
     }
 
     if (ready)
@@ -246,8 +246,6 @@ void ResourceManager::destroy<Material>(Material const *material)
 {
   assert(material);
 
-  auto slot = const_cast<Material*>(material);
-
   if (material->flags & MaterialOwnsAlbedoMap)
     destroy(material->albedomap);
 
@@ -259,6 +257,6 @@ void ResourceManager::destroy<Material>(Material const *material)
 
   material->~Material();
 
-  release_slot(slot, sizeof(Material));
+  release_slot(const_cast<Material*>(material), sizeof(Material));
 }
 

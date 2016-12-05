@@ -32,17 +32,14 @@ class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float
   public:
     SpriteComponentStorage(Scene *scene, StackAllocator<> allocator);
 
-    long const &flags(EntityId entity) const { return data<spriteflags>(index(entity)); }
+    template<typename Component = class SpriteComponent>
+    Component get(EntityId entity)
+    {
+      return { this->index(entity), this };
+    }
 
-    Sprite const *sprite(EntityId entity) const { return data<spriteresource>(index(entity)); }
-
-    float const &size(EntityId entity) const { return data<spritesize>(index(entity)); }
-
-    float const &layer(EntityId entity) const { return data<spritelayer>(index(entity)); }
-
-    lml::Color4 const &tint(EntityId entity) const { return data<spritetint>(index(entity)); }
+    friend class SpriteComponent;
 };
-
 
 
 //|---------------------- SpriteComponent -----------------------------------
@@ -63,12 +60,16 @@ class SpriteComponent
     friend SpriteComponent Scene::get_component<SpriteComponent>(Scene::EntityId entity);
 
   public:
+    SpriteComponent(size_t index, SpriteComponentStorage *storage);
 
     long const &flags() const { return storage->data<SpriteComponentStorage::spriteflags>(index); }
+
     Sprite const *sprite() const { return storage->data<SpriteComponentStorage::spriteresource>(index); }
+
     float const &size() const { return storage->data<SpriteComponentStorage::spritesize>(index); }
     float const &layer() const { return storage->data<SpriteComponentStorage::spritelayer>(index); }
     lml::Color4 const &tint() const { return storage->data<SpriteComponentStorage::spritetint>(index); }
+
     lml::Rect2 bound() const { return lml::Rect2(-sprite()->align, lml::Vec2(size() * sprite()->aspect, size()) - sprite()->align); }
 
     void set_size(float size);
@@ -78,7 +79,6 @@ class SpriteComponent
     void set_tint(lml::Color4 const &tint);
 
   protected:
-    SpriteComponent(size_t index, SpriteComponentStorage *storage);
 
     size_t index;
     SpriteComponentStorage *storage;

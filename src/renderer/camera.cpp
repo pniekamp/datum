@@ -19,7 +19,7 @@ using namespace lml;
 ///////////////////////// Camera::Constructor ///////////////////////////////
 Camera::Camera()
 {
-  m_fov = 60.0f;
+  m_fov = 60.0f*pi<float>()/180.0f;
   m_aspect = 1.7777f;
   m_exposure = 1.0f;
   m_transform = Transform::identity();

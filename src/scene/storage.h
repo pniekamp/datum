@@ -64,11 +64,19 @@ class DefaultStorage : public Storage
 
   public:
 
-    void clear() override;
-
     bool has(EntityId entity) const;
 
+  protected:
+
+    void clear() override;
+
     size_t index(EntityId entity) const;
+
+    template<size_t typeindex>
+    auto &data(size_t index)
+    {
+      return std::get<typeindex>(m_data)[index];
+    }
 
     template<size_t typeindex>
     auto const &data(size_t index) const

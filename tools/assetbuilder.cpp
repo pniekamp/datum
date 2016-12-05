@@ -764,6 +764,7 @@ void write_core()
   write_shader_asset(fout, CoreAsset::stencilfill_frag, "../../data/stencilfill.frag");
 
   write_shader_asset(fout, CoreAsset::outline_vert, "../../data/outline.vert");
+  write_shader_asset(fout, CoreAsset::outline_geom, "../../data/outline.geom");
   write_shader_asset(fout, CoreAsset::outline_frag, "../../data/outline.frag");
 
   write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0f, "", "", "");

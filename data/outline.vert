@@ -22,12 +22,12 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 //layout(std140, push_constant, row_major) uniform ModelSet 
 layout(std430, set=2, binding=0, row_major) buffer ModelSet 
 {
+  vec3 scale;
   Transform modelworld;
   
 } model;
 
-layout(location=0) out vec2 texcoord;
-layout(location=1) out vec4 fbocoord;
+layout(location=0) out vec2 texcoords;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
@@ -36,11 +36,7 @@ void main(void)
 
   vec3 normal = quaternion_multiply(model.modelworld.real, vertex_normal);
 
-  vec4 ndc = scene.worldview * vec4(transform_multiply(model.modelworld, vertex_position + bias*normal), 1);
+  texcoords = vertex_texcoord; 
 
-  texcoord = vertex_texcoord; 
-
-  fbocoord = vec4(0.5 * ndc.xy / ndc.w + 0.5, ndc.z / ndc.w, 1);
-  
-  gl_Position = vec4(ndc.x * scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), ndc.y * scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), ndc.z, ndc.w);
+  gl_Position = scene.worldview * vec4(transform_multiply(model.modelworld, vertex_position + bias*normal), 1);
 }

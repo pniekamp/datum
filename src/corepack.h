@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 12;
+  const uint32_t version = 13;
 
   enum
   {
@@ -58,6 +58,7 @@ namespace CoreAsset
     stencilfill_vert,
     stencilfill_frag,
     outline_vert,
+    outline_geom,
     outline_frag,
     default_material,
     loader_image,

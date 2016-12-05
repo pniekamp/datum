@@ -160,7 +160,10 @@ class Scene
     };
 
     template<typename ...Components>
-    auto entities() const { return iterator_pair<iterator<Components...>>{ iterator<Components...>(this, 0), iterator<Components...>(this, m_slots.size()) }; }
+    iterator_pair<iterator<Components...>> entities() const
+    {
+      return { iterator<Components...>(this, 0), iterator<Components...>(this, m_slots.size()) };
+    }
 
   public:
 

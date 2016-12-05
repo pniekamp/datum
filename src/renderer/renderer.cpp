@@ -2001,7 +2001,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   if (context.stencilfillpipeline == 0)
   {
     //
-    // Stencil Pipeline
+    // Stencil Fill Pipeline
     //
 
     auto vs = assets->find(CoreAsset::stencilfill_vert);
@@ -2119,20 +2119,23 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     //
 
     auto vs = assets->find(CoreAsset::outline_vert);
+    auto gs = assets->find(CoreAsset::outline_geom);
     auto fs = assets->find(CoreAsset::outline_frag);
 
-    if (!vs || !fs)
+    if (!vs || !gs || !fs)
       return false;
 
     asset_guard lock(assets);
 
     auto vssrc = assets->request(platform, vs);
+    auto gssrc = assets->request(platform, gs);
     auto fssrc = assets->request(platform, fs);
 
-    if (!vssrc || !fssrc)
+    if (!vssrc || !gssrc || !fssrc)
       return false;
 
     auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.device, gssrc, gs->length);
     auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
@@ -2153,7 +2156,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkPipelineRasterizationStateCreateInfo rasterization = {};
     rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterization.cullMode = VK_CULL_MODE_FRONT_BIT;
+    rasterization.cullMode = VK_CULL_MODE_NONE;
     rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterization.lineWidth = 1.0;
 
@@ -2196,15 +2199,19 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    VkPipelineShaderStageCreateInfo shaders[3] = {};
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaders[1].module = fsmodule;
+    shaders[1].stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+    shaders[1].module = gsmodule;
     shaders[1].pName = "main";
+    shaders[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[2].module = fsmodule;
+    shaders[2].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -2294,8 +2301,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
   context.transfermemory = map_memory<uint8_t>(context.device, context.transferbuffer, 0, context.transferbuffer.size);
 
-  context.fbowidth = 0;
-  context.fboheight = 0;
+  context.width = 0;
+  context.height = 0;
 
   context.initialised = true;
 
@@ -2619,8 +2626,8 @@ void release_render_pipeline(RenderContext &context)
   context.ssaobuffers[0] = {};
   context.ssaobuffers[1] = {};
 
-  context.fbowidth = 0;
-  context.fboheight = 0;
+  context.width = 0;
+  context.height = 0;
 }
 
 
@@ -2652,20 +2659,20 @@ void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &
   {
     auto frustum = camera.frustum(splits[i], splits[i+1] + 1.0f);
 
-    auto radius = 0.5f * norm(frustum.corners[0] - frustum.corners[6]);
+    auto frustumradius = 0.5f * norm(frustum.corners[0] - frustum.corners[6]);
 
     auto frustumcentre = frustum.centre();
 
     frustumcentre = inverse(snapview) * frustumcentre;
-    frustumcentre.x -= fmod(frustumcentre.x, (radius + radius) / shadowmap.width);
-    frustumcentre.y -= fmod(frustumcentre.y, (radius + radius) / shadowmap.height);
+    frustumcentre.x -= fmod(frustumcentre.x, (frustumradius + frustumradius) / shadowmap.width);
+    frustumcentre.y -= fmod(frustumcentre.y, (frustumradius + frustumradius) / shadowmap.height);
     frustumcentre = snapview * frustumcentre;
 
     auto lightpos = frustumcentre - extrusion * lightdirection;
 
     auto lightview = Transform::lookat(lightpos, lightpos + lightdirection, up);
 
-    auto lightproj = OrthographicProjection(-radius, -radius, radius, radius, 0.1f, extrusion + radius) * ScaleMatrix(Vector4(1.0f, -1.0f, 1.0f, 1.0f));
+    auto lightproj = OrthographicProjection(-frustumradius, -frustumradius, frustumradius, frustumradius, 0.1f, extrusion + frustumradius) * ScaleMatrix(Vector4(1.0f, -1.0f, 1.0f, 1.0f));
 
     shadowmap.splits[i] = splits[i+1];
     shadowmap.shadowview[i] = lightproj * inverse(lightview).matrix();

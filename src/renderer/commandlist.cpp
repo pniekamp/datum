@@ -149,9 +149,7 @@ void ResourceManager::destroy<CommandList>(CommandList const *commandlist)
 {
   assert(commandlist);
 
-  auto slot = const_cast<CommandList*>(commandlist);
-
   commandlist->~CommandList();
 
-  release_slot(slot, sizeof(CommandList));
+  release_slot(const_cast<CommandList*>(commandlist), sizeof(CommandList));
 }

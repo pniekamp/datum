@@ -8,109 +8,98 @@
 
 #pragma once
 
-#include "datum/scene.h"
+#include "scene.h"
+#include "storage.h"
 #include "delegate.h"
 
-//|---------------------- BasicComponent ------------------------------------
+//|---------------------- BasicComponentStorage -----------------------------
 //|--------------------------------------------------------------------------
 
 template<typename Data>
-class BasicComponent
+class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
 {
   public:
 
-    class Storage : public DefaultStorage<Scene::EntityId, Data>
-    {
-      public:
-        Storage(Scene *scene, StackAllocator<> allocator)
-          : DefaultStorage<Scene::EntityId, Data>(scene, allocator)
-        {
-        }
-
-        Scene::EntityId entity(size_t index) const { return std::get<0>(this->m_data)[index]; }
-
-        Data *data(size_t index) { return &std::get<1>(this->m_data)[index]; }
-        Data const *data(size_t index) const { return &std::get<1>(this->m_data)[index]; }
-
-        class iterator
-        {
-          public:
-
-            Scene::EntityId entity() const { return storage->entity(index); }
-
-            bool operator ==(iterator const &that) const { return index == that.index; }
-            bool operator !=(iterator const &that) const { return index != that.index; }
-
-            Data &operator *() const { return *storage->data(index); }
-            Data *operator ->() const { return storage->data(index); }
-
-            iterator &operator++()
-            {
-              ++index;
-
-              while (index < storage->size() && entity() == 0)
-                ++index;
-
-              return *this;
-            }
-
-            size_t index;
-            Storage *storage;
-        };
-
-        template<typename Iterator>
-        class iterator_pair : public std::pair<Iterator, Iterator>
-        {
-          public:
-            using std::pair<Iterator, Iterator>::pair;
-
-            Iterator begin() const { return this->first; }
-            Iterator end() const { return this->second; }
-        };
-
-        iterator_pair<iterator> components()
-        {
-          return { ++iterator{ 0, this }, iterator{ this->size(), this } };
-        }
-
-      protected:
-
-        Data *add(Scene::EntityId entity)
-        {
-          DefaultStorage<Scene::EntityId, Data>::add(entity);
-
-          auto index = this->index(entity);
-
-          std::get<0>(this->m_data)[index] = entity;
-
-          return data(index);
-        }
-
-        void remove(Scene::EntityId entity) override
-        {
-          auto index = this->index(entity);
-
-          std::get<0>(this->m_data)[index] = {};
-
-          DefaultStorage<Scene::EntityId, Data>::remove(entity);
-        }
-
-        friend class Scene;
-    };
+    using EntityId = Scene::EntityId;
 
   public:
-
-    Data *operator ->() { return storage->data(index); }
-    Data const *operator ->() const { return storage->data(index); }
-
-  protected:
-    BasicComponent(size_t index, Storage *storage)
-      : index(index), storage(storage)
+    BasicComponentStorage(Scene *scene, StackAllocator<> allocator)
+      : DefaultStorage<Scene::EntityId, Data>(scene, allocator)
     {
     }
 
-    size_t index;
-    Storage *storage;
+    class iterator
+    {
+      public:
+
+        bool operator ==(iterator const &that) const { return index == that.index; }
+        bool operator !=(iterator const &that) const { return index != that.index; }
+
+        EntityId const &operator *() const { return storage->template data<0>(index); }
+        EntityId const *operator ->() const { return &storage->template data<0>(index); }
+
+        iterator &operator++()
+        {
+          ++index;
+
+          while (index < storage->size() && storage->template data<0>(index) == 0)
+            ++index;
+
+          return *this;
+        }
+
+        size_t index;
+        BasicComponentStorage *storage;
+    };
+
+    template<typename Iterator>
+    class iterator_pair : public std::pair<Iterator, Iterator>
+    {
+      public:
+        using std::pair<Iterator, Iterator>::pair;
+
+        Iterator begin() const { return this->first; }
+        Iterator end() const { return this->second; }
+    };
+
+    iterator_pair<iterator> entities()
+    {
+      return { ++iterator{ 0, this }, iterator{ this->size(), this } };
+    }
+
+  protected:
+
+    Data &data(EntityId entity)
+    {
+      return std::get<1>(this->m_data)[this->index(entity)];
+    }
+
+    Data const &data(EntityId entity) const
+    {
+      return std::get<1>(this->m_data)[this->index(entity)];
+    }
+
+    using DefaultStorage<Scene::EntityId, Data>::data;
+
+    Data &add(Scene::EntityId entity)
+    {
+      DefaultStorage<Scene::EntityId, Data>::add(entity);
+
+      auto index = this->index(entity);
+
+      std::get<0>(this->m_data)[index] = entity;
+
+      return std::get<1>(this->m_data)[index];
+    }
+
+    void remove(Scene::EntityId entity) override
+    {
+      auto index = this->index(entity);
+
+      std::get<0>(this->m_data)[index] = {};
+
+      DefaultStorage<Scene::EntityId, Data>::remove(entity);
+    }
 
     friend class Scene;
 };
@@ -129,10 +118,34 @@ struct Example
   delegate<void(Scene::EntityId)> destroyed;
 };
 
-using ExampleComponent = BasicComponent<Example>;
+class ExampleComponent
+{
+  public:
+    friend ExampleComponent Scene::add_component<ExampleComponent>(Scene::EntityId entity);
+    friend ExampleComponent Scene::get_component<ExampleComponent>(Scene::EntityId entity);
 
-template<>
-ExampleComponent Scene::add_component<ExampleComponent>(Scene::EntityId entity);
+  public:
+    ExampleComponent(Example *data)
+      : m_data(data)
+    {
+    }
+
+    ExampleComponent get(EntityId entity)
+    {
+      return &data(entity);
+    }
+
+  private:
+
+    Example *m_data;
+};
+
+
+class ExampleComponentStorage : public BasicComponentStorage<ExampleComponent, Example>
+{
+  public:
+    using BasicComponentStorage::BasicComponentStorage;
+};
 
 
 //|---------------------- ExampleComponent ----------------------------------
@@ -142,7 +155,7 @@ ExampleComponent Scene::add_component<ExampleComponent>(Scene::EntityId entity);
 template<>
 void Scene::initialise_component_storage<ExampleComponent>()
 {
-  m_systems[typeid(ExampleComponent::Storage)] = new(allocator<ExampleComponent::Storage>().allocate(1)) ExampleComponent::Storage(this, allocator());
+  m_systems[typeid(ExampleComponentStorage)] = new(allocator<ExampleComponentStorage>().allocate(1)) ExampleComponentStorage(this, allocator());
 }
 
 
@@ -152,11 +165,11 @@ ExampleComponent Scene::add_component<ExampleComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = system<ExampleComponent::Storage>();
+  auto storage = system<ExampleComponentStorage>();
 
-  auto example = storage->add(entity);
+  auto &example = storage->add(entity);
 
-  return { storage->index(entity), storage };
+  return &example;
 }
 
 
@@ -166,9 +179,7 @@ void Scene::remove_component<ExampleComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = system<ExampleComponent::Storage>();
-
-  storage->remove(entity);
+  system<ExampleComponentStorage>()->remove(entity);
 }
 
 
@@ -178,9 +189,7 @@ bool Scene::has_component<ExampleComponent>(Scene::EntityId entity) const
 {
   assert(get(entity) != nullptr);
 
-  auto storage = system<ExampleComponent::Storage>();
-
-  return storage->has(entity);
+  return system<ExampleComponentStorage>()->has(entity);
 }
 
 
@@ -190,9 +199,6 @@ ExampleComponent Scene::get_component<ExampleComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = system<ExampleComponent::Storage>();
-
-  return { storage->index(entity), storage };
+  return system<ExampleComponentStorage>()->get(entity);
 }
-
 */
