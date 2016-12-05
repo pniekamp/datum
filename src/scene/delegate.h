@@ -31,7 +31,7 @@ template<typename R, typename... Args> class delegate<R(Args...)>
 
     operator bool() const { return valid; }
 
-    R operator()(Args&&... args) const
+    R operator()(Args... args) const
     {
       return reinterpret_cast<holderbase const *>(storage)->invoke(std::forward<Args>(args)...);
     }

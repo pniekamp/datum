@@ -32,8 +32,13 @@ class TransformComponentStorage : public DefaultStorage<lml::Transform, lml::Tra
   public:
     TransformComponentStorage(Scene *scene, StackAllocator<> allocator);
 
-    lml::Transform const &local(EntityId entity) const { return data<localtransform>(index(entity)); }
-    lml::Transform const &world(EntityId entity) const { return data<worldtransform>(index(entity)); }
+    template<typename Component = class TransformComponent>
+    Component get(EntityId entity)
+    {
+      return { this->index(entity), this };
+    }
+
+    friend class TransformComponent;
 };
 
 
@@ -49,6 +54,7 @@ class TransformComponent
     friend TransformComponent Scene::get_component<TransformComponent>(Scene::EntityId entity);
 
   public:
+    TransformComponent(size_t index, TransformComponentStorage *storage);
 
     lml::Transform const &local() const { return storage->data<TransformComponentStorage::localtransform>(index); }
     lml::Transform const &world() const { return storage->data<TransformComponentStorage::worldtransform>(index); }
@@ -94,10 +100,12 @@ class TransformComponent
         Iterator end() const { return this->second; }
     };
 
-    auto children() { return iterator_pair<iterator<TransformComponent>>{ iterator<TransformComponent>(storage->data<TransformComponentStorage::firstchildindex>(index), storage), iterator<TransformComponent>(0, storage) }; }
+    auto children()
+    {
+      return iterator_pair<iterator<TransformComponent>>{ iterator<TransformComponent>(storage->data<TransformComponentStorage::firstchildindex>(index), storage), iterator<TransformComponent>(0, storage) };
+    }
 
-  private:
-    TransformComponent(size_t index, TransformComponentStorage *storage);
+  protected:
 
     size_t index;
     TransformComponentStorage *storage;

@@ -51,7 +51,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::perspective ////////////////////////////
-  inline Frustum Frustum::perspective (float fov, float aspect, float znear, float zfar)
+  inline Frustum Frustum::perspective(float fov, float aspect, float znear, float zfar)
   {
     Vec3 corners[8];
 

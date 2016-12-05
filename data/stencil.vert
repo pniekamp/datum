@@ -22,6 +22,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 //layout(std140, push_constant, row_major) uniform ModelSet 
 layout(std430, set=2, binding=0, row_major) buffer ModelSet 
 { 
+  vec3 scale;
   Transform modelworld;
 
 } model;
@@ -31,7 +32,7 @@ layout(location=0) out vec2 texcoord;
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 {
-  vec4 ndc = scene.worldview * vec4(transform_multiply(model.modelworld, vertex_position), 1);
+  vec4 ndc = scene.worldview * vec4(transform_multiply(model.modelworld, model.scale * vertex_position), 1);
 
   texcoord = vertex_texcoord; 
 

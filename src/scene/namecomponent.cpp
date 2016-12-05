@@ -63,7 +63,7 @@ void NameStoragePrivate::remove(EntityId entity)
 {
   auto index = this->index(entity);
 
-  get<0>(m_data)[index] = {};
+  data<0>(index) = {};
 
   DefaultStorage::remove(entity);
 }
@@ -74,7 +74,9 @@ void NameStoragePrivate::set_name(EntityId entity, const char *name)
 {
   assert(has(entity));
 
-  get<1>(m_data)[index(entity)] = m_names.size();
+  auto index = this->index(entity);
+
+  data<1>(index) = m_names.size();
 
   m_names.insert(m_names.end(), name, name + strlen(name) + 2);
 }
@@ -108,6 +110,23 @@ void Scene::initialise_component_storage<NameComponent>()
 //|---------------------- NameComponent -------------------------------------
 //|--------------------------------------------------------------------------
 
+///////////////////////// NameComponent::Constructor ////////////////////////
+NameComponent::NameComponent(Scene::EntityId entity, NameComponentStorage *storage)
+  : entity(entity),
+    storage(storage)
+{
+}
+
+
+///////////////////////// NameComponent::set_name ///////////////////////////
+void NameComponent::set_name(const char *name)
+{
+  auto storage = static_cast<NameStoragePrivate*>(this->storage);
+
+  storage->set_name(entity, name);
+}
+
+
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
 NameComponent Scene::add_component<NameComponent>(Scene::EntityId entity, const char *name)
@@ -130,9 +149,7 @@ void Scene::remove_component<NameComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<NameStoragePrivate*>(system<NameComponentStorage>());
-
-  storage->remove(entity);
+  static_cast<NameStoragePrivate*>(system<NameComponentStorage>())->remove(entity);
 }
 
 
@@ -155,19 +172,4 @@ NameComponent Scene::get_component<NameComponent>(Scene::EntityId entity)
   auto storage = static_cast<NameStoragePrivate*>(system<NameComponentStorage>());
 
   return { entity, storage };
-}
-
-
-///////////////////////// NameComponent::Constructor ////////////////////////
-NameComponent::NameComponent(Scene::EntityId entity, NameComponentStorage *storage)
-  : entity(entity),
-    storage(storage)
-{
-}
-
-
-///////////////////////// NameComponent::set_name ///////////////////////////
-void NameComponent::set_name(const char *name)
-{
-  static_cast<NameStoragePrivate*>(storage)->set_name(entity, name);
 }

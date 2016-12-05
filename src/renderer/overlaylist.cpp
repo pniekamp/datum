@@ -65,6 +65,7 @@ struct WireframeSet
 
 struct ModelSet
 {
+  Vec4 scale;
   Transform modelworld;
 };
 
@@ -117,6 +118,13 @@ bool OverlayList::begin(BuildState &state, PlatformInterface &platform, RenderCo
 
 ///////////////////////// OverlayList::push_gizmo ///////////////////////////
 void OverlayList::push_gizmo(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
+{
+  push_gizmo(state, transform, Vec3(1), mesh, material);
+}
+
+
+///////////////////////// OverlayList::push_gizmo ///////////////////////////
+void OverlayList::push_gizmo(OverlayList::BuildState &state, Transform const &transform, Vec3 const &scale, Mesh const *mesh, Material const *material)
 {
   if (!mesh)
     return;
@@ -182,6 +190,7 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Transform const &tr
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
+    modelset->scale = Vec4(scale, 0);
     modelset->modelworld = transform;
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -244,6 +253,7 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
+    modelset->scale = Vec4(1);
     modelset->modelworld = transform;
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -306,6 +316,7 @@ void OverlayList::push_stencil(OverlayList::BuildState &state, Transform const &
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
+    modelset->scale = Vec4(1);
     modelset->modelworld = transform;
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -379,6 +390,7 @@ void OverlayList::push_stencil(OverlayList::BuildState &state, Transform const &
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
+    modelset->scale = Vec4(1);
     modelset->modelworld = transform;
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -445,6 +457,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
+    modelset->scale = Vec4(1);
     modelset->modelworld = transform;
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -522,6 +535,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
+    modelset->scale = Vec4(1);
     modelset->modelworld = transform;
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -599,7 +613,71 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
+    modelset->scale = Vec4(1);
     modelset->modelworld = transform;
+
+    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+  }
+#else
+  push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
+
+  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+#endif
+}
+
+
+///////////////////////// OverlayList::push_volume //////////////////////////
+void OverlayList::push_volume(BuildState &state, Bound3 const &bound, Mesh const *mesh, Color4 const &color)
+{
+  if (!mesh)
+    return;
+
+  if (!mesh->ready())
+  {
+    state.resources->request(*state.platform, mesh);
+
+    if (!mesh->ready())
+      return;
+  }
+
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+
+  bindresource(commandlist, context.wireframepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  bindresource(commandlist, mesh->vertexbuffer);
+
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WireframeSet), state.materialset);
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(WireframeSet));
+
+    auto wireframeset = state.materialset.memory<WireframeSet>(offset);
+
+    wireframeset->color = color;
+
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  }
+
+#if 1
+  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
+  {
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+  }
+
+  if (state.modelset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
+
+    modelset->scale = Vec4(bound.halfdim(), 0);
+    modelset->modelworld = Transform::translation(bound.centre());
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

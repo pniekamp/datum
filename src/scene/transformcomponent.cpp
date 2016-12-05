@@ -25,12 +25,12 @@ class TransformStoragePrivate : public TransformComponentStorage
 
   public:
 
-    auto &local(size_t index) { return std::get<localtransform>(m_data)[index]; }
-    auto &world(size_t index) { return std::get<worldtransform>(m_data)[index]; }
-    auto &parent(size_t index) { return std::get<parentindex>(m_data)[index]; }
-    auto &firstchild(size_t index) { return std::get<firstchildindex>(m_data)[index]; }
-    auto &nextsibling(size_t index) { return std::get<nextsiblingindex>(m_data)[index]; }
-    auto &prevsibling(size_t index) { return std::get<prevsiblingindex>(m_data)[index]; }
+    auto &local(size_t index) { return data<localtransform>(index); }
+    auto &world(size_t index) { return data<worldtransform>(index); }
+    auto &parent(size_t index) { return data<parentindex>(index); }
+    auto &firstchild(size_t index) { return data<firstchildindex>(index); }
+    auto &nextsibling(size_t index) { return data<nextsiblingindex>(index); }
+    auto &prevsibling(size_t index) { return data<prevsiblingindex>(index); }
 
   public:
 
@@ -136,9 +136,49 @@ void Scene::initialise_component_storage<TransformComponent>()
 }
 
 
-
 //|---------------------- TransformComponent --------------------------------
 //|--------------------------------------------------------------------------
+
+///////////////////////// TransformComponent::Constructor ///////////////////
+TransformComponent::TransformComponent(size_t index, TransformComponentStorage *storage)
+  : index(index),
+    storage(storage)
+{
+}
+
+
+///////////////////////// TransformComponent::set_local /////////////////////
+void TransformComponent::set_local(Transform const &transform)
+{
+  auto storage = static_cast<TransformStoragePrivate*>(this->storage);
+
+  storage->set_local(index, transform);
+
+  storage->update(index);
+}
+
+
+///////////////////////// TransformComponent::set_local /////////////////////
+void TransformComponent::set_local_defered(Transform const &transform)
+{
+  auto storage = static_cast<TransformStoragePrivate*>(this->storage);
+
+  storage->set_local(index, transform);
+}
+
+
+///////////////////////// TransformComponent::set_parent ////////////////////
+void TransformComponent::set_parent(TransformComponent const &parent)
+{
+  assert(parent.storage == storage);
+
+  auto storage = static_cast<TransformStoragePrivate*>(this->storage);
+
+  storage->reparent(index, parent.index);
+
+  storage->update(index);
+}
+
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
@@ -185,9 +225,7 @@ void Scene::remove_component<TransformComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<TransformStoragePrivate*>(system<TransformComponentStorage>());
-
-  storage->remove(entity);
+  static_cast<TransformStoragePrivate*>(system<TransformComponentStorage>())->remove(entity);
 }
 
 
@@ -207,43 +245,7 @@ TransformComponent Scene::get_component<TransformComponent>(Scene::EntityId enti
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<TransformStoragePrivate*>(system<TransformComponentStorage>());
-
-  return { storage->index(entity), storage };
+  return system<TransformComponentStorage>()->get(entity);
 }
 
-
-///////////////////////// TransformComponent::Constructor ///////////////////
-TransformComponent::TransformComponent(size_t index, TransformComponentStorage *storage)
-  : index(index),
-    storage(storage)
-{
-}
-
-
-///////////////////////// TransformComponent::set_local /////////////////////
-void TransformComponent::set_local(Transform const &transform)
-{
-  static_cast<TransformStoragePrivate*>(storage)->set_local(index, transform);
-
-  static_cast<TransformStoragePrivate*>(storage)->update(index);
-}
-
-
-///////////////////////// TransformComponent::set_local /////////////////////
-void TransformComponent::set_local_defered(Transform const &transform)
-{
-  static_cast<TransformStoragePrivate*>(storage)->set_local(index, transform);
-}
-
-
-///////////////////////// TransformComponent::set_parent ////////////////////
-void TransformComponent::set_parent(TransformComponent const &parent)
-{
-  assert(parent.storage == storage);
-
-  static_cast<TransformStoragePrivate*>(storage)->reparent(index, parent.index);
-
-  static_cast<TransformStoragePrivate*>(storage)->update(index);
-}
 

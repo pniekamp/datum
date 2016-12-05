@@ -40,13 +40,13 @@ class NameComponent
     friend NameComponent Scene::get_component<NameComponent>(Scene::EntityId entity);
 
   public:
+    NameComponent(Scene::EntityId entity, NameComponentStorage *storage);
 
     const char *name() const { return storage->name(entity); }
 
     void set_name(const char *name);
 
-  private:
-    NameComponent(Scene::EntityId entity, NameComponentStorage *storage);
+  protected:
 
     Scene::EntityId entity;
     NameComponentStorage *storage;

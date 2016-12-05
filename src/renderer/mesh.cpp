@@ -70,7 +70,7 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
   {
     mesh->~Mesh();
 
-    release_slot(slot, sizeof(Mesh));
+    release_slot(mesh, sizeof(Mesh));
 
     return nullptr;
   }
@@ -165,8 +165,8 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
           slot->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, asset->vertexcount, sizeof(Vertex), asset->indexcount, sizeof(uint32_t));
 
-          memcpy((uint8_t*)lump->transfermemory + mesh->vertexbuffer.verticiesoffset, vertextable, mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize);
-          memcpy((uint8_t*)lump->transfermemory + mesh->vertexbuffer.indicesoffset, indextable, mesh->vertexbuffer.indexcount * mesh->vertexbuffer.indexsize);
+          memcpy((uint8_t*)lump->transfermemory + slot->vertexbuffer.verticiesoffset, vertextable, slot->vertexbuffer.vertexcount * slot->vertexbuffer.vertexsize);
+          memcpy((uint8_t*)lump->transfermemory + slot->vertexbuffer.indicesoffset, indextable, slot->vertexbuffer.indexcount * slot->vertexbuffer.indexsize);
 
           update_vertexbuffer(lump->commandbuffer, lump->transferbuffer, slot->vertexbuffer);
 
@@ -222,12 +222,10 @@ void ResourceManager::destroy<Mesh>(Mesh const *mesh)
 {
   assert(mesh);
 
-  auto slot = const_cast<Mesh*>(mesh);
-
-  if (slot->transferlump)
-    release_lump(slot->transferlump);
+  if (mesh->transferlump)
+    release_lump(mesh->transferlump);
 
   mesh->~Mesh();
 
-  release_slot(slot, sizeof(Mesh));
+  release_slot(const_cast<Mesh*>(mesh), sizeof(Mesh));
 }
