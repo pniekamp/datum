@@ -116,7 +116,12 @@ void datumtest_init(PlatformInterface &platform)
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
 
-#if 1
+#if 0
+  auto test = state.assets.load(platform, "test.pack");
+  state.scene.load<Model>(platform, &state.resources, state.assets.find(test->id + 1));
+#endif
+
+#if 0
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);

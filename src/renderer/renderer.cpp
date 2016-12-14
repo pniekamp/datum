@@ -1891,14 +1891,14 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.wireframepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
-  if (context.stencilpipeline == 0)
+  if (context.stencilmaskpipeline == 0)
   {
     //
-    // Stencil Pipeline
+    // Stencil Mask Pipeline
     //
 
-    auto vs = assets->find(CoreAsset::stencil_vert);
-    auto fs = assets->find(CoreAsset::stencil_frag);
+    auto vs = assets->find(CoreAsset::stencilmask_vert);
+    auto fs = assets->find(CoreAsset::stencilmask_frag);
 
     if (!vs || !fs)
       return false;
@@ -1995,7 +1995,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.stencilpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.stencilmaskpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
   if (context.stencilfillpipeline == 0)
@@ -2156,7 +2156,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkPipelineRasterizationStateCreateInfo rasterization = {};
     rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterization.cullMode = VK_CULL_MODE_NONE;
+    rasterization.cullMode = VK_CULL_MODE_FRONT_BIT;
     rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterization.lineWidth = 1.0;
 

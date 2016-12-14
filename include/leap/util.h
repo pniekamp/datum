@@ -490,6 +490,19 @@ namespace leap
   }
 
 
+  //|//////////// indexof ///////////////////////////////////////////////////
+  /**
+   * \brief returns the index of element in array/vector
+   * \ingroup leaputil
+  **/
+
+  template<typename Array, typename T>
+  constexpr size_t indexof(Array const &array, T const &element)
+  {
+    return std::distance(&array[0], &dereference(element));
+  }
+
+
   //|//////////// gather ////////////////////////////////////////////////////
   /**
    * \brief constexpr gather from c array to std::array

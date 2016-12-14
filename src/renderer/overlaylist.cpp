@@ -287,7 +287,7 @@ void OverlayList::push_stencil(OverlayList::BuildState &state, Transform const &
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilpipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
@@ -361,7 +361,7 @@ void OverlayList::push_stencil(OverlayList::BuildState &state, Transform const &
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilpipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
