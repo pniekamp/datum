@@ -662,7 +662,15 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
     painter.drawText(position->x + offsetx[codepoint] + 1, position->y + offsety[codepoint] + 1, QString(codepoint));
   }
 
-  write_sprite_asset(fout, id + 1, { atlas });
+  int levels = min(4, image_maxlevels(atlas.width(), atlas.height()));
+
+  vector<char> payload(image_datasize(atlas.width(), atlas.height(), 1, levels));
+
+  memcpy(payload.data(), atlas.bits(), atlas.byteCount());
+
+  image_buildmips_srgb(atlas.width(), atlas.height(), 1, levels, payload.data());
+
+  write_imag_asset(fout, id+1, atlas.width(), atlas.height(), 1, levels, PackImageHeader::rgba, payload.data());
 
   return id + 2;
 }
@@ -757,8 +765,8 @@ void write_core()
   write_shader_asset(fout, CoreAsset::wireframe_geom, "../../data/wireframe.geom");
   write_shader_asset(fout, CoreAsset::wireframe_frag, "../../data/wireframe.frag");
 
-  write_shader_asset(fout, CoreAsset::stencil_vert, "../../data/stencil.vert");
-  write_shader_asset(fout, CoreAsset::stencil_frag, "../../data/stencil.frag");
+  write_shader_asset(fout, CoreAsset::stencilmask_vert, "../../data/stencilmask.vert");
+  write_shader_asset(fout, CoreAsset::stencilmask_frag, "../../data/stencilmask.frag");
 
   write_shader_asset(fout, CoreAsset::stencilfill_vert, "../../data/stencilfill.vert");
   write_shader_asset(fout, CoreAsset::stencilfill_frag, "../../data/stencilfill.frag");

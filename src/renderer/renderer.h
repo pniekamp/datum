@@ -302,7 +302,7 @@ struct RenderContext
   Vulkan::Pipeline spritepipeline;
   Vulkan::Pipeline gizmopipeline;
   Vulkan::Pipeline wireframepipeline;
-  Vulkan::Pipeline stencilpipeline;
+  Vulkan::Pipeline stencilmaskpipeline;
   Vulkan::Pipeline stencilfillpipeline;
   Vulkan::Pipeline outlinepipeline;
 

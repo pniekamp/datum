@@ -12,24 +12,35 @@ using namespace std;
 ///////////////////////// load_shader ///////////////////////////////////////
 string load_shader(string const &path)
 {
-  string shader;
-
   ifstream fin(path);
   if (!fin)
     throw runtime_error("Error opening - " + path);
 
+  string name = path.substr(path.find_last_of("/\\")+1);
   string base = path.substr(0, path.find_last_of("/\\"));
+
+  int line = 1;
+
+  string shader = "#line " + to_string(line) + "\"" + name + "\"\n";
 
   string buffer;
 
   while (getline(fin, buffer))
   {
-    if (buffer.empty() || buffer.substr(0, 2) == "//")
-      continue;
+    ++line;
+
+    if (buffer.substr(0, 8) == "#version")
+    {
+      shader = "";
+      buffer += "\n#extension GL_GOOGLE_cpp_style_line_directive : enable\n";
+      buffer += "\n#line " + to_string(line) + "\"" + name + "\"";
+    }
 
     if (buffer.substr(0, 8) == "#include")
     {
       buffer = load_shader(base + "/" + string(buffer.begin() + buffer.find_first_of("\"") + 1, buffer.begin() + buffer.find_last_of("\"")));
+
+      buffer += "\n#line " + to_string(line) + "\"" + name + "\"";
     }
 
     shader += buffer + '\n';

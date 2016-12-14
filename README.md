@@ -1,5 +1,5 @@
 # datum
-> Peter Niekamp, April 2016
+> Peter Niekamp, December 2016
 
 ### Vulkan Renderer
 - Asset Pack Loading
@@ -9,10 +9,10 @@
 - Single Main Directional Lighting
 - Deferred Tile Based Point Lighting
 - Main Light Cascaded Shadow Map
-- Screen Space Ambient Occlusion
-- Screen Space Reflections
+- Screen Space Ambient Occlusion (SSAO)
+- Screen Space Reflections (SSR)
 - HDR Skybox & Bloom
-- Physically Based Rendering & Image Based Lighting
+- Physically Based Rendering (PBR) & Image Based Lighting (IBL)
 - Entity-Component Scene Management
 
 ![Datum](/bin/datumtest.png?raw=true "Datum")

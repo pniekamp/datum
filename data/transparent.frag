@@ -75,8 +75,6 @@ float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
 
     if (texel.x > 0.0 && texel.x < 1.0 && texel.y > 0.0 && texel.y < 1.0 && texel.w > 0.0 && texel.w < 1.0)
     { 
-      float weight = max(4 * max(max(abs(shadowspace.x), abs(shadowspace.y)) - 0.75, 0), 500 * max(shadowspace.z - 0.998, 0));
-
       return shadow_intensity(scene.shadowview[i], shadowpos, i, shadowmap, spread[i]);
     }
   }
