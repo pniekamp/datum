@@ -80,9 +80,40 @@ void MeshStoragePrivate::clear()
 ///////////////////////// MeshStorage::add //////////////////////////////////
 void MeshStoragePrivate::add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags)
 {
-  DefaultStorage::add(entity);
+  size_t index = size();
 
-  auto index = this->index(entity);
+  m_index.resize(std::max(m_index.size(), entity.index()+1));
+
+  if (flags & MeshComponent::Static)
+  {
+    if (m_freeslots.size() != 0)
+    {
+      index = m_freeslots.front();
+
+      m_freeslots.pop_front();
+    }
+    else
+    {
+      for_each(m_data, [](auto &v) { v.resize(v.size()+1); });
+
+      if (index != m_staticpartition)
+      {
+        for_each(m_data, [=](auto &v) { swap(v[index], v[m_staticpartition]); });
+
+        m_index[data<entityid>(index).index()] = index;
+
+        index = m_staticpartition;
+      }
+
+      m_staticpartition += 1;
+    }
+  }
+  else
+  {
+    for_each(m_data, [](auto &v) { v.resize(v.size()+1); });
+  }
+
+  m_index[entity.index()] = index;
 
   data<meshflags>(index) = flags;
   data<entityid>(index) = entity;
@@ -92,15 +123,6 @@ void MeshStoragePrivate::add(EntityId entity, Bound3 const &bound, Mesh const *m
 
   if (flags & MeshComponent::Static)
   {
-    for_each(m_data, [=](auto &v) { swap(v[index], v[m_staticpartition]); });
-
-    m_index[data<entityid>(index).index()] = index;
-    m_index[data<entityid>(m_staticpartition).index()] = m_staticpartition;
-
-    index = m_staticpartition;
-
-    m_staticpartition += 1;
-
     m_tree.insert(MeshIndex{ index, this });
   }
 }
@@ -109,31 +131,24 @@ void MeshStoragePrivate::add(EntityId entity, Bound3 const &bound, Mesh const *m
 ///////////////////////// MeshStorage::remove ///////////////////////////////
 void MeshStoragePrivate::remove(EntityId entity)
 {
-  auto index = this->index(entity);
+  auto index = m_index[entity.index()];
 
-  if (flags(index) & MeshComponent::Static)
+  if (index < m_staticpartition)
   {
     m_tree.remove(MeshIndex{ index, this });
+
+    m_freeslots.push_back(index);
   }
-
-  DefaultStorage::remove(entity);
-
-  while (m_freeslots.size() != 0)
+  else
   {
-    auto index = m_freeslots.front();
+    for_each(m_data, [=](auto &v) { swap(v[index], v[v.size()-1]); });
 
-    for_each(m_data, [=](auto &v) { v.erase(v.begin() + index); });
+    for_each(m_data, [](auto &v) { v.resize(v.size()-1); });
 
-    for(auto i = index; i < size(); ++i)
-    {
-      m_index[data<entityid>(i).index()] = i;
-    }
-
-    if (index < m_staticpartition)
-      m_staticpartition -= 1;
-
-    m_freeslots.pop_front();
+    m_index[data<entityid>(index).index()] = index;
   }
+
+  m_index[entity.index()] = 0;
 }
 
 

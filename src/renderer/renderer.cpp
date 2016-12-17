@@ -2495,7 +2495,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
       bindimageview(context.device, context.scratchtargets[i], ShaderLocation::imagetarget, context.scratchbuffers[i].imageview);
 
-      clear(setupbuffer, context.scratchbuffers[i].image, Color4(0.0, 0.0, 0.0, 0.0));
+      clear(setupbuffer, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_GENERAL, Color4(0.0, 0.0, 0.0, 0.0));
     }
 
     //
@@ -2520,7 +2520,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
       bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
 
-      clear(setupbuffer, context.ssaobuffers[i].image, Color4(1.0, 1.0, 1.0, 1.0));
+      clear(setupbuffer, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_GENERAL, Color4(1.0, 1.0, 1.0, 1.0));
     }
 
     bindtexture(context.device, context.ssaodescriptors[0], ShaderLocation::ssaomap, context.ssaobuffers[1]);
@@ -2804,7 +2804,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
   transition_acquire(commandbuffer, viewport.image);
 
-  clear(commandbuffer, viewport.image, Color4(0.0f, 0.0f, 0.0f, 1.0f));
+  clear(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
   if (bitmap)
   {
@@ -2895,7 +2895,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Geometry
   //
 
-  beginpass(commandbuffer, context.geometrypass, context.geometrybuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
+  beginpass(commandbuffer, context.geometrypass, context.geometrybuffer, 0, 0, context.fbowidth, context.fboheight, 4, &clearvalues[0]);
 
   for(auto &renderable : renderables)
   {
@@ -2945,7 +2945,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // SkyBox
   //
 
-  beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
+  beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, 0, nullptr);
 
   draw_skybox(context, commandbuffer, params);
 
@@ -2957,7 +2957,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Forward
   //
 
-  beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, extentof(clearvalues), clearvalues);
+  beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, 0, nullptr);
 
   for(auto &renderable : renderables)
   {
