@@ -310,7 +310,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_transferbuffer ///////////////////////////
-  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size)
+  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize &size)
   {
     VkBufferCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -320,7 +320,15 @@ namespace Vulkan
     VkBuffer transferbuffer;
     vkCreateBuffer(vulkan.device, &createinfo, nullptr, &transferbuffer);
 
+    VkMemoryRequirements memoryrequirements;
+    vkGetBufferMemoryRequirements(vulkan.device, transferbuffer, &memoryrequirements);
+
+    if (offset % memoryrequirements.alignment != 0)
+      throw runtime_error("Vulkan VkMemoryRequirements invalid alignment offset");
+
     vkBindBufferMemory(vulkan.device, transferbuffer, memory, offset);
+
+    size = memoryrequirements.size;
 
     return { size, offset, { transferbuffer, { vulkan.device } } };
   }
@@ -1061,18 +1069,20 @@ namespace Vulkan
 
 
   ///////////////////////// clear ///////////////////////////////////////////
-  void clear(VkCommandBuffer commandbuffer, VkImage image, Color4 const &clearcolor)
+  void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, Color4 const &clearcolor)
   {
+    assert(layout == VK_IMAGE_LAYOUT_GENERAL || layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
     VkClearColorValue clearvalues = { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a };
 
     VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    vkCmdClearColorImage(commandbuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearvalues, 1, &subresourcerange);
+    vkCmdClearColorImage(commandbuffer, image, layout, &clearvalues, 1, &subresourcerange);
   }
 
 
   ///////////////////////// clear ///////////////////////////////////////////
-  void clear(VulkanDevice const &vulkan, VkImage image, Color4 const &clearcolor)
+  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, Color4 const &clearcolor)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
@@ -1080,7 +1090,7 @@ namespace Vulkan
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    clear(setupbuffer, image, clearcolor);
+    clear(setupbuffer, image, layout, clearcolor);
 
     end(vulkan, setupbuffer);
 

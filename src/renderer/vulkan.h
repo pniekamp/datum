@@ -370,7 +370,7 @@ namespace Vulkan
   Sampler create_sampler(VulkanDevice const &vulkan, VkSamplerCreateInfo const &createinfo);
 
   TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
-  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size);
+  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize &size);
 
   ConstantBuffer create_constantbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
 
@@ -444,8 +444,8 @@ namespace Vulkan
   void transition_acquire(VkCommandBuffer commandbuffer, VkImage image);
   void transition_present(VkCommandBuffer commandbuffer, VkImage image);
 
-  void clear(VkCommandBuffer commandbuffer, VkImage image, lml::Color4 const &clearcolor);
-  void clear(VulkanDevice const &vulkan, VkImage image, lml::Color4 const &clearcolor);
+  void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor);
+  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor);
 
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data);
 

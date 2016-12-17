@@ -194,6 +194,8 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
         {
           buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
           buffer->transferlump.transfermemory = (uint8_t*)buffer + BufferAlignment;
+
+          assert(size <= bytes);
         }
 
         buffer->next = (*into)->next;
