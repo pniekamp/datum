@@ -32,7 +32,16 @@ class NameComponentStorage : public DefaultStorage<Scene::EntityId, size_t>
 
   protected:
 
+    void clear() override;
+
+    void add(EntityId entity, const char *name);
+
+    void set_name(EntityId entity, const char *name);
+
     std::vector<char, StackAllocator<>> m_names;
+
+    friend class Scene;
+    friend class NameComponent;
 };
 
 

@@ -38,6 +38,15 @@ class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float
       return { this->index(entity), this };
     }
 
+  protected:
+
+    void add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 const &tint, long flags);
+
+    void set_layer(size_t index, float layer);
+
+    void set_sprite(size_t index, Sprite const *sprite, float size, lml::Color4 const &tint);
+
+    friend class Scene;
     friend class SpriteComponent;
 };
 

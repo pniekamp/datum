@@ -16,32 +16,6 @@ using namespace lml;
 //|---------------------- SpriteStorage -------------------------------------
 //|--------------------------------------------------------------------------
 
-class SpriteStoragePrivate : public SpriteComponentStorage
-{
-  public:
-
-    typedef StackAllocator<> allocator_type;
-
-    SpriteStoragePrivate(Scene *scene, allocator_type const &allocator);
-
-  public:
-
-    auto &flags(size_t index) { return data<spriteflags>(index); }
-    auto &sprite(size_t index) { return data<spriteresource>(index); }
-    auto &size(size_t index) { return data<spritesize>(index); }
-    auto &layer(size_t index) { return data<spritelayer>(index); }
-    auto &tint(size_t index) { return data<spritetint>(index); }
-
-  public:
-
-    void add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 const &tint, long flags);
-
-    void set_layer(size_t index, float layer);
-
-    void set_sprite(size_t index, Sprite const *sprite, float size, Color4 const &tint);
-};
-
-
 ///////////////////////// SpriteStorage::Constructor ////////////////////////
 SpriteComponentStorage::SpriteComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator)
@@ -49,15 +23,8 @@ SpriteComponentStorage::SpriteComponentStorage(Scene *scene, StackAllocator<> al
 }
 
 
-///////////////////////// SpriteStorage::Constructor ////////////////////////
-SpriteStoragePrivate::SpriteStoragePrivate(Scene *scene, allocator_type const &allocator)
-  : SpriteComponentStorage(scene, allocator)
-{
-}
-
-
 ///////////////////////// SpriteStorage::add ////////////////////////////////
-void SpriteStoragePrivate::add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 const &tint, long flags)
+void SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 const &tint, long flags)
 {
   DefaultStorage::add(entity);
 
@@ -72,14 +39,14 @@ void SpriteStoragePrivate::add(EntityId entity, Sprite const *sprite, float size
 
 
 ///////////////////////// SpriteStorage::set_layer //////////////////////////
-void SpriteStoragePrivate::set_layer(size_t index, float layer)
+void SpriteComponentStorage::set_layer(size_t index, float layer)
 {
   data<spritelayer>(index) = layer;
 }
 
 
 ///////////////////////// SpriteStorage::set_sprite /////////////////////////
-void SpriteStoragePrivate::set_sprite(size_t index, Sprite const *sprite, float size, Color4 const &tint)
+void SpriteComponentStorage::set_sprite(size_t index, Sprite const *sprite, float size, Color4 const &tint)
 {
   data<spriteresource>(index) = sprite;
   data<spritesize>(index) = size;
@@ -91,7 +58,7 @@ void SpriteStoragePrivate::set_sprite(size_t index, Sprite const *sprite, float 
 template<>
 void Scene::initialise_component_storage<SpriteComponent>()
 {
-  m_systems[typeid(SpriteComponentStorage)] = new(allocator<SpriteStoragePrivate>().allocate(1)) SpriteStoragePrivate(this, allocator());
+  m_systems[typeid(SpriteComponentStorage)] = new(allocator<SpriteComponentStorage>().allocate(1)) SpriteComponentStorage(this, allocator());
 }
 
 
@@ -110,8 +77,6 @@ SpriteComponent::SpriteComponent(size_t index, SpriteComponentStorage *storage)
 ///////////////////////// SpriteComponent::set_size /////////////////////////
 void SpriteComponent::set_size(float size)
 {
-  auto storage = static_cast<SpriteStoragePrivate*>(this->storage);
-
   storage->set_sprite(index, sprite(), size, tint());
 }
 
@@ -119,8 +84,6 @@ void SpriteComponent::set_size(float size)
 ///////////////////////// SpriteComponent::set_layer ////////////////////////
 void SpriteComponent::set_layer(float layer)
 {
-  auto storage = static_cast<SpriteStoragePrivate*>(this->storage);
-
   storage->set_layer(index, layer);
 }
 
@@ -128,8 +91,6 @@ void SpriteComponent::set_layer(float layer)
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size)
 {
-  auto storage = static_cast<SpriteStoragePrivate*>(this->storage);
-
   storage->set_sprite(index, sprite, size, tint());
 }
 
@@ -137,8 +98,6 @@ void SpriteComponent::set_sprite(Sprite const *sprite, float size)
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size, Color4 const &tint)
 {
-  auto storage = static_cast<SpriteStoragePrivate*>(this->storage);
-
   storage->set_sprite(index, sprite, size, tint);
 }
 
@@ -146,8 +105,6 @@ void SpriteComponent::set_sprite(Sprite const *sprite, float size, Color4 const 
 ///////////////////////// SpriteComponent::set_tint /////////////////////////
 void SpriteComponent::set_tint(Color4 const &tint)
 {
-  auto storage = static_cast<SpriteStoragePrivate*>(this->storage);
-
   storage->set_sprite(index, sprite(), size(), tint);
 }
 
@@ -160,7 +117,7 @@ SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sp
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
 
-  auto storage = static_cast<SpriteStoragePrivate*>(system<SpriteComponentStorage>());
+  auto storage = system<SpriteComponentStorage>();
 
   storage->add(entity, sprite, size, 0.0f, tint, flags);
 
@@ -182,7 +139,7 @@ void Scene::remove_component<SpriteComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  static_cast<SpriteStoragePrivate*>(system<SpriteComponentStorage>())->remove(entity);
+  system<SpriteComponentStorage>()->remove(entity);
 }
 
 

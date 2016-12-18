@@ -16,23 +16,6 @@ using namespace leap;
 //|---------------------- NameComponentStorage ------------------------------
 //|--------------------------------------------------------------------------
 
-class NameStoragePrivate : public NameComponentStorage
-{
-  public:
-    typedef StackAllocator<> allocator_type;
-
-    NameStoragePrivate(Scene *scene, allocator_type allocator);
-
-  public:
-
-    void clear() override;
-
-    void remove(EntityId entity) override;
-
-    void set_name(EntityId entity, const char *name);
-};
-
-
 ///////////////////////// NameComponentStorage::Constructor /////////////////
 NameComponentStorage::NameComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator),
@@ -42,15 +25,8 @@ NameComponentStorage::NameComponentStorage(Scene *scene, StackAllocator<> alloca
 }
 
 
-///////////////////////// NameComponentStorage::Constructor /////////////////
-NameStoragePrivate::NameStoragePrivate(Scene *scene, allocator_type allocator)
-  : NameComponentStorage(scene, allocator)
-{
-}
-
-
 ///////////////////////// NameComponentStorage::clear ///////////////////////
-void NameStoragePrivate::clear()
+void NameComponentStorage::clear()
 {
   m_names.clear();
 
@@ -58,19 +34,17 @@ void NameStoragePrivate::clear()
 }
 
 
-///////////////////////// NameComponentStorage::remove //////////////////////
-void NameStoragePrivate::remove(EntityId entity)
+///////////////////////// NameComponentStorage::add /////////////////////////
+void NameComponentStorage::add(EntityId entity, const char *name)
 {
-  auto index = this->index(entity);
+  DefaultStorage::add(entity);
 
-  data<0>(index) = {};
-
-  DefaultStorage::remove(entity);
+  set_name(entity, name);
 }
 
 
 ///////////////////////// NameComponentStorage::set_name ////////////////////
-void NameStoragePrivate::set_name(EntityId entity, const char *name)
+void NameComponentStorage::set_name(EntityId entity, const char *name)
 {
   assert(has(entity));
 
@@ -102,7 +76,7 @@ Scene::EntityId NameComponentStorage::find(const char *name) const
 template<>
 void Scene::initialise_component_storage<NameComponent>()
 {
-  m_systems[typeid(NameComponentStorage)] = new(allocator<NameStoragePrivate>().allocate(1)) NameStoragePrivate(this, allocator());
+  m_systems[typeid(NameComponentStorage)] = new(allocator<NameComponentStorage>().allocate(1)) NameComponentStorage(this, allocator());
 }
 
 
@@ -121,8 +95,6 @@ NameComponent::NameComponent(Scene::EntityId entity, NameComponentStorage *stora
 ///////////////////////// NameComponent::set_name ///////////////////////////
 void NameComponent::set_name(const char *name)
 {
-  auto storage = static_cast<NameStoragePrivate*>(this->storage);
-
   storage->set_name(entity, name);
 }
 
@@ -133,11 +105,9 @@ NameComponent Scene::add_component<NameComponent>(Scene::EntityId entity, const 
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<NameStoragePrivate*>(system<NameComponentStorage>());
+  auto storage = system<NameComponentStorage>();
 
-  storage->add(entity);
-
-  storage->set_name(entity, name);
+  storage->add(entity, name);
 
   return { entity, storage };
 }
@@ -149,7 +119,7 @@ void Scene::remove_component<NameComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  static_cast<NameStoragePrivate*>(system<NameComponentStorage>())->remove(entity);
+  system<NameComponentStorage>()->remove(entity);
 }
 
 

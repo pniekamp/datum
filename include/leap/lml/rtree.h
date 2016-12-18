@@ -71,7 +71,7 @@ namespace leap { namespace lml
     class basic_rtree
     {
         template<typename Iterator>
-        class normal_iterator : public std::iterator<std::forward_iterator_tag, decltype(std::declval<Iterator>()->items)>
+        class normal_iterator
         {
           public:
 
@@ -90,8 +90,10 @@ namespace leap { namespace lml
 
             bound_type const &bound() const { return m_node->bound; }
 
-            auto operator *() const -> decltype((std::declval<Iterator>()->items)) { return m_node->items; }
-            auto operator ->() const -> decltype(&(std::declval<Iterator>()->items)) { return &m_node->items; }
+            auto &items() const { return m_node->items; }
+
+            size_t children() const { return m_node->nodes.size(); }
+            normal_iterator child(size_t i) const { return normal_iterator(&m_node->nodes[i]); }
 
             normal_iterator &operator++();
 
