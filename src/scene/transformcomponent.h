@@ -38,6 +38,28 @@ class TransformComponentStorage : public DefaultStorage<lml::Transform, lml::Tra
       return { this->index(entity), this };
     }
 
+  protected:
+
+    auto &local(size_t index) { return data<localtransform>(index); }
+    auto &world(size_t index) { return data<worldtransform>(index); }
+    auto &parent(size_t index) { return data<parentindex>(index); }
+    auto &firstchild(size_t index) { return data<firstchildindex>(index); }
+    auto &nextsibling(size_t index) { return data<nextsiblingindex>(index); }
+    auto &prevsibling(size_t index) { return data<prevsiblingindex>(index); }
+
+  protected:
+
+    void add(EntityId entity);
+
+    void remove(EntityId entity) override;
+
+    void set_local(size_t index, lml::Transform const &transform);
+
+    void reparent(size_t index, size_t parentindex);
+
+    void update(size_t index);
+
+    friend class Scene;
     friend class TransformComponent;
 };
 
@@ -63,55 +85,6 @@ class TransformComponent
     void set_local_defered(lml::Transform const &transform);
 
     void set_parent(TransformComponent const &parent);
-
-  public:
-
-    template<typename TransformComponent>
-    class iterator
-    {
-      public:
-        explicit iterator(size_t index, TransformComponentStorage *storage)
-          : node(index, storage)
-        {
-        }
-
-        bool operator ==(iterator const &that) const { return node.index == that.node.index; }
-        bool operator !=(iterator const &that) const { return node.index != that.node.index; }
-
-        TransformComponent &operator *() const { return node; }
-        TransformComponent *operator ->() const { return &node; }
-
-        iterator &operator++()
-        {
-          node.index = node.storage->template data<TransformComponentStorage::nextsiblingindex>(node.index);
-
-          return *this;
-        }
-
-      private:
-
-        TransformComponent node;
-    };
-
-    template<typename Iterator>
-    class iterator_pair : public std::pair<Iterator, Iterator>
-    {
-      public:
-        using std::pair<Iterator, Iterator>::pair;
-
-        Iterator begin() const { return this->first; }
-        Iterator end() const { return this->second; }
-    };
-
-    iterator_pair<iterator<TransformComponent>> children()
-    {
-      return { iterator<TransformComponent>(storage->data<TransformComponentStorage::firstchildindex>(index), storage), iterator<TransformComponent>(0, storage) };
-    }
-
-    iterator_pair<iterator<const TransformComponent>> children() const
-    {
-      return { iterator<const TransformComponent>(storage->data<TransformComponentStorage::firstchildindex>(index), storage), iterator<const TransformComponent>(0, storage) };
-    }
 
   protected:
 

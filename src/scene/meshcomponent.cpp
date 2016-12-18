@@ -15,51 +15,9 @@ using namespace lml;
 //|---------------------- MeshStorage ---------------------------------------
 //|--------------------------------------------------------------------------
 
-class MeshStoragePrivate : public MeshComponentStorage
-{
-  public:
-
-    typedef StackAllocator<> allocator_type;
-
-    MeshStoragePrivate(Scene *scene, allocator_type const &allocator);
-
-  public:
-
-    auto &flags(size_t index) { return data<meshflags>(index); }
-    auto &bound(size_t index) { return data<boundingbox>(index); }
-    auto &mesh(size_t index) { return data<meshresource>(index); }
-    auto &material(size_t index) { return data<materialresource>(index); }
-
-  public:
-
-    void clear() override;
-
-    void add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags);
-
-    void remove(EntityId entity) override;
-
-    void update_mesh_bounds();
-
-  public:
-
-    size_t m_staticpartition;
-
-    FreeList m_treefreelist;
-
-    RTree::basic_rtree<MeshIndex, 3, RTree::box<MeshIndex>, StackAllocatorWithFreelist<>> m_tree;
-};
-
-
 ///////////////////////// MeshStorage::Constructor //////////////////////////
 MeshComponentStorage::MeshComponentStorage(Scene *scene, StackAllocator<> allocator)
-  : DefaultStorage(scene, allocator)
-{
-}
-
-
-///////////////////////// MeshStorage::Constructor //////////////////////////
-MeshStoragePrivate::MeshStoragePrivate(Scene *scene, allocator_type const &allocator)
-  : MeshComponentStorage(scene, allocator),
+  : DefaultStorage(scene, allocator),
     m_tree(StackAllocatorWithFreelist<>(allocator, m_treefreelist))
 {
   m_staticpartition = 1;
@@ -67,7 +25,7 @@ MeshStoragePrivate::MeshStoragePrivate(Scene *scene, allocator_type const &alloc
 
 
 ///////////////////////// MeshStorage::clear ////////////////////////////////
-void MeshStoragePrivate::clear()
+void MeshComponentStorage::clear()
 {
   m_tree.clear();
 
@@ -78,7 +36,7 @@ void MeshStoragePrivate::clear()
 
 
 ///////////////////////// MeshStorage::add //////////////////////////////////
-void MeshStoragePrivate::add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags)
+void MeshComponentStorage::add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags)
 {
   size_t index = size();
 
@@ -129,7 +87,7 @@ void MeshStoragePrivate::add(EntityId entity, Bound3 const &bound, Mesh const *m
 
 
 ///////////////////////// MeshStorage::remove ///////////////////////////////
-void MeshStoragePrivate::remove(EntityId entity)
+void MeshComponentStorage::remove(EntityId entity)
 {
   auto index = m_index[entity.index()];
 
@@ -153,7 +111,7 @@ void MeshStoragePrivate::remove(EntityId entity)
 
 
 ///////////////////////// MeshStorage::update_mesh_bounds ///////////////////
-void MeshStoragePrivate::update_mesh_bounds()
+void MeshComponentStorage::update_mesh_bounds()
 {
   auto transformstorage = m_scene->system<TransformComponentStorage>();
 
@@ -171,27 +129,7 @@ void MeshStoragePrivate::update_mesh_bounds()
 ///////////////////////// update_mesh_bounds ////////////////////////////////
 void update_mesh_bounds(Scene &scene)
 {
-  auto storage = static_cast<MeshStoragePrivate*>(scene.system<MeshComponentStorage>());
-
-  storage->update_mesh_bounds();
-}
-
-
-///////////////////////// MeshStorage::tree /////////////////////////////////
-MeshComponentStorage::iterator_pair<MeshComponentStorage::tree_iterator> MeshComponentStorage::tree() const
-{
-  auto storage = static_cast<MeshStoragePrivate const*>(this);
-
-  return { storage->m_tree.begin(), storage->m_tree.end() };
-}
-
-
-///////////////////////// MeshStorage::dynamic //////////////////////////////
-MeshComponentStorage::iterator_pair<Scene::EntityId const *> MeshComponentStorage::dynamic() const
-{
-  auto storage = static_cast<MeshStoragePrivate const*>(this);
-
-  return { std::get<entityid>(m_data).data() + storage->m_staticpartition, std::get<entityid>(m_data).data() + size() };
+  scene.system<MeshComponentStorage>()->update_mesh_bounds();
 }
 
 
@@ -199,7 +137,7 @@ MeshComponentStorage::iterator_pair<Scene::EntityId const *> MeshComponentStorag
 template<>
 void Scene::initialise_component_storage<MeshComponent>()
 {
-  m_systems[typeid(MeshComponentStorage)] = new(allocator<MeshStoragePrivate>().allocate(1)) MeshStoragePrivate(this, allocator());
+  m_systems[typeid(MeshComponentStorage)] = new(allocator<MeshComponentStorage>().allocate(1)) MeshComponentStorage(this, allocator());
 }
 
 
@@ -223,7 +161,7 @@ MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh c
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
 
-  auto storage = static_cast<MeshStoragePrivate*>(system<MeshComponentStorage>());
+  auto storage = system<MeshComponentStorage>();
 
   auto transform = system<TransformComponentStorage>()->get(entity);
 
@@ -247,7 +185,7 @@ void Scene::remove_component<MeshComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  return static_cast<MeshStoragePrivate*>(system<MeshComponentStorage>())->remove(entity);
+  return system<MeshComponentStorage>()->remove(entity);
 }
 
 

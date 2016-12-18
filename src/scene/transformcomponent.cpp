@@ -15,37 +15,6 @@ using namespace lml;
 //|---------------------- TransformStorage ----------------------------------
 //|--------------------------------------------------------------------------
 
-class TransformStoragePrivate : public TransformComponentStorage
-{
-  public:
-
-    typedef StackAllocator<> allocator_type;
-
-    TransformStoragePrivate(Scene *scene, allocator_type const &allocator);
-
-  public:
-
-    auto &local(size_t index) { return data<localtransform>(index); }
-    auto &world(size_t index) { return data<worldtransform>(index); }
-    auto &parent(size_t index) { return data<parentindex>(index); }
-    auto &firstchild(size_t index) { return data<firstchildindex>(index); }
-    auto &nextsibling(size_t index) { return data<nextsiblingindex>(index); }
-    auto &prevsibling(size_t index) { return data<prevsiblingindex>(index); }
-
-  public:
-
-    void add(EntityId entity);
-
-    void remove(EntityId entity) override;
-
-    void set_local(size_t index, Transform const &transform);
-
-    void reparent(size_t index, size_t parentindex);
-
-    void update(size_t index);
-};
-
-
 ///////////////////////// TransformStorage::Constructor /////////////////////
 TransformComponentStorage::TransformComponentStorage(Scene *scene, StackAllocator<> allocator)
   : DefaultStorage(scene, allocator)
@@ -53,15 +22,8 @@ TransformComponentStorage::TransformComponentStorage(Scene *scene, StackAllocato
 }
 
 
-///////////////////////// TransformStorage::Constructor /////////////////////
-TransformStoragePrivate::TransformStoragePrivate(Scene *scene, allocator_type const &allocator)
-  : TransformComponentStorage(scene, allocator)
-{
-}
-
-
 ///////////////////////// TransformStorage::add /////////////////////////////
-void TransformStoragePrivate::add(EntityId entity)
+void TransformComponentStorage::add(EntityId entity)
 {
   DefaultStorage::add(entity);
 
@@ -75,7 +37,7 @@ void TransformStoragePrivate::add(EntityId entity)
 
 
 ///////////////////////// TransformStorage::remove //////////////////////////
-void TransformStoragePrivate::remove(EntityId entity)
+void TransformComponentStorage::remove(EntityId entity)
 {
   assert(has(entity));
   assert(firstchild(index(entity)) == 0);
@@ -93,14 +55,14 @@ void TransformStoragePrivate::remove(EntityId entity)
 
 
 ///////////////////////// TransformStorage::set_local ///////////////////////
-void TransformStoragePrivate::set_local(size_t index, Transform const &transform)
+void TransformComponentStorage::set_local(size_t index, Transform const &transform)
 {
   local(index) = transform;
 }
 
 
 ///////////////////////// TransformStorage::reparent ////////////////////////
-void TransformStoragePrivate::reparent(size_t index, size_t parentindex)
+void TransformComponentStorage::reparent(size_t index, size_t parentindex)
 {
   if (firstchild(parent(index)) == index)
     firstchild(parent(index)) = nextsibling(index);
@@ -117,7 +79,7 @@ void TransformStoragePrivate::reparent(size_t index, size_t parentindex)
 
 
 ///////////////////////// TransformStorage::update //////////////////////////
-void TransformStoragePrivate::update(size_t index)
+void TransformComponentStorage::update(size_t index)
 {
   world(index) = parent(index) ? world(parent(index)) * local(index) : local(index);
 
@@ -132,7 +94,7 @@ void TransformStoragePrivate::update(size_t index)
 template<>
 void Scene::initialise_component_storage<TransformComponent>()
 {
-  m_systems[typeid(TransformComponentStorage)] = new(allocator<TransformStoragePrivate>().allocate(1)) TransformStoragePrivate(this, allocator());
+  m_systems[typeid(TransformComponentStorage)] = new(allocator<TransformComponentStorage>().allocate(1)) TransformComponentStorage(this, allocator());
 }
 
 
@@ -150,8 +112,6 @@ TransformComponent::TransformComponent(size_t index, TransformComponentStorage *
 ///////////////////////// TransformComponent::set_local /////////////////////
 void TransformComponent::set_local(Transform const &transform)
 {
-  auto storage = static_cast<TransformStoragePrivate*>(this->storage);
-
   storage->set_local(index, transform);
 
   storage->update(index);
@@ -161,8 +121,6 @@ void TransformComponent::set_local(Transform const &transform)
 ///////////////////////// TransformComponent::set_local /////////////////////
 void TransformComponent::set_local_defered(Transform const &transform)
 {
-  auto storage = static_cast<TransformStoragePrivate*>(this->storage);
-
   storage->set_local(index, transform);
 }
 
@@ -171,8 +129,6 @@ void TransformComponent::set_local_defered(Transform const &transform)
 void TransformComponent::set_parent(TransformComponent const &parent)
 {
   assert(parent.storage == storage);
-
-  auto storage = static_cast<TransformStoragePrivate*>(this->storage);
 
   storage->reparent(index, parent.index);
 
@@ -186,7 +142,7 @@ TransformComponent Scene::add_component<TransformComponent>(Scene::EntityId enti
 {
   assert(get(entity) != nullptr);
 
-  auto storage = static_cast<TransformStoragePrivate*>(system<TransformComponentStorage>());
+  auto storage = system<TransformComponentStorage>();
 
   storage->add(entity);
 
@@ -225,7 +181,7 @@ void Scene::remove_component<TransformComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  static_cast<TransformStoragePrivate*>(system<TransformComponentStorage>())->remove(entity);
+  system<TransformComponentStorage>()->remove(entity);
 }
 
 
@@ -247,5 +203,3 @@ TransformComponent Scene::get_component<TransformComponent>(Scene::EntityId enti
 
   return system<TransformComponentStorage>()->get(entity);
 }
-
-

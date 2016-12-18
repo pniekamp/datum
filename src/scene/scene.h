@@ -134,7 +134,8 @@ class Scene
 
         operator EntityId() { return scene->m_slots[index].id; }
 
-        EntityId const operator *() const { return scene->m_slots[index].id; }
+        EntityId const &operator *() const { return scene->m_slots[index].id; }
+        EntityId const *operator ->() const { return &scene->m_slots[index].id; }
 
         iterator &operator++()
         {

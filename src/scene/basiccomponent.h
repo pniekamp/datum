@@ -100,15 +100,6 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
       return std::get<1>(this->m_data)[index];
     }
 
-    void remove(Scene::EntityId entity) override
-    {
-      auto index = this->index(entity);
-
-      std::get<0>(this->m_data)[index] = {};
-
-      DefaultStorage<Scene::EntityId, Data>::remove(entity);
-    }
-
     friend class Scene;
 };
 
