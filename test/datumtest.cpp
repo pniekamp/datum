@@ -72,7 +72,7 @@ void datumtest_init(PlatformInterface &platform)
 
   assert(&state == platform.gamememory.data);
 
-  initialise_asset_system(platform, state.assets, 64*1024, 128*1024*1024);
+  initialise_asset_system(platform, state.assets, 64*1024, 256*1024*1024);
 
   initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024);
 
@@ -105,16 +105,45 @@ void datumtest_init(PlatformInterface &platform)
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
 
-  state.suzanne = state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack"));
+  state.suzanne = unique_resource<Mesh>(&state.resources, state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack")));
+
+  state.testparticlesystem = new(allocate<ParticleSystem>(platform.gamememory)) ParticleSystem({ platform.gamememory, state.particlefreelist });
+
+  state.testparticlesystem->spritesheet = state.resources.create<Texture>(state.assets.find(CoreAsset::default_particle), Texture::Format::SRGBA);
+
+  ParticleEmitter emitter;
+  emitter.duration = 3.0f;
+  emitter.rate = 0.0f;
+  emitter.bursts = 1;
+  emitter.bursttime[0] = 0.0f;
+  emitter.burstcount[0] = 80;
+  emitter.life = make_uniform_distribution(1.0f, 2.0f);
+  emitter.looping = true;
+  emitter.velocity = make_uniform_distribution(Vec3(5.0f, 0.0f, 0.0f), Vec3(20.0f, 0.0f, 0.0f));
+  emitter.acceleration = Vec3(0.0f, -9.81f, 0.0f);
+  emitter.size = Vec2(1.0f, 0.5f);
+  emitter.scale = make_uniform_distribution(0.01f, 0.06f);
+  emitter.rotation = 0;
+  emitter.color = Color4(30, 10, 10, 1);
+  emitter.modules |= ParticleEmitter::ShapeEmitter;
+  emitter.shape = ParticleEmitter::Shape::Hemisphere;
+  emitter.radius = 0.5f;
+  emitter.angle = 15.0f / 180.0 * pi<float>();
+  emitter.modules |= ParticleEmitter::StretchWithVelocity;
+  emitter.modules |= ParticleEmitter::ColorOverLife;
+  emitter.coloroverlife = make_colorfade_distribution(0.85f);
+  state.testparticlesystem->emitters.push_back(emitter);
+
+  state.testparticles = state.testparticlesystem->create_instance(Transform::translation(0.0f, 0.0f, 0.0f));
 
 //  while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
 //    ;
 
-  state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
-  state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
-  state.renderframes[2].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+//  state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+//  state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+//  state.renderframes[2].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
 
-  state.camera.set_position(Vec3(0.0f, 1.0f, 0.0f));
+  state.camera.set_position(Vec3(0.0f, 1.0f, 3.0f));
 
 #if 0
   auto test = state.assets.load(platform, "test.pack");
@@ -241,15 +270,23 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   DEBUG_MENU_VALUE("Suzanne/Metalness", &suzannemetalness, 0.0f, 1.0f)
 
   float suzanneroughness = 1.0f;
-  DEBUG_MENU_VALUE("Suzanne/Roughness", &suzanneroughness, 0.0f, 4.0f)
+  DEBUG_MENU_VALUE("Suzanne/Roughness", &suzanneroughness, 0.0f, 1.0f)
 
   float suzannereflectivity = 0.5f;
   DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 8.0f)
 
   float suzanneemissive = 0.0f;
-  DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 16.0f)
+  DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 128.0f)
 
-  state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity, suzanneemissive));
+  state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity, cbrt(suzanneemissive/128)));
+
+  float floormetalness = 0.0f;
+  DEBUG_MENU_VALUE("Floor/Metalness", &floormetalness, 0.0f, 1.0f)
+
+  float floorroughness = 1.0f;
+  DEBUG_MENU_VALUE("Floor/Roughness", &floorroughness, 0.0f, 1.0f)
+
+  state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(0.64f, 0.64f, 0.64f), floormetalness, floorroughness));
 
 #if 1
   {
@@ -278,7 +315,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     {
       state.writeframe->meshes.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
-      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.defaultmaterial);
+      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.floormaterial);
 
       for(auto &entity : state.scene.entities<MeshComponent>())
       {
@@ -396,13 +433,30 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
 #if 1
+
+  {
+    Vec3 location(16.0f, 1.0f, -4.0f);
+    DEBUG_MENU_VALUE("Particles/location", &location, Vec3(-15.0f), Vec3(15.0f));
+
+    Vec3 rotation(0.0f, 0.0f, pi<float>()/2);
+    DEBUG_MENU_VALUE("Particles/rotation", &rotation, Vec3(0.0f), Vec3(6.28f));
+
+    auto transform = Transform::translation(location) * Transform::rotation(Vec3(1, 0, 0), rotation.x) * Transform::rotation(Vec3(0, 1, 0), rotation.y) * Transform::rotation(Vec3(0, 0, 1), rotation.z);
+
+    state.testparticlesystem->transform_instance(state.testparticles, transform);
+
+    state.testparticlesystem->update(camera, 1.0f/60.0f);
+  }
+
   {
     ForwardList objects;
     ForwardList::BuildState buildstate;
 
     if (objects.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      objects.push_transparent(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial);
+      objects.push_translucent(buildstate, Transform::translation(-8, 1, -1.5f)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.testsphere, state.suzannematerial, 0.5f+0.5f*sin(0.1f*state.time));
+
+      objects.push_particlesystem(buildstate, state.testparticles);
 
       objects.finalise(buildstate);
     }
@@ -411,7 +465,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   }
 #endif
 
-#if 1
+#if 0
   {
     OverlayList overlays;
     OverlayList::BuildState buildstate;
@@ -434,19 +488,19 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
 #if 1
   {
-    SpriteList overlay;
+    SpriteList sprites;
     SpriteList::BuildState buildstate;
 
-    if (overlay.begin(buildstate, platform, state.rendercontext, &state.resources))
+    if (sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      overlay.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
+      sprites.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
 
   //    overlay.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
 
-      overlay.finalise(buildstate);
+      sprites.finalise(buildstate);
     }
 
-    renderlist.push_sprites(viewport, overlay);
+    renderlist.push_sprites(viewport, sprites);
   }
 #endif
 

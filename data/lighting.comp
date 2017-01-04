@@ -254,7 +254,7 @@ void main(void)
       point_light(diffuse, specular, pointlight, position, normal, eyevec, material);
     }
 
-    fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), 1);       
+    fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), 0);       
   }
 
   imageStore(dest, xy, fragcolor); 

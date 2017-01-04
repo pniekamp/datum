@@ -14,4 +14,5 @@
 #include "../../src/renderer/overlaylist.h"
 #include "../../src/renderer/skybox.h"
 #include "../../src/renderer/envmap.h"
+#include "../../src/renderer/particlesystem.h"
 #include "../../src/renderlist.h"

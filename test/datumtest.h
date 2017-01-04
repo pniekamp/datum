@@ -51,8 +51,14 @@ struct GameState
   Mesh const *testsphere;
   Sprite const *testimage;
 
-  Mesh const *suzanne;
-  Material const *suzannematerial;
+  unique_resource<Material> floormaterial;
+
+  unique_resource<Mesh> suzanne;
+  unique_resource<Material> suzannematerial;
+
+  FreeList particlefreelist;
+  ParticleSystem *testparticlesystem;
+  ParticleSystem::Instance const *testparticles;
 
   Vec3 sundirection = normalise(Vec3(0.4f, -1.0f, -0.1f));
   Color3 sunintensity = Color3(8.0f, 7.56f, 7.88f);

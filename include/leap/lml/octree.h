@@ -78,6 +78,12 @@ namespace leap { namespace lml
             typedef Item item_type;
             typedef std::decay_t<decltype(box()(std::declval<Item&>()))> bound_type;
 
+            typedef item_type value_type;
+            typedef item_type *pointer;
+            typedef item_type &reference;
+            typedef std::ptrdiff_t difference_type;
+            typedef std::forward_iterator_tag iterator_category;
+
           public:
             normal_iterator();
             explicit normal_iterator(Iterator const &start);

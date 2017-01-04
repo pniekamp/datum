@@ -94,6 +94,9 @@
     <ClCompile Include="renderer\overlaylist.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="renderer\particlesystem.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asset.h">
@@ -238,6 +241,9 @@
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
     <ClInclude Include="renderer\overlaylist.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\particlesystem.h">
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
   </ItemGroup>

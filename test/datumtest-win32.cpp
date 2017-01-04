@@ -378,7 +378,6 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   devicefeatures.geometryShader = true;
   devicefeatures.shaderTessellationAndGeometryPointSize = true;
   devicefeatures.shaderStorageImageWriteWithoutFormat = true;
-  devicefeatures.independentBlend = true;
 
   VkDeviceCreateInfo deviceinfo = {};
   deviceinfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1041,10 +1040,8 @@ int main(int argc, char *args[])
           TranslateMessage(&msg);
           DispatchMessage(&msg);
         }
-        else
-        {
-          RedrawWindow(window.hwnd, NULL, NULL, RDW_INTERNALPAINT);
-        }
+
+        RedrawWindow(window.hwnd, NULL, NULL, RDW_INTERNALPAINT);
       }
     }
     catch(const exception &e)

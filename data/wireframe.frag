@@ -22,9 +22,9 @@ void main()
   if (texture(depthmap, fbocoord.st).r < fbocoord.z - 1e-5)
     discard;
 
-  //  float alpha = (gl_FrontFacing) ? 1.0 : 0.1;
+  float a = (gl_FrontFacing) ? 1.0 : 0.4;
 
   float d = min(min(edgedist[0], edgedist[1]), edgedist[2]);
 
-  fragcolor = vec4(material.color.rgb, mix(0, material.color.a, exp2(-1.0*d*d)));
+  fragcolor = vec4(material.color.rgb, mix(0, material.color.a, exp2(-1.0*d*d)) * a);
 }

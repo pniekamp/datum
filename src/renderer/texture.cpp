@@ -82,6 +82,7 @@ Texture const *ResourceManager::create<Texture>(Asset const *asset, Texture::For
   texture->layers = asset->layers;
   texture->format = format;
   texture->asset = asset;
+  texture->transferlump = nullptr;
   texture->state = Texture::State::Empty;
 
   return texture;
@@ -104,6 +105,7 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
   texture->layers = layers;
   texture->format = format;
   texture->asset = nullptr;
+  texture->transferlump = nullptr;
   texture->state = Texture::State::Empty;
 
   VkFormat vkformat = VK_FORMAT_UNDEFINED;

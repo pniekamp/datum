@@ -728,8 +728,11 @@ void write_core()
   write_shader_asset(fout, CoreAsset::geometry_vert, "../../data/geometry.vert");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
 
-  write_shader_asset(fout, CoreAsset::transparent_vert, "../../data/transparent.vert");
-  write_shader_asset(fout, CoreAsset::transparent_frag, "../../data/transparent.frag");
+  write_shader_asset(fout, CoreAsset::translucent_vert, "../../data/translucent.vert");
+  write_shader_asset(fout, CoreAsset::translucent_frag, "../../data/translucent.frag");
+
+  write_shader_asset(fout, CoreAsset::particle_vert, "../../data/particle.vert");
+  write_shader_asset(fout, CoreAsset::particle_frag, "../../data/particle.frag");
 
   write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/ssao.comp");
 
@@ -776,6 +779,8 @@ void write_core()
   write_shader_asset(fout, CoreAsset::outline_frag, "../../data/outline.frag");
 
   write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0f, "", "", "");
+
+  write_sprite_asset(fout, CoreAsset::default_particle, "../../data/particle.png");
 
   write_sprite_asset(fout, CoreAsset::loader_image, "../../data/loader.png", 8);
 

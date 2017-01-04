@@ -178,7 +178,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
 
     modelset->xbasis = xbasis;
     modelset->ybasis = ybasis;
-    modelset->position = Vec4(position, floor(layer), 1);
+    modelset->position = Vec4(position, layer - 0.5f, 1);
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -188,7 +188,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
    ModelSet modelset;
    modelset.xbasis = xbasis;
    modelset.ybasis = ybasis;
-   modelset.position = Vec4(position, floor(layer), 1);
+   modelset.position = Vec4(position, layer - 0.5f, 1);
 
    push(commandlist, context.pipelinelayout, 0, sizeof(modelset), &modelset, VK_SHADER_STAGE_VERTEX_BIT);
 

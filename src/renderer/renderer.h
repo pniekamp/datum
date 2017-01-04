@@ -43,6 +43,7 @@ namespace Renderable
   using Color4 = lml::Color4;
   using Attenuation = lml::Attenuation;
   using Transform = lml::Transform;
+  using Matrix4f = lml::Matrix4f;
 
   struct Sprites
   {
@@ -291,10 +292,11 @@ struct RenderContext
 
   Vulkan::Pipeline shadowpipeline;
   Vulkan::Pipeline geometrypipeline;
-  Vulkan::Pipeline transparentpipeline;
+  Vulkan::Pipeline translucentpipeline;
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline particlepipeline[1];
   Vulkan::Pipeline ssrpipeline;
   Vulkan::Pipeline luminancepipeline;
   Vulkan::Pipeline bloompipeline[3];
