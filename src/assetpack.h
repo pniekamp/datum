@@ -28,7 +28,7 @@ struct PackChunk
 struct PackBlock
 {
   uint32_t size;
-  uint8_t data[4092];
+  uint8_t data[16380];
 };
 
 struct PackAssetHeader

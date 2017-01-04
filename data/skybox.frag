@@ -21,10 +21,8 @@ layout(set=0, binding=1) uniform samplerCube skyboxmap;
 layout(location=0) in vec3 texcoord;
 
 layout(location=0) out vec4 fragcolor;
-layout(location=1) out vec4 fragrt1;
-layout(location=2) out vec4 fragnormal;
 
 void main()
 {
-  fragcolor = vec4(scene.camera.exposure * textureLod(skyboxmap, texcoord, scene.camera.skyboxlod).rgb, 1);
+  fragcolor = vec4(scene.camera.exposure * textureLod(skyboxmap, texcoord, scene.camera.skyboxlod).rgb, 0);
 }

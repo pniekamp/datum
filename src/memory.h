@@ -126,6 +126,8 @@ class FreeList
 
     void release(void * const ptr, std::size_t bytes);
 
+    void siphon(FreeList *other);
+
   public:
 
     size_t bucket(size_t n) const
@@ -215,6 +217,31 @@ inline void FreeList::release(void * const ptr, std::size_t bytes)
     m_freelist[index] = ptr;
   }
 }
+
+
+///////////////////////// Freelist::siphon //////////////////////////////////
+inline void FreeList::siphon(FreeList *other)
+{
+  for(size_t index = 0; index < std::extent<decltype(m_freelist)>::value; ++index)
+  {
+    if (other->m_freelist[index] != nullptr)
+    {
+      void *entry = other->m_freelist[index];
+      Node *node = aligned<Node>(entry);
+
+      while (node->next != nullptr)
+      {
+        entry = node->next;
+        node = aligned<Node>(entry);
+      }
+
+      node->next = m_freelist[index];
+      m_freelist[index] = other->m_freelist[index];
+      other->m_freelist[index] = nullptr;
+    }
+  }
+}
+
 
 
 //|---------------------- StackAllocatorWithFreelist ------------------------

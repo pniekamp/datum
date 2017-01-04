@@ -91,6 +91,8 @@ enum ShaderLocation
   BloomCutoff = 81,
   BloomBlurRadius = 84,
   BloomBlurSigma = 85,
+
+  SoftParticles = 28,
 };
 
 static constexpr size_t PushConstantSize = 64;
@@ -195,6 +197,9 @@ struct ComputeConstants
   uint32_t BloomVBlurDispatch[3] = { 1, 575, 1 };
   uint32_t BloomVBlurSize = BloomVBlurDispatch[1] + BloomBlurRadius + BloomBlurRadius;
 
+  uint32_t True = true;
+  uint32_t False = false;
+
 } computeconstants;
 
 
@@ -276,13 +281,15 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     // DescriptorPool
 
-    VkDescriptorPoolSize typecounts[3] = {};
+    VkDescriptorPoolSize typecounts[4] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     typecounts[0].descriptorCount = 16;
     typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     typecounts[1].descriptorCount = 128;
     typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     typecounts[2].descriptorCount = 8;
+    typecounts[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    typecounts[3].descriptorCount = 8;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -452,7 +459,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkDescriptorSetLayoutBinding bindings[2] = {};
     bindings[0].binding = 0;
-    bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
     bindings[1].binding = 1;
@@ -591,42 +598,26 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     // Forward Pass
     //
 
-    VkAttachmentDescription attachments[4] = {};
+    VkAttachmentDescription attachments[2] = {};
     attachments[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachments[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    attachments[1].format = VK_FORMAT_B8G8R8A8_UNORM;
+    attachments[1].format = VK_FORMAT_D32_SFLOAT;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[1].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    attachments[1].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    attachments[2].format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-    attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[2].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    attachments[2].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    attachments[3].format = VK_FORMAT_D32_SFLOAT;
-    attachments[3].samples = VK_SAMPLE_COUNT_1_BIT;
-    attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[3].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    attachments[3].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
-    VkAttachmentReference colorreference[3] = {};
+    VkAttachmentReference colorreference[1] = {};
     colorreference[0].attachment = 0;
     colorreference[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorreference[1].attachment = 1;
-    colorreference[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorreference[2].attachment = 2;
-    colorreference[2].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference depthreference = {};
-    depthreference.attachment = 3;
+    depthreference.attachment = 1;
     depthreference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkSubpassDescription subpasses[1] = {};
@@ -918,14 +909,14 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.geometrypipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
-  if (context.transparentpipeline == 0)
+  if (context.translucentpipeline == 0)
   {
     //
-    // Transparent Pipeline
+    // Translucent Pipeline
     //
 
-    auto vs = assets->find(CoreAsset::transparent_vert);
-    auto fs = assets->find(CoreAsset::transparent_frag);
+    auto vs = assets->find(CoreAsset::translucent_vert);
+    auto fs = assets->find(CoreAsset::translucent_frag);
 
     if (!vs || !fs)
       return false;
@@ -963,17 +954,15 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterization.lineWidth = 1.0;
 
-    VkPipelineColorBlendAttachmentState blendattachments[3] = {};
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
     blendattachments[0].blendEnable = VK_TRUE;
     blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    blendattachments[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    blendattachments[2].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     VkPipelineColorBlendStateCreateInfo colorblend = {};
     colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -987,7 +976,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkPipelineDepthStencilStateCreateInfo depthstate = {};
     depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthstate.depthTestEnable = VK_TRUE;
-    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_FALSE;
     depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
 
     VkPipelineViewportStateCreateInfo viewport = {};
@@ -1002,14 +991,28 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[1] = { ShaderLocation::MaxPointLights, offsetof(ComputeConstants, MaxPointLights), sizeof(ComputeConstants::MaxPointLights) };
+    specializationmap[2] = { ShaderLocation::MaxTileLights, offsetof(ComputeConstants, MaxTileLights), sizeof(ComputeConstants::MaxTileLights) };
+    specializationmap[3] = { ShaderLocation::MaxEnvironments, offsetof(ComputeConstants, MaxEnvironments), sizeof(ComputeConstants::MaxEnvironments) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
     VkPipelineShaderStageCreateInfo shaders[2] = {};
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[1].module = fsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
     shaders[1].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
@@ -1027,7 +1030,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.transparentpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.translucentpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
   if (context.ssaopipeline == 0)
@@ -1186,10 +1189,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     rasterization.cullMode = VK_CULL_MODE_NONE;
     rasterization.lineWidth = 1.0;
 
-    VkPipelineColorBlendAttachmentState blendattachments[3] = {};
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    blendattachments[1].colorWriteMask = 0;
-    blendattachments[2].colorWriteMask = 0;
 
     VkPipelineColorBlendStateCreateInfo colorblend = {};
     colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -1249,6 +1250,131 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
       context.skyboxcommands[i] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
       context.skyboxdescriptors[i] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
     }
+  }
+
+  if (context.particlepipeline[0] == 0)
+  {
+    //
+    // Particle Pipeline (Soft Additive)
+    //
+
+    auto vs = assets->find(CoreAsset::particle_vert);
+    auto fs = assets->find(CoreAsset::particle_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_NONE;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
+    blendattachments[0].blendEnable = VK_TRUE;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorblend = {};
+    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorblend.attachmentCount = extentof(blendattachments);
+    colorblend.pAttachments = blendattachments;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_FALSE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkSpecializationMapEntry specializationmap[5] = {};
+    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[1] = { ShaderLocation::MaxPointLights, offsetof(ComputeConstants, MaxPointLights), sizeof(ComputeConstants::MaxPointLights) };
+    specializationmap[2] = { ShaderLocation::MaxTileLights, offsetof(ComputeConstants, MaxTileLights), sizeof(ComputeConstants::MaxTileLights) };
+    specializationmap[3] = { ShaderLocation::MaxEnvironments, offsetof(ComputeConstants, MaxEnvironments), sizeof(ComputeConstants::MaxEnvironments) };
+    specializationmap[4] = { ShaderLocation::SoftParticles, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.forwardpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pColorBlendState = &colorblend;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.particlepipeline[0] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
   }
 
   if (context.ssrpipeline == 0)
@@ -1605,10 +1731,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkPipelineColorBlendAttachmentState blendattachments[1] = {};
     blendattachments[0].blendEnable = VK_TRUE;
-    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -1716,7 +1842,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -1829,7 +1955,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -2045,10 +2171,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkPipelineColorBlendAttachmentState blendattachments[1] = {};
     blendattachments[0].blendEnable = VK_TRUE;
-    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -2162,10 +2288,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkPipelineColorBlendAttachmentState blendattachments[1] = {};
     blendattachments[0].blendEnable = VK_TRUE;
-    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
-    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
     blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -2400,7 +2526,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Depth Attachment
     //
 
-    context.depthbuffer = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+    context.depthbuffer = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
     VkSamplerCreateInfo depthsamplerinfo = {};
     depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -2438,11 +2564,9 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Forward Buffer
     //
 
-    VkImageView forwardbuffer[4] = {};
+    VkImageView forwardbuffer[2] = {};
     forwardbuffer[0] = context.colorbuffer.imageview;
-    forwardbuffer[1] = context.rt1buffer.imageview;
-    forwardbuffer[2] = context.normalbuffer.imageview;
-    forwardbuffer[3] = context.depthbuffer.imageview;
+    forwardbuffer[1] = context.depthbuffer.imageview;
 
     VkFramebufferCreateInfo forwardbufferinfo = {};
     forwardbufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -2861,9 +2985,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   update(commandbuffer, context.transferbuffer, 0, sizeof(computeset), &computeset);
 
   VkClearValue clearvalues[4];
-  clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-  clearvalues[1].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-  clearvalues[2].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+  clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
+  clearvalues[1].color = { 0.0f, 0.0f, 0.0f, 0.0f };
+  clearvalues[2].color = { 0.0f, 0.0f, 0.0f, 0.0f };
   clearvalues[3].depthStencil = { 1, 0 };
 
   querytimestamp(commandbuffer, context.timingquerypool, 0);

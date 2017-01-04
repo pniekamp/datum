@@ -76,7 +76,7 @@ Material unpack_material(vec4 rt0, vec4 rt1)
   Material material;
 
   material.albedo = rt0.rgb;
-  material.emissive = rt0.a * 16.0;
+  material.emissive = 128*rt0.a*rt0.a*rt0.a;
   material.metalness = rt1.r;
   material.roughness = rt1.a;
   material.reflectivity = rt1.g;

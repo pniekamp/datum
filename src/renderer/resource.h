@@ -221,7 +221,7 @@ class unique_resource
       return *this;
     }
 
-    Resource const *release() { Resource resource = m_resource; m_resource = 0; return resource; }
+    Resource const *release() { auto resource = m_resource; m_resource = 0; return resource; }
 
     operator Resource const *() const { return m_resource; }
 

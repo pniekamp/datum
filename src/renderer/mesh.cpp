@@ -43,6 +43,7 @@ Mesh const *ResourceManager::create<Mesh>(Asset const *asset)
 
   mesh->bound = Bound3(Vec3(asset->mincorner[0], asset->mincorner[1], asset->mincorner[2]), Vec3(asset->maxcorner[0], asset->maxcorner[1], asset->maxcorner[2]));
   mesh->asset = asset;
+  mesh->transferlump = nullptr;
   mesh->state = Mesh::State::Empty;
 
   return mesh;
@@ -62,6 +63,7 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
 
   mesh->bound = {};
   mesh->asset = nullptr;
+  mesh->transferlump = nullptr;
   mesh->state = Mesh::State::Empty;
 
   auto lump = acquire_lump(0);

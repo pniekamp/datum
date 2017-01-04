@@ -29,6 +29,7 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
+  computeset = 3,
 
   albedomap = 1,
   specularmap = 2,
@@ -45,13 +46,20 @@ struct WireframeSet
   Color4 color;
 };
 
-struct TransparentSet
+struct TranslucentSet
 {
   Color4 color;
   float metalness;
   float roughness;
   float reflectivity;
   float emissive;
+};
+
+struct alignas(16) Particle
+{
+  Vec4 position;
+  Matrix2f transform;
+  Color4 color;
 };
 
 struct ModelSet
@@ -106,8 +114,8 @@ bool ForwardList::begin(BuildState &state, PlatformInterface &platform, RenderCo
 }
 
 
-///////////////////////// ForwardList::push_transparent /////////////////////
-void ForwardList::push_transparent(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
+///////////////////////// ForwardList::push_translucent /////////////////////
+void ForwardList::push_translucent(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, float alpha)
 {
   if (!mesh)
     return;
@@ -136,19 +144,19 @@ void ForwardList::push_transparent(ForwardList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.transparentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bindresource(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(TransparentSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(TranslucentSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(TransparentSet));
+    auto offset = state.materialset.reserve(sizeof(TranslucentSet));
 
-    auto materialset = state.materialset.memory<TransparentSet>(offset);
+    auto materialset = state.materialset.memory<TranslucentSet>(offset);
 
-    materialset->color = material->color;
+    materialset->color = Color4(material->color, alpha);
     materialset->metalness = material->metalness;
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
@@ -184,6 +192,63 @@ void ForwardList::push_transparent(ForwardList::BuildState &state, Transform con
 
   draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
 #endif
+}
+
+
+///////////////////////// ForwardList::push_particlesystem //////////////////
+void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSystem::Instance const *particles)
+{
+  if (!particles || particles->count == 0 || particles->system->spritesheet == nullptr)
+    return;
+
+  if (!particles->system->spritesheet->ready())
+  {
+    state.resources->request(*state.platform, particles->system->spritesheet);
+
+    if (!particles->system->spritesheet->ready())
+      return;
+  }
+
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+
+  bindresource(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  bindresource(commandlist, context.unitquad);
+
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, 0, state.materialset);
+
+  if (state.materialset)
+  {
+    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, particles->system->spritesheet->texture);
+
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  }
+
+  if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
+  {
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, particles->count*sizeof(Particle), state.modelset);
+  }
+
+  if (state.modelset)
+  {
+    auto offset = state.modelset.reserve(particles->count*sizeof(Particle));
+
+    auto modelset = state.modelset.memory<Particle>(offset);
+
+    for(size_t i = 0; i < particles->count; ++i)
+    {
+      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f);
+      modelset[i].transform = particles->transform[i];
+      modelset[i].color = particles->color[i];
+    }
+
+    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(commandlist, context.unitquad.vertexcount, particles->count, 0, 0);
+  }
 }
 
 
