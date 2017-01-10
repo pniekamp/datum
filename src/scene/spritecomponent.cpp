@@ -17,40 +17,17 @@ using namespace lml;
 //|--------------------------------------------------------------------------
 
 ///////////////////////// SpriteStorage::Constructor ////////////////////////
-SpriteComponentStorage::SpriteComponentStorage(Scene *scene, StackAllocator<> allocator)
-  : DefaultStorage(scene, allocator)
+SpriteComponentData *SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 tint, long flags)
 {
-}
+  auto data = BasicComponentStorage<SpriteComponentData>::add(entity);
 
+  data->flags = flags;
+  data->sprite = sprite;
+  data->size = size;
+  data->layer = layer;
+  data->tint = tint;
 
-///////////////////////// SpriteStorage::add ////////////////////////////////
-void SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 const &tint, long flags)
-{
-  DefaultStorage::add(entity);
-
-  auto index = this->index(entity);
-
-  data<spriteflags>(index) = flags;
-  data<spriteresource>(index) = sprite;
-  data<spritesize>(index) = size;
-  data<spritelayer>(index) = layer;
-  data<spritetint>(index) = tint;
-}
-
-
-///////////////////////// SpriteStorage::set_layer //////////////////////////
-void SpriteComponentStorage::set_layer(size_t index, float layer)
-{
-  data<spritelayer>(index) = layer;
-}
-
-
-///////////////////////// SpriteStorage::set_sprite /////////////////////////
-void SpriteComponentStorage::set_sprite(size_t index, Sprite const *sprite, float size, Color4 const &tint)
-{
-  data<spriteresource>(index) = sprite;
-  data<spritesize>(index) = size;
-  data<spritetint>(index) = tint;
+  return data;
 }
 
 
@@ -62,14 +39,12 @@ void Scene::initialise_component_storage<SpriteComponent>()
 }
 
 
-
 //|---------------------- SpriteComponent -----------------------------------
 //|--------------------------------------------------------------------------
 
 ///////////////////////// SpriteComponent::Constructor //////////////////////
-SpriteComponent::SpriteComponent(size_t index, SpriteComponentStorage *storage)
-  : index(index),
-    storage(storage)
+SpriteComponent::SpriteComponent(SpriteComponentData *data)
+  : m_data(data)
 {
 }
 
@@ -77,35 +52,38 @@ SpriteComponent::SpriteComponent(size_t index, SpriteComponentStorage *storage)
 ///////////////////////// SpriteComponent::set_size /////////////////////////
 void SpriteComponent::set_size(float size)
 {
-  storage->set_sprite(index, sprite(), size, tint());
+  m_data->size = size;
 }
 
 
 ///////////////////////// SpriteComponent::set_layer ////////////////////////
 void SpriteComponent::set_layer(float layer)
 {
-  storage->set_layer(index, layer);
+  m_data->layer = layer;
 }
 
 
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size)
 {
-  storage->set_sprite(index, sprite, size, tint());
+  m_data->sprite = sprite;
+  m_data->size = size;
 }
 
 
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size, Color4 const &tint)
 {
-  storage->set_sprite(index, sprite, size, tint);
+  m_data->sprite = sprite;
+  m_data->size = size;
+  m_data->tint = tint;
 }
 
 
 ///////////////////////// SpriteComponent::set_tint /////////////////////////
 void SpriteComponent::set_tint(Color4 const &tint)
 {
-  storage->set_sprite(index, sprite(), size(), tint);
+  m_data->tint = tint;
 }
 
 
@@ -117,11 +95,7 @@ SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sp
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
 
-  auto storage = system<SpriteComponentStorage>();
-
-  storage->add(entity, sprite, size, 0.0f, tint, flags);
-
-  return { storage->index(entity), storage };
+  return system<SpriteComponentStorage>()->add(entity, sprite, size, 0.0f, tint, flags);
 }
 
 

@@ -8,7 +8,7 @@ layout(constant_id = 84) const uint Radius = 16;
 
 const uint SizeX = gl_WorkGroupSize.x - Radius - Radius;
 
-layout(set=0, binding=5) uniform sampler2D src;
+layout(set=0, binding=8) uniform sampler2D scratchmaps[3];
 
 layout(set=3, binding=1) writeonly uniform image2D dest;
 
@@ -41,7 +41,16 @@ void main(void)
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   ivec2 tile = ivec2(gl_WorkGroupID.x * SizeX, gl_WorkGroupID.y); 
 
-  texels[ij.x] = texelFetch(src, ivec2(tile.x + ij.x - Radius, tile.y + ij.y), 0).rgb;
+  ivec2 viewport = textureSize(scratchmaps[0], 0).xy;
+  
+  if (tile.x + ij.x < viewport.x)
+  {
+    texels[ij.x] = texelFetch(scratchmaps[0], ivec2(tile.x + ij.x - Radius, tile.y + ij.y), 0).rgb;
+  }
+  else
+  {
+    texels[ij.x] = vec3(0);
+  }
   
   barrier();
   

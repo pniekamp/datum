@@ -77,6 +77,7 @@ void CommandList::end()
 ///////////////////////// CommandList::acquire //////////////////////////////
 CommandList::Descriptor CommandList::acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset)
 {
+  assert(size != 0);
   assert(set < extentof(m_addressmap));
 
   Descriptor descriptor = {};

@@ -84,8 +84,6 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
     return false;
   }
 
-  state.assetbarrier = resources->assets()->acquire_barrier();
-
   bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -225,6 +223,4 @@ void MeshList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
-
-  state.resources->assets()->release_barrier(state.assetbarrier);
 }

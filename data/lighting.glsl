@@ -106,6 +106,12 @@ vec4 shadow_split(float splits[4], uint nslices, float depth)
 }
 
 ///////////////////////// shadow_intensity //////////////////////////////////
+float shadow_intensity(MainLight light, sampler2D shadowmap, ivec2 xy, ivec2 viewport)
+{
+  return texture(shadowmap, vec2(xy+0.5)/viewport).r;
+}
+
+///////////////////////// shadow_intensity //////////////////////////////////
 float shadow_intensity(mat4 shadowview, vec3 position, uint split, sampler2DArrayShadow shadowmap, float spread)
 {
   vec4 shadowspace = shadowview * vec4(position, 1);

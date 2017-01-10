@@ -77,8 +77,6 @@ bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderCon
     return false;
   }
 
-  state.assetbarrier = resources->assets()->acquire_barrier();
-
   bindresource(*commandlist, context.shadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -208,6 +206,4 @@ void CasterList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
-
-  state.resources->assets()->release_barrier(state.assetbarrier);
 }

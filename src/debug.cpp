@@ -380,6 +380,8 @@ namespace
   {
     BEGIN_TIMED_BLOCK(DebugOverlay, Color3(1.0f, 0.0f, 0.0f))
 
+    asset_guard lock(resources->assets());
+
     SpriteList overlay;
     SpriteList::BuildState buildstate;
 

@@ -62,6 +62,14 @@ struct Asset
     {
     };
 
+    struct // particle system
+    {
+      float minrange[3];
+      float maxrange[3];
+      uint32_t maxparticles;
+      uint32_t emittercount;
+    };
+
     struct // model info
     {
       int texturecount;
@@ -106,6 +114,10 @@ class AssetManager
     uintptr_t acquire_barrier();
 
     void release_barrier(uintptr_t barrier);
+
+#ifndef NDEBUG
+  std::atomic<size_t> barriercount;
+#endif
 
   private:
 

@@ -85,6 +85,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.initialise_component_storage<SpriteComponent>();
   state.scene.initialise_component_storage<MeshComponent>();
   state.scene.initialise_component_storage<PointLightComponent>();
+  state.scene.initialise_component_storage<ParticleSystemComponent>();
 
   auto core = state.assets.load(platform, "core.pack");
 
@@ -131,10 +132,10 @@ void datumtest_init(PlatformInterface &platform)
   emitter.angle = 15.0f / 180.0 * pi<float>();
   emitter.modules |= ParticleEmitter::StretchWithVelocity;
   emitter.modules |= ParticleEmitter::ColorOverLife;
-  emitter.coloroverlife = make_colorfade_distribution(0.85f);
+  emitter.coloroverlife = make_colorfade_distribution(Color4(1.0f, 1.0f, 1.0f, 1.0f), 0.85f);
   state.testparticlesystem->emitters.push_back(emitter);
 
-  state.testparticles = state.testparticlesystem->create_instance(Transform::translation(0.0f, 0.0f, 0.0f));
+  state.testparticles = state.testparticlesystem->create();
 
 //  while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
 //    ;
@@ -262,6 +263,9 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.camera = normalise(state.camera);
 
   update_mesh_bounds(state.scene);
+  update_particlesystem_bounds(state.scene);
+
+  asset_guard lock(&state.assets);
 
   state.writeframe->time = state.time;
   state.writeframe->camera = state.camera;
@@ -423,6 +427,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   BEGIN_TIMED_BLOCK(Render, Color3(0.0f, 0.2f, 1.0f))
 
+  asset_guard lock(&state.assets);
+
   auto &camera = state.readframe->camera;
 
   RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
@@ -443,9 +449,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
     auto transform = Transform::translation(location) * Transform::rotation(Vec3(1, 0, 0), rotation.x) * Transform::rotation(Vec3(0, 1, 0), rotation.y) * Transform::rotation(Vec3(0, 0, 1), rotation.z);
 
-    state.testparticlesystem->transform_instance(state.testparticles, transform);
-
-    state.testparticlesystem->update(camera, 1.0f/60.0f);
+    state.testparticlesystem->update(state.testparticles, camera, transform, 1.0f/60.0f);
   }
 
   {

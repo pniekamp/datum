@@ -793,7 +793,6 @@ void write_core()
   fout.close();
 }
 
-
 int main(int argc, char **argv)
 {
   QGuiApplication app(argc, argv);

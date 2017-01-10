@@ -24,7 +24,7 @@ class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::B
 
     enum DataLayout
     {
-      meshflags = 0,
+      flagbits = 0,
       entityid = 1,
       boundingbox = 2,
       meshresource = 3,
@@ -93,7 +93,7 @@ class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::B
 
   protected:
 
-    auto &flags(size_t index) { return data<meshflags>(index); }
+    auto &flags(size_t index) { return data<flagbits>(index); }
     auto &bound(size_t index) { return data<boundingbox>(index); }
     auto &mesh(size_t index) { return data<meshresource>(index); }
     auto &material(size_t index) { return data<materialresource>(index); }
@@ -146,7 +146,7 @@ class MeshComponent
   public:
     MeshComponent(size_t index, MeshComponentStorage *storage);
 
-    long const &flags() const { return storage->data<MeshComponentStorage::meshflags>(index); }
+    long flags() const { return storage->data<MeshComponentStorage::flagbits>(index); }
 
     lml::Bound3 const &bound() const { return storage->data<MeshComponentStorage::boundingbox>(index); }
 

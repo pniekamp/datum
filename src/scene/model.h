@@ -27,11 +27,11 @@ class Model : public Entity
 
     Scene::EntityId add_instance(lml::Transform const &transform, size_t mesh, size_t material, long flags);
 
-    std::vector<Texture const *, StackAllocatorWithFreelist<>> textures;
-    std::vector<Material const *, StackAllocatorWithFreelist<>> materials;
-    std::vector<Mesh const *, StackAllocatorWithFreelist<>> meshes;
+    std::vector<Texture const *, StackAllocatorWithFreelist<Texture const *>> textures;
+    std::vector<Material const *, StackAllocatorWithFreelist<Material const *>> materials;
+    std::vector<Mesh const *, StackAllocatorWithFreelist<Mesh const *>> meshes;
 
-    std::vector<Scene::EntityId, StackAllocatorWithFreelist<>> dependants;
+    std::vector<Scene::EntityId, StackAllocatorWithFreelist<Scene::EntityId>> dependants;
 
   protected:
     Model(Scene *scene, ResourceManager *resources, StackAllocatorWithFreelist<> const &allocator);

@@ -73,7 +73,7 @@ void MeshComponentStorage::add(EntityId entity, Bound3 const &bound, Mesh const 
 
   m_index[entity.index()] = index;
 
-  data<meshflags>(index) = flags;
+  data<flagbits>(index) = flags;
   data<entityid>(index) = entity;
   data<boundingbox>(index) = bound;
   data<meshresource>(index) = mesh;

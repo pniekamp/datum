@@ -7,6 +7,7 @@
 //
 
 #include "particlesystem.h"
+#include "assetpack.h"
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"
 
@@ -60,11 +61,50 @@ namespace
   {
     return Color4(uniform_distribution(entropy, minvalue.r, maxvalue.r), uniform_distribution(entropy, minvalue.g, maxvalue.g), uniform_distribution(entropy, minvalue.b, maxvalue.b), uniform_distribution(entropy, minvalue.a, maxvalue.a));
   }
+
+  template<typename T>
+  void pack(vector<uint8_t> &bits, T const &value)
+  {
+    bits.insert(bits.end(), (uint8_t const *)&value, (uint8_t const *)&value + sizeof(value) + 1);
+  }
+
+  template<typename T, typename U, size_t N>
+  void pack(vector<uint8_t> &bits, U const (&values)[N])
+  {
+    for(auto &value : values)
+      pack<T>(bits, value);
+  }
+
+  template<typename T>
+  void unpack(T &value, void const *bits, size_t &cursor)
+  {
+    memcpy(&value, (uint8_t const *)bits + cursor, sizeof(value));
+
+    cursor += sizeof(value);
+  }
+
+  template<typename U, typename T, enable_if_t<!is_same<T, U>::value>* = nullptr>
+  void unpack(T &value, void const *bits, size_t &cursor)
+  {
+    U tmp;
+    memcpy(&tmp, (uint8_t const *)bits + cursor, sizeof(tmp));
+    value = static_cast<T>(tmp);
+
+    cursor += sizeof(tmp);
+  }
+
+  template<typename T, typename U, size_t N>
+  void unpack(U (&values)[N], void const *bits, size_t &cursor)
+  {
+    for(auto &value : values)
+      unpack<T>(value, bits, cursor);
+  }
 }
 
-//|-------------------- Distribution --------------------------------------
-//|------------------------------------------------------------------------
+//|---------------------- Distribution --------------------------------------
+//|--------------------------------------------------------------------------
 
+///////////////////////// Distribution::get /////////////////////////////////
 template<typename T>
 T Distribution<T>::get(std::mt19937 &entropy, float t) const
 {
@@ -86,24 +126,14 @@ T Distribution<T>::get(std::mt19937 &entropy, float t) const
   throw std::logic_error("invalid distribution");
 }
 
-template class Distribution<float>;
-template class Distribution<Vec2>;
-template class Distribution<Vec3>;
-template class Distribution<Color3>;
-template class Distribution<Color4>;
-
+///////////////////////// make_constant_distribution ////////////////////////
 template<typename T>
 Distribution<T> make_constant_distribution(T const &value)
 {
   return value;
 }
 
-template Distribution<float> make_constant_distribution<float>(float const &value);
-template Distribution<Vec2> make_constant_distribution<Vec2>(Vec2 const &value);
-template Distribution<Vec3> make_constant_distribution<Vec3>(Vec3 const &value);
-template Distribution<Color3> make_constant_distribution<Color3>(Color3 const &value);
-template Distribution<Color4> make_constant_distribution<Color4>(Color4 const &value);
-
+///////////////////////// make_uniform_distribution /////////////////////////
 template<typename T>
 Distribution<T> make_uniform_distribution(T const &minvalue, T const &maxvalue)
 {
@@ -116,12 +146,7 @@ Distribution<T> make_uniform_distribution(T const &minvalue, T const &maxvalue)
   return distribution;
 }
 
-template Distribution<float> make_uniform_distribution<float>(float const &minvalue, float const &maxvalue);
-template Distribution<Vec2> make_uniform_distribution<Vec2>(Vec2 const &minvalue, Vec2 const &maxvalue);
-template Distribution<Vec3> make_uniform_distribution<Vec3>(Vec3 const &minvalue, Vec3 const &maxvalue);
-template Distribution<Color3> make_uniform_distribution<Color3>(Color3 const &minvalue, Color3 const &maxvalue);
-template Distribution<Color4> make_uniform_distribution<Color4>(Color4 const &minvalue, Color4 const &maxvalue);
-
+///////////////////////// make_table_distribution ///////////////////////////
 template<typename T>
 Distribution<T> make_table_distribution(T const *values, size_t n)
 {
@@ -136,12 +161,7 @@ Distribution<T> make_table_distribution(T const *values, size_t n)
   return distribution;
 }
 
-template Distribution<float> make_table_distribution<float>(float const *values, size_t n);
-template Distribution<Vec2> make_table_distribution<Vec2>(Vec2 const *values, size_t n);
-template Distribution<Vec3> make_table_distribution<Vec3>(Vec3 const *values, size_t n);
-template Distribution<Color3> make_table_distribution<Color3>(Color3 const *values, size_t n);
-template Distribution<Color4> make_table_distribution<Color4>(Color4 const *values, size_t n);
-
+///////////////////////// make_uniformtable_distribution ////////////////////
 template<typename T>
 Distribution<T> make_uniformtable_distribution(T const *minvalues, size_t m, T const *maxvalues, size_t n)
 {
@@ -158,26 +178,169 @@ Distribution<T> make_uniformtable_distribution(T const *minvalues, size_t m, T c
   return distribution;
 }
 
+///////////////////////// make_colorfade_distribution ///////////////////////
+Distribution<lml::Color4> make_colorfade_distribution(Color4 const &basecolor, float startfade)
+{
+  Distribution<Color4> distribution;
+
+  distribution.type = Distribution<Color4>::Type::Table;
+
+  for(size_t i = 0; i < extentof(distribution.table); ++i)
+  {
+    auto fade = 1.0f - clamp(i / ((1-startfade) * (extentof(distribution.table) - 2)) - startfade/(1-startfade), 0.0f, 1.0f);
+
+    distribution.table[i] = basecolor * fade;
+  }
+
+  return distribution;
+}
+
+// Explicit Instantiations
+template class Distribution<float>;
+template class Distribution<Vec2>;
+template class Distribution<Vec3>;
+template class Distribution<Color3>;
+template class Distribution<Color4>;
+template Distribution<float> make_constant_distribution<float>(float const &value);
+template Distribution<Vec2> make_constant_distribution<Vec2>(Vec2 const &value);
+template Distribution<Vec3> make_constant_distribution<Vec3>(Vec3 const &value);
+template Distribution<Color3> make_constant_distribution<Color3>(Color3 const &value);
+template Distribution<Color4> make_constant_distribution<Color4>(Color4 const &value);
+template Distribution<float> make_uniform_distribution<float>(float const &minvalue, float const &maxvalue);
+template Distribution<Vec2> make_uniform_distribution<Vec2>(Vec2 const &minvalue, Vec2 const &maxvalue);
+template Distribution<Vec3> make_uniform_distribution<Vec3>(Vec3 const &minvalue, Vec3 const &maxvalue);
+template Distribution<Color3> make_uniform_distribution<Color3>(Color3 const &minvalue, Color3 const &maxvalue);
+template Distribution<Color4> make_uniform_distribution<Color4>(Color4 const &minvalue, Color4 const &maxvalue);
+template Distribution<float> make_table_distribution<float>(float const *values, size_t n);
+template Distribution<Vec2> make_table_distribution<Vec2>(Vec2 const *values, size_t n);
+template Distribution<Vec3> make_table_distribution<Vec3>(Vec3 const *values, size_t n);
+template Distribution<Color3> make_table_distribution<Color3>(Color3 const *values, size_t n);
+template Distribution<Color4> make_table_distribution<Color4>(Color4 const *values, size_t n);
 template Distribution<float> make_uniformtable_distribution<float>(float const *minvalues, size_t m, float const *maxvalues, size_t n);
 template Distribution<Vec2> make_uniformtable_distribution<Vec2>(Vec2 const *minvalues, size_t m, Vec2 const *maxvalues, size_t n);
 template Distribution<Vec3> make_uniformtable_distribution<Vec3>(Vec3 const *minvalues, size_t m, Vec3 const *maxvalues, size_t n);
 template Distribution<Color3> make_uniformtable_distribution<Color3>(Color3 const *minvalues, size_t m, Color3 const *maxvalues, size_t n);
 template Distribution<Color4> make_uniformtable_distribution<Color4>(Color4 const *minvalues, size_t m, Color4 const *maxvalues, size_t n);
 
-Distribution<lml::Color4> make_colorfade_distribution(float startfade)
+
+//|---------------------- ParticleEmitter -----------------------------------
+//|--------------------------------------------------------------------------
+
+vector<uint8_t> pack(ParticleEmitter const &emitter)
 {
-  Distribution<Color4> distribution;
+  vector<uint8_t> bits;
 
-  distribution.type = Distribution<Color4>::Type::UniformTable;
+  pack<float>(bits, emitter.duration);
+  pack<float>(bits, emitter.rate);
+  pack<uint32_t>(bits, emitter.bursts);
+  pack<float>(bits, emitter.bursttime);
+  pack<uint32_t>(bits, emitter.burstcount);
+  pack<uint32_t>(bits, emitter.looping);
+  pack<Distribution<float>>(bits, emitter.life);
+  pack<Vec2>(bits, emitter.size);
+  pack<Distribution<float>>(bits, emitter.scale);
+  pack<Distribution<float>>(bits, emitter.rotation);
+  pack<Distribution<Vec3>>(bits, emitter.velocity);
+  pack<Distribution<Color4>>(bits, emitter.color);
+  pack<Distribution<float>>(bits, emitter.layer);
+  pack<Vec3>(bits, emitter.acceleration);
+  pack<uint32_t>(bits, emitter.modules);
 
-  for(size_t i = 0; i < extentof(distribution.table); ++i)
+  if (emitter.modules & ParticleEmitter::ShapeEmitter)
   {
-    auto fade = clamp(i / ((1-startfade) * (extentof(distribution.table) - 2)) - startfade/(1-startfade), 0.0f, 1.0f);
-
-    distribution.table[i] = Color4(1.0f - fade, 1.0f - fade, 1.0f - fade, 1.0f - fade);
+    pack<uint32_t>(bits, static_cast<int>(emitter.shape));
+    pack<float>(bits, emitter.radius);
+    pack<float>(bits, emitter.angle);
   }
 
-  return distribution;
+  if (emitter.modules & ParticleEmitter::ScaleOverLife)
+  {
+    pack<Distribution<float>>(bits, emitter.scaleoverlife);
+  }
+
+  if (emitter.modules & ParticleEmitter::RotateOverLife)
+  {
+    pack<Distribution<float>>(bits, emitter.rotateoverlife);
+  }
+
+  if (emitter.modules & ParticleEmitter::StretchWithVelocity)
+  {
+    pack<float>(bits, emitter.velocitystretchmin);
+    pack<float>(bits, emitter.velocitystretchmax);
+  }
+
+  if (emitter.modules & ParticleEmitter::ColorOverLife)
+  {
+    pack<Distribution<Color4>>(bits, emitter.coloroverlife);
+  }
+
+  if (emitter.modules & ParticleEmitter::LayerOverLife)
+  {
+    pack<float>(bits, emitter.startlayer);
+    pack<float>(bits, emitter.layercount);
+    pack<Distribution<float>>(bits, emitter.layerrate);
+  }
+
+  return bits;
+}
+
+
+size_t unpack(ParticleEmitter &emitter, void const *bits)
+{
+  size_t cursor = 0;
+
+  unpack<float>(emitter.duration, bits, cursor);
+  unpack<float>(emitter.rate, bits, cursor);
+  unpack<uint32_t>(emitter.bursts, bits, cursor);
+  unpack<float>(emitter.bursttime, bits, cursor);
+  unpack<uint32_t>(emitter.burstcount, bits, cursor);
+  unpack<uint32_t>(emitter.looping, bits, cursor);
+  unpack<Distribution<float>>(emitter.life, bits, cursor);
+  unpack<Vec2>(emitter.size, bits, cursor);
+  unpack<Distribution<float>>(emitter.scale, bits, cursor);
+  unpack<Distribution<float>>(emitter.rotation, bits, cursor);
+  unpack<Distribution<Vec3>>(emitter.velocity, bits, cursor);
+  unpack<Distribution<Color4>>(emitter.color, bits, cursor);
+  unpack<Distribution<float>>(emitter.layer, bits, cursor);
+  unpack<Vec3>(emitter.acceleration, bits, cursor);
+  unpack<uint32_t>(emitter.modules, bits, cursor);
+
+  if (emitter.modules & ParticleEmitter::ShapeEmitter)
+  {
+    unpack<uint32_t>(emitter.shape, bits, cursor);
+    unpack<float>(emitter.radius, bits, cursor);
+    unpack<float>(emitter.angle, bits, cursor);
+  }
+
+  if (emitter.modules & ParticleEmitter::ScaleOverLife)
+  {
+    unpack<Distribution<float>>(emitter.scaleoverlife, bits, cursor);
+  }
+
+  if (emitter.modules & ParticleEmitter::RotateOverLife)
+  {
+    unpack<Distribution<float>>(emitter.rotateoverlife, bits, cursor);
+  }
+
+  if (emitter.modules & ParticleEmitter::StretchWithVelocity)
+  {
+    unpack<float>(emitter.velocitystretchmin, bits, cursor);
+    unpack<float>(emitter.velocitystretchmax, bits, cursor);
+  }
+
+  if (emitter.modules & ParticleEmitter::ColorOverLife)
+  {
+    unpack<Distribution<Color4>>(emitter.coloroverlife, bits, cursor);
+  }
+
+  if (emitter.modules & ParticleEmitter::LayerOverLife)
+  {
+    unpack<float>(emitter.startlayer, bits, cursor);
+    unpack<float>(emitter.layercount, bits, cursor);
+    unpack<Distribution<float>>(emitter.layerrate, bits, cursor);
+  }
+
+  return cursor;
 }
 
 
@@ -188,32 +351,53 @@ Distribution<lml::Color4> make_colorfade_distribution(float startfade)
 ParticleSystem::ParticleSystem(allocator_type const &allocator)
   : emitters(allocator),
     entropy(random_device{}()),
-    m_allocator(allocator),
-    m_instances(allocator)
+    m_allocator(allocator)
 {
-  m_bound = Bound3(Vec3(-1.0f, -1.0f, -1.0f), Vec3(1.0f, 1.0f, 1.0f));
+  bound = Bound3(Vec3(-1.0f, -1.0f, -1.0f), Vec3(1.0f, 1.0f, 1.0f));
 }
 
 
-///////////////////////// ParticleSystem::Destructor ////////////////////////
-ParticleSystem::~ParticleSystem()
+///////////////////////// ParticleSystem::load ///////////////////////////////
+bool ParticleSystem::load(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset)
 {
-  while (m_instances.size() != 0)
+  assert(asset);
+  assert(resources->assets()->barriercount != 0);
+
+  auto assets = resources->assets();
+
+  maxparticles = asset->maxparticles;
+  bound = Bound3(Vec3(asset->minrange[0], asset->minrange[1], asset->minrange[2]), Vec3(asset->maxrange[0], asset->maxrange[1], asset->maxrange[2]));
+
+  auto bits = assets->request(platform, asset);
+
+  if (!bits)
+    return false;
+
+  auto payload = reinterpret_cast<PackParticleSystemPayload const *>(bits);
+
+  spritesheet = resources->create<Texture>(assets->find(asset->id + payload->spritesheet), Texture::Format::SRGBA);
+
+  emitters.resize(asset->emittercount);
+
+  size_t cursor = 0;
+
+  for(size_t i = 0; i < emitters.size(); ++i)
   {
-    destroy_instance(m_instances.front());
+    cursor += unpack(emitters[i], PackParticleSystemPayload::emitter(bits, cursor));
   }
+
+  return true;
 }
 
 
-///////////////////////// ParticleSystem::create_instance ///////////////////
-ParticleSystem::Instance const *ParticleSystem::create_instance(Transform const &transform)
+///////////////////////// ParticleSystem::create ////////////////////////////
+ParticleSystem::Instance const *ParticleSystem::create()
 {
   size_t bytes = sizeof(InstanceEx) + maxparticles * sizeof(Particle);
 
-  auto instance = new(allocator<char>().allocate(bytes, alignof(InstanceEx))) InstanceEx;
+  auto instance = new(allocator().allocate(bytes, alignof(InstanceEx))) InstanceEx;
 
-  instance->axis = transform;
-  instance->bound = transform * m_bound;
+  instance->time = 0;
 
   instance->count = 0;
   instance->capacity = maxparticles;
@@ -230,42 +414,34 @@ ParticleSystem::Instance const *ParticleSystem::create_instance(Transform const 
   instance->layer = new(&instance->data + maxparticles * offsetof(Particle, layer)) float[maxparticles];
   instance->layerrate = new(&instance->data + maxparticles * offsetof(Particle, layerrate)) float[maxparticles];
 
-  instance->size = bytes;
-  instance->system = this;
+  instance->spritesheet = spritesheet;
 
-  instance->time = 0;
   memset(instance->emittime, 0, sizeof(instance->emittime));
 
-  m_instances.push_back(instance);
+  instance->size = bytes;
 
   return instance;
 }
 
 
-///////////////////////// ParticleSystem::transform_instance ////////////////
-void ParticleSystem::transform_instance(ParticleSystem::Instance const *instance, Transform const &transform)
-{
-  auto instanceex = static_cast<InstanceEx*>(const_cast<Instance*>(instance));
-
-  instanceex->axis = transform;
-}
-
-
-///////////////////////// ParticleSystem::destroy_instance //////////////////
-void ParticleSystem::destroy_instance(ParticleSystem::Instance const *instance)
+///////////////////////// ParticleSystem::destroy ///////////////////////////
+void ParticleSystem::destroy(ParticleSystem::Instance const *instance)
 {
   auto instanceex = static_cast<InstanceEx*>(const_cast<Instance*>(instance));
 
   allocator<char>().deallocate((char*)instanceex, instanceex->size);
-
-  m_instances.erase(find(m_instances.begin(), m_instances.end(), instanceex));
 }
 
 
 ///////////////////////// ParticleSystem::update ////////////////////////////
-void ParticleSystem::update(Camera const &camera, float dt)
+void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera const &camera, Transform const &transform, float dt)
 {
   assert(emitters.size() < extent<decltype(InstanceEx::emittime)>::value);
+
+  auto instanceex = static_cast<InstanceEx*>(const_cast<Instance*>(instance));
+
+  uniform_real_distribution<float> real01{0.0f, 1.0f};
+  uniform_real_distribution<float> real11{-1.0f, 1.0f};
 
   long modules = 0;
   for(auto const &emitter : emitters)
@@ -273,253 +449,249 @@ void ParticleSystem::update(Camera const &camera, float dt)
     modules |= emitter.modules;
   }
 
-  uniform_real_distribution<float> real01{0.0f, 1.0f};
-  uniform_real_distribution<float> real11{-1.0f, 1.0f};
+  //
+  // Emitters
+  //
 
-  for(auto &instance : m_instances)
+  for(auto const &emitter : emitters)
   {
-    //
-    // Emitters
-    //
+    float time = emitter.looping ? fmod(instanceex->time + dt, emitter.duration) : instanceex->time + dt;
 
-    for(auto const &emitter : emitters)
+    if (time < emitter.duration)
     {
-      float time = emitter.looping ? fmod(instance->time + dt, emitter.duration) : instance->time + dt;
+      int emitcount = 0;
 
-      if (time < emitter.duration)
+      if (emitter.rate != 0)
       {
-        int emitcount = 0;
+        float &emittime = instanceex->emittime[indexof(emitters, emitter)];
 
-        if (emitter.rate != 0)
+        emittime += dt;
+        emitcount = floor(emittime * emitter.rate);
+        emittime = emittime - emitcount / emitter.rate;
+      }
+
+      for(int i = 0; i < emitter.bursts; ++i)
+      {
+        if (time - dt <= emitter.bursttime[i] && emitter.bursttime[i] < time)
         {
-          float &emittime = instance->emittime[indexof(emitters, emitter)];
+          emitcount += emitter.burstcount[i];
+        }
+      }
 
-          emittime += dt;
-          emitcount = floor(emittime * emitter.rate);
-          emittime = emittime - emitcount / emitter.rate;
+      for(int i = 0; i < emitcount && instance->count < instance->capacity; ++i)
+      {
+        float t = time / (emitter.duration + 1e-6);
+
+        instance->emitter[instance->count] = indexof(emitters, emitter);
+        instance->life[instance->count] = 0.0f;
+        instance->growth[instance->count] = 1.0f / emitter.life.get(entropy, t);
+        instance->scale[instance->count] = emitter.size * emitter.scale.get(entropy, t);
+        instance->rotation[instance->count] = emitter.rotation.get(entropy, t);
+        instance->transform[instance->count] = RotationMatrix(instance->rotation[instance->count]) * ScaleMatrix(Vector2(instance->scale[instance->count].x, instance->scale[instance->count].y));
+        instance->basecolor[instance->count] = emitter.color.get(entropy, t);
+        instance->color[instance->count] = instance->basecolor[instance->count];
+        instance->layer[instance->count] = emitter.layer.get(entropy, t);
+        instance->layerrate[instance->count] = emitter.layerrate.get(entropy, t);
+
+        if (emitter.layerrate.type == Distribution<float>::Type::Constant && emitter.layerrate.value == 0.0f)
+        {
+          instance->layerrate[instance->count] = emitter.layercount * instance->growth[instance->count];
         }
 
-        for(int i = 0; i < emitter.bursts; ++i)
+        auto position = Vec3(0.0f, 0.0f, 0.0f);
+        auto direction = Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f);
+
+        if (emitter.modules & ParticleEmitter::ShapeEmitter)
         {
-          if (time - dt <= emitter.bursttime[i] && emitter.bursttime[i] < time)
+          switch (emitter.shape)
           {
-            emitcount += emitter.burstcount[i];
-          }
-        }
-
-        for(int i = 0; i < emitcount && instance->count < instance->capacity; ++i)
-        {
-          float t = time / (emitter.duration + 1e-6);
-
-          instance->emitter[instance->count] = indexof(emitters, emitter);
-          instance->life[instance->count] = 0.0f;
-          instance->growth[instance->count] = 1.0f / emitter.life.get(entropy, t);
-          instance->scale[instance->count] = emitter.size * emitter.scale.get(entropy, t);
-          instance->rotation[instance->count] = emitter.rotation.get(entropy, t);
-          instance->transform[instance->count] = RotationMatrix(instance->rotation[instance->count]) * ScaleMatrix(Vector2(instance->scale[instance->count].x, instance->scale[instance->count].y));
-          instance->basecolor[instance->count] = emitter.color.get(entropy, t);
-          instance->color[instance->count] = instance->basecolor[instance->count];
-          instance->layer[instance->count] = emitter.layer.get(entropy, t);
-          instance->layerrate[instance->count] = emitter.layerrate.get(entropy, t);
-
-          if (emitter.layerrate.type == Distribution<float>::Type::Constant && emitter.layerrate.value == 0.0f)
-          {
-            instance->layerrate[instance->count] = emitter.layercount * instance->growth[instance->count];
-          }
-
-          auto position = Vec3(0.0f, 0.0f, 0.0f);
-          auto direction = Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f);
-
-          if (emitter.modules & ParticleEmitter::ShapeEmitter)
-          {
-            switch (emitter.shape)
+            case ParticleEmitter::Shape::Sphere:
             {
-              case ParticleEmitter::Shape::Sphere:
+              auto radius2 = emitter.radius * emitter.radius;
+
+              for(int i = 0; i < 8; ++i)
               {
-                auto radius2 = emitter.radius * emitter.radius;
+                Vec3 location = Vec3(real11(entropy), real11(entropy), real11(entropy)) * emitter.radius;
 
-                for(int i = 0; i < 8; ++i)
+                if (normsqr(location) < radius2)
                 {
-                  Vec3 location = Vec3(real11(entropy), real11(entropy), real11(entropy)) * emitter.radius;
-
-                  if (normsqr(location) < radius2)
-                  {
-                    position = location;
-                    direction = Quaternion3f(zUnit3f, theta(location)) * Quaternion3f(yUnit3f, phi(location) - pi<float>()/2);
-                    break;
-                  }
+                  position = location;
+                  direction = Quaternion3f(zUnit3f, theta(location)) * Quaternion3f(yUnit3f, phi(location) - pi<float>()/2);
+                  break;
                 }
-
-                break;
               }
 
-              case ParticleEmitter::Shape::Hemisphere:
+              break;
+            }
+
+            case ParticleEmitter::Shape::Hemisphere:
+            {
+              auto radius2 = emitter.radius * emitter.radius;
+
+              for(int i = 0; i < 8; ++i)
               {
-                auto radius2 = emitter.radius * emitter.radius;
+                Vec3 location = Vec3(real01(entropy), real11(entropy), real11(entropy)) * emitter.radius;
 
-                for(int i = 0; i < 8; ++i)
+                if (normsqr(location) < radius2)
                 {
-                  Vec3 location = Vec3(real01(entropy), real11(entropy), real11(entropy)) * emitter.radius;
-
-                  if (normsqr(location) < radius2)
-                  {
-                    position = location;
-                    direction = Quaternion3f(zUnit3f, theta(location)) * Quaternion3f(yUnit3f, phi(location) - pi<float>()/2);
-                    break;
-                  }
+                  position = location;
+                  direction = Quaternion3f(zUnit3f, theta(location)) * Quaternion3f(yUnit3f, phi(location) - pi<float>()/2);
+                  break;
                 }
-
-                break;
               }
 
-              case ParticleEmitter::Shape::Cone:
+              break;
+            }
+
+            case ParticleEmitter::Shape::Cone:
+            {
+              auto radius2 = emitter.radius * emitter.radius;
+
+              for(int i = 0; i < 8; ++i)
               {
-                auto radius2 = emitter.radius * emitter.radius;
+                Vec3 location = Vec3(0.0f, real11(entropy), real11(entropy)) * emitter.radius;
 
-                for(int i = 0; i < 8; ++i)
+                if (normsqr(location) < radius2)
                 {
-                  Vec3 location = Vec3(0.0f, real11(entropy), real11(entropy)) * emitter.radius;
-
-                  if (normsqr(location) < radius2)
-                  {
-                    position = location;
-                    direction = Quaternion3f(xUnit3f, atan2(location.y, -location.z)) * Quaternion3f(yUnit3f, emitter.angle * norm(location) / emitter.radius);
-                    break;
-                  }
+                  position = location;
+                  direction = Quaternion3f(xUnit3f, atan2(location.y, -location.z)) * Quaternion3f(yUnit3f, emitter.angle * norm(location) / emitter.radius);
+                  break;
                 }
-
-                break;
               }
+
+              break;
             }
           }
-
-          instance->position[instance->count] = instance->axis.translation() + instance->axis.rotation() * position;
-          instance->velocity[instance->count] =  instance->axis.rotation() * direction * emitter.velocity.get(entropy, t);
-
-          instance->count += 1;
         }
+
+        instance->position[instance->count] = transform * position;
+        instance->velocity[instance->count] = transform.rotation() * direction * emitter.velocity.get(entropy, t);
+
+        instanceex->count += 1;
       }
     }
-
-    //
-    // Life
-    //
-
-    for(size_t i = 0; i < instance->count; )
-    {
-      instance->life[i] += instance->growth[i] * dt;
-
-      if (instance->life[i] > 1.0f - 1e-6)
-      {
-        instance->emitter[i] = instance->emitter[instance->count-1];
-        instance->life[i] = instance->life[instance->count-1];
-        instance->growth[i] = instance->growth[instance->count-1];
-        instance->position[i] = instance->position[instance->count-1];
-        instance->velocity[i] = instance->velocity[instance->count-1];
-        instance->transform[i] = instance->transform[instance->count-1];
-        instance->scale[i] = instance->scale[instance->count-1];
-        instance->rotation[i] = instance->rotation[instance->count-1];
-        instance->color[i] = instance->color[instance->count-1];
-        instance->basecolor[i] = instance->basecolor[instance->count-1];
-        instance->layer[i] = instance->layer[instance->count-1];
-        instance->layerrate[i] = instance->layerrate[instance->count-1];
-
-        instance->count -= 1;
-      }
-      else
-        ++i;
-    }
-
-    //
-    // Velocity
-    //
-
-    for(size_t i = 0; i < instance->count; ++i)
-    {
-      instance->velocity[i] += emitters[instance->emitter[i]].acceleration * dt;
-    }
-
-    //
-    // Position
-    //
-
-    for(size_t i = 0; i < instance->count; ++i)
-    {
-      instance->position[i] += instance->velocity[i] * dt;
-    }
-
-    //
-    // Transform
-    //
-
-    if (modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity))
-    {
-      auto proj = camera.aspect() * tan(camera.fov()/2);
-
-      for(size_t i = 0; i < instance->count; ++i)
-      {
-        auto const &emitter = emitters[instance->emitter[i]];
-
-        if (emitter.modules & ParticleEmitter::ScaleOverLife)
-        {
-          instance->scale[i] = emitter.size * emitter.scaleoverlife.get(entropy, instance->life[i]);
-        }
-
-        if (emitter.modules & ParticleEmitter::RotateOverLife)
-        {
-          instance->rotation[i] += emitter.rotateoverlife.get(entropy, instance->life[i]) * dt;
-        }
-
-        if (emitter.modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity))
-        {
-          instance->transform[i] = RotationMatrix(instance->rotation[i]) * ScaleMatrix(Vector2(instance->scale[i].x, instance->scale[i].y));
-        }
-
-        if (emitter.modules & ParticleEmitter::StretchWithVelocity)
-        {
-          auto pos = inverse(camera.transform()) * instance->position[i];
-          auto angle = Quaternion3f(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3f(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * instance->velocity[i];
-          auto scale = rotatey(Vec3(1.0f, 1.0f, clamp(norm(angle), emitter.velocitystretchmin, emitter.velocitystretchmax)), phi(abs(angle)));
-
-          instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(Vector2(scale.x, scale.y)) * instance->transform[i];
-        }
-      }
-    }
-
-    //
-    // Color
-    //
-
-    if (modules & ParticleEmitter::ColorOverLife)
-    {
-      for(size_t i = 0; i < instance->count; ++i)
-      {
-        auto const &emitter = emitters[instance->emitter[i]];
-
-        if (emitter.modules & ParticleEmitter::ColorOverLife)
-        {
-          instance->color[i] = hada(instance->basecolor[i], emitter.coloroverlife.get(entropy, instance->life[i]));
-        }
-      }
-    }
-
-    //
-    // Layer
-    //
-
-    if (modules & ParticleEmitter::LayerOverLife)
-    {
-      for(size_t i = 0; i < instance->count; ++i)
-      {
-        auto const &emitter = emitters[instance->emitter[i]];
-
-        if (emitter.modules & ParticleEmitter::LayerOverLife)
-        {
-          instance->layer[i] = emitter.startlayer + fmod(instance->layer[i] + instance->layerrate[i] * dt - emitter.startlayer, emitter.layercount);
-        }
-      }
-    }
-
-    instance->time += dt;
   }
+
+  //
+  // Life
+  //
+
+  for(size_t i = 0; i < instance->count; )
+  {
+    instance->life[i] += instance->growth[i] * dt;
+
+    if (instance->life[i] > 1.0f - 1e-6)
+    {
+      instance->emitter[i] = instance->emitter[instance->count-1];
+      instance->life[i] = instance->life[instance->count-1];
+      instance->growth[i] = instance->growth[instance->count-1];
+      instance->position[i] = instance->position[instance->count-1];
+      instance->velocity[i] = instance->velocity[instance->count-1];
+      instance->transform[i] = instance->transform[instance->count-1];
+      instance->scale[i] = instance->scale[instance->count-1];
+      instance->rotation[i] = instance->rotation[instance->count-1];
+      instance->color[i] = instance->color[instance->count-1];
+      instance->basecolor[i] = instance->basecolor[instance->count-1];
+      instance->layer[i] = instance->layer[instance->count-1];
+      instance->layerrate[i] = instance->layerrate[instance->count-1];
+
+      instanceex->count -= 1;
+    }
+    else
+      ++i;
+  }
+
+  //
+  // Velocity
+  //
+
+  for(size_t i = 0; i < instance->count; ++i)
+  {
+    instance->velocity[i] += emitters[instance->emitter[i]].acceleration * dt;
+  }
+
+  //
+  // Position
+  //
+
+  for(size_t i = 0; i < instance->count; ++i)
+  {
+    instance->position[i] += instance->velocity[i] * dt;
+  }
+
+  //
+  // Transform
+  //
+
+  if (modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity))
+  {
+    auto proj = camera.aspect() * tan(camera.fov()/2);
+
+    for(size_t i = 0; i < instance->count; ++i)
+    {
+      auto const &emitter = emitters[instance->emitter[i]];
+
+      if (emitter.modules & ParticleEmitter::ScaleOverLife)
+      {
+        instance->scale[i] = emitter.size * emitter.scaleoverlife.get(entropy, instance->life[i]);
+      }
+
+      if (emitter.modules & ParticleEmitter::RotateOverLife)
+      {
+        instance->rotation[i] += emitter.rotateoverlife.get(entropy, instance->life[i]) * dt;
+      }
+
+      if (emitter.modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity))
+      {
+        instance->transform[i] = RotationMatrix(instance->rotation[i]) * ScaleMatrix(Vector2(instance->scale[i].x, instance->scale[i].y));
+      }
+
+      if (emitter.modules & ParticleEmitter::StretchWithVelocity)
+      {
+        auto pos = inverse(camera.transform()) * instance->position[i];
+        auto angle = Quaternion3f(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3f(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * instance->velocity[i];
+        auto scale = rotatey(Vec3(1.0f, 1.0f, clamp(norm(angle), emitter.velocitystretchmin, emitter.velocitystretchmax)), phi(abs(angle)));
+
+        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(Vector2(scale.x, scale.y)) * instance->transform[i];
+      }
+    }
+  }
+
+  //
+  // Color
+  //
+
+  if (modules & ParticleEmitter::ColorOverLife)
+  {
+    for(size_t i = 0; i < instance->count; ++i)
+    {
+      auto const &emitter = emitters[instance->emitter[i]];
+
+      if (emitter.modules & ParticleEmitter::ColorOverLife)
+      {
+        instance->color[i] = hada(instance->basecolor[i], emitter.coloroverlife.get(entropy, instance->life[i]));
+      }
+    }
+  }
+
+  //
+  // Layer
+  //
+
+  if (modules & ParticleEmitter::LayerOverLife)
+  {
+    for(size_t i = 0; i < instance->count; ++i)
+    {
+      auto const &emitter = emitters[instance->emitter[i]];
+
+      if (emitter.modules & ParticleEmitter::LayerOverLife)
+      {
+        instance->layer[i] = emitter.startlayer + fmod(instance->layer[i] + instance->layerrate[i] * dt - emitter.startlayer, emitter.layercount);
+      }
+    }
+  }
+
+  instanceex->spritesheet = spritesheet;
+
+  instanceex->time += dt;
 }

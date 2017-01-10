@@ -84,7 +84,7 @@ class ResourceManager
 
     size_t m_slathead;
 
-    std::vector<bool, StackAllocator<>> m_slat;
+    std::vector<bool, StackAllocator<bool>> m_slat;
 
 #ifndef NDEBUG
     size_t m_slatused;
@@ -166,7 +166,7 @@ class ResourceManager
 
     size_t m_deletershead;
     size_t m_deleterstail;
-    std::vector<deleterholder, StackAllocator<>> m_deleters;
+    std::vector<deleterholder, StackAllocator<deleterholder>> m_deleters;
 
     template<typename Resource>
     void defer_destroy(Resource const *resource)

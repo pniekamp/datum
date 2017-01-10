@@ -39,8 +39,6 @@ class OverlayList
 
       CommandList::Descriptor modelset;
 
-      uintptr_t assetbarrier;
-
       CommandList *commandlist = nullptr;
     };
 

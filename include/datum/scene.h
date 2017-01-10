@@ -6,4 +6,5 @@
 #include "../../src/scene/spritecomponent.h"
 #include "../../src/scene/meshcomponent.h"
 #include "../../src/scene/lightcomponent.h"
+#include "../../src/scene/particlesystemcomponent.h"
 #include "../../src/scene/model.h"

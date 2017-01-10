@@ -40,8 +40,6 @@ class ForwardList
 
       CommandList::Descriptor modelset;
 
-      uintptr_t assetbarrier;
-
       CommandList *commandlist = nullptr;
     };
 
@@ -50,7 +48,6 @@ class ForwardList
     void push_translucent(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, float alpha = 1.0f);
 
     void push_particlesystem(BuildState &state, ParticleSystem::Instance const *particles);
-    void push_particlesystem(BuildState &state, ParticleSystem::Instance const *particles, size_t count, size_t *indices);
 
     void finalise(BuildState &state);
 

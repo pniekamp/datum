@@ -38,7 +38,7 @@ class NameComponentStorage : public DefaultStorage<Scene::EntityId, size_t>
 
     void set_name(EntityId entity, const char *name);
 
-    std::vector<char, StackAllocator<>> m_names;
+    std::vector<char, StackAllocator<char>> m_names;
 
     friend class Scene;
     friend class NameComponent;

@@ -112,11 +112,11 @@ class DefaultStorage : public Storage
 
   protected:
 
-    std::vector<size_t, StackAllocator<>> m_index;
+    std::vector<size_t, StackAllocator<size_t>> m_index;
 
     std::tuple<std::vector<Types, StackAllocator<Types>>...> m_data;
 
-    std::deque<size_t, StackAllocator<>> m_freeslots;
+    std::deque<size_t, StackAllocator<size_t>> m_freeslots;
 
     friend class Scene;
 };

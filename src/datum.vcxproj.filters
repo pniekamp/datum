@@ -97,6 +97,9 @@
     <ClCompile Include="renderer\particlesystem.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="scene\particlesystemcomponent.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asset.h">
@@ -245,6 +248,9 @@
     </ClInclude>
     <ClInclude Include="renderer\particlesystem.h">
       <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\particlesystemcomponent.h">
+      <Filter>Source Files\scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

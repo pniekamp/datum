@@ -9,42 +9,36 @@
 #pragma once
 
 #include "scene.h"
-#include "storage.h"
+#include "basiccomponent.h"
 #include "datum/math.h"
 #include "datum/renderer.h"
 
-//|---------------------- SpriteComponentStorage ---------------------------
+//|---------------------- SpriteComponentStorage ----------------------------
 //|--------------------------------------------------------------------------
 
-class SpriteComponentStorage : public DefaultStorage<long, Sprite const *, float, float, lml::Color4>
+struct SpriteComponentData
+{
+  long flags;
+  Sprite const *sprite;
+  float size;
+  float layer;
+  lml::Color4 tint;
+};
+
+class SpriteComponentStorage : public BasicComponentStorage<SpriteComponentData>
 {
   public:
-
-    enum DataLayout
-    {
-      spriteflags = 0,
-      spriteresource = 1,
-      spritesize = 2,
-      spritelayer = 3,
-      spritetint = 4,
-    };
-
-  public:
-    SpriteComponentStorage(Scene *scene, StackAllocator<> allocator);
+    using BasicComponentStorage::BasicComponentStorage;
 
     template<typename Component = class SpriteComponent>
     Component get(EntityId entity)
     {
-      return { this->index(entity), this };
+      return data(entity);
     }
 
   protected:
 
-    void add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 const &tint, long flags);
-
-    void set_layer(size_t index, float layer);
-
-    void set_sprite(size_t index, Sprite const *sprite, float size, lml::Color4 const &tint);
+    SpriteComponentData *add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 tint, long flags);
 
     friend class Scene;
     friend class SpriteComponent;
@@ -69,15 +63,15 @@ class SpriteComponent
     friend SpriteComponent Scene::get_component<SpriteComponent>(Scene::EntityId entity);
 
   public:
-    SpriteComponent(size_t index, SpriteComponentStorage *storage);
+    SpriteComponent(SpriteComponentData *data);
 
-    long const &flags() const { return storage->data<SpriteComponentStorage::spriteflags>(index); }
+    long flags() const { return m_data->flags; }
 
-    Sprite const *sprite() const { return storage->data<SpriteComponentStorage::spriteresource>(index); }
+    Sprite const *sprite() const { return m_data->sprite; }
 
-    float const &size() const { return storage->data<SpriteComponentStorage::spritesize>(index); }
-    float const &layer() const { return storage->data<SpriteComponentStorage::spritelayer>(index); }
-    lml::Color4 const &tint() const { return storage->data<SpriteComponentStorage::spritetint>(index); }
+    float size() const { return m_data->size; }
+    float layer() const { return m_data->layer; }
+    lml::Color4 const &tint() const { return m_data->tint; }
 
     lml::Rect2 bound() const { return lml::Rect2(-sprite()->align, lml::Vec2(size() * sprite()->aspect, size()) - sprite()->align); }
 
@@ -87,8 +81,7 @@ class SpriteComponent
     void set_sprite(Sprite const *sprite, float size, lml::Color4 const &tint);
     void set_tint(lml::Color4 const &tint);
 
-  protected:
+  private:
 
-    size_t index;
-    SpriteComponentStorage *storage;
+    SpriteComponentData *m_data;
 };

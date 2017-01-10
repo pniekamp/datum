@@ -12,6 +12,22 @@
 using namespace std;
 using namespace lml;
 
+//|---------------------- PointLightStorage ---------------------------------
+//|--------------------------------------------------------------------------
+
+///////////////////////// PointLightStorage::add ////////////////////////////
+PointLightComponentData *PointLightComponentStorage::add(Scene::EntityId entity, Color3 intensity, Attenuation attenuation)
+{
+  auto data = BasicComponentStorage<PointLightComponentData>::add(entity);
+
+  data->intensity = intensity;
+  data->attenuation = attenuation;
+  data->range = lml::range(attenuation, max_element(intensity));
+
+  return data;
+}
+
+
 ///////////////////////// Scene::initialise_storage /////////////////////////
 template<>
 void Scene::initialise_component_storage<PointLightComponent>()
@@ -56,15 +72,7 @@ PointLightComponent Scene::add_component<PointLightComponent>(Scene::EntityId en
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
 
-  auto storage = system<PointLightComponentStorage>();
-
-  auto &pointlight = storage->add(entity);
-
-  pointlight.intensity = intensity;
-  pointlight.attenuation = attenuation;
-  pointlight.range = lml::range(attenuation, max_element(intensity));
-
-  return &pointlight;
+  return system<PointLightComponentStorage>()->add(entity, intensity, attenuation);
 }
 
 

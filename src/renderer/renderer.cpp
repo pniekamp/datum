@@ -55,19 +55,13 @@ enum ShaderLocation
   normalmap = 3,
   depthmap = 4,
   ssaomap = 5,
+  colormap = 5,
   shadowmap = 6,
   envbrdf = 7,
   envmaps = 8,
-
-  colormap = 5,
-  ssrmap = 7,
-  bloommap = 8,
+  scratchmaps = 8,
 
   imagetarget = 1,
-
-  scratchmap0 = 5,
-  scratchmap1 = 6,
-  scratchmap2 = 7,
 
   // Constant Ids
 
@@ -76,6 +70,7 @@ enum ShaderLocation
   SizeZ = 3,
 
   ShadowSlices = 46,
+  ShadowRadius = 67,
 
   MaxPointLights = 29,
 
@@ -1417,8 +1412,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pName = "main";
 
     context.ssrpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
-
-    context.ssrdescriptor = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.luminancepipeline == 0)
@@ -1493,8 +1486,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pName = "main";
 
     context.bloompipeline[0] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
-
-    context.bloomdescriptor = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.bloompipeline[1] == 0)
@@ -2653,6 +2644,27 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     context.ssaoscale = params.ssaoscale;
 
     //
+    // Scene
+    //
+
+    VkDescriptorImageInfo scratchmaps[sizeof(context.scratchbuffers)/sizeof(context.scratchbuffers[0])] = {};
+
+    for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
+    {
+      scratchmaps[i].sampler = context.scratchbuffers[i].sampler;
+      scratchmaps[i].imageView = context.scratchbuffers[i].imageview;
+      scratchmaps[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+
+    bindtexture(context.device, context.scenedescriptor, ShaderLocation::rt0, context.rt0buffer);
+    bindtexture(context.device, context.scenedescriptor, ShaderLocation::rt1, context.rt1buffer);
+    bindtexture(context.device, context.scenedescriptor, ShaderLocation::normalmap, context.normalbuffer);
+    bindtexture(context.device, context.scenedescriptor, ShaderLocation::depthmap, context.depthbuffer);
+    bindtexture(context.device, context.scenedescriptor, ShaderLocation::colormap, context.colorbuffer);
+    bindtexture(context.device, context.scenedescriptor, ShaderLocation::shadowmap, context.shadows.shadowmap);
+    bindtexture(context.device, context.scenedescriptor, ShaderLocation::scratchmaps, scratchmaps, extentof(scratchmaps));
+
+    //
     // Lighting
     //
 
@@ -2666,36 +2678,6 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
       bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
     }
-
-    //
-    // Scene
-    //
-
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::rt0, context.rt0buffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::rt1, context.rt1buffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::normalmap, context.normalbuffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::depthmap, context.depthbuffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::colormap, context.colorbuffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::shadowmap, context.shadows.shadowmap);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::ssrmap, context.scratchbuffers[2]);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::bloommap, context.scratchbuffers[0]);
-
-    //
-    // SSR
-    //
-
-    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::rt0, context.colorbuffer);
-    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::rt1, context.rt1buffer);
-    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::normalmap, context.normalbuffer);
-    bindtexture(context.device, context.ssrdescriptor, ShaderLocation::depthmap, context.depthbuffer);
-
-    //
-    // Bloom
-    //
-
-    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::rt0, context.colorbuffer);
-    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap0, context.scratchbuffers[0]);
-    bindtexture(context.device, context.bloomdescriptor, ShaderLocation::scratchmap1, context.scratchbuffers[1]);
 
     //
     // Composite
@@ -3108,7 +3090,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   {
     bindresource(commandbuffer, context.ssrpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    bindresource(commandbuffer, context.ssrdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+    bindresource(commandbuffer, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
     bindresource(commandbuffer, context.scratchtargets[2], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -3123,7 +3105,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   bindresource(commandbuffer, context.luminancepipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  bindresource(commandbuffer, context.bloomdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bindresource(commandbuffer, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   bindresource(commandbuffer, context.colorbuffertarget, context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -3139,7 +3121,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   {
     bindresource(commandbuffer, context.bloompipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    bindresource(commandbuffer, context.bloomdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+    bindresource(commandbuffer, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
     bindresource(commandbuffer, context.scratchtargets[0], context.pipelinelayout, ShaderLocation::computeset, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 

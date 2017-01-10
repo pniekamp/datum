@@ -42,7 +42,7 @@ void main()
   {
     float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).r;
   
-    color *= clamp(0.6 * (view_depth(scene.proj, depth) - gl_FragCoord.z/gl_FragCoord.w), 0, 1);
+    color *= clamp(0.4 * (view_depth(scene.proj, depth) - gl_FragCoord.z/gl_FragCoord.w), 0, 1);
   }
 
   if (color.a < 0.05)
