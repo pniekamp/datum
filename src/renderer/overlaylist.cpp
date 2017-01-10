@@ -104,8 +104,6 @@ bool OverlayList::begin(BuildState &state, PlatformInterface &platform, RenderCo
     return false;
   }
 
-  state.assetbarrier = resources->assets()->acquire_barrier();
-
   bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
@@ -702,6 +700,4 @@ void OverlayList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
-
-  state.resources->assets()->release_barrier(state.assetbarrier);
 }

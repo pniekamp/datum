@@ -21,7 +21,7 @@ using Arena = DatumPlatform::GameMemory;
 //|---------------------- StackAllocator ------------------------------------
 //|--------------------------------------------------------------------------
 
-template<typename T = void*>
+template<typename T = void>
 class StackAllocator
 {
   public:
@@ -247,7 +247,7 @@ inline void FreeList::siphon(FreeList *other)
 //|---------------------- StackAllocatorWithFreelist ------------------------
 //|--------------------------------------------------------------------------
 
-template<typename T = void*>
+template<typename T = void>
 class StackAllocatorWithFreelist : public StackAllocator<T>
 {
   public:

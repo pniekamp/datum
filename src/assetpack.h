@@ -237,6 +237,29 @@ constexpr size_t pack_payload_size(PackModelHeader const &modl)
   return modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
 }
 
+struct PackParticleSystemHeader
+{
+  float minrange[3];
+  float maxrange[3];
+  uint32_t maxparticles;
+  uint32_t emittercount;
+  uint32_t emitterssize;
+  uint64_t dataoffset;
+};
+
+struct PackParticleSystemPayload
+{
+  uint32_t spritesheet;
+  // PackEmitter emitters[emittercount];
+
+  static auto emitter(void const *bits, size_t cursor) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t) + cursor); }
+};
+
+constexpr size_t pack_payload_size(PackParticleSystemHeader const &pcsm)
+{
+  return sizeof(PackParticleSystemPayload) + pcsm.emitterssize;
+}
+
 #pragma pack(pop)
 
 constexpr uint32_t operator "" _packchunktype(const char* str, size_t len)

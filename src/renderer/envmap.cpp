@@ -192,6 +192,8 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
   {
     if (auto asset = slot->asset)
     {
+      assert(assets()->barriercount != 0);
+
       if (auto bits = m_assets->request(platform, asset))
       {
         VkFormat vkformat = VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;

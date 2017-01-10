@@ -77,7 +77,7 @@ template<typename T> Distribution<T> make_uniform_distribution(T const &minvalue
 template<typename T> Distribution<T> make_table_distribution(T const *values, size_t n);
 template<typename T> Distribution<T> make_uniformtable_distribution(T const *minvalues, size_t m, T const *maxvalues, size_t n);
 
-Distribution<lml::Color4> make_colorfade_distribution(float startfade = 0.90f);
+Distribution<lml::Color4> make_colorfade_distribution(lml::Color4 const &basecolor, float startfade = 0.90f);
 
 
 //|-------------------- ParticleEmitter -----------------------------------
@@ -118,7 +118,7 @@ class ParticleEmitter
     Vec2 size = Vec2(1.0f, 1.0f);
     Distribution<float> scale = 1.0f;
     Distribution<float> rotation = 0.0f;
-    Distribution<Vec3> velocity = Vec3(1.0f, 0.0f, 0.0f);
+    Distribution<Vec3> velocity = Vec3(8.0f, 0.0f, 0.0f);
     Distribution<Color4> color = Color4(1.0f, 1.0f, 1.0f, 1.0f);
     Distribution<float> layer = 0.0f;
 
@@ -150,6 +150,8 @@ class ParticleEmitter
     Distribution<float> layerrate = 0.0f;
 };
 
+std::vector<uint8_t> pack(ParticleEmitter const &emitter);
+
 
 //|-------------------- ParticleSystem ------------------------------------
 //|------------------------------------------------------------------------
@@ -160,9 +162,7 @@ class ParticleSystem
 
     struct Instance
     {
-      lml::Bound3 bound;
-
-      lml::Transform axis;
+      float time;
 
       size_t count;
       size_t capacity;
@@ -180,7 +180,7 @@ class ParticleSystem
       float *layer;
       float *layerrate;
 
-      ParticleSystem *system;
+      Texture const *spritesheet;
     };
 
   public:
@@ -191,9 +191,9 @@ class ParticleSystem
 
     ParticleSystem(ParticleSystem const &) = delete;
 
-    ~ParticleSystem();
-
   public:
+
+    lml::Bound3 bound;
 
     size_t maxparticles = 1000;
 
@@ -205,13 +205,15 @@ class ParticleSystem
 
   public:
 
-    Instance const *create_instance(lml::Transform const &transform);
+    bool load(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset);
 
-    void transform_instance(Instance const *instance, lml::Transform const &transform);
+  public:
 
-    void destroy_instance(Instance const *instance);
+    Instance const *create();
 
-    void update(Camera const &camera, float dt);
+    void update(Instance const *instance, Camera const &camera, lml::Transform const &transform, float dt);
+
+    void destroy(Instance const *instance);
 
   private:
 
@@ -224,8 +226,6 @@ class ParticleSystem
     }
 
   private:
-
-    lml::Bound3 m_bound;
 
     struct Particle
     {
@@ -247,12 +247,8 @@ class ParticleSystem
     {
       size_t size;
 
-      float time;
-
       float emittime[16];
 
       alignas(16) uint8_t data[1];
     };
-
-    std::vector<InstanceEx*, StackAllocatorWithFreelist<InstanceEx*>> m_instances;
 };

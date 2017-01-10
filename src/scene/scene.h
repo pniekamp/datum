@@ -237,9 +237,9 @@ class Scene
 
     Slot *acquire_slot();
 
-    std::vector<Slot, StackAllocator<>> m_slots;
+    std::vector<Slot, StackAllocator<Slot>> m_slots;
 
-    std::deque<size_t, StackAllocator<>> m_freeslots;
+    std::deque<size_t, StackAllocator<size_t>> m_freeslots;
 };
 
 

@@ -273,10 +273,6 @@ struct RenderContext
   Vulkan::DescriptorSet skyboxdescriptors[2];
   Vulkan::CommandBuffer skyboxcommands[2];
 
-  Vulkan::DescriptorSet ssrdescriptor;
-
-  Vulkan::DescriptorSet bloomdescriptor;
-
   Vulkan::DescriptorSet scratchtargets[3];
 
   Vulkan::CommandBuffer compositecommands;

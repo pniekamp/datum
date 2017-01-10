@@ -34,21 +34,21 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
         explicit iterator(size_t index, BasicComponentStorage const *storage)
           : index(index), storage(storage)
         {
-          if (index != storage->size() && storage->template data<0>(index) == 0)
+          if (index != storage->size() && storage->entityid(index) == 0)
             ++*this;
         }
 
         bool operator ==(iterator const &that) const { return index == that.index; }
         bool operator !=(iterator const &that) const { return index != that.index; }
 
-        EntityId const &operator *() const { return storage->template data<0>(index); }
-        EntityId const *operator ->() const { return &storage->template data<0>(index); }
+        EntityId const &operator *() const { return storage->entityid(index); }
+        EntityId const *operator ->() const { return &storage->entityid(index); }
 
         iterator &operator++()
         {
           ++index;
 
-          while (index != storage->size() && storage->template data<0>(index) == 0)
+          while (index != storage->size() && storage->entityid(index) == 0)
             ++index;
 
           return *this;
@@ -77,19 +77,22 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
 
   protected:
 
-    Data &data(EntityId entity)
+    EntityId const &entityid(size_t index) const
     {
-      return std::get<1>(this->m_data)[this->index(entity)];
+      return std::get<0>(this->m_data)[index];
     }
 
-    Data const &data(EntityId entity) const
+    Data *data(EntityId entity)
     {
-      return std::get<1>(this->m_data)[this->index(entity)];
+      return &std::get<1>(this->m_data)[this->index(entity)];
     }
 
-    using DefaultStorage<Scene::EntityId, Data>::data;
+    Data const *data(EntityId entity) const
+    {
+      return &std::get<1>(this->m_data)[this->index(entity)];
+    }
 
-    Data &add(Scene::EntityId entity)
+    Data *add(Scene::EntityId entity)
     {
       DefaultStorage<Scene::EntityId, Data>::add(entity);
 
@@ -97,7 +100,7 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
 
       std::get<0>(this->m_data)[index] = entity;
 
-      return std::get<1>(this->m_data)[index];
+      return &std::get<1>(this->m_data)[index];
     }
 
     friend class Scene;
@@ -131,7 +134,7 @@ class ExampleComponent
 
     ExampleComponent get(EntityId entity)
     {
-      return &data(entity);
+      return data(entity);
     }
 
   private:
@@ -164,11 +167,7 @@ ExampleComponent Scene::add_component<ExampleComponent>(Scene::EntityId entity)
 {
   assert(get(entity) != nullptr);
 
-  auto storage = system<ExampleComponentStorage>();
-
-  auto &example = storage->add(entity);
-
-  return &example;
+  return system<ExampleComponentStorage>()->add(entity);
 }
 
 

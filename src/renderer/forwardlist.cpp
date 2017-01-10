@@ -36,6 +36,10 @@ enum ShaderLocation
   normalmap = 3,
 };
 
+struct MaterialSet
+{
+};
+
 struct OutlineSet
 {
   Color4 color;
@@ -101,8 +105,6 @@ bool ForwardList::begin(BuildState &state, PlatformInterface &platform, RenderCo
     resources->destroy(commandlist);
     return false;
   }
-
-  state.assetbarrier = resources->assets()->acquire_barrier();
 
   bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -198,14 +200,14 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 ///////////////////////// ForwardList::push_particlesystem //////////////////
 void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSystem::Instance const *particles)
 {
-  if (!particles || particles->count == 0 || particles->system->spritesheet == nullptr)
+  if (!particles || particles->count == 0 || particles->spritesheet == nullptr)
     return;
 
-  if (!particles->system->spritesheet->ready())
+  if (!particles->spritesheet->ready())
   {
-    state.resources->request(*state.platform, particles->system->spritesheet);
+    state.resources->request(*state.platform, particles->spritesheet);
 
-    if (!particles->system->spritesheet->ready())
+    if (!particles->spritesheet->ready())
       return;
   }
 
@@ -218,11 +220,11 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
   bindresource(commandlist, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, 0, state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, particles->system->spritesheet->texture);
+    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
@@ -240,7 +242,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
     for(size_t i = 0; i < particles->count; ++i)
     {
-      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f);
+      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3);
       modelset[i].transform = particles->transform[i];
       modelset[i].color = particles->color[i];
     }
@@ -263,6 +265,4 @@ void ForwardList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
-
-  state.resources->assets()->release_barrier(state.assetbarrier);
 }

@@ -35,8 +35,6 @@ class CasterList
       RenderContext *context;
       ResourceManager *resources;
 
-      uintptr_t assetbarrier;
-
       CommandList::Descriptor materialset;
 
       CommandList::Descriptor modelset;

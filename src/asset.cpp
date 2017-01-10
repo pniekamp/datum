@@ -25,6 +25,10 @@ AssetManager::AssetManager(allocator_type const &allocator)
     m_assets(allocator)
 {
   m_head = nullptr;
+
+#ifdef DEBUG
+  barriercount = 0;
+#endif
 }
 
 
@@ -205,6 +209,26 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.instancecount = modl.instancecount;
             asset.datasize = pack_payload_size(modl);
             asset.datapos = modl.dataoffset;
+
+            break;
+          }
+
+        case "PCSM"_packchunktype:
+          {
+            PackParticleSystemHeader pcsm;
+
+            platform.read_handle(file.handle, position + sizeof(chunk), &pcsm, sizeof(pcsm));
+
+            asset.minrange[0] = pcsm.minrange[0];
+            asset.minrange[1] = pcsm.minrange[1];
+            asset.minrange[2] = pcsm.minrange[2];
+            asset.maxrange[0] = pcsm.maxrange[0];
+            asset.maxrange[1] = pcsm.maxrange[1];
+            asset.maxrange[2] = pcsm.maxrange[2];
+            asset.maxparticles = pcsm.maxparticles;
+            asset.emittercount = pcsm.emittercount;
+            asset.datasize = pack_payload_size(pcsm);
+            asset.datapos = pcsm.dataoffset;
 
             break;
           }
@@ -396,6 +420,10 @@ uintptr_t AssetManager::acquire_barrier()
     slot->state = Slot::State::Barrier;
   }
 
+#ifdef DEBUG
+  ++barriercount;
+#endif
+
   return reinterpret_cast<uintptr_t>(slot);
 }
 
@@ -411,6 +439,10 @@ void AssetManager::release_barrier(uintptr_t barrier)
   {
     slot->state = Slot::State::Empty;
   }
+
+#ifdef DEBUG
+  --barriercount;
+#endif
 }
 
 

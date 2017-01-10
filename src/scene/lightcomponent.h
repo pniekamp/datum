@@ -14,7 +14,7 @@
 #include "datum/math.h"
 #include "datum/renderer.h"
 
-//|---------------------- PointLightComponent -------------------------------
+//|---------------------- PointLightComponentStorage ------------------------
 //|--------------------------------------------------------------------------
 
 struct PointLightComponentData
@@ -23,6 +23,29 @@ struct PointLightComponentData
   lml::Color3 intensity;
   lml::Attenuation attenuation;
 };
+
+class PointLightComponentStorage : public BasicComponentStorage<PointLightComponentData>
+{
+  public:
+    using BasicComponentStorage::BasicComponentStorage;
+
+    template<typename Component = class PointLightComponent>
+    Component get(EntityId entity)
+    {
+      return data(entity);
+    }
+
+  protected:
+
+    PointLightComponentData *add(EntityId entity, lml::Color3 intensity, lml::Attenuation attenuation);
+
+    friend class Scene;
+    friend class PointLightComponent;
+};
+
+
+//|---------------------- PointLightComponent -------------------------------
+//|--------------------------------------------------------------------------
 
 class PointLightComponent
 {
@@ -33,7 +56,7 @@ class PointLightComponent
   public:
     PointLightComponent(PointLightComponentData *data);
 
-    float const &range() const { return m_data->range; }
+    float range() const { return m_data->range; }
     lml::Color3 const &intensity() const { return m_data->intensity; }
     lml::Attenuation const &attenuation() const { return m_data->attenuation; }
 
@@ -45,13 +68,4 @@ class PointLightComponent
     PointLightComponentData *m_data;
 };
 
-class PointLightComponentStorage : public BasicComponentStorage<PointLightComponentData>
-{
-  public:
-    using BasicComponentStorage::BasicComponentStorage;
 
-    PointLightComponent get(EntityId entity)
-    {
-      return &data(entity);
-    }
-};

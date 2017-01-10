@@ -16,10 +16,11 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
     
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D src;
+layout(set=0, binding=1) uniform sampler2D rt0map;
 layout(set=0, binding=2) uniform sampler2D rt1map;
 layout(set=0, binding=3) uniform sampler2D normalmap;
 layout(set=0, binding=4) uniform sampler2D depthmap;
+layout(set=0, binding=5) uniform sampler2D colormap;
 
 layout(set=3, binding=1) writeonly uniform image2D dest;
 
@@ -138,13 +139,13 @@ void main(void)
 
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   
-  ivec2 viewport = textureSize(src, 0).xy;//imageSize(dest);
+  ivec2 viewport = textureSize(colormap, 0).xy;//imageSize(dest);
   
   float depth = texelFetch(depthmap, xy, 0).z;
   
   vec3 fragcolor = vec3(0);
 
-  vec4 srccolor = texelFetch(src, xy, 0);
+  vec4 srccolor = texelFetch(colormap, xy, 0);
   
   Material material = unpack_material(srccolor, texelFetch(rt1map, xy, 0)); 
 
@@ -169,9 +170,9 @@ void main(void)
       float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
       float roughnessfade = 1 - min(3 * material.roughness, 1);
 
-      vec4 hitcolor = texelFetch(src, ivec2(hitpixel), 0);
+      vec4 hitcolor = texelFetch(colormap, ivec2(hitpixel), 0);
 
-      fragcolor = edgefade * distancefade * roughnessfade * (1 - srccolor.a) * pow(1 - hitcolor.a, 5) * hitcolor.rgb * material.specular;
+      fragcolor = edgefade * distancefade * roughnessfade * (1 - srccolor.a) * (1 - hitcolor.a) * hitcolor.rgb * material.specular;
     }
   }
 

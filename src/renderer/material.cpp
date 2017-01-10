@@ -152,6 +152,8 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
   {
     if (auto asset = slot->asset)
     {
+      assert(assets()->barriercount != 0);
+
       if (auto bits = m_assets->request(platform, asset))
       {
         auto payload = reinterpret_cast<PackMaterialPayload const *>(bits);
