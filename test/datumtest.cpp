@@ -128,8 +128,8 @@ void datumtest_init(PlatformInterface &platform)
   emitter.color = Color4(30, 10, 10, 1);
   emitter.modules |= ParticleEmitter::ShapeEmitter;
   emitter.shape = ParticleEmitter::Shape::Hemisphere;
-  emitter.radius = 0.5f;
-  emitter.angle = 15.0f / 180.0 * pi<float>();
+  emitter.shaperadius = 0.5f;
+  emitter.shapeangle = 15.0f / 180.0 * pi<float>();
   emitter.modules |= ParticleEmitter::StretchWithVelocity;
   emitter.modules |= ParticleEmitter::ColorOverLife;
   emitter.coloroverlife = make_colorfade_distribution(Color4(1.0f, 1.0f, 1.0f, 1.0f), 0.85f);

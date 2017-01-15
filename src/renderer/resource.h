@@ -70,6 +70,12 @@ class ResourceManager
 
     allocator_type m_allocator;
 
+    template<typename T = char>
+    StackAllocator<T> allocator()
+    {
+      return StackAllocator<T>(m_allocator);
+    }
+
   private:
 
     struct Slot

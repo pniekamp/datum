@@ -37,9 +37,6 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 {
   stepcount = 0;
 
-  if (direction.z >= 0)
-    return false;
-
   vec3 endpoint = origin + direction * MaxDistance;
 
   vec4 H0 = proj * vec4(origin, 1);
@@ -118,7 +115,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 
     if (rayzmax <= scenezmax && rayzmin > scenezmax - Thickness)
     {
-      result = true;
+      result = (stepcount > 0);
       break;
     }
     
@@ -166,13 +163,13 @@ void main(void)
     if (traceray(position, reflection, proj, hitpixel, hitpoint, stepcount))
     {
       float edgefade = 1 - 10 * max(max(abs(hitpixel.x / viewport.x - 0.5), abs(hitpixel.y / viewport.y - 0.5)) - 0.4, 0);
-
+      float depthfade = 1 - 1000 * max(depth - 0.989, 0);
       float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
       float roughnessfade = 1 - min(3 * material.roughness, 1);
 
       vec4 hitcolor = texelFetch(colormap, ivec2(hitpixel), 0);
 
-      fragcolor = edgefade * distancefade * roughnessfade * (1 - srccolor.a) * (1 - hitcolor.a) * hitcolor.rgb * material.specular;
+      fragcolor = depthfade * edgefade * distancefade * roughnessfade * (1 - srccolor.a) * (1 - hitcolor.a) * hitcolor.rgb * material.specular;     
     }
   }
 

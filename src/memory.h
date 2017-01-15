@@ -349,8 +349,8 @@ bool inarena(Arena &arena, T *ptr)
 
 
 ///////////////////////// allocate //////////////////////////////////////////
-template<typename T, std::size_t alignment = alignof(T)>
-T *allocate(StackAllocator<> const &allocator, std::size_t n = 1)
+template<typename T>
+T *allocate(StackAllocator<> const &allocator, std::size_t n = 1, std::size_t alignment = alignof(T))
 {
   return typename StackAllocator<>::template rebind<T>::other(allocator).allocate(n, alignment);
 }
