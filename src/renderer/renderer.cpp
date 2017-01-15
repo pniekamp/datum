@@ -205,7 +205,7 @@ struct ComputeConstants
 PushBuffer::PushBuffer(allocator_type const &allocator, size_t slabsize)
 {
   m_slabsize = slabsize;
-  m_slab = allocate<char, alignof(Header)>(allocator, m_slabsize);
+  m_slab = allocate<char>(allocator, m_slabsize, alignof(Header));
 
   m_tail = m_slab;
 }

@@ -128,8 +128,8 @@ class ParticleEmitter
 
     // ShapeEmitter
     enum class Shape { Sphere, Hemisphere, Cone } shape;
-    float radius = 1.0f;
-    float angle = 0.0f;
+    float shaperadius = 1.0f;
+    float shapeangle = 0.0f;
 
     // ScaleOverLife
     Distribution<float> scaleoverlife;
@@ -151,6 +151,7 @@ class ParticleEmitter
 };
 
 std::vector<uint8_t> pack(ParticleEmitter const &emitter);
+size_t unpack(ParticleEmitter &emitter, void const *bits);
 
 
 //|-------------------- ParticleSystem ------------------------------------

@@ -45,7 +45,7 @@ void ResourceManager::initialise_slab(size_t slabsize)
 {
   int nslots = slabsize / sizeof(Slot);
 
-  m_slots = ::allocate<Slot>(m_allocator, nslots);
+  m_slots = allocator<Slot>().allocate(nslots);
 
   m_slat.resize(nslots);
 

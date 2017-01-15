@@ -249,8 +249,8 @@ vector<uint8_t> pack(ParticleEmitter const &emitter)
   if (emitter.modules & ParticleEmitter::ShapeEmitter)
   {
     pack<uint32_t>(bits, static_cast<int>(emitter.shape));
-    pack<float>(bits, emitter.radius);
-    pack<float>(bits, emitter.angle);
+    pack<float>(bits, emitter.shaperadius);
+    pack<float>(bits, emitter.shapeangle);
   }
 
   if (emitter.modules & ParticleEmitter::ScaleOverLife)
@@ -308,8 +308,8 @@ size_t unpack(ParticleEmitter &emitter, void const *bits)
   if (emitter.modules & ParticleEmitter::ShapeEmitter)
   {
     unpack<uint32_t>(emitter.shape, bits, cursor);
-    unpack<float>(emitter.radius, bits, cursor);
-    unpack<float>(emitter.angle, bits, cursor);
+    unpack<float>(emitter.shaperadius, bits, cursor);
+    unpack<float>(emitter.shapeangle, bits, cursor);
   }
 
   if (emitter.modules & ParticleEmitter::ScaleOverLife)
@@ -395,7 +395,7 @@ ParticleSystem::Instance const *ParticleSystem::create()
 {
   size_t bytes = sizeof(InstanceEx) + maxparticles * sizeof(Particle);
 
-  auto instance = new(allocator().allocate(bytes, alignof(InstanceEx))) InstanceEx;
+  auto instance = new(allocator<char>().allocate(bytes, alignof(InstanceEx))) InstanceEx;
 
   instance->time = 0;
 
@@ -507,11 +507,11 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
           {
             case ParticleEmitter::Shape::Sphere:
             {
-              auto radius2 = emitter.radius * emitter.radius;
+              auto radius2 = emitter.shaperadius * emitter.shaperadius;
 
               for(int i = 0; i < 8; ++i)
               {
-                Vec3 location = Vec3(real11(entropy), real11(entropy), real11(entropy)) * emitter.radius;
+                Vec3 location = Vec3(real11(entropy), real11(entropy), real11(entropy)) * emitter.shaperadius;
 
                 if (normsqr(location) < radius2)
                 {
@@ -526,11 +526,11 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
             case ParticleEmitter::Shape::Hemisphere:
             {
-              auto radius2 = emitter.radius * emitter.radius;
+              auto radius2 = emitter.shaperadius * emitter.shaperadius;
 
               for(int i = 0; i < 8; ++i)
               {
-                Vec3 location = Vec3(real01(entropy), real11(entropy), real11(entropy)) * emitter.radius;
+                Vec3 location = Vec3(real01(entropy), real11(entropy), real11(entropy)) * emitter.shaperadius;
 
                 if (normsqr(location) < radius2)
                 {
@@ -545,16 +545,16 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
             case ParticleEmitter::Shape::Cone:
             {
-              auto radius2 = emitter.radius * emitter.radius;
+              auto radius2 = emitter.shaperadius * emitter.shaperadius;
 
               for(int i = 0; i < 8; ++i)
               {
-                Vec3 location = Vec3(0.0f, real11(entropy), real11(entropy)) * emitter.radius;
+                Vec3 location = Vec3(0.0f, real11(entropy), real11(entropy)) * emitter.shaperadius;
 
                 if (normsqr(location) < radius2)
                 {
                   position = location;
-                  direction = Quaternion3f(xUnit3f, atan2(location.y, -location.z)) * Quaternion3f(yUnit3f, emitter.angle * norm(location) / emitter.radius);
+                  direction = Quaternion3f(xUnit3f, atan2(location.y, -location.z)) * Quaternion3f(yUnit3f, emitter.shapeangle * norm(location) / emitter.shaperadius);
                   break;
                 }
               }

@@ -38,7 +38,7 @@ void AssetManager::initialise(size_t slotcount, size_t slabsize)
   m_files.reserve(256);
   m_assets.reserve(slotcount);
 
-  m_head = new(allocate<char, alignof(Slot)>(m_allocator, slabsize)) Slot;
+  m_head = new(allocate<char>(m_allocator, slabsize, alignof(Slot))) Slot;
 
   m_head->size = slabsize;
   m_head->after = nullptr;
