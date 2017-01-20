@@ -55,6 +55,7 @@ class NameComponent
     friend NameComponent Scene::get_component<NameComponent>(Scene::EntityId entity);
 
   public:
+    NameComponent() = default;
     NameComponent(Scene::EntityId entity, NameComponentStorage *storage);
 
     const char *name() const { return storage->name(entity); }

@@ -5,6 +5,8 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   vec4 color;
   vec4 texcoords;
   float depthfade;
+  float halfwidth;
+  float overhang;
   
 } material;
 
@@ -13,6 +15,7 @@ layout(set=1, binding=1) uniform sampler2DArray albedomap;
 layout(set=0, binding=4) uniform sampler2D depthmap;
 
 layout(location=0) noperspective in vec4 fbocoord;
+layout(location=1) noperspective in float offset;
 
 layout(location=0) out vec4 fragcolor;
 
@@ -31,6 +34,10 @@ void main()
     if (depthfade == 0.0)
       discard;
   }
- 
-  fragcolor = texture(albedomap, vec3(material.texcoords.xy + material.texcoords.zw * fbocoord.st, 0)) * material.color * depthfade;
+  
+  float dist = abs(offset);
+  float width = fwidth(dist);
+  float antialias = smoothstep(1.01+width,1.0-width, dist);
+  
+  fragcolor = texture(albedomap, vec3(material.texcoords.xy + material.texcoords.zw * fbocoord.st, 0)) * material.color * antialias * depthfade;
 }

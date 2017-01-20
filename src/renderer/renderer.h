@@ -17,8 +17,6 @@
 #include "commandlist.h"
 #include "skybox.h"
 #include "envmap.h"
-#include <tuple>
-
 
 // Renderables
 namespace Renderable
@@ -28,7 +26,7 @@ namespace Renderable
     Clear,
     Sprites,
     Overlays,
-    Meshes,
+    Geometry,
     Objects,
     Casters,
     Lights,
@@ -61,9 +59,9 @@ namespace Renderable
     CommandList const *commandlist;
   };
 
-  struct Meshes
+  struct Geometry
   {
-    static constexpr Type type = Type::Meshes;
+    static constexpr Type type = Type::Geometry;
 
     CommandList const *commandlist;
   };
@@ -302,6 +300,8 @@ struct RenderContext
   Vulkan::Pipeline wireframepipeline;
   Vulkan::Pipeline stencilmaskpipeline;
   Vulkan::Pipeline stencilfillpipeline;
+  Vulkan::Pipeline stencilpathpipeline;
+  Vulkan::Pipeline linepipeline;
   Vulkan::Pipeline outlinepipeline;
 
   ShadowMap shadows;

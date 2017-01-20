@@ -144,6 +144,7 @@ class MeshComponent
     friend MeshComponent Scene::get_component<MeshComponent>(Scene::EntityId entity);
 
   public:
+    MeshComponent() = default;
     MeshComponent(size_t index, MeshComponentStorage *storage);
 
     long flags() const { return storage->data<MeshComponentStorage::flagbits>(index); }

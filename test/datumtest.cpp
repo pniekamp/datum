@@ -96,7 +96,10 @@ void datumtest_init(PlatformInterface &platform)
 
   state.debugfont = state.resources.create<Font>(state.assets.find(CoreAsset::debug_font));
 
+  state.unitquad = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_quad));
   state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
+  state.linequad = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_quad));
+  state.linecube = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_cube));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
@@ -313,23 +316,23 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
 #if 1
   {
-    MeshList::BuildState buildstate;
+    GeometryList::BuildState buildstate;
 
-    if (state.writeframe->meshes.begin(buildstate, platform, state.rendercontext, &state.resources))
+    if (state.writeframe->geometry.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      state.writeframe->meshes.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
+      state.writeframe->geometry.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
-      state.writeframe->meshes.push_mesh(buildstate, Transform::identity(), state.testplane, state.floormaterial);
+      state.writeframe->geometry.push_mesh(buildstate, Transform::identity(), state.testplane, state.floormaterial);
 
       for(auto &entity : state.scene.entities<MeshComponent>())
       {
         auto instance = state.scene.get_component<MeshComponent>(entity);
         auto transform = state.scene.get_component<TransformComponent>(entity);
 
-        state.writeframe->meshes.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
+        state.writeframe->geometry.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
       }
 
-      state.writeframe->meshes.finalise(buildstate);
+      state.writeframe->geometry.finalise(buildstate);
     }
   }
 #endif
@@ -433,8 +436,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
-  renderlist.push_meshes(state.readframe->meshes);
   renderlist.push_casters(state.readframe->casters);
+  renderlist.push_geometry(state.readframe->geometry);
   renderlist.push_lights(state.readframe->lights);
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
@@ -476,12 +479,19 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
     if (overlays.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
+      buildstate.depthfade = 0.1f;
+
+      overlays.push_gizmo(buildstate, Vec3(0, 1, 0), Vec3(0.5f), Transform::identity().rotation(), state.suzanne, state.suzannematerial);
+
       overlays.push_wireframe(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, Color4(0.1f, 0.1f, 0.1f, 1.0f));
 
-      overlays.push_stencil(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial);
-      overlays.push_outline(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, state.suzannematerial, Color4(1.0f, 0.5f, 0.15f, 1.0f));
+      overlays.push_stencilmask(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne);
+      overlays.push_stencilfill(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, Color4(1.0f, 0.5f, 0.15f, 1.0f)*0.2f);
+      overlays.push_stencilpath(buildstate, Transform::translation(-2, 1, 0)*Transform::rotation(Vec3(0, 1, 0), 5.0f), state.suzanne, Color4(1.0f, 0.5f, 0.15f, 1.0f));
 
-      overlays.push_gizmo(buildstate, camera.transform() * Transform::translation(10, 6, -12)*Transform::rotation(Vec3(1, 0, 0), 0.4f)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time), Vec3(0.5f), state.suzanne, state.suzannematerial);
+      overlays.push_outline(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time), state.suzanne, state.suzannematerial, Color4(1.0f, 0.5f, 0.15f, 1.0f));
+
+      overlays.push_volume(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.readframe->time)*state.suzanne->bound, state.linecube, Color4(1.0f, 1.0f, 1.0f, 1.0f));
 
       overlays.finalise(buildstate);
     }
@@ -499,7 +509,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     {
       sprites.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
 
-  //    overlay.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
+//      sprites.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
 
       sprites.finalise(buildstate);
     }

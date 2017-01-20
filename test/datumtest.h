@@ -35,7 +35,10 @@ struct GameState
 
   Sprite const *loader;
   Font const *debugfont;
+  Mesh const *unitquad;
   Mesh const *unitsphere;
+  Mesh const *linequad;
+  Mesh const *linecube;
   Material const *defaultmaterial;
   SkyBox const *skybox;
 
@@ -49,7 +52,7 @@ struct GameState
 
   Mesh const *testplane;
   Mesh const *testsphere;
-  Sprite const *testimage;
+  Sprite const *testimage;  
 
   unique_resource<Material> floormaterial;
 
@@ -73,10 +76,10 @@ struct GameState
 
     Camera camera;
 
-    MeshList meshes;
+    CasterList casters;
+    GeometryList geometry;
     LightList lights;
     SpriteList sprites;
-    CasterList casters;
 
     SkyBox const *skybox;
 

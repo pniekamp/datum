@@ -63,6 +63,7 @@ class SpriteComponent
     friend SpriteComponent Scene::get_component<SpriteComponent>(Scene::EntityId entity);
 
   public:
+    SpriteComponent() = default;
     SpriteComponent(SpriteComponentData *data);
 
     long flags() const { return m_data->flags; }

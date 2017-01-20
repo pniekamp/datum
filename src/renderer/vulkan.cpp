@@ -1399,6 +1399,18 @@ namespace Vulkan
   }
 
 
+  ///////////////////////// scissor /////////////////////////////////////////
+  void scissor(VkCommandBuffer commandbuffer, int x, int y, int width, int height)
+  {
+    VkRect2D scissor = {};
+    scissor.offset.x = x;
+    scissor.offset.y = y;
+    scissor.extent.width = width;
+    scissor.extent.height = height;
+
+    vkCmdSetScissor(commandbuffer, 0, 1, &scissor);
+  }
+
 
   ///////////////////////// execute /////////////////////////////////////////
   void execute(VkCommandBuffer commandbuffer, VkCommandBuffer buffer)
@@ -1436,7 +1448,7 @@ namespace Vulkan
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint)
+  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, int clipx, int clipy, int clipwidth, int clipheight, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
 
@@ -1451,12 +1463,19 @@ namespace Vulkan
     vkCmdSetViewport(commandbuffer, 0, 1, &viewport);
 
     VkRect2D scissor = {};
-    scissor.offset.x = x;
-    scissor.offset.y = y;
-    scissor.extent.width = width;
-    scissor.extent.height = height;
+    scissor.offset.x = clipx;
+    scissor.offset.y = clipy;
+    scissor.extent.width = clipwidth;
+    scissor.extent.height = clipheight;
 
     vkCmdSetScissor(commandbuffer, 0, 1, &scissor);
+  }
+
+
+  ///////////////////////// bind ////////////////////////////////////////////
+  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint)
+  {
+    bindresource(commandbuffer, pipeline, x, y, width, height, x, y, width, height, bindpoint);
   }
 
 
@@ -1493,7 +1512,7 @@ namespace Vulkan
   ///////////////////////// draw ////////////////////////////////////////////
   void draw(VkCommandBuffer commandbuffer, uint32_t indexcount, uint32_t instancecount, uint32_t firstindex, int32_t vertexoffset, uint32_t firstinstance)
   {
-    vkCmdDrawIndexed(commandbuffer, indexcount, instancecount,firstindex, vertexoffset, firstinstance);
+    vkCmdDrawIndexed(commandbuffer, indexcount, instancecount, firstindex, vertexoffset, firstinstance);
   }
 
 

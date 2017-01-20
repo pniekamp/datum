@@ -9,7 +9,7 @@ layout(location=0) out vec4 fragcolor;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  if (texture(albedomap, vec3(texcoord, 0)).a < 0.05)
+  if (texture(albedomap, vec3(texcoord, 0)).a < 0.5)
     discard;
     
   fragcolor = vec4(1, 1, 1, 1);

@@ -5,6 +5,8 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   vec4 color;
   vec4 texcoords;
   float depthfade;
+  float halfwidth;
+  float overhang;
   
 } material;
 
@@ -31,6 +33,6 @@ void main()
     if (depthfade == 0.0)
       discard;
   }
- 
+  
   fragcolor = texture(albedomap, vec3(material.texcoords.xy + material.texcoords.zw * fbocoord.st, 0)) * material.color * depthfade;
 }

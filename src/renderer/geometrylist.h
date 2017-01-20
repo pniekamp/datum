@@ -1,5 +1,5 @@
 //
-// Datum - mesh list
+// Datum - geometry list
 //
 
 //
@@ -15,10 +15,10 @@
 #include "material.h"
 #include <utility>
 
-//|---------------------- MeshList ------------------------------------------
+//|---------------------- GeometryList --------------------------------------
 //|--------------------------------------------------------------------------
 
-class MeshList
+class GeometryList
 {
   public:
 

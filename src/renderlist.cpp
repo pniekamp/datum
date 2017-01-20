@@ -23,16 +23,16 @@ RenderList::RenderList(allocator_type const &allocator, std::size_t slabsize)
 }
 
 
-///////////////////////// RenderList::push_meshes ///////////////////////////
-void RenderList::push_meshes(MeshList const &meshes)
+///////////////////////// RenderList::push_geometry /////////////////////////
+void RenderList::push_geometry(GeometryList const &geometry)
 {
-  if (meshes)
+  if (geometry)
   {
-    auto entry = m_buffer.push<Renderable::Meshes>();
+    auto entry = m_buffer.push<Renderable::Geometry>();
 
     if (entry)
     {
-      entry->commandlist = meshes.commandlist();
+      entry->commandlist = geometry.commandlist();
     }
   }
 }
@@ -83,6 +83,23 @@ void RenderList::push_lights(LightList const &lights)
 }
 
 
+///////////////////////// RenderList::push_environment //////////////////////
+void RenderList::push_environment(Transform const &transform, Vec3 const &dimension, EnvMap const *envmap)
+{
+  if (envmap)
+  {
+    auto entry = m_buffer.push<Renderable::Environment>();
+
+    if (entry)
+    {
+      entry->dimension = dimension;
+      entry->transform = transform;
+      entry->envmap = envmap;
+    }
+  }
+}
+
+
 ///////////////////////// RenderList::push_sprites //////////////////////////
 void RenderList::push_sprites(Rect2 const &viewport, SpriteList const &sprites)
 {
@@ -118,22 +135,4 @@ void RenderList::push_overlays(OverlayList const &overlays)
       entry->commandlist = overlays.commandlist();
     }
   }
-}
-
-
-///////////////////////// RenderList::push_environment //////////////////////
-void RenderList::push_environment(Transform const &transform, Vec3 const &dimension, EnvMap const *envmap)
-{
-  if (envmap)
-  {
-    auto entry = m_buffer.push<Renderable::Environment>();
-
-    if (entry)
-    {
-      entry->dimension = dimension;
-      entry->transform = transform;
-      entry->envmap = envmap;
-    }
-  }
-
 }

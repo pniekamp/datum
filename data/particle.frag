@@ -45,7 +45,7 @@ void main()
     color *= clamp(0.4 * (view_depth(scene.proj, depth) - gl_FragCoord.z/gl_FragCoord.w), 0, 1);
   }
 
-  if (color.a < 0.05)
+  if (color.a < 0.003)
     discard;
 
   fragcolor = vec4(scene.camera.exposure * 4.0f * color.rgb, color.a); 

@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 14;
+  const uint32_t version = 15;
 
   enum
   {
@@ -22,9 +22,10 @@ namespace CoreAsset
     nominal_normal,
     unit_quad,
     unit_cube,
-    homo_cube,
     unit_cone,
     unit_sphere,
+    line_quad,
+    line_cube,
     shadow_vert,
     shadow_geom,
     shadow_frag,
@@ -59,6 +60,12 @@ namespace CoreAsset
     stencilmask_frag,
     stencilfill_vert,
     stencilfill_frag,
+    stencilpath_vert,
+    stencilpath_geom,
+    stencilpath_frag,
+    line_vert,
+    line_geom,
+    line_frag,
     outline_vert,
     outline_geom,
     outline_frag,

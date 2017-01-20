@@ -22,13 +22,13 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 //layout(std140, push_constant, row_major) uniform ModelSet 
 layout(std430, set=2, binding=0, row_major) buffer ModelSet 
 { 
-  vec3 scale;
   Transform modelworld;
+  vec3 size;
 
 } model;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 {
-  gl_Position = scene.worldview * vec4(transform_multiply(model.modelworld, model.scale * vertex_position), 1);
+  gl_Position = scene.worldview * vec4(transform_multiply(model.modelworld, model.size * vertex_position), 1);
 }
