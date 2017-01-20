@@ -54,6 +54,7 @@ class PointLightComponent
     friend PointLightComponent Scene::get_component<PointLightComponent>(Scene::EntityId entity);
 
   public:
+    PointLightComponent() = default;
     PointLightComponent(PointLightComponentData *data);
 
     float range() const { return m_data->range; }

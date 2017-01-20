@@ -76,6 +76,7 @@ class TransformComponent
     friend TransformComponent Scene::get_component<TransformComponent>(Scene::EntityId entity);
 
   public:
+    TransformComponent() = default;
     TransformComponent(size_t index, TransformComponentStorage *storage);
 
     lml::Transform const &local() const { return storage->data<TransformComponentStorage::localtransform>(index); }

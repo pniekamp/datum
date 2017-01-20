@@ -10,7 +10,7 @@ layout(location=0) out vec2 texcoord;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  texcoord = vertex_position.xy;
+  texcoord = vertex_texcoord.xy;
   
-  gl_Position = vec4(2 * vertex_position.xy - 1, 0, 1);
+  gl_Position = vec4(vertex_position.xy, 0, 1);
 }

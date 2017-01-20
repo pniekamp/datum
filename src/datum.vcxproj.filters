@@ -58,9 +58,6 @@
     <ClCompile Include="renderer\occlusion.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="renderer\meshlist.cpp">
-      <Filter>Source Files\renderer</Filter>
-    </ClCompile>
     <ClCompile Include="renderer\mesh.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
@@ -99,6 +96,9 @@
     </ClCompile>
     <ClCompile Include="scene\particlesystemcomponent.cpp">
       <Filter>Source Files\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\geometrylist.cpp">
+      <Filter>Source Files\renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -207,9 +207,6 @@
     <ClInclude Include="renderer\occlusion.h">
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="renderer\meshlist.h">
-      <Filter>Source Files\renderer</Filter>
-    </ClInclude>
     <ClInclude Include="renderer\mesh.h">
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
@@ -251,6 +248,9 @@
     </ClInclude>
     <ClInclude Include="scene\particlesystemcomponent.h">
       <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\geometrylist.h">
+      <Filter>Source Files\renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

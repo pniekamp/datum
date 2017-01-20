@@ -508,7 +508,7 @@ namespace leap { namespace lml
   template<typename Vector, typename T, size_t... Indices>
   constexpr T phi(VectorView<Vector, T, Indices...> const &v)
   {
-    return std::acos(get<2>(v)/norm(v));
+    return std::acos(clamp(get<2>(v)/norm(v), T(-1), T(1)));
   }
 
 
@@ -517,7 +517,7 @@ namespace leap { namespace lml
   template<typename Vector, typename T, size_t... Indices, size_t... Jndices>
   constexpr T theta(VectorView<Vector, T, Indices...> const &u, VectorView<Vector, T, Jndices...> const &v)
   {
-    return std::acos(clamp<T>(dot(u, v), -1, 1));
+    return std::acos(clamp(dot(u, v), T(-1), T(1)));
   }
 
 

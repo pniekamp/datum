@@ -3,6 +3,7 @@
 layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
 {
   vec4 color;
+  float depthfade;
 
 } material;
 
@@ -19,12 +20,19 @@ void main()
   if (fbocoord.x < 0 || fbocoord.x > 1 || fbocoord.y < 0 || fbocoord.y > 1)
     discard;
 
+  float depthfade = 1.0;
+  
   if (texture(depthmap, fbocoord.st).r < fbocoord.z - 1e-5)
-    discard;
+  {
+    depthfade = material.depthfade;
+  }
 
-  float a = (gl_FrontFacing) ? 1.0 : 0.4;
+  if (!gl_FrontFacing) 
+  {
+    depthfade *= 0.4;
+  }
 
-  float d = min(min(edgedist[0], edgedist[1]), edgedist[2]);
+  float dist = min(min(edgedist[0], edgedist[1]), edgedist[2]);
 
-  fragcolor = vec4(material.color.rgb, mix(0, material.color.a, exp2(-1.0*d*d)) * a);
+  fragcolor = material.color * mix(0, material.color.a, exp2(-1.0*dist*dist)) * depthfade;
 }

@@ -38,25 +38,16 @@ enum ShaderLocation
 
 struct MaterialSet
 {
-};
-
-struct OutlineSet
-{
-  Color4 color;
-};
-
-struct WireframeSet
-{
-  Color4 color;
-};
-
-struct TranslucentSet
-{
   Color4 color;
   float metalness;
   float roughness;
   float reflectivity;
   float emissive;
+};
+
+struct ModelSet
+{
+  Transform modelworld;
 };
 
 struct alignas(16) Particle
@@ -65,12 +56,6 @@ struct alignas(16) Particle
   Matrix2f transform;
   Color4 color;
 };
-
-struct ModelSet
-{
-  Transform modelworld;
-};
-
 
 ///////////////////////// draw_objects //////////////////////////////////////
 void draw_objects(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Objects const &objects)
@@ -150,13 +135,13 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(TranslucentSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(TranslucentSet));
+    auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-    auto materialset = state.materialset.memory<TranslucentSet>(offset);
+    auto materialset = state.materialset.memory<MaterialSet>(offset);
 
     materialset->color = Color4(material->color, alpha);
     materialset->metalness = material->metalness;

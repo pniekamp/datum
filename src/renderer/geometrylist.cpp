@@ -1,12 +1,12 @@
 //
-// Datum - mesh list
+// Datum - geometry list
 //
 
 //
 // Copyright (c) 2016 Peter Niekamp
 //
 
-#include "meshlist.h"
+#include "geometrylist.h"
 #include "renderer.h"
 #include <leap/lml/matrix.h>
 #include <leap/lml/matrixconstants.h>
@@ -50,18 +50,18 @@ struct ModelSet
 };
 
 
-///////////////////////// draw_meshes ///////////////////////////////////////
-void draw_meshes(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Meshes const &meshes)
+///////////////////////// draw_geometry /////////////////////////////////////
+void draw_geometry(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Geometry const &geometry)
 {
-  execute(commandbuffer, meshes.commandlist->commandbuffer());
+  execute(commandbuffer, geometry.commandlist->commandbuffer());
 }
 
 
-//|---------------------- MeshList ------------------------------------------
+//|---------------------- GeometryList --------------------------------------
 //|--------------------------------------------------------------------------
 
-///////////////////////// MeshList::begin ///////////////////////////////////
-bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
+///////////////////////// GeometryList::begin ///////////////////////////////
+bool GeometryList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
 {
   m_commandlist = {};
 
@@ -96,8 +96,8 @@ bool MeshList::begin(BuildState &state, PlatformInterface &platform, RenderConte
 }
 
 
-///////////////////////// MeshList::push_material ///////////////////////////
-void MeshList::push_material(BuildState &state, Material const *material)
+///////////////////////// GeometryList::push_material ///////////////////////
+void GeometryList::push_material(BuildState &state, Material const *material)
 {
   if (!material)
     return;
@@ -145,8 +145,8 @@ void MeshList::push_material(BuildState &state, Material const *material)
 }
 
 
-///////////////////////// MeshList::push_mesh ///////////////////////////////
-void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform, Mesh const *mesh)
+///////////////////////// GeometryList::push_mesh ///////////////////////////
+void GeometryList::push_mesh(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh)
 {
   if (!mesh)
     return;
@@ -200,8 +200,8 @@ void MeshList::push_mesh(MeshList::BuildState &state, Transform const &transform
 }
 
 
-///////////////////////// MeshList::push_mesh ///////////////////////////////
-void MeshList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
+///////////////////////// GeometryList::push_mesh ///////////////////////////
+void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
   if (state.material != material)
   {
@@ -212,8 +212,8 @@ void MeshList::push_mesh(BuildState &state, Transform const &transform, Mesh con
 }
 
 
-///////////////////////// MeshList::finalise ////////////////////////////////
-void MeshList::finalise(BuildState &state)
+///////////////////////// GeometryList::finalise ////////////////////////////
+void GeometryList::finalise(BuildState &state)
 {
   assert(state.commandlist);
 

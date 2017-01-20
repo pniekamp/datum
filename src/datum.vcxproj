@@ -180,6 +180,7 @@
     <ClInclude Include="assetpack.h" />
     <ClInclude Include="asset.h" />
     <ClInclude Include="renderer\forwardlist.h" />
+    <ClInclude Include="renderer\geometrylist.h" />
     <ClInclude Include="renderer\overlaylist.h" />
     <ClInclude Include="renderer\particlesystem.h" />
     <ClInclude Include="scene\particlesystemcomponent.h" />
@@ -199,7 +200,6 @@
     <ClInclude Include="renderer\resourcepool.h" />
     <ClInclude Include="renderer\commandlist.h" />
     <ClInclude Include="renderer\spritelist.h" />
-    <ClInclude Include="renderer\meshlist.h" />
     <ClInclude Include="renderer\casterlist.h" />
     <ClInclude Include="renderer\lightlist.h" />
     <ClInclude Include="renderer\skybox.h" />
@@ -216,6 +216,7 @@
     <ClInclude Include="debug.h" />
     <ClCompile Include="asset.cpp" />
     <ClCompile Include="renderer\forwardlist.cpp" />
+    <ClCompile Include="renderer\geometrylist.cpp" />
     <ClCompile Include="renderer\overlaylist.cpp" />
     <ClCompile Include="renderer\particlesystem.cpp" />
     <ClCompile Include="scene\particlesystemcomponent.cpp" />
@@ -232,7 +233,6 @@
     <ClCompile Include="renderer\resourcepool.cpp" />
     <ClCompile Include="renderer\commandlist.cpp" />
     <ClCompile Include="renderer\spritelist.cpp" />
-    <ClCompile Include="renderer\meshlist.cpp" />
     <ClCompile Include="renderer\casterlist.cpp" />
     <ClCompile Include="renderer\lightlist.cpp" />
     <ClCompile Include="renderer\skybox.cpp" />

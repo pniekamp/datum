@@ -25,6 +25,7 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   float roughness;
   float reflectivity;
   float emissive;
+  float depthfade;
   
 } material;
 
@@ -32,20 +33,38 @@ layout(set=1, binding=1) uniform sampler2DArray albedomap;
 layout(set=1, binding=2) uniform sampler2DArray specularmap;
 layout(set=1, binding=3) uniform sampler2DArray normalmap;
 
-layout(location=0) in vec3 position;
-layout(location=1) in vec2 texcoord;
-layout(location=2) in mat3 tbnworld;
+layout(set=0, binding=4) uniform sampler2D depthmap;
+
+layout(location=0) noperspective in vec4 fbocoord;
+layout(location=1) in vec3 position;
+layout(location=2) in vec2 texcoord;
+layout(location=3) in vec3 normal;
 
 layout(location=0) out vec4 fragcolor;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
+  if (fbocoord.x < 0 || fbocoord.x > 1 || fbocoord.y < 0 || fbocoord.y > 1)
+    discard;
+
+  float depthfade = 1.0;
+  
+  if (texture(depthmap, fbocoord.st).r < fbocoord.z)
+  {
+    depthfade = material.depthfade;
+ 
+    if (depthfade == 0.0)
+      discard;
+  }
+  
+  vec3 eyevec = normalize(scene.camera.position - position);
+
   vec4 rt0 = texture(albedomap, vec3(texcoord, 0)) * material.color;
   vec4 rt1 = texture(specularmap, vec3(texcoord, 0)) * vec4(0, material.reflectivity, 0, material.roughness);
  
-  vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
-  vec3 eyevec = normalize(scene.camera.position - position);
+  if (rt0.a < 0.003)
+    discard;
 
   Material material = unpack_material(rt0, rt1);
 
@@ -58,5 +77,5 @@ void main()
 
   main_light(diffuse, specular, mainlight, normal, eyevec, material, 1);
 
-  fragcolor = vec4(diffuse * material.diffuse + specular, rt0.a);
+  fragcolor = vec4((diffuse * material.diffuse + specular) * depthfade, rt0.a);
 }

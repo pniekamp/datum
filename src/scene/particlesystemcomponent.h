@@ -70,6 +70,7 @@ class ParticleSystemComponent
     friend ParticleSystemComponent Scene::get_component<ParticleSystemComponent>(Scene::EntityId entity);
 
   public:
+    ParticleSystemComponent() = default;
     ParticleSystemComponent(ParticleSystemComponentData *data);
 
     long flags() const { return m_data->flags; }

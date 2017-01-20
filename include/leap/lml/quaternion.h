@@ -72,14 +72,14 @@ namespace leap { namespace lml
       };
 
       // Euler
-      scalar_t ax() const { return std::atan2(2*(y*z + x*w), 1 - 2*(x*x + z*z)); }
-      scalar_t ay() const { return std::atan2(2*(x*z + y*w), 1 - 2*(x*x + y*y)); }
-      scalar_t az() const { return std::atan2(2*(x*y + z*w), 1 - 2*(y*y + z*z)); }
+      scalar_t ax() const { return std::atan2(2*(y*z + x*w), w*w - x*x - y*y + z*z); }
+      scalar_t ay() const { return std::asin(clamp(2*(y*w - x*z)/(w*w + x*x + y*y + z*z), T(-1), T(1))); }
+      scalar_t az() const { return std::atan2(2*(x*y + z*w), w*w + x*x - y*y - z*z); }
 
       // Basis
-      vector_t xaxis() const { return { 1 - 2*(y*y + z*z), 2*(x*y + z*w), 2*(x*z + y*w) }; }
-      vector_t yaxis() const { return { 2*(x*y - z*w), 1 - 2*(x*x + z*z), 2*(y*z + x*w) }; }
-      vector_t zaxis() const { return { 2*(x*z + y*w), 2*(y*z - x*w), 1 - 2*(x*x + y*y) }; }
+      vector_t xaxis() const { return { w*w + x*x - y*y - z*z, 2*(x*y + z*w), 2*(x*z - y*w) }; }
+      vector_t yaxis() const { return { 2*(x*y - z*w), w*w - x*x + y*y - z*z, 2*(y*z + x*w) }; }
+      vector_t zaxis() const { return { 2*(x*z + y*w), 2*(y*z - x*w), w*w - x*x - y*y + z*z }; }
   };
 
 

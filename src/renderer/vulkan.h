@@ -476,6 +476,8 @@ namespace Vulkan
   void nextsubpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
   void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
 
+  void scissor(VkCommandBuffer commandbuffer, int x, int y, int width, int height);
+
   void execute(VkCommandBuffer commandbuffer, VkCommandBuffer buffer);
 
   void push(VkCommandBuffer commandbuffer, VkPipelineLayout layout, VkDeviceSize offset, VkDeviceSize size, const void *data, VkShaderStageFlags stage);
@@ -485,6 +487,7 @@ namespace Vulkan
 
   void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint);
   void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint);
+  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, int clipx, int clipy, int clipwidth, int clipheight, VkPipelineBindPoint bindpoint);
 
   void bindresource(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer);
 

@@ -212,5 +212,11 @@ namespace lml
     return Color4(color.r * color.a, color.g * color.a, color.b * color.a, color.a);
   }
 
+  //|///////////////////// unpremultiply ////////////////////////////////////
+  inline Color4 unpremultiply(Color4 const &color)
+  {
+    return (color.a == 0.0f || color.a == 1.0f) ? color : Color4(color.r / color.a, color.g / color.a, color.b / color.a, color.a);
+  }
+
 } // namespace
 

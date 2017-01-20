@@ -39,11 +39,11 @@ void main()
 {
   Particle particle = modelset.particles[gl_InstanceIndex];
 
-  texcoord = vec3(vertex_position.x, 1 - vertex_position.y, particle.position.w);
+  texcoord = vec3(vertex_texcoord.s, 1 - vertex_texcoord.t, particle.position.w);
 
   tint = particle.color;
   
   mat4 modelworld = { vec4(scene.view[0][0], scene.view[1][0], scene.view[2][0], 0), vec4(scene.view[0][1], scene.view[1][1], scene.view[2][1], 0), vec4(scene.view[0][2], scene.view[1][2], scene.view[2][2], 0), vec4(particle.position.xyz, 1) };
   
-  gl_Position = scene.worldview * modelworld * vec4(particle.transform * (2 * vertex_position.xy - 1), 0, 1);
+  gl_Position = scene.worldview * modelworld * vec4(particle.transform * vertex_position.xy, 0, 1);
 }

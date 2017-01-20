@@ -22,19 +22,19 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 //layout(std140, push_constant, row_major) uniform ModelSet 
 layout(std430, set=2, binding=0, row_major) buffer ModelSet 
 { 
-  vec3 scale;
   Transform modelworld;
+  vec3 size;
 
 } model;
 
-layout(location=0) out vec2 texcoord;
+layout(location=0) noperspective out vec4 fbocoord;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 {
-  vec4 ndc = scene.worldview * vec4(transform_multiply(model.modelworld, model.scale * vertex_position), 1);
+  vec4 ndc = scene.worldview * vec4(transform_multiply(model.modelworld, model.size * vertex_position), 1);
 
-  texcoord = vertex_texcoord; 
-
+  fbocoord = vec4(0.5 * ndc.xy/ndc.w + 0.5, ndc.z/ndc.w, 1);
+  
   gl_Position = vec4(ndc.x * scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), ndc.y * scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), ndc.z, ndc.w);
 }

@@ -34,5 +34,5 @@ void main(void)
 
   texcoord = vec3(material.texcoords.xy + material.texcoords.zw * vertex_texcoord, model.position.z);
   
-  gl_Position = scene.worldview * modelworld * vec4(vertex_position, 1);
+  gl_Position = scene.worldview * modelworld * vec4(0.5 * vertex_position + 0.5, 1);
 }

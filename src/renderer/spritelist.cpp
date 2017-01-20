@@ -406,13 +406,7 @@ void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 con
 ///////////////////////// SpriteList::push_scissor //////////////////////////
 void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {
-  VkRect2D scissor = {};
-  scissor.offset.x = cliprect.min.x;
-  scissor.offset.y = cliprect.min.y;
-  scissor.extent.width = cliprect.max.x - cliprect.min.x;
-  scissor.extent.height = cliprect.max.y - cliprect.min.y;
-
-  vkCmdSetScissor(*state.commandlist, 0, 1, &scissor);
+  scissor(*state.commandlist, cliprect.min.x, cliprect.min.y, cliprect.max.x - cliprect.min.x, cliprect.max.y - cliprect.min.y);
 }
 
 
