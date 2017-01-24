@@ -188,10 +188,15 @@ class AssetManager
 // protect against eviction
 struct asset_guard
 {
-  asset_guard(AssetManager *assets)
-    : m_assets(assets)
+  asset_guard(AssetManager &assets)
+    : m_assets(&assets)
   {
     m_barrier = m_assets->acquire_barrier();
+  }
+
+  asset_guard(AssetManager *assets)
+    : asset_guard(*assets)
+  {
   }
 
   ~asset_guard()

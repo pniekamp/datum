@@ -213,22 +213,22 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             break;
           }
 
-        case "PCSM"_packchunktype:
+        case "PTSM"_packchunktype:
           {
-            PackParticleSystemHeader pcsm;
+            PackParticleSystemHeader ptsm;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &pcsm, sizeof(pcsm));
+            platform.read_handle(file.handle, position + sizeof(chunk), &ptsm, sizeof(ptsm));
 
-            asset.minrange[0] = pcsm.minrange[0];
-            asset.minrange[1] = pcsm.minrange[1];
-            asset.minrange[2] = pcsm.minrange[2];
-            asset.maxrange[0] = pcsm.maxrange[0];
-            asset.maxrange[1] = pcsm.maxrange[1];
-            asset.maxrange[2] = pcsm.maxrange[2];
-            asset.maxparticles = pcsm.maxparticles;
-            asset.emittercount = pcsm.emittercount;
-            asset.datasize = pack_payload_size(pcsm);
-            asset.datapos = pcsm.dataoffset;
+            asset.minrange[0] = ptsm.minrange[0];
+            asset.minrange[1] = ptsm.minrange[1];
+            asset.minrange[2] = ptsm.minrange[2];
+            asset.maxrange[0] = ptsm.maxrange[0];
+            asset.maxrange[1] = ptsm.maxrange[1];
+            asset.maxrange[2] = ptsm.maxrange[2];
+            asset.maxparticles = ptsm.maxparticles;
+            asset.emittercount = ptsm.emittercount;
+            asset.datasize = pack_payload_size(ptsm);
+            asset.datapos = ptsm.dataoffset;
 
             break;
           }

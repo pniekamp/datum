@@ -20,20 +20,17 @@ template<typename R, typename... Args> class delegate<R(Args...)>
   public:
     delegate() = default;
 
-    template<class Lambda>
-    delegate(Lambda const &lambda)
-      : valid(true)
+    template<class Func>
+    delegate(Func func)
     {
-      static_assert(sizeof(lambda) <= sizeof(storage), "size");
+      static_assert(sizeof(func) <= sizeof(storage), "size");
 
-      new(storage) holder<Lambda>(lambda);
+      new(storage) holder<Func>(std::move(func));
     }
-
-    operator bool() const { return valid; }
 
     R operator()(Args... args) const
     {
-      return reinterpret_cast<holderbase const *>(storage)->invoke(std::forward<Args>(args)...);
+      return static_cast<holderbase const *>(data())->invoke(std::forward<Args>(args)...);
     }
 
   private:
@@ -49,8 +46,8 @@ template<typename R, typename... Args> class delegate<R(Args...)>
     {
       public:
 
-        holder(T value)
-          : held(std::move(value))
+        holder(T &&value)
+          : held(std::forward<T>(value))
         {
         }
 
@@ -62,6 +59,8 @@ template<typename R, typename... Args> class delegate<R(Args...)>
         T held;
     };
 
-    bool valid = false;
+    void *data() { return static_cast<void *>(&storage); }
+    void const *data() const { return static_cast<void const *>(&storage); }
+
     alignas(alignof(std::max_align_t)) char storage[64];
 };

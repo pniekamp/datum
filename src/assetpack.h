@@ -255,9 +255,9 @@ struct PackParticleSystemPayload
   static auto emitter(void const *bits, size_t cursor) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t) + cursor); }
 };
 
-constexpr size_t pack_payload_size(PackParticleSystemHeader const &pcsm)
+constexpr size_t pack_payload_size(PackParticleSystemHeader const &ptsm)
 {
-  return sizeof(PackParticleSystemPayload) + pcsm.emitterssize;
+  return sizeof(PackParticleSystemPayload) + ptsm.emitterssize;
 }
 
 #pragma pack(pop)
