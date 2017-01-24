@@ -1,5 +1,5 @@
 # datum
-> Peter Niekamp, December 2016
+> Peter Niekamp, 2016 - 2017
 
 ### Vulkan Renderer
 - Asset Pack Loading
@@ -13,6 +13,7 @@
 - Screen Space Reflections (SSR)
 - HDR Skybox & Bloom
 - Physically Based Rendering (PBR) & Image Based Lighting (IBL)
+- Particle System
 - Entity-Component Scene Management
 
 ![Datum](/bin/datumtest.png?raw=true "Datum")

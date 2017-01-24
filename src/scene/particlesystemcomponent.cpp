@@ -57,6 +57,28 @@ void ParticleSystemComponentStorage::update_particlesystem_bounds()
 }
 
 
+///////////////////////// update_particlesystems ////////////////////////////
+void update_particlesystems(Scene &scene, Camera const &camera, float dt)
+{
+  auto frustum = camera.frustum();
+
+  auto particlestorage = scene.system<ParticleSystemComponentStorage>();
+  auto transformstorage = scene.system<TransformComponentStorage>();
+
+  for(auto &entity : particlestorage->entities())
+  {
+    auto particles = particlestorage->get(entity);
+
+    if (intersects(frustum, particles.bound()))
+    {
+      auto transform = transformstorage->get(entity);
+
+      particles.system()->update(particles.instance(), camera, transform.world(), dt);
+    }
+  }
+}
+
+
 ///////////////////////// update_particlesystem_bounds //////////////////////
 void update_particlesystem_bounds(Scene &scene)
 {

@@ -52,6 +52,9 @@ class ParticleSystemComponentStorage : public BasicComponentStorage<ParticleSyst
 ///////////////////////// update_particlesystem_bounds //////////////////////
 void update_particlesystem_bounds(Scene &scene);
 
+///////////////////////// update_particlesystems ////////////////////////////
+void update_particlesystems(Scene &scene, Camera const &camera, float dt);
+
 
 //|---------------------- ParticleSystemComponent ---------------------------
 //|--------------------------------------------------------------------------
@@ -77,7 +80,7 @@ class ParticleSystemComponent
 
     lml::Bound3 const &bound() const { return m_data->bound; }
 
-    ParticleSystem const *system() const { return m_data->system; }
+    ParticleSystem *system() const { return m_data->system; }
     ParticleSystem::Instance const *instance() const { return m_data->instance; }
 
   private:

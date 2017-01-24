@@ -97,9 +97,10 @@ class ParticleEmitter
       ShapeEmitter = 0x01,
       ScaleOverLife = 0x02,
       RotateOverLife = 0x04,
-      StretchWithVelocity = 0x08,
-      ColorOverLife = 0x10,
-      LayerOverLife = 0x20
+      ColorOverLife = 0x08,
+      LayerOverLife = 0x10,
+      StretchWithVelocity = 0x20,
+      StretchWithAxis = 0x40,
     };
 
   public:
@@ -137,17 +138,21 @@ class ParticleEmitter
     // RotateOverLife
     Distribution<float> rotateoverlife;
 
-    // StretchWithVelocity
-    float velocitystretchmin = 1.0f;
-    float velocitystretchmax = 5.0f;
-
     // ColorOverLife
     Distribution<Color4> coloroverlife;
 
     // LayerOverLife
-    float startlayer = 0.0f;
+    float layerstart = 0.0f;
     float layercount = 1.0f;
     Distribution<float> layerrate = 0.0f;
+
+    // StretchWithVelocity
+    float velocitystretchmin = 1.0f;
+    float velocitystretchmax = 5.0f;
+
+    // StretchWithAxis
+    Vec3 stretchaxis = Vec3(0, 1, 0);
+
 };
 
 std::vector<uint8_t> pack(ParticleEmitter const &emitter);

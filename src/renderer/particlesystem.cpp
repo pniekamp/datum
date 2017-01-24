@@ -65,7 +65,7 @@ namespace
   template<typename T>
   void pack(vector<uint8_t> &bits, T const &value)
   {
-    bits.insert(bits.end(), (uint8_t const *)&value, (uint8_t const *)&value + sizeof(value) + 1);
+    bits.insert(bits.end(), (uint8_t const *)&value, (uint8_t const *)&value + sizeof(value));
   }
 
   template<typename T, typename U, size_t N>
@@ -276,7 +276,7 @@ vector<uint8_t> pack(ParticleEmitter const &emitter)
 
   if (emitter.modules & ParticleEmitter::LayerOverLife)
   {
-    pack<float>(bits, emitter.startlayer);
+    pack<float>(bits, emitter.layerstart);
     pack<float>(bits, emitter.layercount);
     pack<Distribution<float>>(bits, emitter.layerrate);
   }
@@ -335,7 +335,7 @@ size_t unpack(ParticleEmitter &emitter, void const *bits)
 
   if (emitter.modules & ParticleEmitter::LayerOverLife)
   {
-    unpack<float>(emitter.startlayer, bits, cursor);
+    unpack<float>(emitter.layerstart, bits, cursor);
     unpack<float>(emitter.layercount, bits, cursor);
     unpack<Distribution<float>>(emitter.layerrate, bits, cursor);
   }
@@ -623,7 +623,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
   // Transform
   //
 
-  if (modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity))
+  if (modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity | ParticleEmitter::StretchWithAxis))
   {
     auto proj = camera.aspect() * tan(camera.fov()/2);
 
@@ -631,28 +631,40 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
     {
       auto const &emitter = emitters[instance->emitter[i]];
 
+      auto scale = instance->scale[i];
+      auto rotation = instance->rotation[i];
+
       if (emitter.modules & ParticleEmitter::ScaleOverLife)
       {
-        instance->scale[i] = emitter.size * emitter.scaleoverlife.get(entropy, instance->life[i]);
+        scale *= emitter.scaleoverlife.get(entropy, instance->life[i]);
       }
 
       if (emitter.modules & ParticleEmitter::RotateOverLife)
       {
-        instance->rotation[i] += emitter.rotateoverlife.get(entropy, instance->life[i]) * dt;
+        rotation += emitter.rotateoverlife.get(entropy, instance->life[i]);
       }
 
-      if (emitter.modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity))
+      if (emitter.modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity | ParticleEmitter::StretchWithAxis))
       {
-        instance->transform[i] = RotationMatrix(instance->rotation[i]) * ScaleMatrix(Vector2(instance->scale[i].x, instance->scale[i].y));
+        instance->transform[i] = RotationMatrix(rotation) * ScaleMatrix(Vector2(scale.x, scale.y));
       }
 
       if (emitter.modules & ParticleEmitter::StretchWithVelocity)
       {
         auto pos = inverse(camera.transform()) * instance->position[i];
         auto angle = Quaternion3f(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3f(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * instance->velocity[i];
-        auto scale = rotatey(Vec3(1.0f, 1.0f, clamp(norm(angle), emitter.velocitystretchmin, emitter.velocitystretchmax)), phi(abs(angle)));
+        auto stretch = rotatey(Vec3(1.0f, 1.0f, clamp(norm(angle), emitter.velocitystretchmin, emitter.velocitystretchmax)), phi(abs(angle)));
 
-        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(Vector2(scale.x, scale.y)) * instance->transform[i];
+        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(Vector2(stretch.x, stretch.y)) * instance->transform[i];
+      }
+
+      if (emitter.modules & ParticleEmitter::StretchWithAxis)
+      {
+        auto pos = inverse(camera.transform()) * instance->position[i];
+        auto angle = Quaternion3f(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3f(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * emitter.stretchaxis;
+        auto stretch = rotatey(Vec3(1.0f, 1.0f, 0.0f), phi(abs(angle)));
+
+        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(Vector2(stretch.x, stretch.y)) * instance->transform[i];
       }
     }
   }
@@ -686,7 +698,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
       if (emitter.modules & ParticleEmitter::LayerOverLife)
       {
-        instance->layer[i] = emitter.startlayer + fmod(instance->layer[i] + instance->layerrate[i] * dt - emitter.startlayer, emitter.layercount);
+        instance->layer[i] = emitter.layerstart + fmod2(instance->layer[i] + instance->layerrate[i] * dt - emitter.layerstart, emitter.layercount);
       }
     }
   }

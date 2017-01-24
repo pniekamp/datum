@@ -268,7 +268,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   update_mesh_bounds(state.scene);
   update_particlesystem_bounds(state.scene);
 
-  asset_guard lock(&state.assets);
+  asset_guard lock(state.assets);
 
   state.writeframe->time = state.time;
   state.writeframe->camera = state.camera;
@@ -418,7 +418,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   if (!state.skybox->ready())
   {
-    asset_guard lock(&state.assets);
+    asset_guard lock(state.assets);
 
     state.resources.request(platform, state.skybox);
   }
@@ -430,7 +430,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   BEGIN_TIMED_BLOCK(Render, Color3(0.0f, 0.2f, 1.0f))
 
-  asset_guard lock(&state.assets);
+  asset_guard lock(state.assets);
 
   auto &camera = state.readframe->camera;
 

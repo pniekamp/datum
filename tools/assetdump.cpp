@@ -55,6 +55,10 @@ namespace
     cout << indent << "MODL " << modl->texturecount << " textures " << modl->materialcount << " materials " << modl->meshcount << " meshes " << modl->instancecount << " instances " << pack_payload_size(*modl) << " bytes" << '\n';
   }
 
+  void dump(string const &indent, PackParticleSystemHeader *ptsm)
+  {
+    cout << indent << "PTSM " << ptsm->emittercount << " emitters " << pack_payload_size(*ptsm) << " bytes" << '\n';
+  }
 }
 
 ///////////////////////// dump //////////////////////////////////////////
@@ -107,6 +111,10 @@ void dump(const char *path)
 
       case "MODL"_packchunktype:
         dump(indent, reinterpret_cast<PackModelHeader*>(buffer.data()));
+        break;
+
+      case "PTSM"_packchunktype:
+        dump(indent, reinterpret_cast<PackParticleSystemHeader*>(buffer.data()));
         break;
 
       case "AEND"_packchunktype:
