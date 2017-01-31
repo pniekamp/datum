@@ -58,7 +58,7 @@ namespace lml
   //////////////////////// Transform::rotation //////////////////////////////
   inline Transform Transform::rotation(Vec3 const &axis, float angle)
   {
-    return { Quaternion3f({axis.x, axis.y, axis.z}, angle), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
+    return { Quaternion3f(axis, angle), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
 
@@ -161,7 +161,7 @@ namespace lml
     auto xaxis = normalise(orthogonal(up, zaxis));
     auto yaxis = cross(zaxis, xaxis);
 
-    return Transform::translation(eye) * Transform::rotation(Quaternion3f(Vector3(xaxis.x, xaxis.y, xaxis.z), Vector3(yaxis.x, yaxis.y, yaxis.z), Vector3(zaxis.x, zaxis.y, zaxis.z)));
+    return Transform::translation(eye) * Transform::rotation(Quaternion3f(xaxis, yaxis, zaxis));
   }
 
 

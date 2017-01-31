@@ -441,8 +441,32 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderlist.push_lights(state.readframe->lights);
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
-#if 1
+#if 0
+  {
+    ForwardList objects;
+    ForwardList::BuildState buildstate;
 
+    if (objects.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      float density = 0.01f;
+      DEBUG_MENU_VALUE("Fog/Density", &density, 0.0f, 0.1f);
+
+      float startdistance = 2.0f;
+      DEBUG_MENU_VALUE("Fog/StartDistance", &startdistance, 0.0f, 100.0f);
+
+      float height = 2.0f;
+      DEBUG_MENU_VALUE("Fog/Height", &height, -20.0f, 100.0f);
+
+      objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), density, startdistance, Plane(Vec3(0.0f, 1.0f, 0.0f), -height));
+
+      objects.finalise(buildstate);
+    }
+
+    renderlist.push_objects(objects);
+  }
+#endif
+
+#if 1
   {
     Vec3 location(16.0f, 1.0f, -4.0f);
     DEBUG_MENU_VALUE("Particles/location", &location, Vec3(-15.0f), Vec3(15.0f));

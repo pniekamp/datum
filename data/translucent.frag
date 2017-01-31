@@ -85,7 +85,7 @@ void main()
 {
   vec4 rt0 = texture(albedomap, vec3(texcoord, 0)) * material.color;
   vec4 rt1 = texture(specularmap, vec3(texcoord, 0)) * vec4(0, material.reflectivity, 0, material.roughness);
-    
+
   vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
   vec3 eyevec = normalize(scene.camera.position - position);
 

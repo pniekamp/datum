@@ -29,7 +29,7 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 {
   Particle particles[];
 
-} modelset;
+} model;
 
 layout(location=0) out vec3 texcoord;
 layout(location=1) flat out vec4 tint;
@@ -37,7 +37,7 @@ layout(location=1) flat out vec4 tint;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  Particle particle = modelset.particles[gl_InstanceIndex];
+  Particle particle = model.particles[gl_InstanceIndex];
 
   texcoord = vec3(vertex_texcoord.s, 1 - vertex_texcoord.t, particle.position.w);
 

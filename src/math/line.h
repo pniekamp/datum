@@ -21,7 +21,7 @@ namespace lml
   {
     public:
       Line() = default;
-      explicit constexpr Line(Vec3 const &a, Vec3 const &b);
+      constexpr Line(Vec3 const &a, Vec3 const &b);
 
       Vec3 a;
       Vec3 b;

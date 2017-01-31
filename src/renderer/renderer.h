@@ -290,6 +290,7 @@ struct RenderContext
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline fogpipeline;
   Vulkan::Pipeline particlepipeline[1];
   Vulkan::Pipeline ssrpipeline;
   Vulkan::Pipeline luminancepipeline;

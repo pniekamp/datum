@@ -50,9 +50,15 @@ namespace leap { namespace lml
     public:
       Quaternion() = default;
       Quaternion(T w, T x, T y, T z);
-      explicit Quaternion(scalar_t w, vector_t const &vector);
-      explicit Quaternion(vector_t const &axis, scalar_t angle);
-      explicit Quaternion(vector_t const &xaxis, vector_t const &yaxis, vector_t const &zaxis);
+
+      template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
+      explicit Quaternion(T w, VectorView<Vector, T, Indices...> const &vector);
+
+      template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
+      explicit Quaternion(VectorView<Vector, T, Indices...> const &axis, T angle);
+
+      template<typename Vector, size_t... Indices, size_t... Jndices, size_t... Kndices, std::enable_if_t<sizeof...(Indices) == 3 && sizeof...(Jndices) == 3 && sizeof...(Kndices) == 3>* = nullptr>
+      explicit Quaternion(VectorView<Vector, T, Indices...> const &xaxis, VectorView<Vector, T, Jndices...> const &yaxis, VectorView<Vector, T, Kndices...> const &zaxis);
 
       union
       {
@@ -93,9 +99,9 @@ namespace leap { namespace lml
 
   //|///////////////////// Quaternion::Constructor //////////////////////////
   template<typename T>
-  Quaternion<T>::Quaternion(scalar_t w, vector_t const &vector)
-    : scalar(w),
-      vector(vector)
+  template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>*>
+  Quaternion<T>::Quaternion(T w, VectorView<Vector, T, Indices...> const &vector)
+    : Quaternion(w, get<0>(vector), get<1>(vector), get<2>(vector))
   {
   }
 
@@ -103,9 +109,9 @@ namespace leap { namespace lml
   //|///////////////////// Quaternion::Constructor //////////////////////////
   /// axis should be a unit vector
   template<typename T>
-  Quaternion<T>::Quaternion(vector_t const &axis, scalar_t angle)
-    : scalar(std::cos(T(0.5)*angle)),
-      vector(axis * std::sin(T(0.5)*angle))
+  template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>*>
+  Quaternion<T>::Quaternion(VectorView<Vector, T, Indices...> const &axis, T angle)
+    : Quaternion(std::cos(T(0.5)*angle), axis * std::sin(T(0.5)*angle))
   {
   }
 
@@ -113,47 +119,52 @@ namespace leap { namespace lml
   //|///////////////////// Quaternion::Constructor //////////////////////////
   /// basis axis
   template<typename T>
-  Quaternion<T>::Quaternion(vector_t const &xaxis, vector_t const &yaxis, vector_t const &zaxis)
+  template<typename Vector, size_t... Indices, size_t... Jndices, size_t... Kndices, std::enable_if_t<sizeof...(Indices) == 3 && sizeof...(Jndices) == 3 && sizeof...(Kndices) == 3>*>
+  Quaternion<T>::Quaternion(VectorView<Vector, T, Indices...> const &xaxis, VectorView<Vector, T, Jndices...> const &yaxis, VectorView<Vector, T, Kndices...> const &zaxis)
   {
-    if (xaxis(0) + yaxis(1) + zaxis(2) > T(0))
+    auto sx = get<0>(xaxis);
+    auto sy = get<1>(yaxis);
+    auto sz = get<2>(zaxis);
+
+    if (sx + sy + sz > T(0))
     {
-      auto s = std::sqrt(xaxis(0) + yaxis(1) + zaxis(2) + T(1));
+      auto s = std::sqrt(sx + sy + sz + T(1));
       auto t = T(0.5) / s;
 
-      x = (yaxis(2) - zaxis(1)) * t;
-      y = (zaxis(0) - xaxis(2)) * t;
-      z = (xaxis(1) - yaxis(0)) * t;
+      x = (get<2>(yaxis) - get<1>(zaxis)) * t;
+      y = (get<0>(zaxis) - get<2>(xaxis)) * t;
+      z = (get<1>(xaxis) - get<0>(yaxis)) * t;
       w = T(0.5) * s;
     }
-    else if (xaxis(0) > yaxis(1) && xaxis(0) > zaxis(2))
+    else if (sx > sy && sx > sz)
     {
-      auto s = std::sqrt(xaxis(0) - yaxis(1) - zaxis(2) + T(1));
+      auto s = std::sqrt(sx - sy - sz + T(1));
       auto t = T(0.5) / s;
 
       x = T(0.5) * s;
-      y = (yaxis(0) + xaxis(1)) * t;
-      z = (xaxis(2) + zaxis(0)) * t;
-      w = (yaxis(2) - zaxis(1)) * t;
+      y = (get<0>(yaxis) + get<1>(xaxis)) * t;
+      z = (get<2>(xaxis) + get<0>(zaxis)) * t;
+      w = (get<2>(yaxis) - get<1>(zaxis)) * t;
     }
-    else if (yaxis(1) > zaxis(2))
+    else if (sy > sz)
     {
-      auto s = std::sqrt(-xaxis(0) + yaxis(1) - zaxis(2) + T(1));
+      auto s = std::sqrt(-sx + sy - sz + T(1));
       auto t = T(0.5) / s;
 
-      x = (yaxis(0) + xaxis(1)) * t;
+      x = (get<0>(yaxis) + get<1>(xaxis)) * t;
       y = T(0.5) * s;
-      z = (zaxis(1) + yaxis(2)) * t;
-      w = (zaxis(0) - xaxis(2)) * t;
+      z = (get<1>(zaxis) + get<2>(yaxis)) * t;
+      w = (get<0>(zaxis) - get<2>(xaxis)) * t;
     }
     else
     {
-      auto s = std::sqrt(-xaxis(0) - yaxis(1) + zaxis(2) + T(1));
+      auto s = std::sqrt(-sx - sy + sz + T(1));
       auto t = T(0.5) / s;
 
-      x = (zaxis(0) + xaxis(2)) * t;
-      y = (zaxis(1) + yaxis(2)) * t;
+      x = (get<0>(zaxis) + get<2>(xaxis)) * t;
+      y = (get<1>(zaxis) + get<2>(yaxis)) * t;
       z = T(0.5) * s;
-      w = (xaxis(1) - yaxis(0)) * t;
+      w = (get<1>(xaxis) - get<0>(yaxis)) * t;
     }
   }
 

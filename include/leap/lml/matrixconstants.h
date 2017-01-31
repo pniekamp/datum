@@ -43,7 +43,7 @@ namespace leap { namespace lml
   template<typename T, size_t M, size_t N>
   Matrix<T, M, N> ZeroMatrix()
   {
-    return Matrix<T, M, N>(0);
+    return Matrix<T, M, N>{};
   }
 
 
@@ -60,7 +60,7 @@ namespace leap { namespace lml
   template<typename T, size_t N>
   Matrix<T, N, N> IdentityMatrix()
   {
-    Matrix<T, N, N> result(0);
+    Matrix<T, N, N> result = {};
 
     for(size_t i = 0; i < N; ++i)
       result(i, i) = 1;
@@ -79,33 +79,33 @@ namespace leap { namespace lml
    * \see lmlmatrix
   **/
 
-  template<typename T>
-  Matrix<T, 2, 2> BasisMatrix(Vector<T, 2> const &i, Vector<T, 2> const &j)
+  template<typename V, typename T, size_t... Indices, size_t... Jndices>
+  Matrix<T, 2, 2> BasisMatrix(VectorView<V, T, Indices...> const &i, VectorView<V, T, Jndices...> const &j)
   {
-    Matrix<T, 2, 2> result = {};
+    Matrix<T, 2, 2> result;
 
-    result(0, 0) = i(0);
-    result(1, 0) = i(1);
-    result(0, 1) = j(0);
-    result(1, 1) = j(1);
+    result(0, 0) = get<0>(i);
+    result(1, 0) = get<1>(i);
+    result(0, 1) = get<0>(j);
+    result(1, 1) = get<1>(j);
 
     return result;
   }
 
-  template<typename T>
-  Matrix<T, 3, 3> BasisMatrix(Vector<T, 3> const &i, Vector<T, 3> const &j, Vector<T, 3> const &k)
+  template<typename V, typename T, size_t... Indices, size_t... Jndices, size_t... Kndices>
+  Matrix<T, 3, 3> BasisMatrix(VectorView<V, T, Indices...> const &i, VectorView<V, T, Jndices...> const &j, VectorView<V, T, Kndices...> const &k)
   {
-    Matrix<T, 3, 3> result = {};
+    Matrix<T, 3, 3> result;
 
-    result(0, 0) = i(0);
-    result(1, 0) = i(1);
-    result(2, 0) = i(2);
-    result(0, 1) = j(0);
-    result(1, 1) = j(1);
-    result(2, 1) = j(2);
-    result(0, 2) = k(0);
-    result(1, 2) = k(1);
-    result(2, 2) = k(2);
+    result(0, 0) = get<0>(i);
+    result(1, 0) = get<1>(i);
+    result(2, 0) = get<2>(i);
+    result(0, 1) = get<0>(j);
+    result(1, 1) = get<1>(j);
+    result(2, 1) = get<2>(j);
+    result(0, 2) = get<0>(k);
+    result(1, 2) = get<1>(k);
+    result(2, 2) = get<2>(k);
 
     return result;
   }
@@ -124,7 +124,7 @@ namespace leap { namespace lml
   template<typename T>
   Matrix<T, 2, 2> ScaleMatrix(T sx, T sy)
   {
-    Matrix<T, 2, 2> result(0);
+    Matrix<T, 2, 2> result = {};
 
     result(0, 0) = sx;
     result(1, 1) = sy;
@@ -135,7 +135,7 @@ namespace leap { namespace lml
   template<typename T>
   Matrix<T, 3, 3> ScaleMatrix(T sx, T sy, T sz)
   {
-    Matrix<T, 3, 3> result(0);
+    Matrix<T, 3, 3> result = {};
 
     result(0, 0) = sx;
     result(1, 1) = sy;
@@ -144,15 +144,34 @@ namespace leap { namespace lml
     return result;
   }
 
-  template<typename T, size_t N>
-  Matrix<T, N, N> ScaleMatrix(Vector<T, N> const &scaling)
+  template<typename T>
+  Matrix<T, 4, 4> ScaleMatrix(T sx, T sy, T sz, T sw)
   {
-    Matrix<T, N, N> result(0);
+    Matrix<T, 4, 4> result = {};
 
-    for(size_t i = 0; i < N; ++i)
-      result(i, i) = scaling(i);
+    result(0, 0) = sx;
+    result(1, 1) = sy;
+    result(2, 2) = sz;
+    result(3, 3) = sw;
 
     return result;
+  }
+
+  template<typename T, size_t N>
+  Matrix<T, N, N> ScaleMatrix(Vector<T, N> const &scale)
+  {
+    Matrix<T, N, N> result = {};
+
+    for(size_t i = 0; i < N; ++i)
+      result(i, i) = scale(i);
+
+    return result;
+  }
+
+  template<typename V, typename T, size_t... Indices>
+  Matrix<T, sizeof...(Indices), sizeof...(Indices)> ScaleMatrix(VectorView<V, T, Indices...> const &scale)
+  {
+    return ScaleMatrix(Vector<T, sizeof...(Indices)>::from(scale));
   }
 
 
@@ -182,17 +201,17 @@ namespace leap { namespace lml
     return result;
   }
 
-  template<typename T>
-  Matrix<T, 3, 3> RotationMatrix(Vector<T, 3> const &axis, T angle)
+  template<typename V, typename T, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
+  Matrix<T, sizeof...(Indices), sizeof...(Indices)> RotationMatrix(VectorView<V, T, Indices...> const &axis, T angle)
   {
     Matrix<T, 3, 3> result = {};
 
     using std::cos;
     using std::sin;
 
-    T x = axis(0);
-    T y = axis(1);
-    T z = axis(2);
+    T x = get<0>(axis);
+    T y = get<1>(axis);
+    T z = get<2>(axis);
 
     result(0, 0) = 1 + (1-cos(angle))*(x*x-1);
     result(1, 0) = z*sin(angle)+(1-cos(angle))*x*y;
@@ -256,6 +275,12 @@ namespace leap { namespace lml
     return result;
   }
 
+  template<typename T, size_t N, template<typename, size_t, size_t> class B, typename V, size_t... Indices, std::enable_if_t<sizeof...(Indices) == N>* = nullptr>
+  Matrix<T, N+1, N+1, B> AffineMatrix(Matrix<T, N, N, B> const &linear, VectorView<V, T, Indices...> const &translation)
+  {
+    return AffineMatrix(linear, Vector<T, sizeof...(Indices)>::from(translation));
+  }
+
 
   //|-------------------- LookAtMatrix --------------------------------------
   //|------------------------------------------------------------------------
@@ -267,8 +292,8 @@ namespace leap { namespace lml
    * \see lmlmatrix
   **/
 
-  template<typename T>
-  Matrix<T, 4, 4> LookAtMatrix(Vector<T, 3> const &eye, Vector<T, 3> const &target, Vector<T, 3> const &up)
+  template<typename V, typename T, size_t... Indices, size_t... Jndices, size_t... Kndices, std::enable_if_t<sizeof...(Indices) == 3 && sizeof...(Jndices) == 3 && sizeof...(Kndices) == 3>* = nullptr>
+  Matrix<T, 4, 4> LookAtMatrix(VectorView<V, T, Indices...> const &eye, VectorView<V, T, Jndices...> const &target, VectorView<V, T, Kndices...> const &up)
   {
     Matrix<T, 4, 4> result = {};
 
@@ -276,21 +301,21 @@ namespace leap { namespace lml
     auto xaxis = normalise(cross(up, zaxis));
     auto yaxis = cross(zaxis, xaxis);
 
-    result(0, 0) = xaxis(0);
-    result(1, 0) = xaxis(1);
-    result(2, 0) = xaxis(2);
+    result(0, 0) = get<0>(xaxis);
+    result(1, 0) = get<1>(xaxis);
+    result(2, 0) = get<2>(xaxis);
     result(3, 0) = 0;
-    result(0, 1) = yaxis(0);
-    result(1, 1) = yaxis(1);
-    result(2, 1) = yaxis(2);
+    result(0, 1) = get<0>(yaxis);
+    result(1, 1) = get<1>(yaxis);
+    result(2, 1) = get<2>(yaxis);
     result(3, 1) = 0;
-    result(0, 2) = zaxis(0);
-    result(1, 2) = zaxis(1);
-    result(2, 2) = zaxis(2);
+    result(0, 2) = get<0>(zaxis);
+    result(1, 2) = get<1>(zaxis);
+    result(2, 2) = get<2>(zaxis);
     result(3, 2) = 0;
-    result(0, 3) = eye(0);
-    result(1, 3) = eye(1);
-    result(2, 3) = eye(2);
+    result(0, 3) = get<0>(eye);
+    result(1, 3) = get<1>(eye);
+    result(2, 3) = get<2>(eye);
     result(3, 3) = 1;
 
     return result;
@@ -310,7 +335,7 @@ namespace leap { namespace lml
   template<typename T>
   Matrix<T, 4, 4> OrthographicProjection(T left, T bottom, T right, T top, T znear, T zfar)
   {
-    Matrix<T, 4, 4> result(0);
+    Matrix<T, 4, 4> result = {};
 
     result(0, 0) = 2 / (right - left);
     result(1, 1) = 2 / (top - bottom);
@@ -337,7 +362,7 @@ namespace leap { namespace lml
   template<typename T>
   Matrix<T, 4, 4> PerspectiveProjection(T fov, T aspect, T znear, T zfar)
   {
-    Matrix<T, 4, 4> result(0);
+    Matrix<T, 4, 4> result = {};
 
     result(0, 0) = 1 / (aspect * tan(fov/2));
     result(1, 1) = 1 / tan(fov/2);
@@ -351,7 +376,7 @@ namespace leap { namespace lml
   template<typename T>
   Matrix<T, 4, 4> PerspectiveProjection(T left, T bottom, T right, T top, T znear, T zfar)
   {
-    Matrix<T, 4, 4> result(0);
+    Matrix<T, 4, 4> result = {};
 
     result(0, 0) = 2 * znear / (right - left);
     result(1, 1) = 2 * znear / (top - bottom);

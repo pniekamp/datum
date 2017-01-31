@@ -21,7 +21,7 @@ namespace lml
   {
     public:
       Sphere() = default;
-      explicit constexpr Sphere(Vec3 const &centre, float radius);
+      constexpr Sphere(Vec3 const &centre, float radius);
       explicit constexpr Sphere(Vec3 const &centre, Vec3 const &pt);
 
       Vec3 centre;
