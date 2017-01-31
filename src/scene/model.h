@@ -21,6 +21,8 @@ class Model : public Entity
     friend Scene::EntityId Scene::create<Model>(ResourceManager *resources);
     friend Scene::EntityId Scene::load<Model>(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset);
 
+    bool load(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset);
+
     size_t add_texture(Texture const *texture);
     size_t add_material(Material const *material);
     size_t add_mesh(Mesh const *mesh);

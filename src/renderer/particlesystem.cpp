@@ -487,7 +487,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
         instance->growth[instance->count] = 1.0f / emitter.life.get(entropy, t);
         instance->scale[instance->count] = emitter.size * emitter.scale.get(entropy, t);
         instance->rotation[instance->count] = emitter.rotation.get(entropy, t);
-        instance->transform[instance->count] = RotationMatrix(instance->rotation[instance->count]) * ScaleMatrix(Vector2(instance->scale[instance->count].x, instance->scale[instance->count].y));
+        instance->transform[instance->count] = RotationMatrix(instance->rotation[instance->count]) * ScaleMatrix(instance->scale[instance->count]);
         instance->basecolor[instance->count] = emitter.color.get(entropy, t);
         instance->color[instance->count] = instance->basecolor[instance->count];
         instance->layer[instance->count] = emitter.layer.get(entropy, t);
@@ -646,7 +646,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
       if (emitter.modules & (ParticleEmitter::ScaleOverLife | ParticleEmitter::RotateOverLife | ParticleEmitter::StretchWithVelocity | ParticleEmitter::StretchWithAxis))
       {
-        instance->transform[i] = RotationMatrix(rotation) * ScaleMatrix(Vector2(scale.x, scale.y));
+        instance->transform[i] = RotationMatrix(rotation) * ScaleMatrix(scale);
       }
 
       if (emitter.modules & ParticleEmitter::StretchWithVelocity)
@@ -655,7 +655,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
         auto angle = Quaternion3f(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3f(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * instance->velocity[i];
         auto stretch = rotatey(Vec3(1.0f, 1.0f, clamp(norm(angle), emitter.velocitystretchmin, emitter.velocitystretchmax)), phi(abs(angle)));
 
-        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(Vector2(stretch.x, stretch.y)) * instance->transform[i];
+        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(stretch.xy) * instance->transform[i];
       }
 
       if (emitter.modules & ParticleEmitter::StretchWithAxis)
@@ -664,7 +664,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
         auto angle = Quaternion3f(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3f(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * emitter.stretchaxis;
         auto stretch = rotatey(Vec3(1.0f, 1.0f, 0.0f), phi(abs(angle)));
 
-        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(Vector2(stretch.x, stretch.y)) * instance->transform[i];
+        instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(stretch.xy) * instance->transform[i];
       }
     }
   }

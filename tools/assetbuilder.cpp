@@ -730,6 +730,9 @@ void write_core()
   write_shader_asset(fout, CoreAsset::geometry_vert, "../../data/geometry.vert");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
 
+  write_shader_asset(fout, CoreAsset::fogplane_vert, "../../data/fogplane.vert");
+  write_shader_asset(fout, CoreAsset::fogplane_frag, "../../data/fogplane.frag");
+
   write_shader_asset(fout, CoreAsset::translucent_vert, "../../data/translucent.vert");
   write_shader_asset(fout, CoreAsset::translucent_frag, "../../data/translucent.frag");
 

@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 15;
+  const uint32_t version = 16;
 
   enum
   {
@@ -31,6 +31,8 @@ namespace CoreAsset
     shadow_frag,
     geometry_vert,
     geometry_frag,
+    fogplane_vert,
+    fogplane_frag,
     translucent_vert,
     translucent_frag,
     particle_vert,

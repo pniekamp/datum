@@ -21,7 +21,7 @@ namespace lml
   {
     public:
       Plane() = default;
-      explicit constexpr Plane(Vec3 const &normal, float distance);
+      constexpr Plane(Vec3 const &normal, float distance);
       explicit constexpr Plane(Vec3 const &normal, Vec3 const &pt);
       explicit constexpr Plane(Vec3 const &a, Vec3 const &b, Vec3 const &c);
 
@@ -114,9 +114,9 @@ namespace lml
   /// transform plane
   inline Plane operator *(Transform const &transform, Plane const &plane)
   {
-    auto result = transform.matrix() * Vector4(plane.normal.x, plane.normal.y, plane.normal.z, plane.distance);
+    auto result = transform.matrix() * Vec4(plane.normal.x, plane.normal.y, plane.normal.z, plane.distance);
 
-    return normalise(Plane(Vec3(result(0), result(1), result(2)), result(3)));
+    return normalise(Plane(result.xyz, result.w));
   }
 
 }

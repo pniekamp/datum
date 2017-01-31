@@ -1247,6 +1247,130 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     }
   }
 
+  if (context.fogpipeline == 0)
+  {
+    //
+    // Fog Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::fogplane_vert);
+    auto fs = assets->find(CoreAsset::fogplane_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_NONE;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineColorBlendAttachmentState blendattachments[1] = {};
+    blendattachments[0].blendEnable = VK_TRUE;
+    blendattachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendattachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendattachments[0].colorBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendattachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendattachments[0].alphaBlendOp = VK_BLEND_OP_ADD;
+    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorblend = {};
+    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorblend.attachmentCount = extentof(blendattachments);
+    colorblend.pAttachments = blendattachments;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_FALSE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[1] = { ShaderLocation::MaxPointLights, offsetof(ComputeConstants, MaxPointLights), sizeof(ComputeConstants::MaxPointLights) };
+    specializationmap[2] = { ShaderLocation::MaxTileLights, offsetof(ComputeConstants, MaxTileLights), sizeof(ComputeConstants::MaxTileLights) };
+    specializationmap[3] = { ShaderLocation::MaxEnvironments, offsetof(ComputeConstants, MaxEnvironments), sizeof(ComputeConstants::MaxEnvironments) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.forwardpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pColorBlendState = &colorblend;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.fogpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+  }
+
   if (context.particlepipeline[0] == 0)
   {
     //
@@ -3022,7 +3146,7 @@ void prepare_shadowview(ShadowMap &shadowmap, Camera const &camera, Vec3 const &
 
     auto lightview = Transform::lookat(lightpos, lightpos + lightdirection, up);
 
-    auto lightproj = OrthographicProjection(-frustumradius, -frustumradius, frustumradius, frustumradius, 0.1f, extrusion + frustumradius) * ScaleMatrix(Vector4(1.0f, -1.0f, 1.0f, 1.0f));
+    auto lightproj = OrthographicProjection(-frustumradius, -frustumradius, frustumradius, frustumradius, 0.1f, extrusion + frustumradius) * ScaleMatrix(1.0f, -1.0f, 1.0f, 1.0f);
 
     shadowmap.splits[i] = splits[i+1];
     shadowmap.shadowview[i] = lightproj * inverse(lightview).matrix();

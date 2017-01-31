@@ -24,7 +24,7 @@ namespace lml
   {
     public:
       Frustum() = default;
-      explicit Frustum(Vec3 corners[8]);
+      Frustum(Vec3 corners[8]);
 
       static Frustum perspective(float fov, float aspect, float znear, float zfar);
       static Frustum perspective(float left, float bottom, float right, float top, float znear, float zfar);
