@@ -14,6 +14,7 @@
 - HDR Skybox & Bloom
 - Physically Based Rendering (PBR) & Image Based Lighting (IBL)
 - Particle System
+- Exponential Height Fog
 - Entity-Component Scene Management
 
 ![Datum](/bin/datumtest.png?raw=true "Datum")

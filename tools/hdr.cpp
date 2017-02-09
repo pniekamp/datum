@@ -36,7 +36,7 @@ Color4 HDRImage::sample(Vec2 const &texcoords) const
   auto u = modf(fmod2(texcoords.x * width - 0.5f, (float)width), &i);
   auto v = modf(fmod2(texcoords.y * height - 0.5f, (float)height), &j);
 
-  return lerp(lerp(sample(i, j), sample(((int)i+1)%width, j), u), lerp(sample(i, ((int)j+1)%height), sample(((int)i+1)%width, ((int)j+1)%height), u), v);
+  return lerp(lerp(sample((int)i, (int)j), sample(((int)i+1)%width, (int)j), u), lerp(sample((int)i, ((int)j+1)%height), sample(((int)i+1)%width, ((int)j+1)%height), u), v);
 }
 
 
@@ -114,8 +114,8 @@ HDRImage load_hdr(string const &path)
       if (fields[0] != "-Y" || fields[2] != "+X")
         throw runtime_error("Unsupported hdr file dimensions");
 
-      image.width = ato<float>(fields[3]);
-      image.height = ato<float>(fields[1]);
+      image.width = ato<int>(fields[3]);
+      image.height = ato<int>(fields[1]);
 
       break;
     }
@@ -156,10 +156,10 @@ HDRImage load_hdr(string const &path)
 
     for(int x = 0; x < image.width; ++x)
     {
-      auto r = (uint8_t)(buffer[0][x]) / 255.0;
-      auto g = (uint8_t)(buffer[1][x]) / 255.0;
-      auto b = (uint8_t)(buffer[2][x]) / 255.0;
-      auto e = (uint8_t)(buffer[3][x]) - 128;
+      auto r = (uint8_t)(buffer[0][x]) / 255.0f;
+      auto g = (uint8_t)(buffer[1][x]) / 255.0f;
+      auto b = (uint8_t)(buffer[2][x]) / 255.0f;
+      auto e = (uint8_t)(buffer[3][x]) - 128.0f;
 
       image.bits[y * image.width + x] = Color4(r * exp2(e), g * exp2(e), b * exp2(e), 1.0f);
     }

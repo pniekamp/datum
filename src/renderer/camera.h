@@ -31,6 +31,9 @@ class Camera
     float fov() const { return m_fov; }
     float aspect() const { return m_aspect; }
 
+    float zfar() const { return m_zfar; }
+    float znear() const { return m_znear; }
+
     float exposure() const { return m_exposure; }
 
     lml::Matrix4f proj() const;

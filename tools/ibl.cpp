@@ -37,7 +37,7 @@ namespace
       auto u = modf(fmod2(texcoords.x, 1.0f) * (width - 1), &i);
       auto v = modf(fmod2(texcoords.y, 1.0f) * (height - 1), &j);
 
-      return lerp(lerp(sample(face, i, j), sample(face, i+1, j), u), lerp(sample(face, i, j+1), sample(face, i+1, j+1), u), v);
+      return lerp(lerp(sample(face, (int)i, (int)j), sample(face, (int)i+1, (int)j), u), lerp(sample(face, (int)i, (int)j+1), sample(face, (int)i+1, (int)j+1), u), v);
     }
 
     Color4 sample(Vec3 const &texcoords) const
@@ -100,7 +100,7 @@ namespace
     bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
     bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
 
-    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+    return float(bits) * 2.3283064365386963e-10f; // / 0x100000000
   }
 
   Vec2 hammersley(int i, int samples)
@@ -179,7 +179,7 @@ namespace
       {
         float G = GGX(NdotL, roughness * roughness) * GGX(NdotV, roughness * roughness);
         float Vis = G * VdotH / (NdotH * NdotV);
-        float Fc = pow(1 - VdotH, 5);
+        float Fc = pow(1 - VdotH, 5.0f);
 
         a += (1 - Fc) * Vis;
         b += Fc * Vis;
@@ -256,6 +256,27 @@ void image_pack_envbrdf(int width, int height, void *bits)
       auto lut = integrate(roughness, NdotV);
 
       *dst++ = rgbe(Color4(lut.x, lut.y, 0.0f, 1.0f));
+    }
+  }
+}
+
+
+///////////////////////// image_pack_watercolor /////////////////////////////
+void image_pack_watercolor(Color3 const &deepcolor, Color3 const &shallowcolor, float scalepower, Color3 const &fresnelcolor, float fresnelbias, float fresnelpower, int width, int height, void *bits)
+{
+  uint32_t *dst = (uint32_t*)bits;
+
+  for(int y = 0; y < height; ++y)
+  {
+    for(int x = 0; x < width; ++x)
+    {
+      float scale = (x + 0.5f) / width;
+      float facing = (y + 0.5f) / height;
+
+      auto colorscale = lerp(Color4(shallowcolor, 1.0f), Color4(deepcolor, 1.0f), clamp(1 - exp2(-scalepower * scale * 100.0f), 0.0f, 1.0f));
+      auto colorfrenel = lerp(colorscale, Color4(fresnelcolor, 1.0f), clamp(fresnelbias + pow(facing, fresnelpower), 0.0f, 1.0f));
+
+      *dst++ = rgbe(colorfrenel);
     }
   }
 }

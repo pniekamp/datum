@@ -2,7 +2,7 @@
 
 layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
 {
-  vec4 tint;
+  vec4 color;
   vec4 texcoords;
 
 } material;
@@ -16,5 +16,5 @@ layout(location = 0) out vec4 fragcolor;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  fragcolor = texture(albedomap, texcoord) * material.tint;
+  fragcolor = texture(albedomap, texcoord) * material.color;
 }

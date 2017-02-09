@@ -18,7 +18,7 @@
 
 struct SpriteComponentData
 {
-  long flags;
+  int flags;
   Sprite const *sprite;
   float size;
   float layer;
@@ -38,7 +38,7 @@ class SpriteComponentStorage : public BasicComponentStorage<SpriteComponentData>
 
   protected:
 
-    SpriteComponentData *add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 tint, long flags);
+    SpriteComponentData *add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 tint, int flags);
 
     friend class Scene;
     friend class SpriteComponent;
@@ -58,15 +58,15 @@ class SpriteComponent
     };
 
   public:
-    friend SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, lml::Color4 tint, long flags);
-    friend SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, long flags);
+    friend SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, lml::Color4 tint, int flags);
+    friend SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, int flags);
     friend SpriteComponent Scene::get_component<SpriteComponent>(Scene::EntityId entity);
 
   public:
     SpriteComponent() = default;
     SpriteComponent(SpriteComponentData *data);
 
-    long flags() const { return m_data->flags; }
+    int flags() const { return m_data->flags; }
 
     Sprite const *sprite() const { return m_data->sprite; }
 

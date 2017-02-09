@@ -118,7 +118,7 @@ size_t Model::add_mesh(Mesh const *mesh)
 
 
 ///////////////////////// Model::add_instance ///////////////////////////////
-Scene::EntityId Model::add_instance(Transform const &transform, size_t mesh, size_t material, long flags)
+Scene::EntityId Model::add_instance(Transform const &transform, size_t mesh, size_t material, int flags)
 {
   auto instance = m_scene->create<Entity>();
 

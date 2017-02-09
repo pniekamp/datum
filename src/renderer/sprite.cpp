@@ -70,8 +70,8 @@ Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 extent
   auto sprite = new(slot) Sprite;
 
   sprite->flags = 0;
-  sprite->width = (extent.max.x - extent.min.x) * atlas->width;
-  sprite->height = (extent.max.y - extent.min.y) * atlas->height;
+  sprite->width = (int)((extent.max.x - extent.min.x) * atlas->width);
+  sprite->height = (int)((extent.max.y - extent.min.y) * atlas->height);
   sprite->layers = atlas->layers;
   sprite->aspect = (float)sprite->width / (float)sprite->height;
   sprite->align = align;

@@ -165,7 +165,7 @@ void main(void)
       float edgefade = 1 - 10 * max(max(abs(hitpixel.x / viewport.x - 0.5), abs(hitpixel.y / viewport.y - 0.5)) - 0.4, 0);
       float depthfade = 1 - 1000 * max(depth - 0.989, 0);
       float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
-      float roughnessfade = 1 - min(3 * material.roughness, 1);
+      float roughnessfade = 1 - min(4 * material.roughness, 1);
 
       vec4 hitcolor = texelFetch(colormap, ivec2(hitpixel), 0);
 

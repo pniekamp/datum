@@ -1,0 +1,72 @@
+#version 450 core
+#include "gbuffer.glsl"
+#include "camera.glsl"
+
+layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 worldview;
+  mat4 prevview;
+  mat4 skyview;
+  vec4 viewport;
+  
+  Camera camera;
+
+} scene;
+
+layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
+{
+  vec4 color;
+  float metalness;
+  float roughness;
+  float reflectivity;
+  float emissive;
+  vec2 flow;
+  
+} material;
+
+layout(set=1, binding=1) uniform sampler2DArray albedomap;
+layout(set=1, binding=2) uniform sampler2DArray specularmap;
+layout(set=1, binding=3) uniform sampler2DArray normalmap;
+
+layout(set=0, binding=4) uniform sampler2D depthmap;
+layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
+
+layout(location=0) noperspective in vec4 fbocoord;
+layout(location=1) in vec3 position;
+layout(location=2) in vec2 texcoord;
+layout(location=3) in mat3 tbnworld;
+
+layout(location=0) out vec4 fragrt0;
+layout(location=1) out vec4 fragrt1;
+layout(location=2) out vec4 fragnormal;
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{
+  float depth = texture(depthmap, fbocoord.st).z;
+
+  if (depth < fbocoord.z)
+    discard;
+ 
+  vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
+  vec4 bump1 = texture(normalmap, vec3(texcoord * 2.0 + material.flow * 4.0, 0));
+  vec4 bump2 = texture(normalmap, vec3(texcoord * 4.0 + material.flow * 8.0, 0));
+
+  vec3 normal = normalize(tbnworld * (vec3(0, 0, 5) + (2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a)); 
+
+  float dist = view_depth(scene.proj, depth) - view_depth(scene.proj, fbocoord.z);
+
+  float scale = 0.05 * dist;
+  float facing = 1 - dot(normalize(scene.camera.position - position), normal);
+  //float fresnel = clamp(fresnelbias + pow(facing, fresnelpower), 0, 1);
+
+  vec4 albedo = material.color * textureLod(albedomap, vec3(clamp(vec2(scale, facing), 1/255.0, 254/255.0), 0), 0);
+
+  fragrt0 = vec4(albedo.rgb, material.emissive);
+  fragrt1 = vec4(material.metalness, material.reflectivity, 0, material.roughness);
+  fragnormal  = vec4(0.5 * normal + 0.5, 1);
+}

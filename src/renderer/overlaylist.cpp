@@ -35,7 +35,7 @@ enum ShaderLocation
   normalmap = 3,
 };
 
-struct GizmoSet
+struct GizmoMaterialSet
 {
   Color4 color;
   float metalness;
@@ -45,18 +45,18 @@ struct GizmoSet
   float depthfade;
 };
 
-struct MaskSet
+struct MaskMaterialSet
 {
 };
 
-struct FillSet
+struct FillMaterialSet
 {
   Color4 color;
   Vec4 texcoords;
   float depthfade;
 };
 
-struct PathSet
+struct PathMaterialSet
 {
   Color4 color;
   Vec4 texcoords;
@@ -65,13 +65,13 @@ struct PathSet
   float overhang;
 };
 
-struct OutlineSet
+struct OutlineMaterialSet
 {
   Color4 color;
   float depthfade;
 };
 
-struct WireframeSet
+struct WireframeMaterialSet
 {
   Color4 color;
   float depthfade;
@@ -166,20 +166,20 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GizmoSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GizmoMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(GizmoSet));
+    auto offset = state.materialset.reserve(sizeof(GizmoMaterialSet));
 
-    auto gizmoset = state.materialset.memory<GizmoSet>(offset);
+    auto materialset = state.materialset.memory<GizmoMaterialSet>(offset);
 
-    gizmoset->color = hada(Color4(material->color, 1.0f), tint);
-    gizmoset->metalness = material->metalness;
-    gizmoset->roughness = material->roughness;
-    gizmoset->reflectivity = material->reflectivity;
-    gizmoset->emissive = material->emissive;
-    gizmoset->depthfade = state.depthfade;
+    materialset->color = hada(Color4(material->color, 1.0f), tint);
+    materialset->metalness = material->metalness;
+    materialset->roughness = material->roughness;
+    materialset->reflectivity = material->reflectivity;
+    materialset->emissive = material->emissive;
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
     bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
@@ -232,16 +232,16 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WireframeSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WireframeMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(WireframeSet));
+    auto offset = state.materialset.reserve(sizeof(WireframeMaterialSet));
 
-    auto wireframeset = state.materialset.memory<WireframeSet>(offset);
+    auto materialset = state.materialset.memory<WireframeMaterialSet>(offset);
 
-    wireframeset->color = color;
-    wireframeset->depthfade = state.depthfade;
+    materialset->color = color;
+    materialset->depthfade = state.depthfade;
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
@@ -292,11 +292,11 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(MaskSet));
+    auto offset = state.materialset.reserve(sizeof(MaskMaterialSet));
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
@@ -360,11 +360,11 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(MaskSet));
+    auto offset = state.materialset.reserve(sizeof(MaskMaterialSet));
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
@@ -417,17 +417,17 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(FillSet));
+    auto offset = state.materialset.reserve(sizeof(FillMaterialSet));
 
-    auto fillset = state.materialset.memory<FillSet>(offset);
+    auto materialset = state.materialset.memory<FillMaterialSet>(offset);
 
-    fillset->color = color;
-    fillset->texcoords = Vec4(0, 0, 1, 1);
-    fillset->depthfade = state.depthfade;
+    materialset->color = color;
+    materialset->texcoords = Vec4(0, 0, 1, 1);
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
@@ -491,17 +491,17 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(FillSet));
+    auto offset = state.materialset.reserve(sizeof(FillMaterialSet));
 
-    auto fillset = state.materialset.memory<FillSet>(offset);
+    auto materialset = state.materialset.memory<FillMaterialSet>(offset);
 
-    fillset->color = material->color;
-    fillset->texcoords = Vec4(base.x, base.y, tiling.x, tiling.y);
-    fillset->depthfade = state.depthfade;
+    materialset->color = material->color;
+    materialset->texcoords = Vec4(base.x, base.y, tiling.x, tiling.y);
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
@@ -554,19 +554,19 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(PathSet));
+    auto offset = state.materialset.reserve(sizeof(PathMaterialSet));
 
-    auto pathset = state.materialset.memory<PathSet>(offset);
+    auto materialset = state.materialset.memory<PathMaterialSet>(offset);
 
-    pathset->color = color;
-    pathset->texcoords = Vec4(0, 0, 1, 1);
-    pathset->halfwidth = 2*thickness;
-    pathset->overhang = thickness;
-    pathset->depthfade = state.depthfade;
+    materialset->color = color;
+    materialset->texcoords = Vec4(0, 0, 1, 1);
+    materialset->halfwidth = 2*thickness;
+    materialset->overhang = thickness;
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
@@ -630,19 +630,19 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(PathSet));
+    auto offset = state.materialset.reserve(sizeof(PathMaterialSet));
 
-    auto pathset = state.materialset.memory<PathSet>(offset);
+    auto materialset = state.materialset.memory<PathMaterialSet>(offset);
 
-    pathset->color = material->color;
-    pathset->texcoords = Vec4(base.x, base.y, tiling.x, tiling.y);
-    pathset->halfwidth = 2*thickness;
-    pathset->overhang = thickness;
-    pathset->depthfade = state.depthfade;
+    materialset->color = material->color;
+    materialset->texcoords = Vec4(base.x, base.y, tiling.x, tiling.y);
+    materialset->halfwidth = 2*thickness;
+    materialset->overhang = thickness;
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
@@ -682,19 +682,19 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 
   bindresource(commandlist, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(PathSet));
+    auto offset = state.materialset.reserve(sizeof(PathMaterialSet));
 
-    auto pathset = state.materialset.memory<PathSet>(offset);
+    auto materialset = state.materialset.memory<PathMaterialSet>(offset);
 
-    pathset->color = color;
-    pathset->texcoords = Vec4(0, 0, 1, 1);
-    pathset->halfwidth = thickness + 2.0f;
-    pathset->overhang = 0.0f;
-    pathset->depthfade = state.depthfade;
+    materialset->color = color;
+    materialset->texcoords = Vec4(0, 0, 1, 1);
+    materialset->halfwidth = thickness + 2.0f;
+    materialset->overhang = 0.0f;
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
@@ -745,19 +745,19 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(PathSet));
+    auto offset = state.materialset.reserve(sizeof(PathMaterialSet));
 
-    auto pathset = state.materialset.memory<PathSet>(offset);
+    auto materialset = state.materialset.memory<PathMaterialSet>(offset);
 
-    pathset->color = color;
-    pathset->texcoords = Vec4(0, 0, 1, 1);
-    pathset->halfwidth = thickness + 2.0f;
-    pathset->overhang = 0.0f;
-    pathset->depthfade = state.depthfade;
+    materialset->color = color;
+    materialset->texcoords = Vec4(0, 0, 1, 1);
+    materialset->halfwidth = thickness + 2.0f;
+    materialset->overhang = 0.0f;
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
@@ -826,16 +826,16 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
 
   bindresource(commandlist, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OutlineSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OutlineMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(OutlineSet));
+    auto offset = state.materialset.reserve(sizeof(OutlineMaterialSet));
 
-    auto outlineset = state.materialset.memory<OutlineSet>(offset);
+    auto materialset = state.materialset.memory<OutlineMaterialSet>(offset);
 
-    outlineset->color = color;
-    outlineset->depthfade = state.depthfade;
+    materialset->color = color;
+    materialset->depthfade = state.depthfade;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
@@ -866,10 +866,10 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
 ///////////////////////// OverlayList::push_scissor //////////////////////////
 void OverlayList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {
-  state.clipx = cliprect.min.x;
-  state.clipy = cliprect.min.y;
-  state.clipwidth = cliprect.max.x - cliprect.min.x;
-  state.clipheight = cliprect.max.y - cliprect.min.y;
+  state.clipx = (int)(cliprect.min.x);
+  state.clipy = (int)(cliprect.min.y);
+  state.clipwidth = (int)(cliprect.max.x - cliprect.min.x);
+  state.clipheight = (int)(cliprect.max.y - cliprect.min.y);
 }
 
 

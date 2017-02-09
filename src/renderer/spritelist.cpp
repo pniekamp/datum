@@ -38,10 +38,9 @@ struct SceneSet
   Matrix4f worldview;
 };
 
-struct MaterialSet
+struct SpriteMaterialSet
 {
-  Color4 tint;
-
+  Color4 color;
   Vec4 texcoords;
 };
 
@@ -125,9 +124,9 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.materialset.capacity() < state.materialset.used() + sizeof(MaterialSet) || state.texture != texture)
+  if (state.materialset.capacity() < state.materialset.used() + sizeof(SpriteMaterialSet) || state.texture != texture)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(SpriteMaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -139,16 +138,16 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(MaterialSet));
+    auto offset = state.materialset.reserve(sizeof(SpriteMaterialSet));
 
-    auto materialset = state.materialset.memory<MaterialSet>(offset);
+    auto materialset = state.materialset.memory<SpriteMaterialSet>(offset);
 
-    materialset->tint = premultiply(tint);
+    materialset->color = premultiply(tint);
     materialset->texcoords = texcoords;
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    state.tint = tint;
+    state.color = tint;
     state.texcoords = texcoords;
   }
 }
@@ -176,7 +175,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
 
     modelset->xbasis = xbasis;
     modelset->ybasis = ybasis;
-    modelset->position = Vec4(position, layer - 0.5f + 1e-3, 1);
+    modelset->position = Vec4(position, layer - 0.5f + 1e-3f, 1);
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -186,7 +185,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
    ModelSet modelset;
    modelset.xbasis = xbasis;
    modelset.ybasis = ybasis;
-   modelset.position = Vec4(position, layer - 0.5f + 1e-3, 1);
+   modelset.position = Vec4(position, layer - 0.5f + 1e-3f, 1);
 
    push(commandlist, context.pipelinelayout, 0, sizeof(modelset), &modelset, VK_SHADER_STAGE_VERTEX_BIT);
 
@@ -205,7 +204,7 @@ void SpriteList::push_line(BuildState &state, Vec2 const &a, Vec2 const &b, Colo
 ///////////////////////// SpriteList::push_rect /////////////////////////////
 void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const &rect, Color4 const &color)
 {
-  if (state.texture != state.context->whitediffuse || state.tint != color)
+  if (state.texture != state.context->whitediffuse || state.color != color)
   {
     push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
   }
@@ -220,7 +219,7 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
 ///////////////////////// SpriteList::push_rect /////////////////////////////
 void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, Color4 const &color)
 {
-  if (state.texture != state.context->whitediffuse || state.tint != color)
+  if (state.texture != state.context->whitediffuse || state.color != color)
   {
     push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
   }
@@ -278,7 +277,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &
       return;
   }
 
-  if (state.texture != sprite->atlas->texture || state.texcoords != sprite->extent || state.tint != tint)
+  if (state.texture != sprite->atlas->texture || state.texcoords != sprite->extent || state.color != tint)
   {
     push_material(state, sprite->atlas->texture, sprite->extent, tint);
   }
@@ -406,7 +405,7 @@ void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 con
 ///////////////////////// SpriteList::push_scissor //////////////////////////
 void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {
-  scissor(*state.commandlist, cliprect.min.x, cliprect.min.y, cliprect.max.x - cliprect.min.x, cliprect.max.y - cliprect.min.y);
+  scissor(*state.commandlist, (int)cliprect.min.x, (int)cliprect.min.y, (int)(cliprect.max.x - cliprect.min.x), (int)(cliprect.max.y - cliprect.min.y));
 }
 
 

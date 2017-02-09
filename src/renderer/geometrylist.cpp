@@ -35,7 +35,17 @@ enum ShaderLocation
   normalmap = 3,
 };
 
-struct MaterialSet
+struct OceanMaterialSet
+{
+  Color4 color;
+  float metalness;
+  float roughness;
+  float reflectivity;
+  float emissive;
+  Vec2 flow;
+};
+
+struct GeometryMaterialSet
 {
   Color4 color;
   float metalness;
@@ -84,8 +94,6 @@ bool GeometryList::begin(BuildState &state, PlatformInterface &platform, RenderC
     return false;
   }
 
-  bindresource(*commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
   bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
@@ -96,36 +104,59 @@ bool GeometryList::begin(BuildState &state, PlatformInterface &platform, RenderC
 }
 
 
-///////////////////////// GeometryList::push_material ///////////////////////
-void GeometryList::push_material(BuildState &state, Material const *material)
+///////////////////////// GeometryList::push_mesh ///////////////////////////
+void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
-  if (!material)
-    return;
-
-  if (!material->ready())
-  {
-    state.material = nullptr;
-
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
-
   assert(state.commandlist);
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
+  if (state.pipeline != context.geometrypipeline)
+  {
+    bindresource(commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    state.pipeline = context.geometrypipeline;
+  }
+
+  if (!mesh)
+    return;
+
+  if (state.mesh != mesh)
+  {
+    if (!mesh->ready())
+    {
+      state.resources->request(*state.platform, mesh);
+
+      if (!mesh->ready())
+        return;
+    }
+
+    bindresource(commandlist, mesh->vertexbuffer);
+
+    state.mesh = mesh;
+  }
+
+  if (!material)
+    return;
+
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
+    if (!material->ready())
+    {
+      state.resources->request(*state.platform, material);
+
+      if (!material->ready())
+        return;
+    }
+
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
 
     if (state.materialset)
     {
-      auto offset = state.materialset.reserve(sizeof(MaterialSet));
+      auto offset = state.materialset.reserve(sizeof(GeometryMaterialSet));
 
-      auto materialset = state.materialset.memory<MaterialSet>(offset);
+      auto materialset = state.materialset.memory<GeometryMaterialSet>(offset);
 
       materialset->color = material->color;
       materialset->metalness = material->metalness;
@@ -141,37 +172,6 @@ void GeometryList::push_material(BuildState &state, Material const *material)
 
       state.material = material;
     }
-  }
-}
-
-
-///////////////////////// GeometryList::push_mesh ///////////////////////////
-void GeometryList::push_mesh(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh)
-{
-  if (!mesh)
-    return;
-
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  if (!state.material)
-    return;
-
-  assert(state.commandlist);
-
-  auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
-
-  if (state.mesh != mesh)
-  {
-    bindresource(commandlist, mesh->vertexbuffer);
-
-    state.mesh = mesh;
   }
 
 #if 1
@@ -200,15 +200,105 @@ void GeometryList::push_mesh(GeometryList::BuildState &state, Transform const &t
 }
 
 
-///////////////////////// GeometryList::push_mesh ///////////////////////////
-void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
+///////////////////////// GeometryList::push_ocean //////////////////////////
+void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow)
 {
-  if (state.material != material)
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+
+  state.pipeline = nullptr;
+
+  bindresource(commandlist, context.oceanpipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  if (!mesh)
+    return;
+
+  if (state.mesh != mesh)
   {
-    push_material(state, material);
+    if (!mesh->ready())
+    {
+      state.resources->request(*state.platform, mesh);
+
+      if (!mesh->ready())
+        return;
+    }
+
+    bindresource(commandlist, mesh->vertexbuffer);
+
+    state.mesh = mesh;
   }
 
-  push_mesh(state, transform, mesh);
+  if (!material)
+    return;
+
+  if (state.material != material)
+  {
+    if (!material->ready())
+    {
+      state.resources->request(*state.platform, material);
+
+      if (!material->ready())
+        return;
+    }
+
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OceanMaterialSet), state.materialset);
+
+    if (state.materialset)
+    {
+      auto offset = state.materialset.reserve(sizeof(OceanMaterialSet));
+
+      auto materialset = state.materialset.memory<OceanMaterialSet>(offset);
+
+      materialset->color = material->color;
+      materialset->metalness = material->metalness;
+      materialset->roughness = material->roughness;
+      materialset->reflectivity = material->reflectivity;
+      materialset->emissive = material->emissive;
+      materialset->flow = flow;
+
+      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bindtexture(context.device, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+
+      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      state.material = material;
+    }
+  }
+
+  setimagelayout(commandlist, context.depthbuffer.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+
+#if 1
+  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
+  {
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+  }
+
+  if (state.modelset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
+
+    modelset->modelworld = transform;
+
+    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);    
+  }
+#else
+  push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
+
+  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+#endif
+
+  setimagelayout(commandlist, context.depthbuffer.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+
+  bindresource(commandlist, context.oceanpipeline[1], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
 }
 
 

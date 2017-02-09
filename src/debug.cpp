@@ -230,7 +230,7 @@ namespace
 
     g_frametime = g_debuglog[(lastframes[0] + tail) % extentof(g_debuglog)].timestamp - g_debuglog[(lastframes[1] + tail) % extentof(g_debuglog)].timestamp;
 
-    g_fpshistory[g_fpshistorytail++ % extentof(g_fpshistory)] = g_frametime / clock_frequency();
+    g_fpshistory[g_fpshistorytail++ % extentof(g_fpshistory)] = (float)(g_frametime / clock_frequency());
 
 
     //
@@ -311,7 +311,7 @@ namespace
         block.info = entry.info;
 
         block.beg = basetime;
-        block.end = basetime = basetime + entry.timestamp * 0.000000001 * clock_frequency();
+        block.end = basetime = basetime + (unsigned long long)(entry.timestamp * 0.000000001 * clock_frequency());
 
         g_gpu.blockcount += 1;
       }

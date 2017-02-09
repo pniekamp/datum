@@ -52,7 +52,11 @@ struct GameState
 
   Mesh const *testplane;
   Mesh const *testsphere;
-  Sprite const *testimage;  
+  Sprite const *testimage;
+
+  Texture const *watercolor;
+  Texture const *waternormal;
+  Material  const *watermaterial;
 
   unique_resource<Material> floormaterial;
 

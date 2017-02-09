@@ -33,7 +33,7 @@ enum ShaderLocation
   albedomap = 1,
 };
 
-struct MaterialSet
+struct CasterMaterialSet
 {
 };
 
@@ -89,60 +89,13 @@ bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 }
 
 
-///////////////////////// CasterList::push_material /////////////////////////
-void CasterList::push_material(BuildState &state, Material const *material)
-{
-  if (!material)
-    return;
-
-  if (!material->ready())
-  {
-    state.material = nullptr;
-
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
-
-  assert(state.commandlist);
-
-  auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
-
-  if (state.material != material)
-  {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
-
-    if (state.materialset)
-    {
-      auto offset = state.materialset.reserve(sizeof(MaterialSet));
-
-      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-
-      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-      state.material = material;
-    }
-  }
-}
-
-
 ///////////////////////// CasterList::push_mesh /////////////////////////////
-void CasterList::push_mesh(CasterList::BuildState &state, Transform const &transform, Mesh const *mesh)
+void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
   if (!mesh)
     return;
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  if (!state.material)
+  if (!material)
     return;
 
   assert(state.commandlist);
@@ -152,9 +105,41 @@ void CasterList::push_mesh(CasterList::BuildState &state, Transform const &trans
 
   if (state.mesh != mesh)
   {
+    if (!mesh->ready())
+    {
+      state.resources->request(*state.platform, mesh);
+
+      if (!mesh->ready())
+        return;
+    }
+
     bindresource(commandlist, mesh->vertexbuffer);
 
     state.mesh = mesh;
+  }
+
+  if (state.material != material)
+  {
+    if (!material->ready())
+    {
+      state.resources->request(*state.platform, material);
+
+      if (!material->ready())
+        return;
+    }
+
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(CasterMaterialSet), state.materialset);
+
+    if (state.materialset)
+    {
+      auto offset = state.materialset.reserve(sizeof(CasterMaterialSet));
+
+      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+
+      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      state.material = material;
+    }
   }
 
 #if 1
@@ -180,18 +165,6 @@ void CasterList::push_mesh(CasterList::BuildState &state, Transform const &trans
 
   draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
 #endif
-}
-
-
-///////////////////////// CasterList::push_mesh /////////////////////////////
-void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
-{
-  if (state.material != material)
-  {
-    push_material(state, material);
-  }
-
-  push_mesh(state, transform, mesh);
 }
 
 

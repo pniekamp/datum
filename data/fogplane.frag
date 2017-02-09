@@ -21,9 +21,11 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 
 layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
 {
-  vec4 color;
   vec4 plane;
+  vec4 color;
   float density;
+  float falloff;
+  float constant;
   float startdistance;
 
 } material;
@@ -46,17 +48,18 @@ void main()
   float FdotC = dot(material.plane, vec4(scene.camera.position, 1));
   float FdotP = dot(material.plane, vec4(position, 1));
   float FdotV = dot(material.plane.xyz, V);
+  
   float k = FdotC <= 0 ? 1 : 0;
-  float c1 = k * (FdotP + FdotC);
-  float c2 = min((1 - 2*k) * FdotP, 0);
- 
-  float dist = max(min(-0.25 * (c1 - c2*c2 / abs(FdotV)), 1) * length(V) - material.startdistance, 0);
+  float c1 = min(k*FdotP, 0) + k*FdotC;
+  float c2 = FdotP <= 0 ? (1-k)*FdotP : k*FdotC;
+
+  float dist = max(min(-0.5 * material.falloff * (c1 - c2 * FdotP / abs(FdotV)), 1) * length(V) - material.startdistance, 0);
   
   //float dist = max(min(k - FdotP / abs(FdotV), 1) * length(V) - material.startdistance, 0);
 
   //float dist = max(length(V) - material.startdistance, 0);
 
-  float factor = clamp(exp2(-pow(material.density * dist, 2)), 0, 1);
-  
+  float factor = clamp(exp2(-pow(material.density * dist + k*material.constant, 2)), 0, 1);
+
   fragcolor = material.color * (1 - factor);
 }

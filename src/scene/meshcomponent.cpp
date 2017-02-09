@@ -36,7 +36,7 @@ void MeshComponentStorage::clear()
 
 
 ///////////////////////// MeshStorage::add //////////////////////////////////
-void MeshComponentStorage::add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, long flags)
+void MeshComponentStorage::add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, int flags)
 {
   size_t index = size();
 
@@ -155,7 +155,7 @@ MeshComponent::MeshComponent(size_t index, MeshComponentStorage *storage)
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
-MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, long flags)
+MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, int flags)
 {
   assert(get(entity) != nullptr);
   assert(system<TransformComponentStorage>());
@@ -173,9 +173,9 @@ MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh c
 }
 
 template<>
-MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, int flags)
+MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, MeshComponent::Flags flags)
 {
-  return add_component<MeshComponent>(entity, mesh, material, (long)flags);
+  return add_component<MeshComponent>(entity, mesh, material, (int)flags);
 }
 
 

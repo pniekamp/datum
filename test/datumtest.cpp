@@ -23,10 +23,10 @@ namespace
       bound = expand(bound, scene.get_component<MeshComponent>(entity).bound());
     }
 
-    bound.min.y = 0.5;
+    bound.min.y = 0.5f;
 
     float maxradius = 3 * pow(volume(bound) / count, 1.0f/3.0f);
-    float minradius = maxradius * 0.8;
+    float minradius = maxradius * 0.8f;
 
     for(int i = 0; i < count; ++i)
     {
@@ -36,9 +36,9 @@ namespace
 
       Attenuation attenuation = Attenuation(256*max_element(intensity)/(range*range), 0.0f, 1.0f);
 
-      float rx = (bound.max.x - bound.min.x - range/4) * rand() / float(RAND_MAX);
-      float ry = (bound.max.y - bound.min.y - range/4) * rand() / float(RAND_MAX);
-      float rz = (bound.max.z - bound.min.z - range/4) * rand() / float(RAND_MAX);
+      float rx = max(bound.max.x - bound.min.x - range/4, 0.0f) * rand() / float(RAND_MAX);
+      float ry = max(bound.max.y - bound.min.y - range/4, 0.0f) * rand() / float(RAND_MAX);
+      float rz = max(bound.max.z - bound.min.z - range/4, 0.0f) * rand() / float(RAND_MAX);
 
       Vec3 position = bound.min + Vec3(rx, ry, rz);
 
@@ -102,6 +102,10 @@ void datumtest_init(PlatformInterface &platform)
   state.linecube = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_cube));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
+  state.watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
+  state.waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
+  state.watermaterial = state.resources.create<Material>(Color3(0.1f, 0.6f, 0.7f), 0.0f, 0.1f, 0.5f, 0.0f, state.watercolor, (Texture const *)nullptr, state.waternormal);
+
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
 
   state.testimage = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image), Vec2(0.0, 0.0));
@@ -151,7 +155,9 @@ void datumtest_init(PlatformInterface &platform)
 
 #if 0
   auto test = state.assets.load(platform, "test.pack");
-  state.scene.load<Model>(platform, &state.resources, state.assets.find(test->id + 1));
+  auto terrain = state.scene.load<Model>(platform, &state.resources, state.assets.find(test->id + 1));
+
+  state.scene.get_component<TransformComponent>(terrain).set_local(Transform::translation(0, -11.8f, 0));
 #endif
 
 #if 0
@@ -280,7 +286,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   DEBUG_MENU_VALUE("Suzanne/Roughness", &suzanneroughness, 0.0f, 1.0f)
 
   float suzannereflectivity = 0.5f;
-  DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 8.0f)
+  DEBUG_MENU_VALUE("Suzanne/Reflectivity", &suzannereflectivity, 0.0f, 1.0f)
 
   float suzanneemissive = 0.0f;
   DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 128.0f)
@@ -293,7 +299,10 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   float floorroughness = 1.0f;
   DEBUG_MENU_VALUE("Floor/Roughness", &floorroughness, 0.0f, 1.0f)
 
-  state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(0.64f, 0.64f, 0.64f), floormetalness, floorroughness));
+  float floorflectivity = 0.5f;
+  DEBUG_MENU_VALUE("Floor/Reflectivity", &floorflectivity, 0.0f, 1.0f)
+
+  state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(0.4f, 0.4f, 0.4f), floormetalness, floorroughness, floorflectivity));
 
 #if 1
   {
@@ -322,7 +331,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     {
       state.writeframe->geometry.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
-      state.writeframe->geometry.push_mesh(buildstate, Transform::identity(), state.testplane, state.floormaterial);
+//      state.writeframe->geometry.push_mesh(buildstate, Transform::identity(), state.testplane, state.floormaterial);
 
       for(auto &entity : state.scene.entities<MeshComponent>())
       {
@@ -331,6 +340,8 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
         state.writeframe->geometry.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
       }
+
+      state.writeframe->geometry.push_ocean(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.time*Vec2(0.002f, 0.001f));
 
       state.writeframe->geometry.finalise(buildstate);
     }
@@ -367,9 +378,9 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
       for(float angle = 0.0f; angle < 2*pi<float>(); angle += pi<float>()/count)
       {
-        Vec2 position = Vec2(0.5, 0.5) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
+        Vec2 position = Vec2(0.5f, 0.5f) + radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
 
-        state.writeframe->sprites.push_rect(buildstate, position, Rect2({0, -0.008}, {0.05, 0.008}), angle + state.time, Color4(1, 0, 0, 1));
+        state.writeframe->sprites.push_rect(buildstate, position, Rect2({0.0f, -0.008f}, {0.05f, 0.008f}), angle + state.time, Color4(1, 0, 0, 1));
       }
 
       state.writeframe->sprites.finalise(buildstate);
@@ -441,23 +452,20 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderlist.push_lights(state.readframe->lights);
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
-#if 0
+#if 1
   {
     ForwardList objects;
     ForwardList::BuildState buildstate;
 
     if (objects.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      float density = 0.01f;
-      DEBUG_MENU_VALUE("Fog/Density", &density, 0.0f, 0.1f);
+      float density = 0.16f;
+      DEBUG_MENU_VALUE("Water/Density", &density, 0.0f, 1.0f);
 
-      float startdistance = 2.0f;
-      DEBUG_MENU_VALUE("Fog/StartDistance", &startdistance, 0.0f, 100.0f);
+      float startdistance = -4.5f;
+      DEBUG_MENU_VALUE("Water/StartDistance", &startdistance, -10.0f, 0.0f);
 
-      float height = 2.0f;
-      DEBUG_MENU_VALUE("Fog/Height", &height, -20.0f, 100.0f);
-
-      objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), density, startdistance, Plane(Vec3(0.0f, 1.0f, 0.0f), -height));
+      objects.push_fogplane(buildstate, Color4(0.085f, 0.15f, 0.32f, 1.0f), Plane(Vec3(0.0f, 1.0f, 0.0f), -0.0f), density, startdistance, 4.0f);
 
       objects.finalise(buildstate);
     }
@@ -466,7 +474,35 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   }
 #endif
 
-#if 1
+#if 0
+  {
+    ForwardList objects;
+    ForwardList::BuildState buildstate;
+
+    if (objects.begin(buildstate, platform, state.rendercontext, &state.resources))
+    {
+      float density = 0.01f;
+      DEBUG_MENU_VALUE("Fog/Density", &density, 0.0f, 1.0f);
+
+      float falloff = 0.5f;
+      DEBUG_MENU_VALUE("Fog/Falloff", &falloff, 0.1f, 4.0f);
+
+      float startdistance = 2.0f;
+      DEBUG_MENU_VALUE("Fog/StartDistance", &startdistance, -4.0f, 100.0f);
+
+      float height = 2.0f;
+      DEBUG_MENU_VALUE("Fog/Height", &height, -20.0f, 100.0f);
+
+      objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), Plane(Vec3(0.0f, 1.0f, 0.0f), -height), density, startdistance, falloff);
+
+      objects.finalise(buildstate);
+    }
+
+    renderlist.push_objects(objects);
+  }
+#endif
+
+#if 0
   {
     Vec3 location(16.0f, 1.0f, -4.0f);
     DEBUG_MENU_VALUE("Particles/location", &location, Vec3(-15.0f), Vec3(15.0f));
@@ -531,7 +567,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
     if (sprites.begin(buildstate, platform, state.rendercontext, &state.resources))
     {
-      sprites.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, state.loader->layers));
+      sprites.push_sprite(buildstate, Vec2(viewport.width - 30, 50), 40, state.loader, fmod(10*state.readframe->time, (float)state.loader->layers));
 
 //      sprites.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
 
@@ -553,8 +589,9 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 //  renderparams.skybox = state.readframe->skybox;
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
-  //renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1*state.readframe->time);
-  renderparams.ssaoscale = 0.5f;
+//  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
+  renderparams.ssrstrength = 4.0f;
+  renderparams.ssaoscale = 0.0f;
 
   DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
   DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
