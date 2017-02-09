@@ -16,7 +16,7 @@ using namespace lml;
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ParticleSystemStorage::add ////////////////////////
-ParticleSystemComponentData *ParticleSystemComponentStorage::add(EntityId entity, Bound3 const &bound, ParticleSystem *particlesystem, long flags)
+ParticleSystemComponentData *ParticleSystemComponentStorage::add(EntityId entity, Bound3 const &bound, ParticleSystem *particlesystem, int flags)
 {
   auto data = BasicComponentStorage<ParticleSystemComponentData>::add(entity);
 
@@ -107,7 +107,7 @@ ParticleSystemComponent::ParticleSystemComponent(ParticleSystemComponentData *da
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
-ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem *particlesystem, long flags)
+ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem *particlesystem, int flags)
 {
   assert(get(entity) != nullptr);
   assert(system<TransformComponentStorage>());
@@ -120,6 +120,12 @@ ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::Ent
   auto bound = transform.world() * particlesystem->bound;
 
   return storage->add(entity, bound, particlesystem, flags);
+}
+
+template<>
+ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem *particlesystem, ParticleSystemComponent::Flags flags)
+{
+  return add_component<ParticleSystemComponent>(entity, particlesystem, (int)flags);
 }
 
 

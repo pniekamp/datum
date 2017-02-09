@@ -397,8 +397,6 @@ ParticleSystem::Instance const *ParticleSystem::create()
 
   auto instance = new(allocator<char>().allocate(bytes, alignof(InstanceEx))) InstanceEx;
 
-  instance->time = 0;
-
   instance->count = 0;
   instance->capacity = maxparticles;
   instance->emitter = new(&instance->data + maxparticles * offsetof(Particle, emitter)) size_t[maxparticles];
@@ -416,6 +414,7 @@ ParticleSystem::Instance const *ParticleSystem::create()
 
   instance->spritesheet = spritesheet;
 
+  memset(instance->time, 0, sizeof(instance->time));
   memset(instance->emittime, 0, sizeof(instance->emittime));
 
   instance->size = bytes;
@@ -436,6 +435,7 @@ void ParticleSystem::destroy(ParticleSystem::Instance const *instance)
 ///////////////////////// ParticleSystem::update ////////////////////////////
 void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera const &camera, Transform const &transform, float dt)
 {
+  assert(emitters.size() < extent<decltype(InstanceEx::time)>::value);
   assert(emitters.size() < extent<decltype(InstanceEx::emittime)>::value);
 
   auto instanceex = static_cast<InstanceEx*>(const_cast<Instance*>(instance));
@@ -455,7 +455,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
   for(auto const &emitter : emitters)
   {
-    float time = emitter.looping ? fmod(instanceex->time + dt, emitter.duration) : instanceex->time + dt;
+    float &time = instanceex->time[indexof(emitters, emitter)];
 
     if (time < emitter.duration)
     {
@@ -466,7 +466,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
         float &emittime = instanceex->emittime[indexof(emitters, emitter)];
 
         emittime += dt;
-        emitcount = floor(emittime * emitter.rate);
+        emitcount = static_cast<int>(emittime * emitter.rate);
         emittime = emittime - emitcount / emitter.rate;
       }
 
@@ -480,7 +480,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
       for(int i = 0; i < emitcount && instance->count < instance->capacity; ++i)
       {
-        float t = time / (emitter.duration + 1e-6);
+        float t = time / (emitter.duration + 1e-6f);
 
         instance->emitter[instance->count] = indexof(emitters, emitter);
         instance->life[instance->count] = 0.0f;
@@ -569,6 +569,8 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
         instanceex->count += 1;
       }
+
+      time = emitter.looping ? fmod(time + dt, emitter.duration) : time + dt;
     }
   }
 
@@ -704,6 +706,4 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
   }
 
   instanceex->spritesheet = spritesheet;
-
-  instanceex->time += dt;
 }

@@ -42,7 +42,7 @@ class SpriteList
       CommandList *commandlist = nullptr;
 
       VkSampler texture;
-      lml::Color4 tint;
+      lml::Color4 color;
       lml::Vec4 texcoords;
     };
 

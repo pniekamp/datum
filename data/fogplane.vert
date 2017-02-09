@@ -32,5 +32,5 @@ void main()
 {
   texcoord = vec2(vertex_texcoord.s, vertex_texcoord.t);
 
-  gl_Position = vec4(vertex_position.xy, scene.proj[3][2] / (2 * model.modelworld.dual.w) - scene.proj[2][2], 1);
+  gl_Position = vec4(vertex_position.xy, max(scene.proj[3][2] / (2 * model.modelworld.dual.w) - scene.proj[2][2], 0), 1);
 }

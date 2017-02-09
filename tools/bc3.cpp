@@ -48,10 +48,10 @@ namespace
       {
         auto pt = hada(color[i].rgb - midcolor, diagonal);
 
-        direction[0] += pow(pt.r + pt.g + pt.b, 2);
-        direction[1] += pow(pt.r + pt.g - pt.b, 2);
-        direction[2] += pow(pt.r - pt.g + pt.b, 2);
-        direction[3] += pow(pt.r - pt.g - pt.b, 2);
+        direction[0] += pow(pt.r + pt.g + pt.b, 2.0f);
+        direction[1] += pow(pt.r + pt.g - pt.b, 2.0f);
+        direction[2] += pow(pt.r - pt.g + pt.b, 2.0f);
+        direction[3] += pow(pt.r - pt.g - pt.b, 2.0f);
       }
 
       auto maxdirection = max_element(begin(direction), end(direction));
@@ -90,8 +90,8 @@ namespace
         dx += (1 - index/3.0f) / 8.0f * (palette[index] - color[i].rgb);
         dy += (index/3.0f) / 8.0f * (palette[index] - color[i].rgb);
 
-        d2x += pow(1 - index/3.0f, 2) / 8.0f;
-        d2y += pow(index/3.0f, 2) / 8.0f;
+        d2x += pow(1 - index/3.0f, 2.0f) / 8.0f;
+        d2y += pow(index/3.0f, 2.0f) / 8.0f;
       }
 
       if (d2x > 0)
@@ -193,8 +193,8 @@ namespace
         dx += (1 - index/7.0f) * (palette[index] - alpha[i]);
         dy += (index/7.0f) * (palette[index] - alpha[i]);
 
-        d2x += pow(1 - index/7.0f, 2);
-        d2y += pow(index/7.0f, 2);
+        d2x += pow(1 - index/7.0f, 2.0f);
+        d2y += pow(index/7.0f, 2.0f);
       }
 
       if (d2x > 0.0f)
@@ -241,8 +241,8 @@ namespace
 
     optimise_alpha(&alpha0, &alpha1, alpha);
 
-    result->alpha0 = alpha1 * 255.0 + 0.5f;
-    result->alpha1 = alpha0 * 255.0 + 0.5f;
+    result->alpha0 = static_cast<uint8_t>(alpha1 * 255.0f + 0.5f);
+    result->alpha1 = static_cast<uint8_t>(alpha0 * 255.0f + 0.5f);
     memset(result->bitmap, 0x00, 6);
 
     if (alpha0 != alpha1)

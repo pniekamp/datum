@@ -36,26 +36,25 @@ enum ShaderLocation
   normalmap = 3,
 };
 
-struct ForPlaneSet
+struct TranslucentMaterialSet
 {
   Color4 color;
+  float roughness;
+  float reflectivity;
+};
+
+struct ForPlaneMaterialSet
+{
   Vec4 plane;
+  Color4 color;
   float density;
+  float falloff;
+  float constant;
   float startdistance;
 };
 
-struct MaterialSet
+struct ParticleMaterialSet
 {
-  Color4 color;
-  float metalness;
-  float roughness;
-  float reflectivity;
-  float emissive;
-};
-
-struct ModelSet
-{
-  Transform modelworld;
 };
 
 struct alignas(16) Particle
@@ -63,6 +62,11 @@ struct alignas(16) Particle
   Vec4 position;
   Matrix2f transform;
   Color4 color;
+};
+
+struct ModelSet
+{
+  Transform modelworld;
 };
 
 ///////////////////////// draw_objects //////////////////////////////////////
@@ -110,7 +114,7 @@ bool ForwardList::begin(BuildState &state, PlatformInterface &platform, RenderCo
 
 
 ///////////////////////// ForwardList::push_fogplane ////////////////////////
-void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &color, float density, float startdistance, Plane const &plane)
+void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &color, Plane const &plane, float density, float startdistance, float falloff)
 {
   assert(state.commandlist);
 
@@ -121,20 +125,22 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
   bindresource(commandlist, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ForPlaneSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ForPlaneMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(ForPlaneSet));
+    auto offset = state.materialset.reserve(sizeof(ForPlaneMaterialSet));
 
-    auto materialset = state.materialset.memory<ForPlaneSet>(offset);
+    auto materialset = state.materialset.memory<ForPlaneMaterialSet>(offset);
 
-    materialset->color = color;
     materialset->plane = Vec4(plane.normal, plane.distance);
+    materialset->color = color;
     materialset->density = density;
-    materialset->startdistance = startdistance * 1.4142135f;
+    materialset->falloff = falloff;
+    materialset->constant = density * max(-startdistance, 0.0f) * 1.4142135f;
+    materialset->startdistance = max(startdistance, 0.0f) * 1.4142135f;
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -148,7 +154,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
-    modelset->modelworld = Transform::translation(0, 0, startdistance);
+    modelset->modelworld = Transform::translation(0, 0, max(startdistance, 0.01f));
 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -160,6 +166,13 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 ///////////////////////// ForwardList::push_translucent /////////////////////
 void ForwardList::push_translucent(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, float alpha)
 {
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+
+  bindresource(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
   if (!mesh)
     return;
 
@@ -170,6 +183,8 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
     if (!mesh->ready())
       return;
   }
+
+  bindresource(commandlist, mesh->vertexbuffer);
 
   if (!material)
     return;
@@ -182,28 +197,17 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
       return;
   }
 
-  assert(state.commandlist);
-
-  auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
-
-  bindresource(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-  bindresource(commandlist, mesh->vertexbuffer);
-
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(TranslucentMaterialSet), state.materialset);
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(MaterialSet));
+    auto offset = state.materialset.reserve(sizeof(TranslucentMaterialSet));
 
-    auto materialset = state.materialset.memory<MaterialSet>(offset);
+    auto materialset = state.materialset.memory<TranslucentMaterialSet>(offset);
 
     materialset->color = Color4(material->color, alpha);
-    materialset->metalness = material->metalness;
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
-    materialset->emissive = material->emissive;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
     bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
@@ -261,13 +265,15 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
   bindresource(commandlist, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
   if (state.materialset)
   {
+    auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
+
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
@@ -283,7 +289,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
     for(size_t i = 0; i < particles->count; ++i)
     {
-      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3);
+      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
       modelset[i].transform = particles->transform[i];
       modelset[i].color = particles->color[i];
     }
@@ -318,13 +324,15 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
   bindresource(commandlist, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
   if (state.materialset)
   {
+    auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
+
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
@@ -340,7 +348,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
     for(size_t i = 0; i < particles->count; ++i)
     {
-      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3);
+      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
       modelset[i].transform = particles->transform[i];
       modelset[i].color = particles->color[i];
     }

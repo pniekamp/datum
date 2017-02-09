@@ -83,12 +83,12 @@ namespace lml
   //|///////////////////// Gamma ////////////////////////////////////////////
   inline Color4 gamma(Color4 const &color)
   {
-    return Color4(pow(color.r, 1/2.2f), pow(color.g, 1/2.2f), pow(color.b, 1/2.2f), color.a);
+    return Color4(std::pow(color.r, 1/2.2f), std::pow(color.g, 1/2.2f), std::pow(color.b, 1/2.2f), color.a);
   }
 
   inline Color4 ungamma(Color4 const &color)
   {
-    return Color4(pow(color.r, 2.2f), pow(color.g, 2.2f), pow(color.b, 2.2f), color.a);
+    return Color4(std::pow(color.r, 2.2f), std::pow(color.g, 2.2f), std::pow(color.b, 2.2f), color.a);
   }
 
 

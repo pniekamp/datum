@@ -491,6 +491,23 @@ uint32_t write_envbrdf_asset(ostream &fout, uint32_t id)
 }
 
 
+uint32_t write_watermap_asset(ostream &fout, uint32_t id, Color3 const &deepcolor, Color3 const &shallowcolor, float scalepower = 1.0f, Color3 const &fresnelcolor = { 0.0f, 0.0f, 0.0f }, float fresnelbias = 0.328f, float fresnelpower = 5.0f)
+{
+  int width = 256;
+  int height = 256;
+  int layers = 1;
+  int levels = 1;
+
+  vector<char> payload(image_datasize(width, height, layers, levels));
+
+  image_pack_watercolor(deepcolor, shallowcolor, scalepower, fresnelcolor, fresnelbias, fresnelpower, width, height, payload.data());
+
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data());
+
+  return id + 1;
+}
+
+
 uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float scale = 1.0f)
 {
   vector<Vec3> points;
@@ -727,8 +744,14 @@ void write_core()
   write_shader_asset(fout, CoreAsset::shadow_geom, "../../data/shadow.geom");
   write_shader_asset(fout, CoreAsset::shadow_frag, "../../data/shadow.frag");
 
+  write_shader_asset(fout, CoreAsset::depth_vert, "../../data/depth.vert");
+  write_shader_asset(fout, CoreAsset::depth_frag, "../../data/depth.frag");
+
   write_shader_asset(fout, CoreAsset::geometry_vert, "../../data/geometry.vert");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
+
+  write_shader_asset(fout, CoreAsset::ocean_vert, "../../data/ocean.vert");
+  write_shader_asset(fout, CoreAsset::ocean_frag, "../../data/ocean.frag");
 
   write_shader_asset(fout, CoreAsset::fogplane_vert, "../../data/fogplane.vert");
   write_shader_asset(fout, CoreAsset::fogplane_frag, "../../data/fogplane.frag");
@@ -791,7 +814,10 @@ void write_core()
   write_shader_asset(fout, CoreAsset::outline_geom, "../../data/outline.geom");
   write_shader_asset(fout, CoreAsset::outline_frag, "../../data/outline.frag");
 
-  write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0f, "", "", "");
+  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0, 0.025, 0.046), Color3(0.1, 0.1, 0.1), 1.0);
+  write_normalmap_asset(fout, CoreAsset::wave_normal, "../../data/wavenormal.png");
+
+  write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0, "", "", "");
 
   write_sprite_asset(fout, CoreAsset::default_particle, "../../data/particle.png");
 

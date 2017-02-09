@@ -27,7 +27,7 @@ class Model : public Entity
     size_t add_material(Material const *material);
     size_t add_mesh(Mesh const *mesh);
 
-    Scene::EntityId add_instance(lml::Transform const &transform, size_t mesh, size_t material, long flags);
+    Scene::EntityId add_instance(lml::Transform const &transform, size_t mesh, size_t material, int flags);
 
     std::vector<Texture const *, StackAllocatorWithFreelist<Texture const *>> textures;
     std::vector<Material const *, StackAllocatorWithFreelist<Material const *>> materials;

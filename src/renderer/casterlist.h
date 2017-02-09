@@ -47,10 +47,6 @@ class CasterList
 
     bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
 
-    void push_material(BuildState &state, Material const *material);
-
-    void push_mesh(BuildState &state, lml::Transform const &transform, Mesh const *mesh);
-
     void push_mesh(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material);
 
     void finalise(BuildState &state);

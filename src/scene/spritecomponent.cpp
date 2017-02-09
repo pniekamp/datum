@@ -17,7 +17,7 @@ using namespace lml;
 //|--------------------------------------------------------------------------
 
 ///////////////////////// SpriteStorage::Constructor ////////////////////////
-SpriteComponentData *SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 tint, long flags)
+SpriteComponentData *SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 tint, int flags)
 {
   auto data = BasicComponentStorage<SpriteComponentData>::add(entity);
 
@@ -89,7 +89,7 @@ void SpriteComponent::set_tint(Color4 const &tint)
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
-SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, Color4 tint, long flags)
+SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, Color4 tint, int flags)
 {
   assert(get(entity) != nullptr);
   assert(system<TransformComponentStorage>());
@@ -98,12 +98,24 @@ SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sp
   return system<SpriteComponentStorage>()->add(entity, sprite, size, 0.0f, tint, flags);
 }
 
+template<>
+SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, Color4 tint, SpriteComponent::Flags flags)
+{
+  return add_component<SpriteComponent>(entity, sprite, size, tint, (int)flags);
+}
+
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
-SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, long flags)
+SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, int flags)
 {
   return add_component<SpriteComponent>(entity, sprite, size, Color4(1.0f, 1.0f, 1.0f, 1.0f), flags);
+}
+
+template<>
+SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sprite const *sprite, float size, SpriteComponent::Flags flags)
+{
+  return add_component<SpriteComponent>(entity, sprite, size, (int)flags);
 }
 
 

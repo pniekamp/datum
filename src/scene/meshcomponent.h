@@ -18,7 +18,7 @@
 //|---------------------- MeshComponentStorage ------------------------------
 //|--------------------------------------------------------------------------
 
-class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::Bound3, Mesh const *, Material const *>
+class MeshComponentStorage : public DefaultStorage<int, Scene::EntityId, lml::Bound3, Mesh const *, Material const *>
 {
   public:
 
@@ -102,7 +102,7 @@ class MeshComponentStorage : public DefaultStorage<long, Scene::EntityId, lml::B
 
     void clear() override;
 
-    void add(EntityId entity, lml::Bound3 const &bound, Mesh const *mesh, Material const *material, long flags);
+    void add(EntityId entity, lml::Bound3 const &bound, Mesh const *mesh, Material const *material, int flags);
 
     void remove(EntityId entity) override;
 
@@ -140,14 +140,14 @@ class MeshComponent
     };
 
   public:
-    friend MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, long flags);
+    friend MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh const *mesh, Material const *material, int flags);
     friend MeshComponent Scene::get_component<MeshComponent>(Scene::EntityId entity);
 
   public:
     MeshComponent() = default;
     MeshComponent(size_t index, MeshComponentStorage *storage);
 
-    long flags() const { return storage->data<MeshComponentStorage::flagbits>(index); }
+    int flags() const { return storage->data<MeshComponentStorage::flagbits>(index); }
 
     lml::Bound3 const &bound() const { return storage->data<MeshComponentStorage::boundingbox>(index); }
 

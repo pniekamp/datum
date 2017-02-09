@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 16;
+  const uint32_t version = 17;
 
   enum
   {
@@ -29,8 +29,12 @@ namespace CoreAsset
     shadow_vert,
     shadow_geom,
     shadow_frag,
+    depth_vert,
+    depth_frag,
     geometry_vert,
     geometry_frag,
+    ocean_vert,
+    ocean_frag,
     fogplane_vert,
     fogplane_frag,
     translucent_vert,
@@ -71,6 +75,8 @@ namespace CoreAsset
     outline_vert,
     outline_geom,
     outline_frag,
+    wave_color,
+    wave_normal,
     default_material,
     default_particle,
     loader_image,

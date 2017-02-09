@@ -168,8 +168,6 @@ class ParticleSystem
 
     struct Instance
     {
-      float time;
-
       size_t count;
       size_t capacity;
 
@@ -253,6 +251,7 @@ class ParticleSystem
     {
       size_t size;
 
+      float time[16];
       float emittime[16];
 
       alignas(16) uint8_t data[1];

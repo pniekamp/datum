@@ -112,11 +112,11 @@ uint32_t write_catl_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_t v
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackCalalogHeader shdr = { magic, version, 0, (size_t)fout.tellp() + sizeof(shdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackCalalogHeader catl = { magic, version, 0, (size_t)fout.tellp() + sizeof(catl) + sizeof(PackChunk) + sizeof(uint32_t) };
 
-  write_chunk(fout, "CATL", sizeof(shdr), &shdr);
+  write_chunk(fout, "CATL", sizeof(catl), &catl);
 
-//  write_chunk(fout, "DATA", length, data);
+//  write_chunk(fout, "DATA", pack_payload_size(catl), bits);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -131,11 +131,11 @@ uint32_t write_text_asset(ostream &fout, uint32_t id, uint32_t length, void cons
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackTextHeader shdr = { length, (size_t)fout.tellp() + sizeof(shdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackTextHeader text = { length, (size_t)fout.tellp() + sizeof(text) + sizeof(PackChunk) + sizeof(uint32_t) };
 
-  write_chunk(fout, "TEXT", sizeof(shdr), &shdr);
+  write_chunk(fout, "TEXT", sizeof(text), &text);
 
-  write_chunk(fout, "DATA", length, data);
+  write_chunk(fout, "DATA", pack_payload_size(text), data);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -170,11 +170,11 @@ uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t h
       assert(false);
   }
 
-  PackImageHeader ihdr = { width, height, layers, levels, format, datasize, (size_t)fout.tellp() + sizeof(ihdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackImageHeader imag = { width, height, layers, levels, format, datasize, (size_t)fout.tellp() + sizeof(imag) + sizeof(PackChunk) + sizeof(uint32_t) };
 
-  write_chunk(fout, "IMAG", sizeof(ihdr), &ihdr);
+  write_chunk(fout, "IMAG", sizeof(imag), &imag);
 
-  write_chunk(fout, "DATA", datasize, bits);
+  write_chunk(fout, "DATA", pack_payload_size(imag), bits);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -189,11 +189,11 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t 
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackFontHeader fhdr = { ascent, descent, leading, glyphcount, (size_t)fout.tellp() + sizeof(fhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackFontHeader font = { ascent, descent, leading, glyphcount, (size_t)fout.tellp() + sizeof(font) + sizeof(PackChunk) + sizeof(uint32_t) };
 
-  write_chunk(fout, "FONT", sizeof(fhdr), &fhdr);
+  write_chunk(fout, "FONT", sizeof(font), &font);
 
-  write_chunk(fout, "DATA", pack_payload_size(fhdr), bits);
+  write_chunk(fout, "DATA", pack_payload_size(font), bits);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -280,11 +280,11 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, void const *bits)
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackMaterialHeader mhdr = { (size_t)fout.tellp() + sizeof(mhdr) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackMaterialHeader matl = { (size_t)fout.tellp() + sizeof(matl) + sizeof(PackChunk) + sizeof(uint32_t) };
 
-  write_chunk(fout, "MATL", sizeof(mhdr), &mhdr);
+  write_chunk(fout, "MATL", sizeof(matl), &matl);
 
-  write_chunk(fout, "DATA", sizeof(PackMaterialPayload), bits);
+  write_chunk(fout, "DATA", pack_payload_size(matl), bits);
 
   write_chunk(fout, "AEND", 0, nullptr);
 
