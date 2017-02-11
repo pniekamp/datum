@@ -16,14 +16,12 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   
 } scene;
 
-layout(location=0) noperspective out vec4 fbocoord;
-layout(location=1) noperspective out vec3 edgedist;
+layout(location=0) noperspective out vec3 edgedist;
 
-void EmitPt(vec4 pt, vec3 dist)
+void EmitPt(vec4 position, vec3 dist)
 {
   edgedist = dist;
-  fbocoord = vec4(0.5 * pt.xy/pt.w + 0.5, pt.z/pt.w, 1);
-  gl_Position = vec4(pt.x * scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), pt.y * scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), pt.z, pt.w);
+  gl_Position = position;
   EmitVertex();
 }
 

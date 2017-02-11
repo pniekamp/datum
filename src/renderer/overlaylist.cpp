@@ -174,7 +174,7 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 
     auto materialset = state.materialset.memory<GizmoMaterialSet>(offset);
 
-    materialset->color = hada(Color4(material->color, 1.0f), tint);
+    materialset->color = hada(material->color, tint);
     materialset->metalness = material->metalness;
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;

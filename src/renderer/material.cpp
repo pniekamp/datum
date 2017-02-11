@@ -52,7 +52,7 @@ Material const *ResourceManager::create<Material>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
+Material const *ResourceManager::create<Material>(Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
 {
   auto slot = acquire_slot(sizeof(Material));
 
@@ -78,25 +78,25 @@ Material const *ResourceManager::create<Material>(Color3 color, float metalness,
 }
 
 template<>
-Material const *ResourceManager::create<Material>(Color3 color, float emissive)
+Material const *ResourceManager::create<Material>(Color4 color, float emissive)
 {
   return create<Material>(color, 0.0f, 1.0f, 0.5f, emissive, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
 }
 
 template<>
-Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness)
+Material const *ResourceManager::create<Material>(Color4 color, float metalness, float roughness)
 {
   return create<Material>(color, metalness, roughness, 0.5f, 0.0f, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
 }
 
 template<>
-Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity)
+Material const *ResourceManager::create<Material>(Color4 color, float metalness, float roughness, float reflectivity)
 {
   return create<Material>(color, metalness, roughness, reflectivity, 0.0f, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
 }
 
 template<>
-Material const *ResourceManager::create<Material>(Color3 color, float metalness, float roughness, float reflectivity, float emissive)
+Material const *ResourceManager::create<Material>(Color4 color, float metalness, float roughness, float reflectivity, float emissive)
 {
   return create<Material>(color, metalness, roughness, reflectivity, emissive, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
 }
@@ -104,7 +104,7 @@ Material const *ResourceManager::create<Material>(Color3 color, float metalness,
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Material>(Material const *material, Color3 color, float metalness, float roughness, float reflectivity, float emissive)
+void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive)
 {
   assert(material);
 
@@ -120,7 +120,7 @@ void ResourceManager::update<Material>(Material const *material, Color3 color, f
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Material>(Material const *material, lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
+void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
 {
   assert(material);
   assert((material->flags & (MaterialOwnsAlbedoMap | MaterialOwnsSpecularMap | MaterialOwnsNormalMap)) == 0);
@@ -158,7 +158,7 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
       {
         auto payload = reinterpret_cast<PackMaterialPayload const *>(bits);
 
-        slot->color = Color3(payload->color[0], payload->color[1], payload->color[2]);
+        slot->color = Color4(payload->color[0], payload->color[1], payload->color[2], payload->color[3]);
 
         slot->metalness = payload->metalness;
         slot->roughness = payload->roughness;

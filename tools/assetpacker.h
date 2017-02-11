@@ -29,7 +29,7 @@ uint32_t write_font_asset(std::ostream &fout, uint32_t id, uint32_t ascent, uint
 uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, uint32_t vertexcount, uint32_t indexcount, lml::Bound3 const &bound, void const *bits);
 uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, std::vector<PackVertex> const &vertices, std::vector<uint32_t> const &indices);
 uint32_t write_matl_asset(std::ostream &fout, uint32_t id, void const *bits);
-uint32_t write_matl_asset(std::ostream &fout, uint32_t id, lml::Color3 const &color, float metalness, float roughness, float reflectivity, float emissive, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap);
+uint32_t write_matl_asset(std::ostream &fout, uint32_t id, lml::Color4 const &color, float metalness, float roughness, float reflectivity, float emissive, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap);
 uint32_t write_modl_asset(std::ostream &fout, uint32_t id, uint32_t texturecount, uint32_t materialcount, uint32_t meshcount, uint32_t instancecount, void const *bits);
 uint32_t write_modl_asset(std::ostream &fout, uint32_t id, std::vector<PackModelPayload::Texture> const &textures, std::vector<PackModelPayload::Material> const &materials, std::vector<PackModelPayload::Mesh> const &meshes, std::vector<PackModelPayload::Instance> const &instances);
 uint32_t write_ptsm_asset(std::ostream &fout, uint32_t id, lml::Bound3 const &bound, uint32_t maxparticles, uint32_t emittercount, uint32_t emitterssize, void const *bits);

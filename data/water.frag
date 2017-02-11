@@ -38,18 +38,23 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
 {
   vec4 color;
+  float metalness;
   float roughness;
   float reflectivity;
   float emissive;
+  vec2 flow;
+
+  Environment specular;
 
 } material;
 
 layout(set=1, binding=1) uniform sampler2DArray albedomap;
-layout(set=1, binding=2) uniform sampler2DArray specularmap;
+layout(set=1, binding=2) uniform samplerCube specularmap;
 layout(set=1, binding=3) uniform sampler2DArray normalmap;
 
 layout(set=0, binding=4) uniform sampler2D depthmap;
 layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=7) uniform sampler2DArray envbrdfmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 texcoord;
@@ -79,29 +84,65 @@ float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
   return 1.0;
 }
 
+///////////////////////// environment  ///////////////////////////////////////
+void environment(inout vec3 envdiffuse, inout vec3 envspecular, vec3 position, vec3 normal, vec3 eyevec)
+{
+  vec3 diffusedirection = normal;
+  vec3 speculardirection = reflect(-eyevec, normal);
+
+  vec3 localpos = transform_multiply(material.specular.invtransform, position);
+  vec3 localdir = quaternion_multiply(material.specular.invtransform.real, speculardirection);
+
+  vec2 hittest = intersections(localpos, localdir, material.specular.halfdim);
+
+  vec3 localray = localpos + hittest.y * localdir;
+  
+  envdiffuse = textureLod(specularmap, diffusedirection * vec3(1, -1, -1), 6.3).rgb;
+  envspecular = textureLod(specularmap, localray * vec3(1, -1, -1), material.roughness * 8.0).rgb;
+}
+
+
 ///////////////////////// main //////////////////////////////////////////////
 void main()
-{ 
-  vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
+{
+  float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).z;
+  
+  vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
+  vec4 bump1 = texture(normalmap, vec3(texcoord * 2.0 + material.flow * 4.0, 0));
+  vec4 bump2 = texture(normalmap, vec3(texcoord * 4.0 + material.flow * 8.0, 0));
+
+  vec3 normal = normalize(tbnworld * (vec3(0, 0, 5) + (2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a)); 
+
   vec3 eyevec = normalize(scene.camera.position - position);
 
-  vec4 color = texture(albedomap, vec3(texcoord, 0));
+  float dist = view_depth(scene.proj, depth) - view_depth(scene.proj, gl_FragCoord.z);
 
-  vec4 rt0 = vec4(color.rgb * material.color.rgb, material.emissive);
-  vec4 rt1 = texture(specularmap, vec3(texcoord, 0)) * vec4(0, material.reflectivity, 0, material.roughness);
+  float scale = 0.05 * dist;
+  float facing = 1 - dot(eyevec, normal);
 
-  Material surface = unpack_material(rt0, rt1);
+  vec4 color = textureLod(albedomap, vec3(clamp(vec2(scale, facing), 1/255.0, 254/255.0), 0), 0);
+  
+  Material surface = make_material(color.rgb*material.color.rgb, material.emissive, material.metalness, material.reflectivity, material.roughness);
+
+  vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), surface.roughness, 0)).rg;
 
   float ambientintensity = 1.0;
-  
+
   float mainlightshadow = mainlight_shadow(scene.mainlight, position, normal);
+
+  float fogfactor = clamp(exp2(-pow(material.color.a * dist, 2)), 0, 1); 
   
+  vec3 envdiffuse = vec3(0.2);
+  vec3 envspecular = vec3(0);
+
+  environment(envdiffuse, envspecular, position, normal, eyevec);
+
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
 
-  env_light(diffuse, specular, surface, vec3(0.2), vec3(0), vec2(0), ambientintensity);
+  env_light(diffuse, specular, surface, envdiffuse, envspecular, envbrdf, ambientintensity);
 
   main_light(diffuse, specular, scene.mainlight, normal, eyevec, surface, mainlightshadow);
 
-  fragcolor = vec4(scene.camera.exposure * ((diffuse + surface.emissive) * surface.diffuse + specular), color.a * material.color.a);
+  fragcolor = vec4(scene.camera.exposure * ((diffuse + surface.emissive) * surface.diffuse + specular), mix(1, 1 - 0.8*envbrdf.x, fogfactor));
 }

@@ -293,13 +293,14 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, void const *bits)
 
 
 ///////////////////////// write_matl_asset //////////////////////////////////
-uint32_t write_matl_asset(ostream &fout, uint32_t id, Color3 const &color, float metalness, float roughness, float reflectivity, float emissive, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap)
+uint32_t write_matl_asset(ostream &fout, uint32_t id, Color4 const &color, float metalness, float roughness, float reflectivity, float emissive, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap)
 {
   PackMaterialPayload matl;
 
   matl.color[0] = color.r;
   matl.color[1] = color.g;
   matl.color[2] = color.b;
+  matl.color[3] = color.a;
   matl.metalness = metalness;
   matl.roughness = roughness;
   matl.reflectivity = reflectivity;

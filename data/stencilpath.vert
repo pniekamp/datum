@@ -30,5 +30,7 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 { 
-  gl_Position = scene.worldview * vec4(transform_multiply(model.modelworld, model.size * vertex_position), 1);
+  vec3 position = transform_multiply(model.modelworld, model.size * vertex_position);
+  
+  gl_Position = (scene.worldview * vec4(position, 1)) * vec4(scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), 1, 1);  
 }

@@ -27,14 +27,10 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 
 } model;
 
-layout(location=0) out vec2 texcoord;
-
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 {
-  vec4 ndc = scene.worldview * vec4(transform_multiply(model.modelworld, model.size * vertex_position), 1);
-
-  texcoord = vertex_texcoord; 
-
-  gl_Position = vec4(ndc.x * scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), ndc.y * scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), ndc.z, ndc.w);
+  vec3 position = transform_multiply(model.modelworld, model.size * vertex_position);
+  
+  gl_Position = (scene.worldview * vec4(position, 1)) * vec4(scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), 1, 1);  
 }

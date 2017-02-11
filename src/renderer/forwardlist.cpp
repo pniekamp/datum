@@ -36,11 +36,18 @@ enum ShaderLocation
   normalmap = 3,
 };
 
+struct alignas(16) Environment
+{
+  Vec4 halfdim;
+  Transform invtransform;
+};
+
 struct TranslucentMaterialSet
 {
   Color4 color;
   float roughness;
   float reflectivity;
+  float emissive;
 };
 
 struct ForPlaneMaterialSet
@@ -49,7 +56,6 @@ struct ForPlaneMaterialSet
   Color4 color;
   float density;
   float falloff;
-  float constant;
   float startdistance;
 };
 
@@ -62,6 +68,17 @@ struct alignas(16) Particle
   Vec4 position;
   Matrix2f transform;
   Color4 color;
+};
+
+struct WaterMaterialSet
+{
+  Color4 color;
+  float metalness;
+  float roughness;
+  float reflectivity;
+  float emissive;
+  Vec2 flow;
+  Environment specular;
 };
 
 struct ModelSet
@@ -137,7 +154,6 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
     materialset->color = color;
     materialset->density = density;
     materialset->falloff = falloff;
-    materialset->constant = density * max(-startdistance, 0.0f) * 1.4142135f;
     materialset->startdistance = max(startdistance, 0.0f) * 1.4142135f;
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -205,9 +221,10 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
     auto materialset = state.materialset.memory<TranslucentMaterialSet>(offset);
 
-    materialset->color = Color4(material->color, alpha);
+    materialset->color = Color4(material->color.rgb, material->color.a * alpha);
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
+    materialset->emissive = material->emissive;
 
     bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
     bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
@@ -216,7 +233,6 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-#if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
@@ -234,11 +250,6 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
-#else
-  push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
-
-  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
-#endif
 }
 
 
@@ -356,6 +367,109 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
     bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, context.unitquad.vertexcount, particles->count, 0, 0);
+  }
+}
+
+
+///////////////////////// ForwardList::push_water ///////////////////////////
+void ForwardList::push_water(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, EnvMap const *envmap, Vec2 const &flow, float alpha)
+{
+  auto envtransform = Transform::identity();
+  auto envdimension = Vec3(2e5f, 2e5f, 2e5f);
+
+  push_water(state, transform, mesh, material, envtransform, envdimension, envmap, flow, alpha);
+}
+
+
+///////////////////////// ForwardList::push_water ///////////////////////////
+void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, SkyBox const *skybox, Vec2 const &flow, float alpha)
+{
+  if (!skybox)
+    return;
+
+  auto envdimension = Vec3(2e5f, 2e5f, 2e5f);
+
+  push_water(state, transform, mesh, material, envtransform, envdimension, skybox->envmap, flow, alpha);
+}
+
+
+///////////////////////// ForwardList::push_water ///////////////////////////
+void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, Vec3 const &envdimension, EnvMap const *envmap, Vec2 const &flow, float alpha)
+{
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+
+  bindresource(commandlist, context.waterpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  if (!mesh)
+    return;
+
+  if (!mesh->ready())
+  {
+    state.resources->request(*state.platform, mesh);
+
+    if (!mesh->ready())
+      return;
+  }
+
+  bindresource(commandlist, mesh->vertexbuffer);
+
+  if (!material)
+    return;
+
+  if (!material->ready())
+  {
+    state.resources->request(*state.platform, material);
+
+    if (!material->ready())
+      return;
+  }
+
+  if (!envmap || !envmap->ready())
+    return;
+
+  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WaterMaterialSet), state.materialset);
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(WaterMaterialSet));
+
+    auto materialset = state.materialset.memory<WaterMaterialSet>(offset);
+
+    materialset->color = Color4(material->color.rgb, material->color.a * alpha);
+    materialset->metalness = material->metalness;
+    materialset->roughness = material->roughness;
+    materialset->reflectivity = material->reflectivity;
+    materialset->emissive = material->emissive;
+    materialset->flow = flow;
+    materialset->specular.halfdim = Vec4(envdimension/2, 0);
+    materialset->specular.invtransform = inverse(envtransform);
+
+    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bindtexture(context.device, state.materialset, ShaderLocation::specularmap, envmap->texture);
+    bindtexture(context.device, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+
+    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  }
+
+  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
+  {
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+  }
+
+  if (state.modelset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
+
+    modelset->modelworld = transform;
+
+    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 

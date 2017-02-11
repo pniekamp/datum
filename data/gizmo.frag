@@ -35,22 +35,23 @@ layout(set=1, binding=3) uniform sampler2DArray normalmap;
 
 layout(set=0, binding=4) uniform sampler2D depthmap;
 
-layout(location=0) noperspective in vec4 fbocoord;
-layout(location=1) in vec3 position;
-layout(location=2) in vec2 texcoord;
-layout(location=3) in vec3 normal;
+layout(location=0) in vec3 position;
+layout(location=1) in vec2 texcoord;
+layout(location=2) in vec3 normal;
 
 layout(location=0) out vec4 fragcolor;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
-{
+{ 
+  vec2 fbocoord = (gl_FragCoord.xy - scene.viewport.xy) / scene.viewport.zw;
+
   if (fbocoord.x < 0 || fbocoord.x > 1 || fbocoord.y < 0 || fbocoord.y > 1)
     discard;
 
   float depthfade = 1.0;
   
-  if (texture(depthmap, fbocoord.st).r < fbocoord.z)
+  if (texture(depthmap, fbocoord).r < gl_FragCoord.z)
   {
     depthfade = material.depthfade;
  

@@ -16,24 +16,24 @@
 
 class Material
 {
-  using Color3 = lml::Color3;
+  using Color4 = lml::Color4;
 
   public:
     friend Material const *ResourceManager::create<Material>(Asset const *asset);
-    friend Material const *ResourceManager::create<Material>(lml::Color3 color, float emissive);
-    friend Material const *ResourceManager::create<Material>(lml::Color3 color, float metalness, float roughness);
-    friend Material const *ResourceManager::create<Material>(lml::Color3 color, float metalness, float roughness, float reflectivity);
-    friend Material const *ResourceManager::create<Material>(lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive);
-    friend Material const *ResourceManager::create<Material>(lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
+    friend Material const *ResourceManager::create<Material>(lml::Color4 color, float emissive);
+    friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness);
+    friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity);
+    friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive);
+    friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
 
-    friend void ResourceManager::update<Material>(Material const *material, lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive);
-    friend void ResourceManager::update<Material>(Material const *material, lml::Color3 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
+    friend void ResourceManager::update<Material>(Material const *material, lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive);
+    friend void ResourceManager::update<Material>(Material const *material, lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
 
     bool ready() const { return (state == State::Ready); }
 
     int flags;
 
-    Color3 color;
+    Color4 color;
 
     float metalness;
     float roughness;

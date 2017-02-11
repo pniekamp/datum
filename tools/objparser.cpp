@@ -632,6 +632,7 @@ void write_model(string const &filename)
     entry.color[0] = materials[i].color.r;
     entry.color[1] = materials[i].color.g;
     entry.color[2] = materials[i].color.b;
+    entry.color[3] = 1.0f;
     entry.metalness = 1.0f;
     entry.roughness = 1.0f;
     entry.reflectivity = 0.5f;

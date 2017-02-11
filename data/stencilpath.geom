@@ -26,12 +26,9 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
 
 } material;
 
-layout(location=0) noperspective out vec4 fbocoord;
-
-void EmitPt(vec4 pt)
+void EmitPt(vec4 position)
 {
-  fbocoord = vec4(0.5 * pt.xy/pt.w + 0.5, pt.z/pt.w, 1);
-  gl_Position = vec4(pt.x * scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), pt.y * scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), pt.z, pt.w);
+  gl_Position = position;
   EmitVertex();
 }
 

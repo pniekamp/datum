@@ -160,7 +160,7 @@ struct PackMaterialHeader
 
 struct PackMaterialPayload
 {
-  float color[3];
+  float color[4];
   float metalness;
   float roughness;
   float reflectivity;
@@ -197,7 +197,7 @@ struct PackModelPayload
 
   struct Material
   {
-    float color[3];
+    float color[4];
     float metalness;
     float roughness;
     float reflectivity;

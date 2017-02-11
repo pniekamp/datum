@@ -179,7 +179,7 @@ bool Model::load(DatumPlatform::PlatformInterface &platform, ResourceManager *re
 
   for(int i = 0; i < asset->materialcount; ++i)
   {
-    auto color = Color3(materialtable[i].color[0], materialtable[i].color[1], materialtable[i].color[2]);
+    auto color = Color4(materialtable[i].color[0], materialtable[i].color[1], materialtable[i].color[2], materialtable[i].color[3]);
 
     auto metalness = materialtable[i].metalness;
     auto roughness = materialtable[i].roughness;
