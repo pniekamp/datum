@@ -15,6 +15,7 @@
 - Physically Based Rendering (PBR) & Image Based Lighting (IBL)
 - Particle System
 - Exponential Height Fog
+- Water
 - Entity-Component Scene Management
 
 ![Datum](/bin/datumtest.png?raw=true "Datum")

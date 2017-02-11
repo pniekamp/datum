@@ -27,10 +27,9 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 
 } model;
 
-layout(location=0) noperspective out vec4 fbocoord;
-layout(location=1) out vec3 position;
-layout(location=2) out vec2 texcoord;
-layout(location=3) out vec3 normal;
+layout(location=0) out vec3 position;
+layout(location=1) out vec2 texcoord;
+layout(location=2) out vec3 normal;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
@@ -38,10 +37,7 @@ void main(void)
   position = transform_multiply(model.modelworld, model.size * vertex_position);
   normal = quaternion_multiply(model.modelworld.real, vertex_normal);
 
-  vec4 ndc = scene.worldview * vec4(position, 1);
-
   texcoord = vertex_texcoord; 
-  fbocoord = vec4(0.5 * ndc.xy/ndc.w + 0.5, ndc.z/ndc.w, 1);
 
-  gl_Position = vec4(ndc.x * scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), ndc.y * scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), ndc.z, ndc.w);
+  gl_Position = (scene.worldview * vec4(position, 1)) * vec4(scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), 1, 1);  
 }

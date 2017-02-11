@@ -25,7 +25,6 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   vec4 color;
   float density;
   float falloff;
-  float constant;
   float startdistance;
 
 } material;
@@ -59,7 +58,7 @@ void main()
 
   //float dist = max(length(V) - material.startdistance, 0);
 
-  float factor = clamp(exp2(-pow(material.density * dist + k*material.constant, 2)), 0, 1);
+  float factor = clamp(exp2(-pow(material.density * dist, 2)), 0, 1);
 
-  fragcolor = material.color * (1 - factor);
+  fragcolor = vec4(scene.camera.exposure * material.color.rgb, material.color.a) * (1 - factor);
 }

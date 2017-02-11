@@ -104,7 +104,7 @@ void datumtest_init(PlatformInterface &platform)
 
   state.watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
   state.waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
-  state.watermaterial = state.resources.create<Material>(Color3(0.1f, 0.6f, 0.7f), 0.0f, 0.1f, 0.5f, 0.0f, state.watercolor, (Texture const *)nullptr, state.waternormal);
+  state.watermaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.1f, 0.5f, 0.0f, state.watercolor, (Texture const *)nullptr, state.waternormal);
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
 
@@ -191,7 +191,7 @@ void datumtest_init(PlatformInterface &platform)
     float y = 1.0f;
     float z = -5.0f;
 
-    auto material = state.resources.create<Material>(Color3(1.0f, 0.0f, 0.0f), 0.0f, roughness);
+    auto material = state.resources.create<Material>(Color4(1.0f, 0.0f, 0.0f, 1.0f), 0.0f, roughness);
 
     auto entity = state.scene.create<Entity>();
     state.scene.add_component<TransformComponent>(entity, Transform::translation(Vec3(x, y, z)));
@@ -204,7 +204,7 @@ void datumtest_init(PlatformInterface &platform)
     float y = 1.0f;
     float z = -3.0f;
 
-    auto material = state.resources.create<Material>(Color3(1.000f, 0.766f, 0.336f), 1.0f, roughness);
+    auto material = state.resources.create<Material>(Color4(1.000f, 0.766f, 0.336f, 1.0f), 1.0f, roughness);
 
     auto entity = state.scene.create<Entity>();
     state.scene.add_component<TransformComponent>(entity, Transform::translation(Vec3(x, y, z)));
@@ -267,7 +267,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
 #endif
 
-  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
+//  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
 
   state.camera = normalise(state.camera);
 
@@ -291,7 +291,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   float suzanneemissive = 0.0f;
   DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 128.0f)
 
-  state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(1, 0, 0), suzannemetalness, suzanneroughness, suzannereflectivity, cbrt(suzanneemissive/128)));
+  state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(1, 0, 0, 1), suzannemetalness, suzanneroughness, suzannereflectivity, cbrt(suzanneemissive/128)));
 
   float floormetalness = 0.0f;
   DEBUG_MENU_VALUE("Floor/Metalness", &floormetalness, 0.0f, 1.0f)
@@ -302,9 +302,9 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   float floorflectivity = 0.5f;
   DEBUG_MENU_VALUE("Floor/Reflectivity", &floorflectivity, 0.0f, 1.0f)
 
-  state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color3(0.4f, 0.4f, 0.4f), floormetalness, floorroughness, floorflectivity));
+  state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(0.4f, 0.4f, 0.4f, 1.0f), floormetalness, floorroughness, floorflectivity));
 
-#if 1
+#if 0
   {
     CasterList::BuildState buildstate;
 
@@ -462,10 +462,12 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       float density = 0.16f;
       DEBUG_MENU_VALUE("Water/Density", &density, 0.0f, 1.0f);
 
-      float startdistance = -4.5f;
-      DEBUG_MENU_VALUE("Water/StartDistance", &startdistance, -10.0f, 0.0f);
+      objects.push_fogplane(buildstate, Color4(0.085f, 0.15f, 0.32f, 1.0f), Plane(Vec3(0.0f, 1.0f, 0.0f), -0.1f), density, 0, 4.0f);
 
-      objects.push_fogplane(buildstate, Color4(0.085f, 0.15f, 0.32f, 1.0f), Plane(Vec3(0.0f, 1.0f, 0.0f), -0.0f), density, startdistance, 4.0f);
+//      if (camera.position().y < 0.1)
+//        objects.push_fogplane(buildstate, Color4(0.085f, 0.15f, 0.32f, 1.0f), Plane(Vec3(0.0f, 1.0f, 0.0f), -0.1f), density, 0, 4.0f);
+//      else
+//        objects.push_water(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.skybox->envmap, state.time*Vec2(0.002f, 0.001f), density);
 
       objects.finalise(buildstate);
     }
@@ -590,7 +592,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
 //  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
-  renderparams.ssrstrength = 4.0f;
+  renderparams.ssrstrength = 2.0f;
   renderparams.ssaoscale = 0.0f;
 
   DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);

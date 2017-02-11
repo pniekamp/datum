@@ -25,10 +25,9 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 
 } model;
 
-layout(location=0) noperspective out vec4 fbocoord;
-layout(location=1) out vec3 position;
-layout(location=2) out vec2 texcoord;
-layout(location=3) out mat3 tbnworld;
+layout(location=0) out vec3 position;
+layout(location=1) out vec2 texcoord;
+layout(location=2) out mat3 tbnworld;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
@@ -43,9 +42,5 @@ void main(void)
 
   texcoord = vertex_texcoord;
   
-  vec4 ndc = scene.worldview * vec4(position, 1);
-
-  fbocoord = vec4(0.5 * ndc.xy/ndc.w + 0.5, ndc.z/ndc.w, 1);
-
-  gl_Position = ndc;
+  gl_Position = scene.worldview * vec4(position, 1);
 }

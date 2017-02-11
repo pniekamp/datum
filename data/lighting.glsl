@@ -69,17 +69,16 @@ const vec2 PoissonDisk[12] = {
 
 #define PI 3.1415926535897932384626433832795
 
-
-///////////////////////// unpack_material ///////////////////////////////////
-Material unpack_material(vec4 rt0, vec4 rt1)
+///////////////////////// make_material /////////////////////////////////////
+Material make_material(vec3 albedo, float emissive, float metalness, float reflectivity, float roughness)
 {
   Material material;
 
-  material.albedo = rt0.rgb;
-  material.emissive = 128*rt0.a*rt0.a*rt0.a;
-  material.metalness = rt1.r;
-  material.roughness = rt1.a;
-  material.reflectivity = rt1.g;
+  material.albedo = albedo;
+  material.emissive = 128*emissive*emissive*emissive;
+  material.metalness = metalness;
+  material.roughness = roughness;
+  material.reflectivity = reflectivity;
 
   material.diffuse = material.albedo * (1 - material.metalness);
   material.specular = mix(vec3(0.16 * material.reflectivity * material.reflectivity), material.albedo, material.metalness);
@@ -87,6 +86,12 @@ Material unpack_material(vec4 rt0, vec4 rt1)
   material.alpha = material.roughness * material.roughness;
 
   return material;
+}
+
+///////////////////////// unpack_material ///////////////////////////////////
+Material unpack_material(vec4 rt0, vec4 rt1)
+{
+  return make_material(rt0.rgb, rt0.a, rt1.r, rt1.g, rt1.a);
 }
 
 

@@ -32,11 +32,14 @@ layout(location=0) out vec2 texcoords;
 ///////////////////////// main //////////////////////////////////////////////
 void main(void)
 {
-  float bias = 0.01 * pow(-(scene.view * vec4(transform_multiply(model.modelworld, model.size * vertex_position), 1)).z, 0.6);
-
+  vec3 position = transform_multiply(model.modelworld, model.size * vertex_position);
   vec3 normal = quaternion_multiply(model.modelworld.real, vertex_normal);
+
+  float bias = 0.01 * pow(-(scene.view * vec4(position, 1)).z, 0.6);
+
+  position = transform_multiply(model.modelworld, model.size * vertex_position + bias*normal);
 
   texcoords = vertex_texcoord; 
 
-  gl_Position = scene.worldview * vec4(transform_multiply(model.modelworld, model.size * vertex_position + bias*normal), 1);
+  gl_Position = (scene.worldview * vec4(position, 1)) * vec4(scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), 1, 1);  
 }

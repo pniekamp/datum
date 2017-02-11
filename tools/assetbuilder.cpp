@@ -491,7 +491,7 @@ uint32_t write_envbrdf_asset(ostream &fout, uint32_t id)
 }
 
 
-uint32_t write_watermap_asset(ostream &fout, uint32_t id, Color3 const &deepcolor, Color3 const &shallowcolor, float scalepower = 1.0f, Color3 const &fresnelcolor = { 0.0f, 0.0f, 0.0f }, float fresnelbias = 0.328f, float fresnelpower = 5.0f)
+uint32_t write_watermap_asset(ostream &fout, uint32_t id, Color3 const &deepcolor, Color3 const &shallowcolor, float depthscale = 1.0f, Color3 const &fresnelcolor = { 0.0f, 0.0f, 0.0f }, float fresnelbias = 0.328f, float fresnelpower = 5.0f)
 {
   int width = 256;
   int height = 256;
@@ -500,7 +500,7 @@ uint32_t write_watermap_asset(ostream &fout, uint32_t id, Color3 const &deepcolo
 
   vector<char> payload(image_datasize(width, height, layers, levels));
 
-  image_pack_watercolor(deepcolor, shallowcolor, scalepower, fresnelcolor, fresnelbias, fresnelpower, width, height, payload.data());
+  image_pack_watercolor(deepcolor, shallowcolor, depthscale, fresnelcolor, fresnelbias, fresnelpower, width, height, payload.data());
 
   write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data());
 
@@ -596,7 +596,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
 }
 
 
-uint32_t write_material_asset(ostream &fout, uint32_t id, Color3 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
+uint32_t write_material_asset(ostream &fout, uint32_t id, Color4 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
 {
   int mapid = 0;
   uint32_t albedomapid = (albedomap != "") ? ++mapid : 0;
@@ -693,7 +693,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 }
 
 
-void write_material(string const &output, Color3 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
+void write_material(string const &output, Color4 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
 {
   ofstream fout(output, ios::binary | ios::trunc);
 
@@ -759,6 +759,9 @@ void write_core()
   write_shader_asset(fout, CoreAsset::translucent_vert, "../../data/translucent.vert");
   write_shader_asset(fout, CoreAsset::translucent_frag, "../../data/translucent.frag");
 
+  write_shader_asset(fout, CoreAsset::water_vert, "../../data/water.vert");
+  write_shader_asset(fout, CoreAsset::water_frag, "../../data/water.frag");
+
   write_shader_asset(fout, CoreAsset::particle_vert, "../../data/particle.vert");
   write_shader_asset(fout, CoreAsset::particle_frag, "../../data/particle.frag");
 
@@ -814,7 +817,7 @@ void write_core()
   write_shader_asset(fout, CoreAsset::outline_geom, "../../data/outline.geom");
   write_shader_asset(fout, CoreAsset::outline_frag, "../../data/outline.frag");
 
-  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0, 0.025, 0.046), Color3(0.1, 0.1, 0.1), 1.0);
+  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0, 0.025, 0.046), Color3(0.1, 0.6, 0.7), 1.0);
   write_normalmap_asset(fout, CoreAsset::wave_normal, "../../data/wavenormal.png");
 
   write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0, "", "", "");

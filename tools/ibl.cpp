@@ -129,7 +129,7 @@ namespace
 
   Color3 convolve(float roughness, Vec3 ray, Sampler const &envmap)
   {
-    constexpr int kSamples = 1024;
+    constexpr int kSamples = 10;//24;
 
     Vec3 N = ray;
     Vec3 V = ray;
@@ -158,7 +158,7 @@ namespace
 
   Vec2 integrate(float roughness, float NdotV)
   {
-    constexpr int kSamples = 1024;
+    constexpr int kSamples = 10;//24;
 
     Vec3 V = Vec3(sqrt(1.0f - NdotV * NdotV), 0.0f, NdotV);
 
@@ -262,7 +262,7 @@ void image_pack_envbrdf(int width, int height, void *bits)
 
 
 ///////////////////////// image_pack_watercolor /////////////////////////////
-void image_pack_watercolor(Color3 const &deepcolor, Color3 const &shallowcolor, float scalepower, Color3 const &fresnelcolor, float fresnelbias, float fresnelpower, int width, int height, void *bits)
+void image_pack_watercolor(Color3 const &deepcolor, Color3 const &shallowcolor, float depthscale, Color3 const &fresnelcolor, float fresnelbias, float fresnelpower, int width, int height, void *bits)
 {
   uint32_t *dst = (uint32_t*)bits;
 
@@ -272,11 +272,11 @@ void image_pack_watercolor(Color3 const &deepcolor, Color3 const &shallowcolor, 
     {
       float scale = (x + 0.5f) / width;
       float facing = (y + 0.5f) / height;
+      float fresnel = clamp(fresnelbias + pow(facing, fresnelpower), 0.0f, 1.0f);
 
-      auto colorscale = lerp(Color4(shallowcolor, 1.0f), Color4(deepcolor, 1.0f), clamp(1 - exp2(-scalepower * scale * 100.0f), 0.0f, 1.0f));
-      auto colorfrenel = lerp(colorscale, Color4(fresnelcolor, 1.0f), clamp(fresnelbias + pow(facing, fresnelpower), 0.0f, 1.0f));
+      auto color = lerp(shallowcolor, deepcolor, clamp(1 - exp2(-depthscale * scale * 100.0f), 0.0f, 1.0f));
 
-      *dst++ = rgbe(colorfrenel);
+      *dst++ = rgbe(lerp(color, fresnelcolor, fresnel));
     }
   }
 }
