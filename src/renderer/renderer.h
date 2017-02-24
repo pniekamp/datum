@@ -211,14 +211,14 @@ struct RenderContext
   {
   }
 
-  Vulkan::VulkanDevice device;
+  Vulkan::VulkanDevice vulkan;
 
   Vulkan::Fence framefence;
 
   Vulkan::CommandPool commandpool;
   Vulkan::CommandBuffer commandbuffers[2];
 
-  Vulkan::TransferBuffer transferbuffer;
+  Vulkan::StorageBuffer transferbuffer;
 
   Vulkan::DescriptorPool descriptorpool;
 
@@ -251,7 +251,7 @@ struct RenderContext
   Vulkan::RenderPass forwardpass;
   Vulkan::RenderPass renderpass;
 
-  Vulkan::ConstantBuffer constantbuffer;
+  Vulkan::StorageBuffer constantbuffer;
 
   Vulkan::Texture envbrdf;
 

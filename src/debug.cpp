@@ -435,10 +435,9 @@ namespace
 
         for(size_t i = 0; i < extentof(g_threads); ++i)
         {
-          int totalcount = 0;
-
           if (g_threads[i].blockcount != 0)
           {
+            int totalcount = 0;
             unsigned long long totaltime = 0;
 
             for(size_t k = 0; k < g_threads[i].blockcount; ++k)

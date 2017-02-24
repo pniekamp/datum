@@ -31,9 +31,9 @@ namespace
 
 
 ///////////////////////// ResourcePool::initialise //////////////////////////
-void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, int queueinstance, size_t storagesize)
+void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue renderqueue, uint32_t renderqueuefamily, size_t storagesize)
 {
-  initialise_vulkan_device(&vulkan, physicaldevice, device, queueinstance);
+  initialise_vulkan_device(&vulkan, physicaldevice, device, renderqueue, renderqueuefamily);
 
   VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
 
@@ -243,7 +243,7 @@ bool initialise_resource_pool(DatumPlatform::PlatformInterface &platform, Resour
 {
   auto renderdevice = platform.render_device();
 
-  resourcepool.initialise(renderdevice.physicaldevice, renderdevice.device, 0, storagesize);
+  resourcepool.initialise(renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.renderqueue].queue, renderdevice.queues[renderdevice.renderqueue].familyindex, storagesize);
 
   return true;
 }

@@ -152,11 +152,7 @@ class ParticleEmitter
 
     // StretchWithAxis
     Vec3 stretchaxis = Vec3(0, 1, 0);
-
 };
-
-std::vector<uint8_t> pack(ParticleEmitter const &emitter);
-size_t unpack(ParticleEmitter &emitter, void const *bits);
 
 
 //|-------------------- ParticleSystem ------------------------------------

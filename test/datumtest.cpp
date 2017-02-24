@@ -144,12 +144,14 @@ void datumtest_init(PlatformInterface &platform)
 
   state.testparticles = state.testparticlesystem->create();
 
-//  while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
-//    ;
+#if 0
+  while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
+    ;
 
-//  state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
-//  state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
-//  state.renderframes[2].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+  state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+  state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+  state.renderframes[2].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
+#endif
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 3.0f));
 
@@ -388,16 +390,19 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   }
 #endif
 
+  DEBUG_MENU_VALUE("Lighting/Sun Intensity", &state.sunintensity, Color3(0, 0, 0), Color3(10, 10, 10));
+  DEBUG_MENU_ENTRY("Lighting/Sun Direction", state.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", state.sundirection, Vec3(-1), Vec3(1))));
+
+#if 0
   SkyboxParams skyboxparams;
   skyboxparams.sunintensity = state.sunintensity;
   skyboxparams.sundirection = state.sundirection;
 
   DEBUG_MENU_VALUE("Lighting/Sky", &skyboxparams.skycolor, Color3(0, 0, 0), Color3(10, 10, 10));
   DEBUG_MENU_VALUE("Lighting/Ground", &skyboxparams.groundcolor, Color3(0, 0, 0), Color3(10, 10, 10));
-  DEBUG_MENU_VALUE("Lighting/Sun Intensity", &state.sunintensity, Color3(0, 0, 0), Color3(10, 10, 10));
-  DEBUG_MENU_ENTRY("Lighting/Sun Direction", state.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", state.sundirection, Vec3(-1), Vec3(1))));
 
-//  render_skybox(state.skyboxcontext, state.writeframe->skybox, skyboxparams);
+  render_skybox(state.skyboxcontext, state.writeframe->skybox, skyboxparams);
+#endif
 
   DEBUG_MENU_ENTRY("Camera/Position", state.camera.position());
   DEBUG_MENU_ENTRY("Camera/Exposure", state.camera.exposure());

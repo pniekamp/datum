@@ -30,75 +30,38 @@ namespace
   }
 
   template<typename T>
-  T uniform_distribution(std::mt19937 &entropy, T const &minvalue, T const &maxvalue);
+  T uniform_distribution(mt19937 &entropy, T const &minvalue, T const &maxvalue);
 
   template<>
-  float uniform_distribution<float>(std::mt19937 &entropy, float const &minvalue, float const &maxvalue)
+  float uniform_distribution<float>(mt19937 &entropy, float const &minvalue, float const &maxvalue)
   {
     return uniform_real_distribution<float>{minvalue, maxvalue}(entropy);
   }
 
   template<>
-  Vec2 uniform_distribution<Vec2>(std::mt19937 &entropy, Vec2 const &minvalue, Vec2 const &maxvalue)
+  Vec2 uniform_distribution<Vec2>(mt19937 &entropy, Vec2 const &minvalue, Vec2 const &maxvalue)
   {
     return Vec2(uniform_distribution(entropy, minvalue.x, maxvalue.x), uniform_distribution(entropy, minvalue.y, maxvalue.y));
   }
 
   template<>
-  Vec3 uniform_distribution<Vec3>(std::mt19937 &entropy, Vec3 const &minvalue, Vec3 const &maxvalue)
+  Vec3 uniform_distribution<Vec3>(mt19937 &entropy, Vec3 const &minvalue, Vec3 const &maxvalue)
   {
     return Vec3(uniform_distribution(entropy, minvalue.x, maxvalue.x), uniform_distribution(entropy, minvalue.y, maxvalue.y), uniform_distribution(entropy, minvalue.z, maxvalue.z));
   }
 
   template<>
-  Color3 uniform_distribution<Color3>(std::mt19937 &entropy, Color3 const &minvalue, Color3 const &maxvalue)
+  Color3 uniform_distribution<Color3>(mt19937 &entropy, Color3 const &minvalue, Color3 const &maxvalue)
   {
     return Color3(uniform_distribution(entropy, minvalue.r, maxvalue.r), uniform_distribution(entropy, minvalue.g, maxvalue.g), uniform_distribution(entropy, minvalue.b, maxvalue.b));
   }
 
   template<>
-  Color4 uniform_distribution<Color4>(std::mt19937 &entropy, Color4 const &minvalue, Color4 const &maxvalue)
+  Color4 uniform_distribution<Color4>(mt19937 &entropy, Color4 const &minvalue, Color4 const &maxvalue)
   {
     return Color4(uniform_distribution(entropy, minvalue.r, maxvalue.r), uniform_distribution(entropy, minvalue.g, maxvalue.g), uniform_distribution(entropy, minvalue.b, maxvalue.b), uniform_distribution(entropy, minvalue.a, maxvalue.a));
   }
 
-  template<typename T>
-  void pack(vector<uint8_t> &bits, T const &value)
-  {
-    bits.insert(bits.end(), (uint8_t const *)&value, (uint8_t const *)&value + sizeof(value));
-  }
-
-  template<typename T, typename U, size_t N>
-  void pack(vector<uint8_t> &bits, U const (&values)[N])
-  {
-    for(auto &value : values)
-      pack<T>(bits, value);
-  }
-
-  template<typename T>
-  void unpack(T &value, void const *bits, size_t &cursor)
-  {
-    memcpy(&value, (uint8_t const *)bits + cursor, sizeof(value));
-
-    cursor += sizeof(value);
-  }
-
-  template<typename U, typename T, enable_if_t<!is_same<T, U>::value>* = nullptr>
-  void unpack(T &value, void const *bits, size_t &cursor)
-  {
-    U tmp;
-    memcpy(&tmp, (uint8_t const *)bits + cursor, sizeof(tmp));
-    value = static_cast<T>(tmp);
-
-    cursor += sizeof(tmp);
-  }
-
-  template<typename T, typename U, size_t N>
-  void unpack(U (&values)[N], void const *bits, size_t &cursor)
-  {
-    for(auto &value : values)
-      unpack<T>(value, bits, cursor);
-  }
 }
 
 //|---------------------- Distribution --------------------------------------
@@ -106,7 +69,7 @@ namespace
 
 ///////////////////////// Distribution::get /////////////////////////////////
 template<typename T>
-T Distribution<T>::get(std::mt19937 &entropy, float t) const
+T Distribution<T>::get(mt19937 &entropy, float t) const
 {
   switch(type)
   {
@@ -123,7 +86,7 @@ T Distribution<T>::get(std::mt19937 &entropy, float t) const
       return uniform_distribution(entropy, table_lookup(mintable, extentof(mintable), t), table_lookup(maxtable, extentof(maxtable), t));
   }
 
-  throw std::logic_error("invalid distribution");
+  throw logic_error("invalid distribution");
 }
 
 ///////////////////////// make_constant_distribution ////////////////////////
@@ -223,127 +186,6 @@ template Distribution<Color3> make_uniformtable_distribution<Color3>(Color3 cons
 template Distribution<Color4> make_uniformtable_distribution<Color4>(Color4 const *minvalues, size_t m, Color4 const *maxvalues, size_t n);
 
 
-//|---------------------- ParticleEmitter -----------------------------------
-//|--------------------------------------------------------------------------
-
-vector<uint8_t> pack(ParticleEmitter const &emitter)
-{
-  vector<uint8_t> bits;
-
-  pack<float>(bits, emitter.duration);
-  pack<float>(bits, emitter.rate);
-  pack<uint32_t>(bits, emitter.bursts);
-  pack<float>(bits, emitter.bursttime);
-  pack<uint32_t>(bits, emitter.burstcount);
-  pack<uint32_t>(bits, emitter.looping);
-  pack<Distribution<float>>(bits, emitter.life);
-  pack<Vec2>(bits, emitter.size);
-  pack<Distribution<float>>(bits, emitter.scale);
-  pack<Distribution<float>>(bits, emitter.rotation);
-  pack<Distribution<Vec3>>(bits, emitter.velocity);
-  pack<Distribution<Color4>>(bits, emitter.color);
-  pack<Distribution<float>>(bits, emitter.layer);
-  pack<Vec3>(bits, emitter.acceleration);
-  pack<uint32_t>(bits, emitter.modules);
-
-  if (emitter.modules & ParticleEmitter::ShapeEmitter)
-  {
-    pack<uint32_t>(bits, static_cast<int>(emitter.shape));
-    pack<float>(bits, emitter.shaperadius);
-    pack<float>(bits, emitter.shapeangle);
-  }
-
-  if (emitter.modules & ParticleEmitter::ScaleOverLife)
-  {
-    pack<Distribution<float>>(bits, emitter.scaleoverlife);
-  }
-
-  if (emitter.modules & ParticleEmitter::RotateOverLife)
-  {
-    pack<Distribution<float>>(bits, emitter.rotateoverlife);
-  }
-
-  if (emitter.modules & ParticleEmitter::StretchWithVelocity)
-  {
-    pack<float>(bits, emitter.velocitystretchmin);
-    pack<float>(bits, emitter.velocitystretchmax);
-  }
-
-  if (emitter.modules & ParticleEmitter::ColorOverLife)
-  {
-    pack<Distribution<Color4>>(bits, emitter.coloroverlife);
-  }
-
-  if (emitter.modules & ParticleEmitter::LayerOverLife)
-  {
-    pack<float>(bits, emitter.layerstart);
-    pack<float>(bits, emitter.layercount);
-    pack<Distribution<float>>(bits, emitter.layerrate);
-  }
-
-  return bits;
-}
-
-
-size_t unpack(ParticleEmitter &emitter, void const *bits)
-{
-  size_t cursor = 0;
-
-  unpack<float>(emitter.duration, bits, cursor);
-  unpack<float>(emitter.rate, bits, cursor);
-  unpack<uint32_t>(emitter.bursts, bits, cursor);
-  unpack<float>(emitter.bursttime, bits, cursor);
-  unpack<uint32_t>(emitter.burstcount, bits, cursor);
-  unpack<uint32_t>(emitter.looping, bits, cursor);
-  unpack<Distribution<float>>(emitter.life, bits, cursor);
-  unpack<Vec2>(emitter.size, bits, cursor);
-  unpack<Distribution<float>>(emitter.scale, bits, cursor);
-  unpack<Distribution<float>>(emitter.rotation, bits, cursor);
-  unpack<Distribution<Vec3>>(emitter.velocity, bits, cursor);
-  unpack<Distribution<Color4>>(emitter.color, bits, cursor);
-  unpack<Distribution<float>>(emitter.layer, bits, cursor);
-  unpack<Vec3>(emitter.acceleration, bits, cursor);
-  unpack<uint32_t>(emitter.modules, bits, cursor);
-
-  if (emitter.modules & ParticleEmitter::ShapeEmitter)
-  {
-    unpack<uint32_t>(emitter.shape, bits, cursor);
-    unpack<float>(emitter.shaperadius, bits, cursor);
-    unpack<float>(emitter.shapeangle, bits, cursor);
-  }
-
-  if (emitter.modules & ParticleEmitter::ScaleOverLife)
-  {
-    unpack<Distribution<float>>(emitter.scaleoverlife, bits, cursor);
-  }
-
-  if (emitter.modules & ParticleEmitter::RotateOverLife)
-  {
-    unpack<Distribution<float>>(emitter.rotateoverlife, bits, cursor);
-  }
-
-  if (emitter.modules & ParticleEmitter::StretchWithVelocity)
-  {
-    unpack<float>(emitter.velocitystretchmin, bits, cursor);
-    unpack<float>(emitter.velocitystretchmax, bits, cursor);
-  }
-
-  if (emitter.modules & ParticleEmitter::ColorOverLife)
-  {
-    unpack<Distribution<Color4>>(emitter.coloroverlife, bits, cursor);
-  }
-
-  if (emitter.modules & ParticleEmitter::LayerOverLife)
-  {
-    unpack<float>(emitter.layerstart, bits, cursor);
-    unpack<float>(emitter.layercount, bits, cursor);
-    unpack<Distribution<float>>(emitter.layerrate, bits, cursor);
-  }
-
-  return cursor;
-}
-
-
 //|---------------------- ParticleSystem ------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -379,11 +221,11 @@ bool ParticleSystem::load(DatumPlatform::PlatformInterface &platform, ResourceMa
 
   emitters.resize(asset->emittercount);
 
-  size_t cursor = 0;
+  size_t cursor = sizeof(PackParticleSystemPayload);
 
   for(size_t i = 0; i < emitters.size(); ++i)
   {
-    cursor += unpack(emitters[i], PackParticleSystemPayload::emitter(bits, cursor));
+    unpack(emitters[i], bits, cursor);
   }
 
   return true;

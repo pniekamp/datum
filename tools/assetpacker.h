@@ -33,7 +33,7 @@ uint32_t write_matl_asset(std::ostream &fout, uint32_t id, lml::Color4 const &co
 uint32_t write_modl_asset(std::ostream &fout, uint32_t id, uint32_t texturecount, uint32_t materialcount, uint32_t meshcount, uint32_t instancecount, void const *bits);
 uint32_t write_modl_asset(std::ostream &fout, uint32_t id, std::vector<PackModelPayload::Texture> const &textures, std::vector<PackModelPayload::Material> const &materials, std::vector<PackModelPayload::Mesh> const &meshes, std::vector<PackModelPayload::Instance> const &instances);
 uint32_t write_ptsm_asset(std::ostream &fout, uint32_t id, lml::Bound3 const &bound, uint32_t maxparticles, uint32_t emittercount, uint32_t emitterssize, void const *bits);
-uint32_t write_ptsm_asset(std::ostream &fout, uint32_t id, lml::Bound3 const &bound, uint32_t spritesheet, uint32_t maxparticles, std::vector<std::vector<uint8_t>> const &emitters);
+uint32_t write_ptsm_asset(std::ostream &fout, uint32_t id, lml::Bound3 const &bound, uint32_t spritesheet, uint32_t maxparticles, uint32_t emittercount, std::vector<uint8_t> const &emitters);
 
 
 //

@@ -1,0 +1,83 @@
+#version 450 core
+#include "transform.glsl"
+
+layout(local_size_x = 18, local_size_y = 18) in;
+
+/*layout(constant_id = 57) */const uint WaveResolution = 64;
+
+const uint SizeX = gl_WorkGroupSize.x - 2;
+const uint SizeY = gl_WorkGroupSize.y - 2;
+
+layout(std430, set=0, binding=0, row_major) buffer OceanParams 
+{ 
+  mat4 proj;
+  mat4 invproj;
+  Transform camera;
+
+  vec4 plane;
+  float swelllength;
+  float swellamplitude;
+  float swellsteepness;
+  float swellphase;
+  vec2 swelldirection;
+
+  float scale;
+  float choppiness;
+  float smoothing;
+ 
+  uint size;
+  vec2 h0[WaveResolution*WaveResolution];
+  float phase[WaveResolution*WaveResolution];
+
+  uint sizex;
+  uint sizey;  
+
+} params;
+
+layout(std430, set=0, binding=1, row_major) buffer Spectrum 
+{
+  vec2 h[WaveResolution*WaveResolution];
+  vec2 hx[WaveResolution*WaveResolution];
+  vec2 hy[WaveResolution*WaveResolution];
+
+  float weights[WaveResolution*WaveResolution];
+
+} spectrum;
+
+layout(set=0, binding=2) writeonly uniform image2DArray dest;
+
+shared vec3 displacements[SizeY + 2][SizeX + 2];
+
+const float signs[] = { 1.0f, -1.0f };
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  ivec2 ij = ivec2(gl_LocalInvocationID.xy);
+  ivec2 xy = ivec2(gl_WorkGroupID.x * SizeX + ij.x - 1, gl_WorkGroupID.y * SizeY + ij.y - 1);
+  
+  uint index = ((xy.y + WaveResolution) % WaveResolution) * WaveResolution + ((xy.x + WaveResolution) % WaveResolution);
+	
+  float sigma = signs[(xy.x + xy.y) & 1];
+
+  float dx = spectrum.hx[index].x * sigma * params.choppiness;
+  float dy = spectrum.hy[index].x * sigma * params.choppiness;
+  float dz = spectrum.h[index].x * sigma;
+
+  displacements[ij.y][ij.x] = vec3(dx, dy, dz);
+  
+  barrier();
+  
+  if (ij.x >= 1 && ij.x < SizeX+1 && ij.y >= 1 && ij.y < SizeY+1)
+  {
+    vec3 l = displacements[ij.y][ij.x-1];
+    vec3 r = displacements[ij.y][ij.x+1];
+    vec3 t = displacements[ij.y+1][ij.x];
+    vec3 b = displacements[ij.y-1][ij.x];
+    
+    vec3 normal = normalize(vec3(r.z - l.z, t.z - b.z, 4 / (params.scale * WaveResolution)));
+  
+    imageStore(dest, ivec3(xy, 0), vec4(dx, dy, dz, 0)); 
+    imageStore(dest, ivec3(xy, 1), vec4(normal.xyz, 0)); 
+  }
+}

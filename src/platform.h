@@ -92,9 +92,20 @@ namespace DatumPlatform
 
     struct RenderDevice
     {
+      VkDevice device;
+
       VkPhysicalDevice physicaldevice;
 
-      VkDevice device;
+      struct Queue
+      {
+        VkQueue queue;
+        uint32_t familyindex;
+      };
+
+      Queue queues[8];
+
+      uint32_t renderqueue;
+      uint32_t transferqueue;
     };
 
 

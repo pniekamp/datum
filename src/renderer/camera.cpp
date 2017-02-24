@@ -21,6 +21,8 @@ Camera::Camera()
 {
   m_fov = 60.0f*pi<float>()/180.0f;
   m_aspect = 1.7777f;
+  m_znear = 0.1f;
+  m_zfar = 1000.0f;
   m_exposure = 1.0f;
   m_transform = Transform::identity();
 }

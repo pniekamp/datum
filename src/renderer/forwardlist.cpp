@@ -226,9 +226,9 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
     materialset->reflectivity = material->reflectivity;
     materialset->emissive = material->emissive;
 
-    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-    bindtexture(context.device, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
-    bindtexture(context.device, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
@@ -282,7 +282,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
   {
     auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
 
-    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
@@ -341,7 +341,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
   {
     auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
 
-    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
@@ -447,9 +447,9 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     materialset->specular.halfdim = Vec4(envdimension/2, 0);
     materialset->specular.invtransform = inverse(envtransform);
 
-    bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-    bindtexture(context.device, state.materialset, ShaderLocation::specularmap, envmap->texture);
-    bindtexture(context.device, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::specularmap, envmap->texture);
+    bindtexture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
     bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }

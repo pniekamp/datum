@@ -255,7 +255,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   if (context.initialised)
     return true;
 
-  if (context.device == 0)
+  if (context.vulkan == 0)
   {
     //
     // Vulkan Device
@@ -263,28 +263,26 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     auto renderdevice = platform.render_device();
 
-    initialise_vulkan_device(&context.device, renderdevice.physicaldevice, renderdevice.device, 0);
+    initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.renderqueue].queue, renderdevice.queues[renderdevice.renderqueue].familyindex);
 
-    context.framefence = create_fence(context.device, VK_FENCE_CREATE_SIGNALED_BIT);
+    context.framefence = create_fence(context.vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
 
-    context.commandpool = create_commandpool(context.device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    context.commandbuffers[0] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    context.commandbuffers[1] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    context.commandbuffers[0] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    context.commandbuffers[1] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-    assert(PushConstantSize <= context.device.physicaldeviceproperties.limits.maxPushConstantsSize);
+    assert(PushConstantSize <= context.vulkan.physicaldeviceproperties.limits.maxPushConstantsSize);
 
     // DescriptorPool
 
-    VkDescriptorPoolSize typecounts[4] = {};
+    VkDescriptorPoolSize typecounts[3] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     typecounts[0].descriptorCount = 16;
     typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     typecounts[1].descriptorCount = 128;
     typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     typecounts[2].descriptorCount = 8;
-    typecounts[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    typecounts[3].descriptorCount = 8;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -293,22 +291,22 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     descriptorpoolinfo.poolSizeCount = extentof(typecounts);
     descriptorpoolinfo.pPoolSizes = typecounts;
 
-    context.descriptorpool = create_descriptorpool(context.device, descriptorpoolinfo);
+    context.descriptorpool = create_descriptorpool(context.vulkan, descriptorpoolinfo);
 
     // PipelineCache
 
     VkPipelineCacheCreateInfo pipelinecacheinfo = {};
     pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
-    context.pipelinecache = create_pipelinecache(context.device, pipelinecacheinfo);
+    context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
 
     // Constant Buffer
 
-    context.constantbuffer = create_constantbuffer(context.device, ConstantBufferSize);
+    context.constantbuffer = create_storagebuffer(context.vulkan, ConstantBufferSize);
 
     // Transfer Buffer
 
-    context.transferbuffer = create_transferbuffer(context.device, TransferBufferSize);
+    context.transferbuffer = create_transferbuffer(context.vulkan, TransferBufferSize);
   }
 
   if (context.timingquerypool == 0)
@@ -320,7 +318,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     querypoolinfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
     querypoolinfo.queryCount = 16;
 
-    context.timingquerypool = create_querypool(context.device, querypoolinfo);
+    context.timingquerypool = create_querypool(context.vulkan, querypoolinfo);
   }
 
   if (context.pipelinelayout == 0)
@@ -395,9 +393,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     createinfo.bindingCount = extentof(bindings);
     createinfo.pBindings = bindings;
 
-    context.scenesetlayout = create_descriptorsetlayout(context.device, createinfo);
+    context.scenesetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
 
-    context.scenedescriptor = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+    context.scenedescriptor = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.materialsetlayout == 0)
@@ -427,7 +425,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     createinfo.bindingCount = extentof(bindings);
     createinfo.pBindings = bindings;
 
-    context.materialsetlayout = create_descriptorsetlayout(context.device, createinfo);
+    context.materialsetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
   }
 
   if (context.modelsetlayout == 0)
@@ -445,7 +443,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     createinfo.bindingCount = extentof(bindings);
     createinfo.pBindings = bindings;
 
-    context.modelsetlayout = create_descriptorsetlayout(context.device, createinfo);
+    context.modelsetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
   }
 
   if (context.computelayout == 0)
@@ -467,7 +465,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     createinfo.bindingCount = extentof(bindings);
     createinfo.pBindings = bindings;
 
-    context.computelayout = create_descriptorsetlayout(context.device, createinfo);
+    context.computelayout = create_descriptorsetlayout(context.vulkan, createinfo);
   }
 
   if (context.pipelinelayout == 0)
@@ -492,7 +490,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelinelayoutinfo.setLayoutCount = extentof(layouts);
     pipelinelayoutinfo.pSetLayouts = layouts;
 
-    context.pipelinelayout = create_pipelinelayout(context.device, pipelinelayoutinfo);
+    context.pipelinelayout = create_pipelinelayout(context.vulkan, pipelinelayoutinfo);
   }
 
   if (context.shadowpass == 0)
@@ -524,7 +522,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     renderpassinfo.subpassCount = extentof(subpasses);
     renderpassinfo.pSubpasses = subpasses;
 
-    context.shadowpass = create_renderpass(context.device, renderpassinfo);
+    context.shadowpass = create_renderpass(context.vulkan, renderpassinfo);
   }
 
   if (context.geometrypass == 0)
@@ -584,7 +582,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     renderpassinfo.subpassCount = extentof(subpasses);
     renderpassinfo.pSubpasses = subpasses;
 
-    context.geometrypass = create_renderpass(context.device, renderpassinfo);
+    context.geometrypass = create_renderpass(context.vulkan, renderpassinfo);
   }
 
   if (context.forwardpass == 0)
@@ -628,7 +626,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     renderpassinfo.subpassCount = extentof(subpasses);
     renderpassinfo.pSubpasses = subpasses;
 
-    context.forwardpass = create_renderpass(context.device, renderpassinfo);
+    context.forwardpass = create_renderpass(context.vulkan, renderpassinfo);
   }
 
   if (context.renderpass == 0)
@@ -685,7 +683,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     renderpassinfo.dependencyCount = extentof(dependencies);
     renderpassinfo.pDependencies = dependencies;
 
-    context.renderpass = create_renderpass(context.device, renderpassinfo);
+    context.renderpass = create_renderpass(context.vulkan, renderpassinfo);
   }
 
   if (context.shadowpipeline == 0)
@@ -710,9 +708,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !gssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto gsmodule = create_shadermodule(context.device, gssrc, gs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.vulkan, gssrc, gs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -796,7 +794,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.shadowpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.shadowpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.geometrypipeline == 0)
@@ -819,8 +817,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -901,7 +899,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.geometrypipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.geometrypipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.translucentpipeline == 0)
@@ -924,8 +922,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -1025,7 +1023,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.translucentpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.translucentpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.ssaopipeline == 0)
@@ -1046,7 +1044,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[5] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, SSAOSizeX), sizeof(ComputeConstants::SSAOSizeX) };
@@ -1070,7 +1068,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
-    context.ssaopipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.ssaopipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
 
     mt19937 random(random_device{}());
     uniform_real_distribution<float> unit(0.0f, 1.0f);
@@ -1085,8 +1083,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
       context.ssaokernel[i] = normalise(Vec4(2*unit(random)-1, 2*unit(random)-1, unit(random), 0.0f)) * lerp(0.1f, 1.0f, pow(i / (float)extentof(context.ssaokernel), 2.0f));
     }
 
-    context.ssaodescriptors[0] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
-    context.ssaodescriptors[1] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+    context.ssaodescriptors[0] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+    context.ssaodescriptors[1] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.lightingpipeline == 0)
@@ -1107,7 +1105,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[6] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, LightingSizeX), sizeof(ComputeConstants::LightingSizeX) };
@@ -1132,12 +1130,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
-    context.lightingpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.lightingpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
 
     assert(sizeof(SceneSet) < ConstantBufferSize);
 
-    context.lightingdescriptors[0] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
-    context.lightingdescriptors[1] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+    context.lightingdescriptors[0] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+    context.lightingdescriptors[1] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
   if (context.skyboxpipeline == 0)
@@ -1160,8 +1158,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -1238,12 +1236,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.skyboxpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.skyboxpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
 
     for(size_t i = 0; i < extentof(context.skyboxdescriptors); ++i)
     {
-      context.skyboxcommands[i] = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-      context.skyboxdescriptors[i] = allocate_descriptorset(context.device, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+      context.skyboxcommands[i] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+      context.skyboxdescriptors[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout, context.constantbuffer, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
     }
   }
 
@@ -1267,8 +1265,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -1368,7 +1366,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.fogpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.fogpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.oceanpipeline[0] == 0)
@@ -1391,8 +1389,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -1470,7 +1468,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.oceanpipeline[0] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.oceanpipeline[0] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.oceanpipeline[1] == 0)
@@ -1493,8 +1491,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -1575,7 +1573,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.oceanpipeline[1] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.oceanpipeline[1] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.particlepipeline[0] == 0)
@@ -1598,8 +1596,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -1700,7 +1698,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.particlepipeline[0] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.particlepipeline[0] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.waterpipeline == 0)
@@ -1723,8 +1721,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -1824,7 +1822,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.waterpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.waterpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.ssrpipeline == 0)
@@ -1845,7 +1843,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[2] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, SSRSizeX), sizeof(ComputeConstants::SSRSizeX) };
@@ -1866,7 +1864,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
-    context.ssrpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.ssrpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.luminancepipeline == 0)
@@ -1887,7 +1885,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkComputePipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -1897,7 +1895,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.module = csmodule;
     pipelineinfo.stage.pName = "main";
 
-    context.luminancepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.luminancepipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.bloompipeline[0] == 0)
@@ -1918,7 +1916,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[3] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, BloomLumaSizeX), sizeof(ComputeConstants::BloomLumaSizeX) };
@@ -1940,7 +1938,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
-    context.bloompipeline[0] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.bloompipeline[0] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.bloompipeline[1] == 0)
@@ -1961,7 +1959,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[3] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, BloomHBlurSize), sizeof(ComputeConstants::BloomHBlurSize) };
@@ -1983,7 +1981,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
-    context.bloompipeline[1] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.bloompipeline[1] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.bloompipeline[2] == 0)
@@ -2004,7 +2002,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkSpecializationMapEntry specializationmap[3] = {};
     specializationmap[0] = { ShaderLocation::SizeY, offsetof(ComputeConstants, BloomVBlurSize), sizeof(ComputeConstants::BloomVBlurSize) };
@@ -2026,7 +2024,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
-    context.bloompipeline[2] = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.bloompipeline[2] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.compositepipeline == 0)
@@ -2049,8 +2047,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2126,9 +2124,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.compositepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.compositepipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
 
-    context.compositecommands = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+    context.compositecommands = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
   }
 
   if (context.spritepipeline == 0)
@@ -2151,8 +2149,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2235,7 +2233,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.spritepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.spritepipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.gizmopipeline == 0)
@@ -2258,8 +2256,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2345,7 +2343,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.gizmopipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.gizmopipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.wireframepipeline == 0)
@@ -2370,9 +2368,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !gssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto gsmodule = create_shadermodule(context.device, gssrc, gs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.vulkan, gssrc, gs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2462,7 +2460,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.wireframepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.wireframepipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.stencilmaskpipeline == 0)
@@ -2485,8 +2483,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2569,7 +2567,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.stencilmaskpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.stencilmaskpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.stencilfillpipeline == 0)
@@ -2592,8 +2590,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2685,7 +2683,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.stencilfillpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.stencilfillpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.stencilpathpipeline == 0)
@@ -2710,9 +2708,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !gssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto gsmodule = create_shadermodule(context.device, gssrc, gs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.vulkan, gssrc, gs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2808,7 +2806,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.stencilpathpipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.stencilpathpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.linepipeline == 0)
@@ -2833,9 +2831,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !gssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto gsmodule = create_shadermodule(context.device, gssrc, gs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.vulkan, gssrc, gs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -2925,7 +2923,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.linepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.linepipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.outlinepipeline == 0)
@@ -2950,9 +2948,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!vssrc || !gssrc || !fssrc)
       return false;
 
-    auto vsmodule = create_shadermodule(context.device, vssrc, vs->length);
-    auto gsmodule = create_shadermodule(context.device, gssrc, gs->length);
-    auto fsmodule = create_shadermodule(context.device, fssrc, fs->length);
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.vulkan, gssrc, gs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
     VkVertexInputBindingDescription vertexbindings[1] = {};
     vertexbindings[0].stride = VertexLayout::stride;
@@ -3042,7 +3040,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.outlinepipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
+    context.outlinepipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.envbrdf == 0)
@@ -3059,7 +3057,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.envbrdf = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, bits, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+    context.envbrdf = create_texture(context.vulkan, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, bits, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
   }
 
   if (context.whitediffuse == 0)
@@ -3076,7 +3074,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.whitediffuse = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, bits);
+    context.whitediffuse = create_texture(context.vulkan, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, bits);
   }
 
   if (context.nominalnormal == 0)
@@ -3093,7 +3091,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.nominalnormal = create_texture(context.device, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, bits);
+    context.nominalnormal = create_texture(context.vulkan, context.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, bits);
   }
 
   if (context.unitquad == 0)
@@ -3110,10 +3108,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.unitquad = create_vertexbuffer(context.device, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
+    context.unitquad = create_vertexbuffer(context.vulkan, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
   }
 
-  context.transfermemory = map_memory<uint8_t>(context.device, context.transferbuffer, 0, context.transferbuffer.size);
+  context.transfermemory = map_memory<uint8_t>(context.vulkan, context.transferbuffer, 0, context.transferbuffer.size);
 
   context.width = 0;
   context.height = 0;
@@ -3138,7 +3136,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     context.scale = params.scale;
     context.aspect = params.aspect;
 
-    vkDeviceWaitIdle(context.device);
+    vkDeviceWaitIdle(context.vulkan);
     vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
     vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
@@ -3150,17 +3148,17 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     if (context.fbowidth == 0 || context.fboheight == 0)
       return false;
 
-    CommandPool setuppool = create_commandpool(context.device, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    CommandPool setuppool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
-    CommandBuffer setupbuffer = allocate_commandbuffer(context.device, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    CommandBuffer setupbuffer = allocate_commandbuffer(context.vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-    begin(context.device, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    begin(context.vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
     //
     // Shadow Map
     //
 
-    context.shadows.shadowmap = create_texture(context.device, setupbuffer, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+    context.shadows.shadowmap = create_texture(context.vulkan, setupbuffer, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
     VkSamplerCreateInfo shadowsamplerinfo = {};
     shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -3172,7 +3170,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     shadowsamplerinfo.compareEnable = VK_TRUE;
     shadowsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
 
-    context.shadows.shadowmap.sampler = create_sampler(context.device, shadowsamplerinfo);
+    context.shadows.shadowmap.sampler = create_sampler(context.vulkan, shadowsamplerinfo);
 
     //
     // Shadow Buffer
@@ -3190,31 +3188,31 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     shadowbufferinfo.height = context.shadows.height;
     shadowbufferinfo.layers = context.shadows.nslices;
 
-    context.shadowbuffer = create_framebuffer(context.device, shadowbufferinfo);
+    context.shadowbuffer = create_framebuffer(context.vulkan, shadowbufferinfo);
 
     //
     // Color Attachment
     //
 
-    context.colorbuffer = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    context.colorbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    context.colorbuffertarget = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+    context.colorbuffertarget = allocate_descriptorset(context.vulkan, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
 
-    bindimageview(context.device, context.colorbuffertarget, ShaderLocation::imagetarget, context.colorbuffer.imageview);
+    bindimageview(context.vulkan, context.colorbuffertarget, ShaderLocation::imagetarget, context.colorbuffer.imageview);
 
     //
     // Geometry Attachment
     //
 
-    context.rt0buffer = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    context.rt1buffer = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    context.normalbuffer = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    context.rt0buffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    context.rt1buffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    context.normalbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     //
     // Depth Attachment
     //
 
-    context.depthbuffer = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+    context.depthbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
     VkSamplerCreateInfo depthsamplerinfo = {};
     depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -3225,7 +3223,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     depthsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     depthsamplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
-    context.depthbuffer.sampler = create_sampler(context.device, depthsamplerinfo);
+    context.depthbuffer.sampler = create_sampler(context.vulkan, depthsamplerinfo);
 
     //
     // Geometry Buffer
@@ -3246,7 +3244,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     geometrybufferinfo.height = context.fboheight;
     geometrybufferinfo.layers = 1;
 
-    context.geometrybuffer = create_framebuffer(context.device, geometrybufferinfo);
+    context.geometrybuffer = create_framebuffer(context.vulkan, geometrybufferinfo);
 
     //
     // Forward Buffer
@@ -3265,14 +3263,14 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     forwardbufferinfo.height = context.fboheight;
     forwardbufferinfo.layers = 1;
 
-    context.forwardbuffer = create_framebuffer(context.device, forwardbufferinfo);
+    context.forwardbuffer = create_framebuffer(context.vulkan, forwardbufferinfo);
 
     //
     // Render Target
     //
 
-    context.rendertarget = create_texture(context.device, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    context.depthstencil = create_texture(context.device, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    context.rendertarget = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    context.depthstencil = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     //
     // Frame Buffer
@@ -3291,21 +3289,21 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     framebufferinfo.height = context.height;
     framebufferinfo.layers = 1;
 
-    context.framebuffer = create_framebuffer(context.device, framebufferinfo);
+    context.framebuffer = create_framebuffer(context.vulkan, framebufferinfo);
 
     //
     // Scratch Buffers
     //
 
-    context.scratchbuffers[0] = create_texture(context.device, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
-    context.scratchbuffers[1] = create_texture(context.device, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
-    context.scratchbuffers[2] = create_texture(context.device, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    context.scratchbuffers[0] = create_texture(context.vulkan, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    context.scratchbuffers[1] = create_texture(context.vulkan, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    context.scratchbuffers[2] = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
 
     for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
     {
-      context.scratchtargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+      context.scratchtargets[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
 
-      bindimageview(context.device, context.scratchtargets[i], ShaderLocation::imagetarget, context.scratchbuffers[i].imageview);
+      bindimageview(context.vulkan, context.scratchtargets[i], ShaderLocation::imagetarget, context.scratchbuffers[i].imageview);
 
       clear(setupbuffer, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_GENERAL, Color4(0.0, 0.0, 0.0, 0.0));
     }
@@ -3321,22 +3319,22 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     for(size_t i = 0; i < extentof(context.ssaodescriptors); ++i)
     {
-      context.ssaobuffers[i] = create_texture(context.device, setupbuffer, max(int(context.fbowidth*params.ssaoscale), 1), max(int(context.fboheight*params.ssaoscale), 1), 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+      context.ssaobuffers[i] = create_texture(context.vulkan, setupbuffer, max(int(context.fbowidth*params.ssaoscale), 1), max(int(context.fboheight*params.ssaoscale), 1), 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
 
-      context.ssaotargets[i] = allocate_descriptorset(context.device, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+      context.ssaotargets[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.computelayout, context.transferbuffer, 0, sizeof(ComputeSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
 
-      bindimageview(context.device, context.ssaotargets[i], ShaderLocation::imagetarget, context.ssaobuffers[i].imageview);
+      bindimageview(context.vulkan, context.ssaotargets[i], ShaderLocation::imagetarget, context.ssaobuffers[i].imageview);
 
-      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::rt0, context.rt0buffer);
-      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::rt1, context.rt1buffer);
-      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
-      bindtexture(context.device, context.ssaodescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
+      bindtexture(context.vulkan, context.ssaodescriptors[i], ShaderLocation::rt0, context.rt0buffer);
+      bindtexture(context.vulkan, context.ssaodescriptors[i], ShaderLocation::rt1, context.rt1buffer);
+      bindtexture(context.vulkan, context.ssaodescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
+      bindtexture(context.vulkan, context.ssaodescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
 
       clear(setupbuffer, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_GENERAL, Color4(1.0, 1.0, 1.0, 1.0));
     }
 
-    bindtexture(context.device, context.ssaodescriptors[0], ShaderLocation::ssaomap, context.ssaobuffers[1]);
-    bindtexture(context.device, context.ssaodescriptors[1], ShaderLocation::ssaomap, context.ssaobuffers[0]);
+    bindtexture(context.vulkan, context.ssaodescriptors[0], ShaderLocation::ssaomap, context.ssaobuffers[1]);
+    bindtexture(context.vulkan, context.ssaodescriptors[1], ShaderLocation::ssaomap, context.ssaobuffers[0]);
 
     context.ssaoscale = params.ssaoscale;
 
@@ -3353,14 +3351,14 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       scratchmaps[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
 
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::rt0, context.rt0buffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::rt1, context.rt1buffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::normalmap, context.normalbuffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::depthmap, context.depthbuffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::colormap, context.colorbuffer);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::shadowmap, context.shadows.shadowmap);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::envbrdf, context.envbrdf);
-    bindtexture(context.device, context.scenedescriptor, ShaderLocation::scratchmaps, scratchmaps, extentof(scratchmaps));
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::rt0, context.rt0buffer);
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::rt1, context.rt1buffer);
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::normalmap, context.normalbuffer);
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::depthmap, context.depthbuffer);
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::colormap, context.colorbuffer);
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::shadowmap, context.shadows.shadowmap);
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::envbrdf, context.envbrdf);
+    bindtexture(context.vulkan, context.scenedescriptor, ShaderLocation::scratchmaps, scratchmaps, extentof(scratchmaps));
 
     //
     // Lighting
@@ -3368,33 +3366,33 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     for(size_t i = 0; i < extentof(context.lightingdescriptors); ++i)
     {
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::rt0, context.rt0buffer);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::rt1, context.rt1buffer);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[i]);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
-      bindtexture(context.device, context.lightingdescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
+      bindtexture(context.vulkan, context.lightingdescriptors[i], ShaderLocation::rt0, context.rt0buffer);
+      bindtexture(context.vulkan, context.lightingdescriptors[i], ShaderLocation::rt1, context.rt1buffer);
+      bindtexture(context.vulkan, context.lightingdescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
+      bindtexture(context.vulkan, context.lightingdescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
+      bindtexture(context.vulkan, context.lightingdescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[i]);
+      bindtexture(context.vulkan, context.lightingdescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
+      bindtexture(context.vulkan, context.lightingdescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
     }
 
     //
     // Composite
     //
 
-    begin(context.device, context.compositecommands, context.framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+    begin(context.vulkan, context.compositecommands, context.framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
     bindresource(context.compositecommands, context.compositepipeline, context.fbox, context.fboy, context.width-2*context.fbox, context.height-2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bindresource(context.compositecommands, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bindresource(context.compositecommands, context.unitquad);
     draw(context.compositecommands, context.unitquad.vertexcount, 1, 0, 0);
-    end(context.device, context.compositecommands);
+    end(context.vulkan, context.compositecommands);
 
     // Finalise
 
-    end(context.device, setupbuffer);
+    end(context.vulkan, setupbuffer);
 
-    submit(context.device, setupbuffer);
+    submit(context.vulkan, setupbuffer);
 
-    vkQueueWaitIdle(context.device.queue);
+    vkQueueWaitIdle(context.vulkan.queue);
 
     return false;
   }
@@ -3406,7 +3404,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 ///////////////////////// release_render_pipeline ///////////////////////////
 void release_render_pipeline(RenderContext &context)
 {
-  vkDeviceWaitIdle(context.device);
+  vkDeviceWaitIdle(context.vulkan);
   vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
   vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
@@ -3573,7 +3571,7 @@ void prepare_sceneset(RenderContext &context, SceneSet *scene, PushBuffer const 
 
   if (envcount != 0)
   {
-    bindtexture(context.device, context.lightingdescriptors[context.frame & 1], ShaderLocation::envmaps, imageinfos, envcount);
+    bindtexture(context.vulkan, context.lightingdescriptors[context.frame & 1], ShaderLocation::envmaps, imageinfos, envcount);
   }
 }
 
@@ -3602,9 +3600,9 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 {
   CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
-  wait(context.device, context.framefence);
+  wait_fence(context.vulkan, context.framefence);
 
-  begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   transition_acquire(commandbuffer, viewport.image);
 
@@ -3616,16 +3614,18 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
     assert(size < TransferBufferSize);
 
-    memcpy(context.transfermemory ? (void*)context.transfermemory : (void*)map_memory<uint8_t>(context.device, context.transferbuffer, 0, size), bitmap, size);
+    memcpy(context.transfermemory ? (void*)context.transfermemory : (void*)map_memory<uint8_t>(context.vulkan, context.transferbuffer, 0, size), bitmap, size);
 
     blit(commandbuffer, context.transferbuffer, 0, width, height, viewport.image, max(viewport.width - width, 0)/2, max(viewport.height - height, 0)/2, width, height);
   }
 
   transition_present(commandbuffer, viewport.image);
 
-  end(context.device, commandbuffer);
+  end(context.vulkan, commandbuffer);
 
-  submit(context.device, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.vulkan, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
+
+  vkQueueWaitIdle(context.vulkan.queue);
 
   context.luminance = 1.0f;
 
@@ -3648,7 +3648,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   auto &commandbuffer = context.commandbuffers[context.frame & 1];
 
-  begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   reset_querypool(commandbuffer, context.timingquerypool, 0, 1);
 
@@ -3886,7 +3886,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   barrier(commandbuffer);
 
-  end(context.device, commandbuffer);
+  end(context.vulkan, commandbuffer);
 
   //
   // Submit
@@ -3894,7 +3894,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   BEGIN_TIMED_BLOCK(Wait, Color3(0.1f, 0.1f, 0.1f))
 
-  wait(context.device, context.framefence);
+  wait_fence(context.vulkan, context.framefence);
 
   END_TIMED_BLOCK(Wait)
 
@@ -3905,7 +3905,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.device, context.timingquerypool, 0, 12, timings);
+  retreive_querypool(context.vulkan, context.timingquerypool, 0, 12, timings);
 
   GPU_TIMED_BLOCK(Shadows, Color3(0.0f, 0.4f, 0.0f), timings[0], timings[1])
   GPU_TIMED_BLOCK(Geometry, Color3(0.4f, 0.0f, 0.4f), timings[1], timings[2])
@@ -3921,7 +3921,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   GPU_SUBMIT();
 
-  submit(context.device, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.vulkan, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
 
   context.prevcamera = camera;
 

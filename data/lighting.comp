@@ -158,7 +158,7 @@ void main(void)
   
   ivec2 viewport = textureSize(depthmap, 0).xy;//imageSize(dest);
   
-  float depth = texelFetch(depthmap, xy, 0).z;
+  float depth = texelFetch(depthmap, xy, 0).r;
 
   float z = -view_depth(scene.proj, depth);
 

@@ -92,7 +92,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 
     hitpixel = permute ? P.yx : P.xy;
 
-    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec2(hitpixel), 0).z);
+    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec2(hitpixel), 0).r);
     
     if (Q.z / k <= scenezmax)
       break;
@@ -111,7 +111,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 
     hitpixel = permute ? P.yx : P.xy;
 
-    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec2(hitpixel), 0).z);
+    float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec2(hitpixel), 0).r);
 
     if (rayzmax <= scenezmax && rayzmin > scenezmax - Thickness)
     {
@@ -138,7 +138,7 @@ void main(void)
   
   ivec2 viewport = textureSize(colormap, 0).xy;//imageSize(dest);
   
-  float depth = texelFetch(depthmap, xy, 0).z;
+  float depth = texelFetch(depthmap, xy, 0).r;
   
   vec3 fragcolor = vec3(0);
 

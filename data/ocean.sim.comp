@@ -1,0 +1,80 @@
+#version 450 core
+#include "transform.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+/*layout(constant_id = 57) */const uint WaveResolution = 64;
+
+layout(std430, set=0, binding=0, row_major) buffer OceanParams 
+{ 
+  mat4 proj;
+  mat4 invproj;
+  Transform camera;
+
+  vec4 plane;
+  float swelllength;
+  float swellamplitude;
+  float swellsteepness;
+  float swellphase;
+  vec2 swelldirection;
+
+  float scale;
+  float choppiness;  
+  float smoothing;
+ 
+  uint size;
+  vec2 h0[WaveResolution*WaveResolution];
+  float phase[WaveResolution*WaveResolution];
+
+  uint sizex;
+  uint sizey;
+
+} params;
+
+layout(std430, set=0, binding=1, row_major) buffer Spectrum 
+{
+  vec2 h[WaveResolution*WaveResolution];
+  vec2 hx[WaveResolution*WaveResolution];
+  vec2 hy[WaveResolution*WaveResolution];
+
+  float weights[WaveResolution*WaveResolution];
+
+} spectrum;
+
+#define PI 3.1415926535897932384626433832795
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+
+  uint index = xy.y * WaveResolution + xy.x;
+
+  vec2 k = 2*PI * (xy - 0.5*WaveResolution) * params.scale;
+  
+  vec2 knorm = (k.x != 0 || k.y != 0) ? normalize(k) : vec2(0);
+  
+  float phase = params.phase[index];
+
+  vec2 h0k = params.h0[index];
+  vec2 h0mk = params.h0[(WaveResolution - 1 - xy.y) * WaveResolution + (WaveResolution - 1 - xy.x)];
+
+  float cos_v = cos(phase);
+  float sin_v = sin(phase);
+
+  vec2 h;
+  h.x = (h0k.x + h0mk.x) * cos_v - (h0k.y + h0mk.y) * sin_v;
+  h.y = (h0k.x - h0mk.x) * sin_v + (h0k.y - h0mk.y) * cos_v;
+  
+  vec2 hx;
+  hx.x = h.y * knorm.x;
+  hx.y = -h.x * knorm.x;
+
+  vec2 hy;
+  hy.x = h.y * knorm.y;
+  hy.y = -h.x * knorm.y;
+
+  spectrum.h[index] = h;
+  spectrum.hx[index] = hx;
+  spectrum.hy[index] = hy;
+}

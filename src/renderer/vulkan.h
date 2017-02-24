@@ -20,18 +20,19 @@ namespace Vulkan
 
   struct VulkanDevice
   {
+    VkDevice device = 0;
+
     VkPhysicalDevice physicaldevice;
     VkPhysicalDeviceProperties physicaldeviceproperties;
     VkPhysicalDeviceMemoryProperties physicaldevicememoryproperties;
 
-    VkDevice device = 0;
-
     VkQueue queue;
+    uint32_t queuefamily;
 
     operator VkDevice() const { return device; }
   };
 
-  void initialise_vulkan_device(VulkanDevice *vulkan, VkPhysicalDevice physicaldevice, VkDevice device, uint32_t queueinstance);
+  void initialise_vulkan_device(VulkanDevice *vulkan, VkPhysicalDevice physicaldevice, VkDevice device, VkQueue queue, uint32_t queuefamily);
 
 
   //|---------------------- VulkanResource ------------------------------------
@@ -290,17 +291,7 @@ namespace Vulkan
     View *data() const { return static_cast<View*>(*memory.data()); }
   };
 
-  struct TransferBuffer
-  {
-    VkDeviceSize size;
-    VkDeviceSize offset;
-    VulkanResource<VkBuffer, BufferDeleter> buffer;
-    VulkanResource<VkDeviceMemory, MemoryDeleter> memory;
-
-    operator VkBuffer() const { return buffer; }
-  };
-
-  struct ConstantBuffer
+  struct StorageBuffer
   {
     VkDeviceSize size;
     VkDeviceSize offset;
@@ -312,14 +303,14 @@ namespace Vulkan
 
   struct VertexBuffer
   {
-    size_t vertexcount, vertexsize;
+    uint32_t vertexcount, vertexsize;
     VulkanResource<VkBuffer, BufferDeleter> vertices;
 
-    size_t indexcount, indexsize;
+    uint32_t indexcount, indexsize;
     VulkanResource<VkBuffer, BufferDeleter> indices;
 
     VkDeviceSize size;
-    VkDeviceSize verticiesoffset;
+    VkDeviceSize verticesoffset;
     VkDeviceSize indicesoffset;
     VulkanResource<VkDeviceMemory, MemoryDeleter> memory;
 
@@ -369,31 +360,31 @@ namespace Vulkan
 
   Sampler create_sampler(VulkanDevice const &vulkan, VkSamplerCreateInfo const &createinfo);
 
-  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
-  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize &size);
+  StorageBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
 
-  ConstantBuffer create_constantbuffer(VulkanDevice const &vulkan, VkDeviceSize size);
+  StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size);
+  StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize &size);
 
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, size_t vertexcount, size_t vertexsize);
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize);
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize);
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize);
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize);
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize);
 
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, size_t vertexcount, size_t vertexsize, size_t indexcount, size_t indexsize);
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize, const void *indices, size_t indexcount, size_t indexsize);
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, const void *vertices, size_t vertexcount, size_t vertexsize, const void *indices, size_t indexcount, size_t indexsize);
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize, uint32_t indexcount, uint32_t indexsize);
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize);
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize);
 
-  void update_vertexbuffer(VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer);
-  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
-  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
+  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer);
+  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
+  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
 
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageUsageFlags usage, VkImageLayout layout);
 
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
-  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+  Texture create_texture(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
-  void update_texture(VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture);
-  void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, Texture &texture, const void *bits);
+  void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, Texture &texture);
+  void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, Texture &texture, const void *bits);
 
   QueryPool create_querypool(VulkanDevice const &vulkan, VkQueryPoolCreateInfo const &createinfo);
 
@@ -402,17 +393,17 @@ namespace Vulkan
   Memory map_memory(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size);
 
   template<typename View>
-  MemoryView<View> map_memory(VulkanDevice const &vulkan, TransferBuffer const &buffer, VkDeviceSize offset, VkDeviceSize size) { return { map_memory(vulkan, buffer.memory, buffer.offset + offset, size) }; }
+  MemoryView<View> map_memory(VulkanDevice const &vulkan, StorageBuffer const &buffer, VkDeviceSize offset, VkDeviceSize size) { return { map_memory(vulkan, buffer.memory, buffer.offset + offset, size) }; }
 
   Fence create_fence(VulkanDevice const &vulkan, VkFenceCreateFlags flags = 0);
 
-  void wait(VulkanDevice const &vulkan, VkFence fence);
-  bool test(VulkanDevice const &vulkan, VkFence fence);
-  void signal(VulkanDevice const &vulkan, VkFence fence);
+  void wait_fence(VulkanDevice const &vulkan, VkFence fence);
+  bool test_fence(VulkanDevice const &vulkan, VkFence fence);
+  void signal_fence(VulkanDevice const &vulkan, VkFence fence);
 
   Semaphore create_semaphore(VulkanDevice const &vulkan, VkSemaphoreCreateFlags flags = 0);
 
-  void signal(VulkanDevice const &vulkan, VkSemaphore semaphore);
+  void signal_semaphore(VulkanDevice const &vulkan, VkSemaphore semaphore);
 
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout);
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
@@ -420,10 +411,11 @@ namespace Vulkan
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler);
   void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
-  void bindtexturebase(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
 
   void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
   void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView writeimage);
+
+  void bindbuffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
 
   void reset_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPool descriptorpool);
 

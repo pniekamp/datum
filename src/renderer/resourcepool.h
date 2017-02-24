@@ -81,7 +81,7 @@ class ResourcePool
 
     // initialise resource pool
 
-    void initialise(VkPhysicalDevice physicaldevice, VkDevice device, int queueinstance, size_t storagesize);
+    void initialise(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue renderqueue, uint32_t renderqueuefamily, size_t storagesize);
 
     // lump
 
@@ -120,7 +120,7 @@ class ResourcePool
 
   private:
 
-    Vulkan::TransferBuffer m_transferbuffer;
+    Vulkan::StorageBuffer m_transferbuffer;
 
     Vulkan::MemoryView<uint8_t> m_transfermemory;
 

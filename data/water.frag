@@ -105,7 +105,7 @@ void environment(inout vec3 envdiffuse, inout vec3 envspecular, vec3 position, v
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).z;
+  float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).r;
   
   vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
   vec4 bump1 = texture(normalmap, vec3(texcoord * 2.0 + material.flow * 4.0, 0));

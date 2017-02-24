@@ -66,7 +66,7 @@ void main()
   vec2 texcoord = vec2(xy + 0.5) / textureSize(prevmap, 0).xy;//imageSize(dest);
 
 #if 0  // FULLRES
-  float depth = texelFetch(depthmap, xy, 0).z;
+  float depth = texelFetch(depthmap, xy, 0).r;
 #else  
   vec4 depthquad = textureGather(depthmap, texcoord);
   float depth = max_element(mix(vec4(0), depthquad, lessThan(depthquad, vec4(1))));

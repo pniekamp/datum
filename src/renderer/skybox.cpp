@@ -54,11 +54,11 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   auto &skyboxdescriptor = context.skyboxdescriptors[context.frame & 1];
 
-  begin(context.device, skyboxcommands, context.forwardbuffer, context.forwardpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  begin(context.vulkan, skyboxcommands, context.forwardbuffer, context.forwardpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
   bindresource(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindtexture(context.device, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap->texture);
+  bindtexture(context.vulkan, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap->texture);
 
   bindresource(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -66,7 +66,7 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   draw(skyboxcommands, context.unitquad.vertexcount, 1, 0, 0);
 
-  end(context.device, skyboxcommands);
+  end(context.vulkan, skyboxcommands);
 
   execute(commandbuffer, skyboxcommands);
 }
@@ -172,12 +172,12 @@ void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 //|--------------------------------------------------------------------------
 
 ///////////////////////// prepare_skybox_context ////////////////////////////
-bool prepare_skybox_context(DatumPlatform::v1::PlatformInterface &platform, SkyboxContext &context, AssetManager *assets, uint32_t queueinstance)
+bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager *assets, uint32_t queueindex)
 {
   if (context.initialised)
     return true;
 
-  if (context.device == 0)
+  if (context.vulkan == 0)
   {
     //
     // Vulkan Device
@@ -185,13 +185,13 @@ bool prepare_skybox_context(DatumPlatform::v1::PlatformInterface &platform, Skyb
 
     auto renderdevice = platform.render_device();
 
-    initialise_vulkan_device(&context.device, renderdevice.physicaldevice, renderdevice.device, queueinstance);
+    initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
 
-    context.fence = create_fence(context.device);
+    context.fence = create_fence(context.vulkan);
 
-    context.commandpool = create_commandpool(context.device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    context.commandbuffer = allocate_commandbuffer(context.device, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     // DescriptorPool
 
@@ -206,14 +206,14 @@ bool prepare_skybox_context(DatumPlatform::v1::PlatformInterface &platform, Skyb
     descriptorpoolinfo.poolSizeCount = extentof(typecounts);
     descriptorpoolinfo.pPoolSizes = typecounts;
 
-    context.descriptorpool = create_descriptorpool(context.device, descriptorpoolinfo);
+    context.descriptorpool = create_descriptorpool(context.vulkan, descriptorpoolinfo);
 
     // PipelineCache
 
     VkPipelineCacheCreateInfo pipelinecacheinfo = {};
     pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
-    context.pipelinecache = create_pipelinecache(context.device, pipelinecacheinfo);
+    context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
   }
 
   if (context.descriptorsetlayout == 0)
@@ -231,7 +231,9 @@ bool prepare_skybox_context(DatumPlatform::v1::PlatformInterface &platform, Skyb
     createinfo.bindingCount = extentof(bindings);
     createinfo.pBindings = bindings;
 
-    context.descriptorsetlayout = create_descriptorsetlayout(context.device, createinfo);
+    context.descriptorsetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
+
+    context.descriptorset = allocate_descriptorset(context.vulkan, context.descriptorpool, context.descriptorsetlayout);
   }
 
   if (context.pipelinelayout == 0)
@@ -253,7 +255,7 @@ bool prepare_skybox_context(DatumPlatform::v1::PlatformInterface &platform, Skyb
     pipelinelayoutinfo.setLayoutCount = extentof(layouts);
     pipelinelayoutinfo.pSetLayouts = layouts;
 
-    context.pipelinelayout = create_pipelinelayout(context.device, pipelinelayoutinfo);
+    context.pipelinelayout = create_pipelinelayout(context.vulkan, pipelinelayoutinfo);
   }
 
   if (context.pipeline == 0)
@@ -270,7 +272,7 @@ bool prepare_skybox_context(DatumPlatform::v1::PlatformInterface &platform, Skyb
     if (!cssrc)
       return false;
 
-    auto csmodule = create_shadermodule(context.device, cssrc, cs->length);
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
     VkComputePipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -280,9 +282,7 @@ bool prepare_skybox_context(DatumPlatform::v1::PlatformInterface &platform, Skyb
     pipelineinfo.stage.module = csmodule;
     pipelineinfo.stage.pName = "main";
 
-    context.pipeline = create_pipeline(context.device, context.pipelinecache, pipelineinfo);
-
-    context.descriptorset = allocate_descriptorset(context.device, context.descriptorpool, context.descriptorsetlayout);
+    context.pipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   context.initialised = true;
@@ -305,9 +305,9 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   auto &commandbuffer = context.commandbuffer;
 
-  bindimageview(context.device, context.descriptorset, 0, skybox->envmap->texture.imageview);
+  bindimageview(context.vulkan, context.descriptorset, 0, skybox->envmap->texture.imageview);
 
-  begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   bindresource(commandbuffer, context.pipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -319,14 +319,14 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   mip(commandbuffer, skybox->envmap->texture.image, skybox->envmap->texture.width, skybox->envmap->texture.height, skybox->envmap->texture.layers, skybox->envmap->texture.levels);
 
-  end(context.device, commandbuffer);
+  end(context.vulkan, commandbuffer);
 
   //
   // Submit
   //
 
-  submit(context.device, commandbuffer, context.fence);
+  submit(context.vulkan, commandbuffer, context.fence);
 
-  wait(context.device, context.fence);
+  wait_fence(context.vulkan, context.fence);
 }
 

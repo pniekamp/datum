@@ -57,7 +57,7 @@ bool CommandList::begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint
       inheritanceinfo.renderPass = renderpass;
       inheritanceinfo.subpass = subpass;
 
-      Vulkan::begin(context->device, m_commandbuffer, inheritanceinfo, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+      Vulkan::begin(context->vulkan, m_commandbuffer, inheritanceinfo, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
     }
   }
 
@@ -70,7 +70,7 @@ void CommandList::end()
 {
   assert(m_commandbuffer);
 
-  Vulkan::end(context->device, m_commandbuffer);
+  Vulkan::end(context->vulkan, m_commandbuffer);
 }
 
 

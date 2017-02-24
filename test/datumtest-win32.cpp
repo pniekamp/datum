@@ -149,7 +149,7 @@ class Game
 
     Game();
 
-    void init(VkPhysicalDevice physicaldevice, VkDevice device);
+    void init(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue renderqueue, uint32_t renderqueuefamily, VkQueue transferqueue, uint32_t transferqueuefamily, VkQueue updatequeue, uint32_t updatequeuefamily);
 
     void update(float dt);
 
@@ -193,7 +193,7 @@ Game::Game()
 
 
 ///////////////////////// Game::init ////////////////////////////////////////
-void Game::init(VkPhysicalDevice physicaldevice, VkDevice device)
+void Game::init(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue renderqueue, uint32_t renderqueuefamily, VkQueue transferqueue, uint32_t transferqueuefamily, VkQueue updatequeue, uint32_t updatequeuefamily)
 {
   game_init = datumtest_init;
   game_update = datumtest_update;
@@ -202,7 +202,16 @@ void Game::init(VkPhysicalDevice physicaldevice, VkDevice device)
   if (!game_init || !game_update || !game_render)
     throw std::runtime_error("Unable to init game code");
 
-  m_platform.initialise({ physicaldevice, device }, 1*1024*1024*1024);
+  RenderDevice renderdevice = {};
+  renderdevice.device = device;
+  renderdevice.physicaldevice = physicaldevice;
+  renderdevice.queues[0] = { renderqueue, renderqueuefamily };
+  renderdevice.queues[1] = { transferqueue, transferqueuefamily };
+  renderdevice.queues[2] = { updatequeue, updatequeuefamily };
+  renderdevice.renderqueue = 0;
+  renderdevice.transferqueue = 1;
+
+  m_platform.initialise(renderdevice, 1*1024*1024*1024);
 
   game_init(m_platform);
 
@@ -276,7 +285,15 @@ struct Vulkan
   VkPhysicalDeviceProperties physicaldeviceproperties;
   VkPhysicalDeviceMemoryProperties physicaldevicememoryproperties;
   VkDevice device;
-  VkQueue queue;
+
+  VkQueue renderqueue;
+  uint32_t renderqueuefamily;
+
+  VkQueue transferqueue;
+  uint32_t transferqueuefamily;
+
+  VkQueue updatequeue;
+  uint32_t updatequeuefamily;
 
   VkSurfaceKHR surface;
 
@@ -349,6 +366,10 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 
   physicaldevice = physicaldevices[0];
 
+  vkGetPhysicalDeviceProperties(physicaldevice, &physicaldeviceproperties);
+
+  vkGetPhysicalDeviceMemoryProperties(physicaldevice, &physicaldevicememoryproperties);
+
   uint32_t queuecount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(physicaldevice, &queuecount, nullptr);
 
@@ -392,11 +413,14 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   if (vkCreateDevice(physicaldevice, &deviceinfo, nullptr, &device) != VK_SUCCESS)
     throw runtime_error("Vulkan vkCreateDevice failed");
 
-  vkGetPhysicalDeviceProperties(physicaldevice, &physicaldeviceproperties);
+  vkGetDeviceQueue(device, queueindex, 0, &renderqueue);
+  renderqueuefamily = queueindex;
 
-  vkGetPhysicalDeviceMemoryProperties(physicaldevice, &physicaldevicememoryproperties);
+  vkGetDeviceQueue(device, queueindex, 1, &transferqueue);
+  transferqueuefamily = queueindex;
 
-  vkGetDeviceQueue(device, queueindex, 0, &queue);
+  vkGetDeviceQueue(device, queueindex, 2, &updatequeue);
+  updatequeuefamily = queueindex;
 
 #if VALIDATION
 
@@ -562,9 +586,9 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   submitinfo.commandBufferCount = 1;
   submitinfo.pCommandBuffers = &setupbuffer;
 
-  vkQueueSubmit(queue, 1, &submitinfo, VK_NULL_HANDLE);
+  vkQueueSubmit(renderqueue, 1, &submitinfo, VK_NULL_HANDLE);
 
-  vkQueueWaitIdle(queue);
+  vkQueueWaitIdle(renderqueue);
 
   vkFreeCommandBuffers(device, commandpool, 1, &setupbuffer);
 
@@ -672,9 +696,9 @@ void Vulkan::resize()
     submitinfo.commandBufferCount = 1;
     submitinfo.pCommandBuffers = &setupbuffer;
 
-    vkQueueSubmit(queue, 1, &submitinfo, VK_NULL_HANDLE);
+    vkQueueSubmit(renderqueue, 1, &submitinfo, VK_NULL_HANDLE);
 
-    vkQueueWaitIdle(queue);
+    vkQueueWaitIdle(renderqueue);
 
     vkFreeCommandBuffers(device, commandpool, 1, &setupbuffer);
   }
@@ -699,7 +723,7 @@ void Vulkan::present()
   presentinfo.waitSemaphoreCount = 1;
   presentinfo.pWaitSemaphores = &rendercomplete;
 
-  vkQueuePresentKHR(queue, &presentinfo);
+  vkQueuePresentKHR(renderqueue, &presentinfo);
 }
 
 
@@ -1008,7 +1032,7 @@ int main(int argc, char *args[])
 
     window.show();
 
-    game.init(vulkan.physicaldevice, vulkan.device);
+    game.init(vulkan.physicaldevice, vulkan.device, vulkan.renderqueue, vulkan.renderqueuefamily, vulkan.transferqueue, vulkan.transferqueuefamily, vulkan.updatequeue, vulkan.updatequeuefamily);
 
     thread updatethread([&]() {
 
