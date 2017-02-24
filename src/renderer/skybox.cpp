@@ -327,6 +327,6 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   submit(context.device, commandbuffer, context.fence);
 
-  wait(context.device, context.fence);
+  Vulkan::wait(context.device, context.fence);
 }
 

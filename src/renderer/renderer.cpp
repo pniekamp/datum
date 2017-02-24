@@ -3602,7 +3602,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 {
   CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
-  wait(context.device, context.framefence);
+  Vulkan::wait(context.device, context.framefence);
 
   begin(context.device, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -3894,7 +3894,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   BEGIN_TIMED_BLOCK(Wait, Color3(0.1f, 0.1f, 0.1f))
 
-  wait(context.device, context.framefence);
+    Vulkan::wait(context.device, context.framefence);
 
   END_TIMED_BLOCK(Wait)
 

@@ -77,7 +77,7 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
     return nullptr;
   }
 
-  wait(vulkan, lump->fence);
+  Vulkan::wait(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -111,7 +111,7 @@ void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLu
 
   auto slot = const_cast<Mesh*>(mesh);
 
-  wait(vulkan, lump->fence);
+  Vulkan::wait(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -163,7 +163,7 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
         if (auto lump = acquire_lump(mesh_datasize(asset->vertexcount, asset->indexcount)))
         {
-          wait(vulkan, lump->fence);
+          Vulkan::wait(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 

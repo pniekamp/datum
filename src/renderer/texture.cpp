@@ -148,7 +148,7 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
     return nullptr;
   }
 
-  wait(vulkan, lump->fence);
+  Vulkan::wait(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -182,7 +182,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 
   auto slot = const_cast<Texture*>(texture);
 
-  wait(vulkan, lump->fence);
+  Vulkan::wait(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -256,7 +256,7 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
 
         if (auto lump = acquire_lump(image_datasize(asset->width, asset->height, asset->layers, asset->levels, vkformat)))
         {
-          wait(vulkan, lump->fence);
+          Vulkan::wait(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
