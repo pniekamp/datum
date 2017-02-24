@@ -41,9 +41,7 @@ struct SkyboxContext
   {
   }
 
-  Vulkan::VulkanDevice device;
-
-  Vulkan::Fence fence;
+  Vulkan::VulkanDevice vulkan;
 
   Vulkan::CommandPool commandpool;
   Vulkan::CommandBuffer commandbuffer;
@@ -60,6 +58,8 @@ struct SkyboxContext
 
   Vulkan::DescriptorSet descriptorset;
 
+  Vulkan::Fence fence;
+
   bool initialised;
 };
 
@@ -73,7 +73,7 @@ struct SkyboxParams
 };
 
 // Prepare
-bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager *assets, uint32_t queueinstance);
+bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager *assets, uint32_t queueindex);
 
 // Render
 void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams const &params);

@@ -375,24 +375,15 @@ uint32_t write_ptsm_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint3
 
 
 ///////////////////////// write_ptsm_asset //////////////////////////////////
-uint32_t write_ptsm_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint32_t spritesheet, uint32_t maxparticles, vector<vector<uint8_t>> const &emitters)
+uint32_t write_ptsm_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint32_t spritesheet, uint32_t maxparticles, uint32_t emittercount, vector<uint8_t> const &emitters)
 {
-  uint32_t emittercount = emitters.size();
-  uint32_t emitterssize = accumulate(emitters.begin(), emitters.end(), 0, [](int i, auto &k) { return i + k.size(); });
-
-  vector<char> payload(sizeof(PackParticleSystemPayload) + emitterssize);
+  vector<char> payload(sizeof(PackParticleSystemPayload) + emitters.size());
 
   reinterpret_cast<PackParticleSystemPayload*>(payload.data())->spritesheet = spritesheet;
 
-  size_t cursor = 0;
-  for(size_t i = 0; i < emittercount; ++i)
-  {
-    memcpy(const_cast<uint8_t*>(PackParticleSystemPayload::emitter(payload.data(), cursor)), emitters[i].data(), emitters[i].size());
+  memcpy(payload.data() + sizeof(PackParticleSystemPayload), emitters.data(), emitters.size());
 
-    cursor += emitters[i].size();
-  }
-
-  write_ptsm_asset(fout, id, bound, maxparticles, emittercount, emitterssize, payload.data());
+  write_ptsm_asset(fout, id, bound, maxparticles, emittercount, emitters.size(), payload.data());
 
   return id + 1;
 }

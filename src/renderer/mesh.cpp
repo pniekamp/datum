@@ -77,7 +77,7 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
     return nullptr;
   }
 
-  wait(vulkan, lump->fence);
+  wait_fence(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -111,7 +111,7 @@ void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLu
 
   auto slot = const_cast<Mesh*>(mesh);
 
-  wait(vulkan, lump->fence);
+  wait_fence(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -121,7 +121,7 @@ void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLu
 
   submit_transfer(lump);
 
-  while (!test(vulkan, lump->fence))
+  while (!test_fence(vulkan, lump->fence))
     ;
 }
 
@@ -163,13 +163,13 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
         if (auto lump = acquire_lump(mesh_datasize(asset->vertexcount, asset->indexcount)))
         {
-          wait(vulkan, lump->fence);
+          wait_fence(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
           slot->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, asset->vertexcount, sizeof(Vertex), asset->indexcount, sizeof(uint32_t));
 
-          memcpy((uint8_t*)lump->transfermemory + slot->vertexbuffer.verticiesoffset, vertextable, slot->vertexbuffer.vertexcount * slot->vertexbuffer.vertexsize);
+          memcpy((uint8_t*)lump->transfermemory + slot->vertexbuffer.verticesoffset, vertextable, slot->vertexbuffer.vertexcount * slot->vertexbuffer.vertexsize);
           memcpy((uint8_t*)lump->transfermemory + slot->vertexbuffer.indicesoffset, indextable, slot->vertexbuffer.indexcount * slot->vertexbuffer.indexsize);
 
           update_vertexbuffer(lump->commandbuffer, lump->transferbuffer, slot->vertexbuffer);
@@ -196,7 +196,7 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
   if (slot->state.compare_exchange_strong(waiting, Mesh::State::Testing))
   {
-    if (test(vulkan, slot->transferlump->fence))
+    if (test_fence(vulkan, slot->transferlump->fence))
     {
       release_lump(slot->transferlump);
 
@@ -232,4 +232,50 @@ void ResourceManager::destroy<Mesh>(Mesh const *mesh)
   mesh->~Mesh();
 
   release_slot(const_cast<Mesh*>(mesh), sizeof(Mesh));
+}
+
+
+///////////////////////// make_plane ////////////////////////////////////////
+Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float tilex, float tiley)
+{
+  auto mesh = resources.create<Mesh>(sizex*sizey, 6*(sizex-1)*(sizey-1));
+
+  if (auto lump = resources.acquire_lump(mesh->vertexbuffer.size))
+  {
+    auto vertices = lump->memory<Vertex>(mesh->vertexbuffer.verticesoffset);
+
+    for(int y = 0; y < sizey; ++y)
+    {
+      for(int x = 0; x < sizex; ++x)
+      {
+        vertices->position = Vec3(x, 0, y);
+        vertices->normal = Vec3(0, 1, 0);
+        vertices->tangent = Vec4(0, 0, 1, 1);
+        vertices->texcoord = Vec2((x * tilex)/(sizex-1), (y * tiley)/(sizey-1));
+
+        ++vertices;
+      }
+    }
+
+    auto indices = lump->memory<uint32_t>(mesh->vertexbuffer.indicesoffset);
+
+    for(int y = 0; y < sizey-1; ++y)
+    {
+      for(int x = 0; x < sizex-1; ++x)
+      {
+        *indices++ = (y+1)*sizex + (x+0);
+        *indices++ = (y+0)*sizex + (x+0);
+        *indices++ = (y+1)*sizex + (x+1);
+        *indices++ = (y+1)*sizex + (x+1);
+        *indices++ = (y+0)*sizex + (x+0);
+        *indices++ = (y+0)*sizex + (x+1);
+      }
+    }
+
+    resources.update(mesh, lump);
+
+    resources.release_lump(lump);
+  }
+
+  return mesh;
 }

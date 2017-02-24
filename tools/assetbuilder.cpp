@@ -775,7 +775,6 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
   write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
-  write_shader_asset(fout, CoreAsset::skybox_comp, "../../data/skybox.comp");
 //  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 //  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
   write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
@@ -819,6 +818,14 @@ void write_core()
 
   write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0, 0.025, 0.046), Color3(0.1, 0.6, 0.7), 1.0);
   write_normalmap_asset(fout, CoreAsset::wave_normal, "../../data/wavenormal.png");
+
+  write_shader_asset(fout, CoreAsset::skybox_comp, "../../data/skybox.comp");
+
+  write_shader_asset(fout, CoreAsset::ocean_sim_comp, "../../data/ocean.sim.comp");
+  write_shader_asset(fout, CoreAsset::ocean_fftx_comp, "../../data/ocean.fftx.comp");
+  write_shader_asset(fout, CoreAsset::ocean_ffty_comp, "../../data/ocean.ffty.comp");
+  write_shader_asset(fout, CoreAsset::ocean_map_comp, "../../data/ocean.map.comp");
+  write_shader_asset(fout, CoreAsset::ocean_gen_comp, "../../data/ocean.gen.comp");
 
   write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0, "", "", "");
 

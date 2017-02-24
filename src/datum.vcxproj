@@ -215,6 +215,7 @@
     <ClInclude Include="renderlist.h" />
     <ClInclude Include="debug.h" />
     <ClCompile Include="asset.cpp" />
+    <ClCompile Include="assetpack.cpp" />
     <ClCompile Include="renderer\forwardlist.cpp" />
     <ClCompile Include="renderer\geometrylist.cpp" />
     <ClCompile Include="renderer\overlaylist.cpp" />

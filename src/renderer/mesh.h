@@ -59,3 +59,5 @@ class Mesh
   private:
     Mesh() = default;
 };
+
+Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float tilex = 1.0f, float tiley = 1.0f);

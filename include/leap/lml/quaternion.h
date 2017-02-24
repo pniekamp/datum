@@ -227,7 +227,7 @@ namespace leap { namespace lml
   {
     auto costheta = dot(lower, upper);
 
-    T flip = std::copysign(1, costheta);
+    T flip = std::copysign(T(1), costheta);
 
     if (costheta < -T(0.95) || costheta > T(0.95))
       return lerp(lower, flip*upper, alpha);

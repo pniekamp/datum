@@ -38,7 +38,7 @@ layout(location=0) out vec4 fragcolor;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  float depth = texture(depthmap, texcoord).z;
+  float depth = texture(depthmap, texcoord).r;
   
   vec3 position = world_position(scene.invview, scene.proj, scene.invproj, texcoord, depth);
   

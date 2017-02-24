@@ -90,7 +90,7 @@ void main()
   
   vec2 texcoord = vec2(xy + 0.5) / viewport;
  
-  float depth = texture(depthmap, texcoord).z;
+  float depth = texture(depthmap, texcoord).r;
   
   vec3 position = view_position(scene.proj, scene.invproj, texcoord, depth);
   vec3 normal = view_normal(scene.view, texture(normalmap, texcoord).xyz);
@@ -118,9 +118,9 @@ void main()
     {  
       vec2 uv = round(xy + raypixels * sampledir) / viewport;
 
-      vec3 samplepos = view_position(scene.proj, scene.invproj, uv, texture(depthmap, uv).z);
+      vec3 samplepos = view_position(scene.proj, scene.invproj, uv, texture(depthmap, uv).r);
 
-		  occlusion += sampleocclusion(position, normal, samplepos, topocclusion);
+      occlusion += sampleocclusion(position, normal, samplepos, topocclusion);
 
       raypixels += steppixels;
     }

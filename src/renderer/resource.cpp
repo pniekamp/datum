@@ -141,9 +141,9 @@ void ResourceManager::release(size_t token)
 
 
 ///////////////////////// ResourceManager::initialise_device ////////////////
-void ResourceManager::initialise_device(VkPhysicalDevice physicaldevice, VkDevice device, int queueinstance, size_t buffersize, size_t maxbuffersize)
+void ResourceManager::initialise_device(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue transferqueue, uint32_t transferqueuefamily, size_t buffersize, size_t maxbuffersize)
 {
-  initialise_vulkan_device(&vulkan, physicaldevice, device, queueinstance);
+  initialise_vulkan_device(&vulkan, physicaldevice, device, transferqueue, transferqueuefamily);
 
   m_buffers = nullptr;
   m_buffersallocated = 0;
@@ -192,7 +192,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 
         if (size != 0)
         {
-          buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
+          buffer->transferlump.transferbuffer = create_storagebuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
           buffer->transferlump.transfermemory = (uint8_t*)buffer + BufferAlignment;
 
           assert(size <= bytes);
@@ -214,7 +214,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 
     if (m_buffersallocated < m_maxallocation)
     {
-      TransferBuffer transferbuffer = create_transferbuffer(vulkan, max(bytes + BufferAlignment, m_minallocation));
+      auto transferbuffer = create_transferbuffer(vulkan, max(bytes + BufferAlignment, m_minallocation));
 
       auto memory = map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size).release();
 
@@ -257,7 +257,7 @@ void ResourceManager::release_lump(TransferLump const *lump)
   {
     if (&buffer->next->transferlump == lump)
     {
-      wait(vulkan, lump->fence);
+      wait_fence(vulkan, lump->fence);
 
       buffer->next->~Buffer();
 
@@ -302,7 +302,7 @@ bool initialise_resource_system(DatumPlatform::PlatformInterface &platform, Reso
   auto renderdevice = platform.render_device();
 
   resourcemanager.initialise_slab(slabsize);
-  resourcemanager.initialise_device(renderdevice.physicaldevice, renderdevice.device, 1, buffersize, maxbuffersize);
+  resourcemanager.initialise_device(renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.transferqueue].queue, renderdevice.queues[renderdevice.transferqueue].familyindex, buffersize, maxbuffersize);
 
   return true;
 }

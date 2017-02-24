@@ -1,0 +1,100 @@
+#version 450 core
+#include "transform.glsl"
+
+layout(local_size_x = 64, local_size_y = 1) in;
+
+/*layout(constant_id = 57) */const uint WaveResolution = 64;
+
+layout(std430, set=0, binding=0, row_major) buffer OceanParams 
+{ 
+  mat4 proj;
+  mat4 invproj;
+  Transform camera;
+
+  vec4 plane;
+  float swelllength;
+  float swellamplitude;
+  float swellsteepness;
+  float swellphase;
+  vec2 swelldirection;
+
+  float scale;
+  float choppiness;
+  float smoothing;
+
+  uint size;
+  vec2 h0[WaveResolution*WaveResolution];
+  float phase[WaveResolution*WaveResolution];
+
+  uint sizex;
+  uint sizey;
+
+} params;
+
+layout(std430, set=0, binding=1, row_major) buffer Spectrum 
+{
+  vec2 h[WaveResolution*WaveResolution];
+  vec2 hx[WaveResolution*WaveResolution];
+  vec2 hy[WaveResolution*WaveResolution];
+
+  float weights[WaveResolution*WaveResolution];
+
+} spectrum;
+
+shared vec2 h[WaveResolution][2];
+shared vec2 hx[WaveResolution][2];
+shared vec2 hy[WaveResolution][2];
+
+#define PI 3.1415926535897932384626433832795
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+
+  h[xy.x][0] = spectrum.h[xy.y * WaveResolution + xy.x];
+  hx[xy.x][0] = spectrum.hx[xy.y * WaveResolution + xy.x];
+  hy[xy.x][0] = spectrum.hy[xy.y * WaveResolution + xy.x];
+
+  // inverse fft
+  h[xy.x][0].y = -h[xy.x][0].y;
+  hx[xy.x][0].y = -hx[xy.x][0].y;
+  hy[xy.x][0].y = -hy[xy.x][0].y;
+  
+  barrier();
+
+  int source = 0;
+  for(int iteration = 0, n = 2; n <= WaveResolution; n *= 2, ++iteration)
+  {
+    uint i = xy.x;
+    uint base = (i/n) * (n/2);
+    uint offset = i % (n/2);
+
+    uint i0 = base + offset;
+    uint i1 = i0 + WaveResolution/2;
+    
+    vec2 h0 = h[i0][source];
+    vec2 h1 = h[i1][source];
+
+    vec2 hx0 = hx[i0][source];
+    vec2 hx1 = hx[i1][source];
+
+    vec2 hy0 = hy[i0][source];
+    vec2 hy1 = hy[i1][source];
+
+    float t0 = spectrum.weights[i * WaveResolution + 2*iteration+0];
+    float t1 = spectrum.weights[i * WaveResolution + 2*iteration+1];
+
+    h[i][source ^ 1] = h0 + vec2(dot(vec2(t0, -t1), h1), dot(vec2(t1, t0), h1));
+    hx[i][source ^ 1] = hx0 + vec2(dot(vec2(t0, -t1), hx1), dot(vec2(t1, t0), hx1));
+    hy[i][source ^ 1] = hy0 + vec2(dot(vec2(t0, -t1), hy1), dot(vec2(t1, t0), hy1));
+    
+    source ^= 1;
+    
+    barrier();
+  }
+  
+  spectrum.h[xy.y * WaveResolution + xy.x] = vec2(h[xy.x][source].x, -h[xy.x][source].y);
+  spectrum.hx[xy.y * WaveResolution + xy.x] = vec2(hx[xy.x][source].x, -hx[xy.x][source].y);
+  spectrum.hy[xy.y * WaveResolution + xy.x] = vec2(hy[xy.x][source].x, -hy[xy.x][source].y);
+}

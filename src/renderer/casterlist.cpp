@@ -134,7 +134,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
     {
       auto offset = state.materialset.reserve(sizeof(CasterMaterialSet));
 
-      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
       bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

@@ -130,7 +130,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
     if (state.materialset)
     {
-      bindtexture(context.device, state.materialset, ShaderLocation::albedomap, texture);
+      bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, texture);
 
       state.texture = texture;
     }

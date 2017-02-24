@@ -232,8 +232,8 @@ namespace leap { namespace lml
 
   //|///////////////////// scale ////////////////////////////////////////////
   /// scale a matrix
-  template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B>
-  Matrix<T, M, N, B> scale(Matrix<T, M, N, B> const &m, T scalar)
+  template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S>
+  Matrix<T, M, N, B> scale(Matrix<T, M, N, B> const &m, S const &scalar)
   {
     Matrix<T, M, N, B> result;
 
@@ -315,7 +315,7 @@ namespace leap { namespace lml
   {
     Matrix<T, N, N, B> result;
 
-    auto scale = 1/determinant(m);
+    auto scale = T(1)/determinant(m);
 
     for(size_t j = 0; j < N; ++j)
     {
@@ -327,7 +327,7 @@ namespace leap { namespace lml
           for(size_t jj = 0; jj < N-1; ++jj)
             sub(ii, jj) = m(ii + (ii >= j), jj + (jj >= i));
 
-        result(i, j) = (((i+j) & 1) ? -1 : 1) * determinant(sub)*scale;
+        result(i, j) = (((i+j) & 1) ? -1 : 1) * determinant(sub) * scale;
       }
     }
 
@@ -421,7 +421,7 @@ namespace leap { namespace lml
   template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
   Matrix<T, M, N, B> operator *(S s, Matrix<T, M, N, B> const &m)
   {
-    return scale(m, T(s));
+    return scale(m, s);
   }
 
 
@@ -430,7 +430,7 @@ namespace leap { namespace lml
   template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
   Matrix<T, M, N, B> operator *(Matrix<T, M, N, B> const &m, S s)
   {
-    return scale(m, T(s));
+    return scale(m, s);
   }
 
 
@@ -439,7 +439,7 @@ namespace leap { namespace lml
   template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
   Matrix<T, M, N, B> operator /(Matrix<T, M, N, B> const &m, S s)
   {
-    return scale(m, 1 / T(s));
+    return scale(m, T(1) / s);
   }
 
 

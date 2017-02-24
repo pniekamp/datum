@@ -51,7 +51,7 @@ vec2 dither(vec2 uv)
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).z;
+  float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).r;
 
   if (depth < gl_FragCoord.z)
     discard;
@@ -60,7 +60,7 @@ void main()
   vec4 bump1 = texture(normalmap, vec3(texcoord * 2.0 + material.flow * 4.0, 0));
   vec4 bump2 = texture(normalmap, vec3(texcoord * 4.0 + material.flow * 8.0, 0));
 
-  vec3 normal = normalize(tbnworld * (vec3(0, 0, 5) + (2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a)); 
+  vec3 normal = normalize(tbnworld * (vec3(0, 0, 1) + (2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a)); 
 
   float dist = view_depth(scene.proj, depth) - view_depth(scene.proj, gl_FragCoord.z);
 

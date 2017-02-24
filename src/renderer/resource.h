@@ -30,7 +30,7 @@ class ResourceManager
 
     // initialise resource storage
     void initialise_slab(size_t slabsize);
-    void initialise_device(VkPhysicalDevice physicaldevice, VkDevice device, int queueinstance, size_t buffersize, size_t maxbuffersize);
+    void initialise_device(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue transferqueue, uint32_t transferqueuefamily, size_t buffersize, size_t maxbuffersize);
 
     // token
     size_t token();
@@ -103,9 +103,15 @@ class ResourceManager
       Vulkan::Fence fence;
       Vulkan::CommandPool commandpool;
       Vulkan::CommandBuffer commandbuffer;
-      Vulkan::TransferBuffer transferbuffer;
+      Vulkan::StorageBuffer transferbuffer;
 
       void *transfermemory;
+
+      template<typename View>
+      View *memory(VkDeviceSize offset = 0) const
+      {
+        return (View*)((uint8_t*)transfermemory + offset);
+      }
     };
 
     TransferLump const *acquire_lump(size_t size);

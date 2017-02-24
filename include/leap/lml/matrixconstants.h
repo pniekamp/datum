@@ -364,8 +364,8 @@ namespace leap { namespace lml
   {
     Matrix<T, 4, 4> result = {};
 
-    result(0, 0) = 1 / (aspect * tan(fov/2));
-    result(1, 1) = 1 / tan(fov/2);
+    result(0, 0) = 1 / (aspect * std::tan(fov/2));
+    result(1, 1) = 1 / std::tan(fov/2);
     result(2, 2) = -zfar / (zfar - znear);
     result(3, 2) = -1;
     result(2, 3) = -zfar * znear / (zfar - znear);

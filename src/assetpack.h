@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <functional>
 #include <cstring>
+#include <vector>
 
 #pragma pack(push, 1)
 
@@ -252,8 +253,11 @@ struct PackParticleSystemPayload
   uint32_t spritesheet;
   // PackEmitter emitters[emittercount];
 
-  static auto emitter(void const *bits, size_t cursor) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t) + cursor); }
+  static auto emitters(void const *bits) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t)); }
 };
+
+void pack(std::vector<uint8_t> &bits, class ParticleEmitter const &emitter);
+void unpack(class ParticleEmitter &emitter, void const *bits, size_t &cursor);
 
 constexpr size_t pack_payload_size(PackParticleSystemHeader const &ptsm)
 {

@@ -286,8 +286,8 @@ namespace leap { namespace lml
 
   //|///////////////////// scale ////////////////////////////////////////////
   /// scales a vector
-  template<typename Vector, typename T, size_t... Indices>
-  constexpr Vector scale(VectorView<Vector, T, Indices...> const &v, T scalar)
+  template<typename Vector, typename T, size_t... Indices, typename S>
+  constexpr Vector scale(VectorView<Vector, T, Indices...> const &v, S const &scalar)
   {
     return { (v[Indices] * scalar)... };
   }
@@ -571,7 +571,7 @@ namespace leap { namespace lml
   template<typename Vector, typename T, size_t... Indices, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
   constexpr Vector operator *(S s, VectorView<Vector, T, Indices...> const &v)
   {
-    return scale(v, T(s));
+    return scale(v, s);
   }
 
 
@@ -580,7 +580,7 @@ namespace leap { namespace lml
   template<typename Vector, typename T, size_t... Indices, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
   constexpr Vector operator *(VectorView<Vector, T, Indices...> const &v, S s)
   {
-    return scale(v, T(s));
+    return scale(v, s);
   }
 
 
@@ -589,7 +589,7 @@ namespace leap { namespace lml
   template<typename Vector, typename T, size_t... Indices, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
   constexpr Vector operator /(VectorView<Vector, T, Indices...> const &v, S s)
   {
-    return scale(v, 1 / T(s));
+    return scale(v, T(1) / s);
   }
 
 
