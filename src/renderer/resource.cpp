@@ -257,7 +257,7 @@ void ResourceManager::release_lump(TransferLump const *lump)
   {
     if (&buffer->next->transferlump == lump)
     {
-      wait(vulkan, lump->fence);
+      Vulkan::wait(vulkan, lump->fence);
 
       buffer->next->~Buffer();
 

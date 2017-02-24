@@ -128,7 +128,7 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
     return nullptr;
   }
 
-  wait(vulkan, lump->fence);
+  Vulkan::wait(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -162,7 +162,7 @@ void ResourceManager::update<EnvMap>(EnvMap const *envmap, ResourceManager::Tran
 
   auto slot = const_cast<EnvMap*>(envmap);
 
-  wait(vulkan, lump->fence);
+  Vulkan::wait(vulkan, lump->fence);
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -200,7 +200,7 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
 
         if (auto lump = acquire_lump(envmap_datasize(asset->width, asset->height, asset->layers, asset->levels, vkformat)))
         {
-          wait(vulkan, lump->fence);
+          Vulkan::wait(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
