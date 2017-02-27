@@ -765,7 +765,7 @@ void write_core()
   write_shader_asset(fout, CoreAsset::particle_vert, "../../data/particle.vert");
   write_shader_asset(fout, CoreAsset::particle_frag, "../../data/particle.frag");
 
-  write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/ssao.comp");
+  write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/hbao.comp");
 
   write_envbrdf_asset(fout, CoreAsset::envbrdf_lut);
 

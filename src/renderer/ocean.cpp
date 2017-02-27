@@ -390,28 +390,18 @@ bool prepare_ocean_context(PlatformInterface &platform, OceanContext &context, A
 
   if (context.spectrum == 0)
   {
-    context.spectrum = create_storagebuffer(context.vulkan, sizeof(Spectrum));
-
-    float weights[OceanContext::WaveResolution * OceanContext::WaveResolution];
+    Spectrum spectrum;
 
     for(int i = 0; i < OceanContext::WaveResolution; ++i)
     {
       for(int n = 0; n < log2(OceanContext::WaveResolution); ++n)
       {
-        weights[i * OceanContext::WaveResolution + 2*n+0] = cos(-2*pi<float>() * i / (2 * pow(2.0f, float(n))));
-        weights[i * OceanContext::WaveResolution + 2*n+1] = sin(-2*pi<float>() * i / (2 * pow(2.0f, float(n))));
+        spectrum.weights[i * OceanContext::WaveResolution + 2*n+0] = cos(-2*pi<float>() * i / (2 * pow(2.0f, float(n))));
+        spectrum.weights[i * OceanContext::WaveResolution + 2*n+1] = sin(-2*pi<float>() * i / (2 * pow(2.0f, float(n))));
       }
     }
 
-    begin(context.vulkan, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-    update(context.commandbuffer, context.spectrum, offsetof(Spectrum, weights), sizeof(weights), weights);
-
-    end(context.vulkan, context.commandbuffer);
-
-    submit(context.vulkan, context.commandbuffer, context.fence);
-
-    wait_fence(context.vulkan, context.fence);
+    context.spectrum = create_storagebuffer(context.vulkan, sizeof(spectrum), &spectrum);
   }
 
   if (context.displacementmap == 0)
@@ -465,42 +455,42 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
   oceanset->sizex = sizex;
   oceanset->sizey = sizey;
 
-  bindbuffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.transferbuffer, 0, context.transferbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.transferbuffer, 0, context.transferbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
-  bindbuffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
-  bindimageview(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap.imageview);
+  bind_imageview(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap.imageview);
 
-  bindtexture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap);
+  bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap);
 
   size_t verticessize = mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize;
   auto verticesbuffer = create_storagebuffer(context.vulkan, mesh->vertexbuffer.memory, mesh->vertexbuffer.verticesoffset, verticessize);
 
-  bindbuffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  bindresource(commandbuffer, context.descriptorset, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_descriptor(commandbuffer, context.descriptorset, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  bindresource(commandbuffer, context.pipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_pipeline(commandbuffer, context.pipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
   dispatch(commandbuffer, OceanContext::WaveResolution/16, OceanContext::WaveResolution/16, 1);
 
   barrier(commandbuffer);
 
-  bindresource(commandbuffer, context.pipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_pipeline(commandbuffer, context.pipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
   dispatch(commandbuffer, 1, OceanContext::WaveResolution, 1);
 
   barrier(commandbuffer);
 
-  bindresource(commandbuffer, context.pipeline[2], VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_pipeline(commandbuffer, context.pipeline[2], VK_PIPELINE_BIND_POINT_COMPUTE);
 
   dispatch(commandbuffer, OceanContext::WaveResolution, 1, 1);
 
   barrier(commandbuffer);
 
-  bindresource(commandbuffer, context.pipeline[3], VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_pipeline(commandbuffer, context.pipeline[3], VK_PIPELINE_BIND_POINT_COMPUTE);
 
   setimagelayout(commandbuffer, context.displacementmap.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 2 });
 
@@ -508,7 +498,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
 
   setimagelayout(commandbuffer, context.displacementmap.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 2 });
 
-  bindresource(commandbuffer, context.pipeline[4], VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_pipeline(commandbuffer, context.pipeline[4], VK_PIPELINE_BIND_POINT_COMPUTE);
 
   dispatch(commandbuffer, sizex/16, sizey/16, 1);
 

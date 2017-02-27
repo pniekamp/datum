@@ -93,7 +93,7 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
     return false;
   }
 
-  bindresource(*commandlist, context.spritepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(*commandlist, context.spritepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
 
@@ -101,12 +101,12 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
   {
     sceneset.reserve(sizeof(SceneSet));
 
-    bindresource(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     commandlist->release(sceneset);
   }
 
-  bindresource(*commandlist, context.unitquad);
+  bind_vertexbuffer(*commandlist, context.unitquad);
 
   m_commandlist = { resources, commandlist };
 
@@ -130,7 +130,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
     if (state.materialset)
     {
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, texture);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, texture);
 
       state.texture = texture;
     }
@@ -145,7 +145,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
     materialset->color = premultiply(tint);
     materialset->texcoords = texcoords;
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.color = tint;
     state.texcoords = texcoords;
@@ -177,7 +177,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
     modelset->ybasis = ybasis;
     modelset->position = Vec4(position, layer - 0.5f + 1e-3f, 1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
   }

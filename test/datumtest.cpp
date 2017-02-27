@@ -89,6 +89,9 @@ void datumtest_init(PlatformInterface &platform)
 
   auto core = state.assets.load(platform, "core.pack");
 
+  if (!core)
+    throw runtime_error("Core Assets Load Failure");
+
   if (core->magic != CoreAsset::magic || core->version != CoreAsset::version)
     throw runtime_error("Core Assets Version Mismatch");
 
@@ -269,7 +272,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
 #endif
 
-//  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
+  state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
 
   state.camera = normalise(state.camera);
 
@@ -295,6 +298,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(1, 0, 0, 1), suzannemetalness, suzanneroughness, suzannereflectivity, cbrt(suzanneemissive/128)));
 
+#if  0
   float floormetalness = 0.0f;
   DEBUG_MENU_VALUE("Floor/Metalness", &floormetalness, 0.0f, 1.0f)
 
@@ -305,8 +309,9 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
   DEBUG_MENU_VALUE("Floor/Reflectivity", &floorflectivity, 0.0f, 1.0f)
 
   state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(0.4f, 0.4f, 0.4f, 1.0f), floormetalness, floorroughness, floorflectivity));
+#endif
 
-#if 0
+#if 1
   {
     CasterList::BuildState buildstate;
 
@@ -457,7 +462,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderlist.push_lights(state.readframe->lights);
   renderlist.push_sprites(Rect2({ 0, 0.5f - 0.5f * viewport.height / viewport.width }, { 1, 0.5f + 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
 
-#if 1
+#if 0
   {
     ForwardList objects;
     ForwardList::BuildState buildstate;
@@ -509,7 +514,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   }
 #endif
 
-#if 0
+#if 1
   {
     Vec3 location(16.0f, 1.0f, -4.0f);
     DEBUG_MENU_VALUE("Particles/location", &location, Vec3(-15.0f), Vec3(15.0f));
@@ -598,7 +603,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.sunintensity = state.sunintensity;
 //  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
   renderparams.ssrstrength = 2.0f;
-  renderparams.ssaoscale = 0.0f;
+  renderparams.ssaoscale = 0.5f;
 
   DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
   DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);

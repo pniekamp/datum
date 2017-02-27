@@ -309,8 +309,7 @@ namespace Vulkan
     return { size, offset, { storagebuffer, { vulkan.device } } };
   }
 
-
-  ///////////////////////// create_constantbuffer ///////////////////////////
+  ///////////////////////// create_storagebuffer ////////////////////////////
   StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size)
   {
     VkBufferCreateInfo createinfo = {};
@@ -330,6 +329,28 @@ namespace Vulkan
     vkBindBufferMemory(vulkan.device, constantbuffer, memory, 0);
 
     return { size, 0, { constantbuffer, { vulkan.device } }, { memory, { vulkan.device } } };
+  }
+
+  ///////////////////////// create_storagebuffer ////////////////////////////
+  StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size, const void *data)
+  {
+    CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+
+    CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    StorageBuffer storagebuffer = create_storagebuffer(vulkan, size);
+
+    update(setupbuffer, storagebuffer, 0, size, data);
+
+    end(vulkan, setupbuffer);
+
+    submit(vulkan, setupbuffer);
+
+    vkQueueWaitIdle(vulkan.queue);
+
+    return storagebuffer;
   }
 
 
@@ -812,68 +833,8 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// bindtexture /////////////////////////////////////
-  void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
-  {
-    VkWriteDescriptorSet writeset = {};
-    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeset.dstSet = descriptorset;
-    writeset.dstBinding = binding;
-    writeset.descriptorCount = count;
-    writeset.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writeset.pImageInfo = imageinfos;
-
-    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
-  }
-
-
-  ///////////////////////// bindtexture /////////////////////////////////////
-  void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler)
-  {
-    VkDescriptorImageInfo imageinfo = {};
-    imageinfo.sampler = sampler;
-    imageinfo.imageView = imageview;
-    imageinfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    bindtexture(vulkan, descriptorset, binding, &imageinfo, 1);
-  }
-
-
-  ///////////////////////// bindtexture /////////////////////////////////////
-  void bindtexture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture)
-  {
-    bindtexture(vulkan, descriptorset, binding, texture.imageview, texture.sampler);
-  }
-
-
-  ///////////////////////// bindimageview ///////////////////////////////////
-  void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
-  {
-    VkWriteDescriptorSet writeset = {};
-    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeset.dstSet = descriptorset;
-    writeset.dstBinding = binding;
-    writeset.descriptorCount = count;
-    writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    writeset.pImageInfo = imageinfos;
-
-    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
-  }
-
-
-  ///////////////////////// bindimageview ///////////////////////////////////
-  void bindimageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView writeimage)
-  {
-    VkDescriptorImageInfo imageinfo = {};
-    imageinfo.imageView = writeimage;
-    imageinfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    bindimageview(vulkan, descriptorset, binding, &imageinfo, 1);
-  }
-
-
-  ///////////////////////// bindbuffer //////////////////////////////////////
-  void bindbuffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type)
+  ///////////////////////// bind_buffer /////////////////////////////////////
+  void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type)
   {
     VkDescriptorBufferInfo bufferinfo = {};
     bufferinfo.buffer = buffer;
@@ -889,6 +850,66 @@ namespace Vulkan
     writeset.pBufferInfo = &bufferinfo;
 
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
+
+
+  ///////////////////////// bind_image //////////////////////////////////////
+  void bind_imageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
+  {
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = binding;
+    writeset.descriptorCount = count;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    writeset.pImageInfo = imageinfos;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
+
+
+  ///////////////////////// bind_image //////////////////////////////////////
+  void bind_imageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview)
+  {
+    VkDescriptorImageInfo imageinfo = {};
+    imageinfo.imageView = imageview;
+    imageinfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    bind_imageview(vulkan, descriptorset, binding, &imageinfo, 1);
+  }
+
+
+  ///////////////////////// bind_texture ////////////////////////////////////
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
+  {
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = binding;
+    writeset.descriptorCount = count;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writeset.pImageInfo = imageinfos;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
+
+
+  ///////////////////////// bind_texture ////////////////////////////////////
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler)
+  {
+    VkDescriptorImageInfo imageinfo = {};
+    imageinfo.sampler = sampler;
+    imageinfo.imageView = imageview;
+    imageinfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    bind_texture(vulkan, descriptorset, binding, &imageinfo, 1);
+  }
+
+
+  ///////////////////////// bind_texture ////////////////////////////////////
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture)
+  {
+    bind_texture(vulkan, descriptorset, binding, texture.imageview, texture.sampler);
   }
 
 
@@ -1423,28 +1444,28 @@ namespace Vulkan
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint)
+  void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 0, nullptr);
   }
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresource(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint)
+  void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 1, &offset);
   }
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint)
+  void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
   }
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, int clipx, int clipy, int clipwidth, int clipheight, VkPipelineBindPoint bindpoint)
+  void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, int clipx, int clipy, int clipwidth, int clipheight, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindPipeline(commandbuffer, bindpoint, pipeline);
 
@@ -1469,14 +1490,14 @@ namespace Vulkan
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresource(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint)
+  void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint)
   {
-    bindresource(commandbuffer, pipeline, x, y, width, height, x, y, width, height, bindpoint);
+    bind_pipeline(commandbuffer, pipeline, x, y, width, height, x, y, width, height, bindpoint);
   }
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bindresource(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer)
+  void bind_vertexbuffer(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer)
   {
     VkDeviceSize offsets[] = { 0 };
 

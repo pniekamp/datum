@@ -13,7 +13,6 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 
 } model;
 
-
 layout(location=0) out vec2 texcoords;
 
 ///////////////////////// main //////////////////////////////////////////////

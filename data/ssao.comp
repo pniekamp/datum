@@ -1,5 +1,4 @@
 #version 450 core
-#include "camera.glsl"
 #include "gbuffer.glsl"
 
 layout(local_size_x = 16, local_size_y = 16) in;
@@ -20,19 +19,13 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   mat4 invview;
   mat4 worldview;
   mat4 prevview;
-  mat4 skyview;
-  vec4 viewport;
-  
-  Camera camera;
 
 } scene;
 
-layout(std430, set=3, binding=0, row_major) buffer ComputeSet 
+layout(std430, set=3, binding=5, row_major) buffer ComputeSet 
 {
   vec3 noise[NoiseSize];
   vec3 kernel[KernelSize];
-
-  float luminance;
 
 } compute;
 
@@ -40,13 +33,13 @@ layout(set=0, binding=1) uniform sampler2D rt0map;
 layout(set=0, binding=2) uniform sampler2D rt1map;
 layout(set=0, binding=3) uniform sampler2D normalmap;
 layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=0, binding=5) uniform sampler2D prevmap;
+layout(set=3, binding=7) uniform sampler2D prevmap;
 
-layout(set=3, binding=1) writeonly uniform image2D dest;
+layout(set=3, binding=8) writeonly uniform image2D dest;
 
 const float OcclusionRadius = 0.35;
 const float OcclusionPower = 1.5;
-const float OcclusionBias = 0.1;
+const float OcclusionBias = 0.2;
 
 shared float texels[SizeY + Radius + Radius][SizeX + Radius + Radius];
 shared float depths[SizeY + Radius + Radius][SizeX + Radius + Radius];
@@ -88,11 +81,11 @@ void main()
   {
     vec3 samplepos = position + tbnview * compute.kernel[i] * OcclusionRadius;
     
-    float sampledepth = view_depth(scene.proj, texture(depthmap, 0.5 * project(scene.proj, samplepos) + 0.5).r);
+    float sampledepth = -view_depth(scene.proj, texture(depthmap, 0.5 * project(scene.proj, samplepos) + 0.5).r);
 
-    float rangecheck = smoothstep(0, 1, OcclusionRadius / abs(position.z - -sampledepth));
+    float rangecheck = smoothstep(0, 1, OcclusionRadius / abs(position.z - sampledepth));
     
-    occlusion += rangecheck * step(samplepos.z, -sampledepth - OcclusionBias);
+    occlusion += rangecheck * step(samplepos.z, sampledepth - OcclusionBias);
   }
 
   occlusion = pow(1 - (occlusion / KernelSize), OcclusionPower);
@@ -130,6 +123,8 @@ void main()
 
     occlusion = mix(prevocclusion.x, occlusion, temporalweight);
   
+    occlusion = mix(occlusion, 1.0, clamp(50*(depth - 0.98), 0, 1));
+    
     imageStore(dest, xy, vec4(occlusion, depth, 0, 0));
   }
 }

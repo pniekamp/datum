@@ -94,7 +94,7 @@ bool GeometryList::begin(BuildState &state, PlatformInterface &platform, RenderC
     return false;
   }
 
-  bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -114,7 +114,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
   if (state.pipeline != context.geometrypipeline)
   {
-    bindresource(commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.pipeline = context.geometrypipeline;
   }
@@ -132,7 +132,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
         return;
     }
 
-    bindresource(commandlist, mesh->vertexbuffer);
+    bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
@@ -164,11 +164,11 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
       materialset->reflectivity = material->reflectivity;
       materialset->emissive = material->emissive;
 
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
@@ -188,7 +188,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
     modelset->modelworld = transform;
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -210,7 +210,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   state.pipeline = nullptr;
 
-  bindresource(commandlist, context.oceanpipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.oceanpipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   if (!mesh)
     return;
@@ -225,7 +225,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
         return;
     }
 
-    bindresource(commandlist, mesh->vertexbuffer);
+    bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
@@ -258,17 +258,15 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
       materialset->emissive = material->emissive;
       materialset->flow = flow;
 
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
   }
-
-  setimagelayout(commandlist, context.depthbuffer.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
 
 #if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -284,7 +282,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
     modelset->modelworld = transform;
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);    
   }
@@ -296,7 +294,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   setimagelayout(commandlist, context.depthbuffer.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
 
-  bindresource(commandlist, context.oceanpipeline[1], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.oceanpipeline[1], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
 }

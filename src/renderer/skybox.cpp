@@ -56,13 +56,13 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   begin(context.vulkan, skyboxcommands, context.forwardbuffer, context.forwardpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
-  bindresource(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindtexture(context.vulkan, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap->texture);
+  bind_texture(context.vulkan, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap->texture);
 
-  bindresource(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(skyboxcommands, context.unitquad);
+  bind_vertexbuffer(skyboxcommands, context.unitquad);
 
   draw(skyboxcommands, context.unitquad.vertexcount, 1, 0, 0);
 
@@ -305,13 +305,13 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   auto &commandbuffer = context.commandbuffer;
 
-  bindimageview(context.vulkan, context.descriptorset, 0, skybox->envmap->texture.imageview);
+  bind_imageview(context.vulkan, context.descriptorset, 0, skybox->envmap->texture.imageview);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  bindresource(commandbuffer, context.pipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_pipeline(commandbuffer, context.pipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  bindresource(commandbuffer, context.descriptorset, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_descriptor(commandbuffer, context.descriptorset, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(skyboxset), &skyboxset, VK_SHADER_STAGE_COMPUTE_BIT);
 

@@ -120,7 +120,7 @@ bool ForwardList::begin(BuildState &state, PlatformInterface &platform, RenderCo
     return false;
   }
 
-  bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -138,9 +138,9 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.fogpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.fogpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ForPlaneMaterialSet), state.materialset);
 
@@ -156,7 +156,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
     materialset->falloff = falloff;
     materialset->startdistance = max(startdistance, 0.0f) * 1.4142135f;
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -172,7 +172,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
     modelset->modelworld = Transform::translation(0, 0, max(startdistance, 0.01f));
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
   }
@@ -187,7 +187,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   if (!mesh)
     return;
@@ -200,7 +200,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
       return;
   }
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   if (!material)
     return;
@@ -226,11 +226,11 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
     materialset->reflectivity = material->reflectivity;
     materialset->emissive = material->emissive;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -246,7 +246,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
     modelset->modelworld = transform;
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -272,9 +272,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
@@ -282,9 +282,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
   {
     auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
@@ -305,7 +305,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
       modelset[i].color = particles->color[i];
     }
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, context.unitquad.vertexcount, particles->count, 0, 0);
   }
@@ -331,9 +331,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
@@ -341,9 +341,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
   {
     auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
@@ -364,7 +364,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
       modelset[i].color = particles->color[i];
     }
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, context.unitquad.vertexcount, particles->count, 0, 0);
   }
@@ -401,7 +401,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.waterpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.waterpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   if (!mesh)
     return;
@@ -414,7 +414,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
       return;
   }
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   if (!material)
     return;
@@ -447,11 +447,11 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     materialset->specular.halfdim = Vec4(envdimension/2, 0);
     materialset->specular.invtransform = inverse(envtransform);
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::specularmap, envmap->texture);
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, envmap->texture);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -467,7 +467,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
     modelset->modelworld = transform;
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
