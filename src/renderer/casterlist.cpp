@@ -77,9 +77,9 @@ bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderCon
     return false;
   }
 
-  bindresource(*commandlist, context.shadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(*commandlist, context.shadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -113,7 +113,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
         return;
     }
 
-    bindresource(commandlist, mesh->vertexbuffer);
+    bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
@@ -134,9 +134,9 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
     {
       auto offset = state.materialset.reserve(sizeof(CasterMaterialSet));
 
-      bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
-      bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
@@ -156,7 +156,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
     modelset->modelworld = transform;
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }

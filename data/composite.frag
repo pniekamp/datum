@@ -21,7 +21,8 @@ layout(set=0, binding=2) uniform sampler2D rt1map;
 layout(set=0, binding=3) uniform sampler2D normalmap;
 layout(set=0, binding=4) uniform sampler2D depthmap;
 layout(set=0, binding=5) uniform sampler2D colormap;
-layout(set=0, binding=8) uniform sampler2D scratchmaps[3];
+layout(set=0, binding=6) uniform sampler2D ssrmap;
+layout(set=0, binding=7) uniform sampler2D bloommap;
 
 layout(location=0) in vec2 texcoord;
 
@@ -32,9 +33,12 @@ void main()
 {
   vec3 color = texture(colormap, texcoord).rgb;
   
-  vec3 ssr = scene.camera.ssrstrength * texture(scratchmaps[2], texcoord).rgb;
-  vec3 bloom = scene.camera.bloomstrength * texture(scratchmaps[0], texcoord).rgb;
+  vec3 ssr = scene.camera.ssrstrength * texture(ssrmap, texcoord).rgb;
+  vec3 bloom = scene.camera.bloomstrength * texture(bloommap, texcoord).rgb;
   
   fragcolor = vec4(tonemap(color.rgb + ssr) + bloom, 1);
+//  fragcolor = vec4(texture(rt0map, texcoord).rgb, 1);
+//  fragcolor = vec4(texture(rt1map, texcoord).rgb, 1);
+//  fragcolor = vec4(texture(colormap, texcoord).rgb, 1);
 //  fragcolor = vec4(texture(normalmap, texcoord).rgb, 1);
 }

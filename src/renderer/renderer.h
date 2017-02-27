@@ -227,7 +227,7 @@ struct RenderContext
   Vulkan::DescriptorSetLayout scenesetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;
-  Vulkan::DescriptorSetLayout computelayout;
+  Vulkan::DescriptorSetLayout computesetlayout;
 
   Vulkan::PipelineLayout pipelinelayout;
 
@@ -241,6 +241,7 @@ struct RenderContext
   Vulkan::Texture normalbuffer;
   Vulkan::Texture colorbuffer;
   Vulkan::Texture depthbuffer;
+  Vulkan::Texture ssaobuffers[2];
   Vulkan::Texture scratchbuffers[3];
   Vulkan::FrameBuffer geometrybuffer;
   Vulkan::FrameBuffer forwardbuffer;
@@ -251,36 +252,25 @@ struct RenderContext
   Vulkan::RenderPass forwardpass;
   Vulkan::RenderPass renderpass;
 
-  Vulkan::StorageBuffer constantbuffer;
+  Vulkan::StorageBuffer sceneset;
+  Vulkan::DescriptorSet scenedescriptor;
 
-  Vulkan::Texture envbrdf;
+  Vulkan::DescriptorSet framedescriptors[2];
 
   float ssaoscale;
-  lml::Vec4 ssaonoise[16];
-  lml::Vec4 ssaokernel[16];
-  Vulkan::Texture ssaobuffers[2];
-  Vulkan::DescriptorSet ssaotargets[2];
-  Vulkan::DescriptorSet ssaodescriptors[2];
-
-  Vulkan::DescriptorSet colorbuffertarget;
-
-  Vulkan::DescriptorSet lightingdescriptors[2];
-
-  Vulkan::DescriptorSet scenedescriptor;
+  Vulkan::StorageBuffer ssaoset;
 
   Vulkan::DescriptorSet skyboxdescriptors[2];
   Vulkan::CommandBuffer skyboxcommands[2];
 
-  Vulkan::DescriptorSet scratchtargets[3];
-
+  Vulkan::DescriptorSet compositedescriptor;
   Vulkan::CommandBuffer compositecommands;
-
-  Vulkan::DescriptorSet overlaydescriptor;
 
   Vulkan::VertexAttribute vertexattributes[4];
 
   Vulkan::VertexBuffer unitquad;
 
+  Vulkan::Texture envbrdf;
   Vulkan::Texture whitediffuse;
   Vulkan::Texture nominalnormal;
 
@@ -316,8 +306,6 @@ struct RenderContext
   int fbowidth, fboheight, fbox, fboy;
 
   ResourcePool resourcepool;
-
-  Vulkan::MemoryView<uint8_t> transfermemory;
 
   size_t frame;
 

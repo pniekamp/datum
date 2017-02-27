@@ -122,7 +122,7 @@ bool OverlayList::begin(BuildState &state, PlatformInterface &platform, RenderCo
     return false;
   }
 
-  bindresource(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -162,9 +162,9 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.gizmopipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.gizmopipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GizmoMaterialSet), state.materialset);
 
@@ -181,11 +181,11 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
     materialset->emissive = material->emissive;
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -202,7 +202,7 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
     modelset->modelworld = Transform::translation(position) * Transform::rotation(rotation);
     modelset->size = Vec4(size, 1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -228,9 +228,9 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.wireframepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.wireframepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WireframeMaterialSet), state.materialset);
 
@@ -243,7 +243,7 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
     materialset->color = color;
     materialset->depthfade = state.depthfade;
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -260,7 +260,7 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -286,11 +286,11 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
@@ -298,9 +298,9 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
   {
     auto offset = state.materialset.reserve(sizeof(MaskMaterialSet));
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -317,7 +317,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -354,11 +354,11 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
@@ -366,9 +366,9 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
   {
     auto offset = state.materialset.reserve(sizeof(MaskMaterialSet));
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -385,7 +385,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -411,11 +411,11 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
@@ -429,9 +429,9 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
     materialset->texcoords = Vec4(0, 0, 1, 1);
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -448,7 +448,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -485,11 +485,11 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
@@ -503,9 +503,9 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
     materialset->texcoords = Vec4(base.x, base.y, tiling.x, tiling.y);
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -522,7 +522,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -548,11 +548,11 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -568,9 +568,9 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
     materialset->overhang = thickness;
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -587,7 +587,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -624,11 +624,11 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -644,9 +644,9 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
     materialset->overhang = thickness;
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -663,7 +663,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -678,9 +678,9 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -696,9 +696,9 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
     materialset->overhang = 0.0f;
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -715,7 +715,7 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
     modelset->modelworld = Transform::translation((a + b)/2) * Transform::rotation(Vec3(0, 0, 1), theta(b - a)) * Transform::rotation(Vec3(0, 1, 0), phi(b - a) - pi<float>()/2) * Transform::rotation(Vec3(0, 0, 1), -pi<float>()/2);
     modelset->size = Vec4(Vec3(0, norm(b - a)/2, 0), 0);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, 2, 1, 0, 0);
   }
@@ -741,9 +741,9 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -759,9 +759,9 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
     materialset->overhang = 0.0f;
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -778,7 +778,7 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
     modelset->modelworld = Transform::translation(position) * Transform::rotation(rotation);
     modelset->size = Vec4(size, 1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
@@ -822,9 +822,9 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  bindresource(commandlist, context.outlinepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(commandlist, context.outlinepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bindresource(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OutlineMaterialSet), state.materialset);
 
@@ -837,9 +837,9 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
     materialset->color = color;
     materialset->depthfade = state.depthfade;
 
-    bindtexture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
-    bindresource(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -856,7 +856,7 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
     modelset->modelworld = transform;
     modelset->size = Vec4(1);
 
-    bindresource(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }

@@ -46,12 +46,12 @@ layout(set=0, binding=1) uniform sampler2D rt0map;
 layout(set=0, binding=2) uniform sampler2D rt1map;
 layout(set=0, binding=3) uniform sampler2D normalmap;
 layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=0, binding=5) uniform sampler2D ssaomap;
 layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
 layout(set=0, binding=7) uniform sampler2DArray envbrdfmap;
-layout(set=0, binding=8) uniform samplerCube envmap[MaxEnvironments];
+layout(set=3, binding=6) uniform sampler2D ssaomap;
+layout(set=3, binding=9) uniform samplerCube envmap[MaxEnvironments];
 
-layout(set=3, binding=1) writeonly uniform image2D dest;
+layout(set=3, binding=10) writeonly uniform image2D dest;
 
 shared uint maxdepth;
 shared uint minhdepth;
@@ -254,7 +254,7 @@ void main(void)
       point_light(diffuse, specular, pointlight, position, normal, eyevec, material);
     }
 
-    fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), 0);       
+    fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), 0);
   }
 
   imageStore(dest, xy, fragcolor); 
