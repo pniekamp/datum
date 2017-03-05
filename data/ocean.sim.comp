@@ -65,7 +65,7 @@ void main()
   vec2 h;
   h.x = (h0k.x + h0mk.x) * cos_v - (h0k.y + h0mk.y) * sin_v;
   h.y = (h0k.x - h0mk.x) * sin_v + (h0k.y - h0mk.y) * cos_v;
-  
+
   vec2 hx;
   hx.x = h.y * knorm.x;
   hx.y = -h.x * knorm.x;

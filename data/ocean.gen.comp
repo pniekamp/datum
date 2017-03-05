@@ -70,10 +70,12 @@ void main()
 
   float cameraheight = dot(params.plane.xyz, camerapos) + params.plane.w;
 
-  float u = 2 * float(xy.x) / (params.sizex-1) - 1;
-  float v = 1 - 2 * float(xy.y) / (params.sizey-1);
+  float margin = 1 + sqrt((2*params.swellamplitude + 0.5) / cameraheight);
 
-  vec4 viewvec = params.invproj * vec4(1.2*u, 1.2*v, 0.0f, 1.0f);
+  float u = (2 * float(xy.x) / (params.sizex-1) - 1) * margin;
+  float v = (1 - 2 * float(xy.y) / (params.sizey-1)) * margin;
+
+  vec4 viewvec = params.invproj * vec4(u, v, 0.0f, 1.0f);
   vec3 worlddir = quaternion_multiply(params.camera.real, normalize(viewvec.xyz));
 
   float costheta = dot(worlddir, -params.plane.xyz);
@@ -105,7 +107,7 @@ void main()
   vec4 displacement = texture(displacementmap, vec3(texcoord, 0));
   vec4 displacementnormal = texture(displacementmap, vec3(texcoord, 1));
 
-  normal = mix(tbn * displacementnormal.xyz, vec3(0, 0, 1), clamp(dist * params.smoothing, 0.0f, 1.0f));
+  normal = mix(tbn * displacementnormal.xyz, vec3(0, 0, 1), pow(clamp(dist * params.smoothing, 0.0f, 1.0f), 0.2));
 
   vertexbuffer.vertices[index].position[0] = position.x - displacement.x;
   vertexbuffer.vertices[index].position[1] = position.y - displacement.y;

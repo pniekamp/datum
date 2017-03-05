@@ -35,20 +35,20 @@ enum ShaderLocation
 
 struct SceneSet
 {
-  Matrix4f worldview;
+  alignas(16) Matrix4f worldview;
 };
 
 struct SpriteMaterialSet
 {
-  Color4 color;
-  Vec4 texcoords;
+  alignas(16) Color4 color;
+  alignas(16) Vec4 texcoords;
 };
 
 struct ModelSet
 {
-  Vec2 xbasis;
-  Vec2 ybasis;
-  Vec4 position;
+  alignas( 8) Vec2 xbasis;
+  alignas( 8) Vec2 ybasis;
+  alignas(16) Vec4 position;
 };
 
 

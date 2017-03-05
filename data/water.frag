@@ -42,6 +42,7 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   float roughness;
   float reflectivity;
   float emissive;
+  float bumpscale;
   vec2 flow;
 
   Environment specular;
@@ -91,16 +92,16 @@ void environment(inout vec3 envdiffuse, inout vec3 envspecular, vec3 position, v
   vec3 speculardirection = reflect(-eyevec, normal);
 
   vec3 localpos = transform_multiply(material.specular.invtransform, position);
-  vec3 localdir = quaternion_multiply(material.specular.invtransform.real, speculardirection);
+  vec3 localdiffuse = quaternion_multiply(material.specular.invtransform.real, diffusedirection);
+  vec3 localspecular = quaternion_multiply(material.specular.invtransform.real, speculardirection);
 
-  vec2 hittest = intersections(localpos, localdir, material.specular.halfdim);
+  vec2 hittest = intersections(localpos, localspecular, material.specular.halfdim);
 
-  vec3 localray = localpos + hittest.y * localdir;
+  vec3 localray = localpos + hittest.y * localspecular;
   
-  envdiffuse = textureLod(specularmap, diffusedirection * vec3(1, -1, -1), 6.3).rgb;
+  envdiffuse = textureLod(specularmap, localdiffuse * vec3(1, -1, -1), 6.3).rgb;
   envspecular = textureLod(specularmap, localray * vec3(1, -1, -1), material.roughness * 8.0).rgb;
 }
-
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
@@ -108,10 +109,10 @@ void main()
   float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).r;
   
   vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
-  vec4 bump1 = texture(normalmap, vec3(texcoord * 2.0 + material.flow * 4.0, 0));
-  vec4 bump2 = texture(normalmap, vec3(texcoord * 4.0 + material.flow * 8.0, 0));
+  vec4 bump1 = texture(normalmap, vec3(2.0*texcoord + 4.0*material.flow, 0));
+  vec4 bump2 = texture(normalmap, vec3(4.0*texcoord + 8.0*material.flow, 0));
 
-  vec3 normal = normalize(tbnworld * (vec3(0, 0, 5) + (2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a)); 
+  vec3 normal = normalize(tbnworld * (vec3(0, 0, 1) + material.bumpscale * ((2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a))); 
 
   vec3 eyevec = normalize(scene.camera.position - position);
 

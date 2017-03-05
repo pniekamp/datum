@@ -37,6 +37,7 @@ void main()
   vec3 bloom = scene.camera.bloomstrength * texture(bloommap, texcoord).rgb;
   
   fragcolor = vec4(tonemap(color.rgb + ssr) + bloom, 1);
+//  fragcolor = vec4(texture(colormap, texcoord).rgb, 1);
 //  fragcolor = vec4(texture(rt0map, texcoord).rgb, 1);
 //  fragcolor = vec4(texture(rt1map, texcoord).rgb, 1);
 //  fragcolor = vec4(texture(colormap, texcoord).rgb, 1);

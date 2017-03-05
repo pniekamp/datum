@@ -30,10 +30,10 @@ layout(location=1) out vec2 texcoord;
 layout(location=2) out mat3 tbnworld;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 { 
   position = transform_multiply(model.modelworld, vertex_position);
- 
+
   vec3 normal = quaternion_multiply(model.modelworld.real, vertex_normal);
   vec3 tangent = quaternion_multiply(model.modelworld.real, vertex_tangent.xyz);
   vec3 bitangent = cross(normal, tangent) * vertex_tangent.w;
@@ -41,6 +41,6 @@ void main(void)
   tbnworld = mat3(tangent, bitangent, normal);
 
   texcoord = vertex_texcoord;
-  
+
   gl_Position = scene.worldview * vec4(position, 1);
 }

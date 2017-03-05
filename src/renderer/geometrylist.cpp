@@ -37,21 +37,27 @@ enum ShaderLocation
 
 struct OceanMaterialSet
 {
-  Color4 color;
-  float metalness;
-  float roughness;
-  float reflectivity;
-  float emissive;
-  Vec2 flow;
+  alignas(16) Color4 color;
+  alignas( 4) float metalness;
+  alignas( 4) float roughness;
+  alignas( 4) float reflectivity;
+  alignas( 4) float emissive;
+  alignas( 4) float bumpscale;
+  alignas(16) Vec4 foamplane;
+  alignas( 4) float foamwaveheight;
+  alignas( 4) float foamwavescale;
+  alignas( 4) float foamshoreheight;
+  alignas( 4) float foamshorescale;
+  alignas(16) Vec2 flow;
 };
 
 struct GeometryMaterialSet
 {
-  Color4 color;
-  float metalness;
-  float roughness;
-  float reflectivity;
-  float emissive;
+  alignas(16) Color4 color;
+  alignas( 4) float metalness;
+  alignas( 4) float roughness;
+  alignas( 4) float reflectivity;
+  alignas( 4) float emissive;
 };
 
 struct ModelSet
@@ -107,6 +113,9 @@ bool GeometryList::begin(BuildState &state, PlatformInterface &platform, RenderC
 ///////////////////////// GeometryList::push_mesh ///////////////////////////
 void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
+  if (!mesh || !material)
+    return;
+
   assert(state.commandlist);
 
   auto &context = *state.context;
@@ -118,9 +127,6 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
     state.pipeline = context.geometrypipeline;
   }
-
-  if (!mesh)
-    return;
 
   if (state.mesh != mesh)
   {
@@ -136,9 +142,6 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
     state.mesh = mesh;
   }
-
-  if (!material)
-    return;
 
   if (state.material != material)
   {
@@ -201,19 +204,22 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
 
 ///////////////////////// GeometryList::push_ocean //////////////////////////
-void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow)
+void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow, float bumpscale, const Plane &foamplane, float foamwaveheight, float foamwavescale, float foamshoreheight, float foamshorescale)
 {
+  if (!mesh || !material)
+    return;
+
   assert(state.commandlist);
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  state.pipeline = nullptr;
+  if (state.pipeline != context.oceanpipeline)
+  {
+    bind_pipeline(commandlist, context.oceanpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_pipeline(commandlist, context.oceanpipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-  if (!mesh)
-    return;
+    state.pipeline = context.oceanpipeline;
+  }
 
   if (state.mesh != mesh)
   {
@@ -229,9 +235,6 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
     state.mesh = mesh;
   }
-
-  if (!material)
-    return;
 
   if (state.material != material)
   {
@@ -256,6 +259,12 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
       materialset->roughness = material->roughness;
       materialset->reflectivity = material->reflectivity;
       materialset->emissive = material->emissive;
+      materialset->bumpscale = bumpscale;
+      materialset->foamplane = Vec4(foamplane.normal, foamplane.distance);
+      materialset->foamwaveheight = foamwaveheight;
+      materialset->foamwavescale = foamwavescale;
+      materialset->foamshoreheight = foamshoreheight;
+      materialset->foamshorescale = foamshorescale;
       materialset->flow = flow;
 
       bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
@@ -284,19 +293,15 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
     bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);    
+    setimagelayout(commandlist, context.depthbuffer.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+
+    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 #else
   push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
 
   draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
 #endif
-
-  setimagelayout(commandlist, context.depthbuffer.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
-
-  bind_pipeline(commandlist, context.oceanpipeline[1], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
 }
 
 

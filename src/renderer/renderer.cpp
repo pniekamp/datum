@@ -22,7 +22,6 @@
 using namespace std;
 using namespace lml;
 using namespace Vulkan;
-using namespace DatumPlatform;
 using leap::alignto;
 using leap::extentof;
 
@@ -105,63 +104,63 @@ enum ShaderLocation
 
 static constexpr size_t TransferBufferSize = 512*1024;
 
-struct alignas(16) MainLight
+struct MainLight
 {
-  Vec4 direction;
-  Color4 intensity;
+  alignas(16) Vec3 direction;
+  alignas(16) Color3 intensity;
 };
 
-struct alignas(16) PointLight
+struct PointLight
 {
-  Vec4 position;
-  Color4 intensity;
-  Vec4 attenuation;
+  alignas(16) Vec3 position;
+  alignas(16) Color3 intensity;
+  alignas(16) Vec4 attenuation;
 };
 
-struct alignas(16) Environment
+struct Environment
 {
-  Vec4 halfdim;
-  Transform invtransform;
+  alignas(16) Vec3 halfdim;
+  alignas(16) Transform invtransform;
 };
 
-struct alignas(16) CameraView
+struct CameraView
 {
-  Vec3 position;
-  float exposure;
-  float skyboxlod;
-  float ssrstrength;
-  float bloomstrength;
+  alignas(16) Vec3 position;
+  alignas(4) float exposure;
+  alignas(4) float skyboxlod;
+  alignas(4) float ssrstrength;
+  alignas(4) float bloomstrength;
 };
 
 struct SceneSet
 {
-  Matrix4f proj;
-  Matrix4f invproj;
-  Matrix4f view;
-  Matrix4f invview;
-  Matrix4f worldview;
-  Matrix4f prevview;
-  Matrix4f skyview;
-  Vec4 viewport;
+  alignas(16) Matrix4f proj;
+  alignas(16) Matrix4f invproj;
+  alignas(16) Matrix4f view;
+  alignas(16) Matrix4f invview;
+  alignas(16) Matrix4f worldview;
+  alignas(16) Matrix4f prevview;
+  alignas(16) Matrix4f skyview;
+  alignas(16) Vec4 viewport;
 
-  CameraView camera;
+  alignas(16) CameraView camera;
 
-  MainLight mainlight;
+  alignas(16) MainLight mainlight;
 
-  float splits[4];
-  Matrix4f shadowview[4];
+  alignas(4) float splits[4];
+  alignas(16) Matrix4f shadowview[4];
 
-  uint32_t envcount;
-  Environment environments[6];
+  alignas(4) uint32_t envcount;
+  alignas(16) Environment environments[6];
 
-  uint32_t pointlightcount;
-  PointLight pointlights[256];
+  alignas(4) uint32_t pointlightcount;
+  alignas(16) PointLight pointlights[256];
 };
 
 struct SSAOSet
 {
-  Vec4 noise[16];
-  Vec4 kernel[16];
+  alignas(16) Vec4 noise[16];
+  alignas(16) Vec4 kernel[16];
 };
 
 struct LumaSet
@@ -207,6 +206,9 @@ struct ComputeConstants
 
   uint32_t True = true;
   uint32_t False = false;
+
+  uint32_t One = 1;
+  uint32_t Two = 2;
 
 } computeconstants;
 
@@ -262,29 +264,44 @@ void *PushBuffer::push(Renderable::Type type, size_t size, size_t alignment)
 //|---------------------- Renderer ------------------------------------------
 //|--------------------------------------------------------------------------
 
+///////////////////////// initialise_render_context //////////////////////////
+void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context)
+{
+  //
+  // Vulkan Device
+  //
+
+  auto renderdevice = platform.render_device();
+
+  initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.renderqueue].queue, renderdevice.queues[renderdevice.renderqueue].familyindex);
+
+  // Command Buffers
+
+  context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+  context.commandbuffers[0] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+  context.commandbuffers[1] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+  // Transfer Buffer
+
+  context.transferbuffer = create_transferbuffer(context.vulkan, TransferBufferSize);
+
+  context.framefence = create_fence(context.vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
+
+  context.frame = 0;
+}
+
+
 ///////////////////////// prepare_render_context ////////////////////////////
 bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets)
 {
-  if (context.initialised)
+  if (context.ready)
     return true;
 
-  if (context.vulkan == 0)
+  assert(context.vulkan);
+
+  if (context.descriptorpool == 0)
   {
-    //
-    // Vulkan Device
-    //
-
-    auto renderdevice = platform.render_device();
-
-    initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.renderqueue].queue, renderdevice.queues[renderdevice.renderqueue].familyindex);
-
-    context.framefence = create_fence(context.vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
-
-    context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-
-    context.commandbuffers[0] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    context.commandbuffers[1] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-
     // DescriptorPool
 
     VkDescriptorPoolSize typecounts[4] = {};
@@ -305,17 +322,16 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     descriptorpoolinfo.pPoolSizes = typecounts;
 
     context.descriptorpool = create_descriptorpool(context.vulkan, descriptorpoolinfo);
+  }
 
+  if (context.pipelinecache == 0)
+  {
     // PipelineCache
 
     VkPipelineCacheCreateInfo pipelinecacheinfo = {};
     pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
     context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
-
-    // Transfer Buffer
-
-    context.transferbuffer = create_transferbuffer(context.vulkan, TransferBufferSize);
   }
 
   if (context.timingquerypool == 0)
@@ -1420,7 +1436,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.fogpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
-  if (context.oceanpipeline[0] == 0)
+  if (context.oceanpipeline == 0)
   {
     //
     // Ocean Pipeline
@@ -1481,108 +1497,6 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkPipelineDepthStencilStateCreateInfo depthstate = {};
     depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-
-    VkPipelineViewportStateCreateInfo viewport = {};
-    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewport.viewportCount = 1;
-    viewport.scissorCount = 1;
-
-    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-
-    VkPipelineDynamicStateCreateInfo dynamic = {};
-    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamic.dynamicStateCount = extentof(dynamicstates);
-    dynamic.pDynamicStates = dynamicstates;
-
-    VkPipelineShaderStageCreateInfo shaders[2] = {};
-    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shaders[0].module = vsmodule;
-    shaders[0].pName = "main";
-    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shaders[1].module = fsmodule;
-    shaders[1].pName = "main";
-
-    VkGraphicsPipelineCreateInfo pipelineinfo = {};
-    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineinfo.layout = context.pipelinelayout;
-    pipelineinfo.renderPass = context.geometrypass;
-    pipelineinfo.pVertexInputState = &vertexinput;
-    pipelineinfo.pInputAssemblyState = &inputassembly;
-    pipelineinfo.pRasterizationState = &rasterization;
-    pipelineinfo.pColorBlendState = &colorblend;
-    pipelineinfo.pMultisampleState = &multisample;
-    pipelineinfo.pDepthStencilState = &depthstate;
-    pipelineinfo.pViewportState = &viewport;
-    pipelineinfo.pDynamicState = &dynamic;
-    pipelineinfo.stageCount = extentof(shaders);
-    pipelineinfo.pStages = shaders;
-
-    context.oceanpipeline[0] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
-  }
-
-  if (context.oceanpipeline[1] == 0)
-  {
-    //
-    // Ocean Depth Pass Pipeline
-    //
-
-    auto vs = assets->find(CoreAsset::depth_vert);
-    auto fs = assets->find(CoreAsset::depth_frag);
-
-    if (!vs || !fs)
-      return false;
-
-    asset_guard lock(assets);
-
-    auto vssrc = assets->request(platform, vs);
-    auto fssrc = assets->request(platform, fs);
-
-    if (!vssrc || !fssrc)
-      return false;
-
-    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
-    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
-
-    VkVertexInputBindingDescription vertexbindings[1] = {};
-    vertexbindings[0].stride = VertexLayout::stride;
-    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    VkPipelineVertexInputStateCreateInfo vertexinput = {};
-    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
-    vertexinput.pVertexBindingDescriptions = vertexbindings;
-    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
-    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
-
-    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
-    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-    VkPipelineRasterizationStateCreateInfo rasterization = {};
-    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterization.lineWidth = 1.0;
-
-    VkPipelineColorBlendAttachmentState blendattachments[3] = {};
-    blendattachments[0].colorWriteMask = 0;
-    blendattachments[1].colorWriteMask = 0;
-    blendattachments[2].colorWriteMask = 0;
-
-    VkPipelineColorBlendStateCreateInfo colorblend = {};
-    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorblend.attachmentCount = extentof(blendattachments);
-    colorblend.pAttachments = blendattachments;
-
-    VkPipelineMultisampleStateCreateInfo multisample = {};
-    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineDepthStencilStateCreateInfo depthstate = {};
-    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthstate.depthTestEnable = VK_TRUE;
     depthstate.depthWriteEnable = VK_TRUE;
     depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
@@ -1624,7 +1538,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.oceanpipeline[1] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+    context.oceanpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.particlepipeline[0] == 0)
@@ -3167,7 +3081,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   context.width = 0;
   context.height = 0;
 
-  context.initialised = true;
+  context.ready = true;
 
   return true;
 }
@@ -3545,8 +3459,8 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   auto &mainlight = sceneset.mainlight;
   auto &pointlights = sceneset.pointlights;
 
-  mainlight.direction.xyz = params.sundirection;
-  mainlight.intensity.rgb = params.sunintensity;
+  mainlight.direction = params.sundirection;
+  mainlight.intensity = params.sunintensity;
 
   auto &pointlightcount = sceneset.pointlightcount = 0;
 
@@ -3584,7 +3498,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
         imageinfos[envcount].imageView = environment.envmap->texture.imageview;
         imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-        sceneset.environments[envcount].halfdim = Vec4(environment.dimension/2, 0);
+        sceneset.environments[envcount].halfdim = environment.dimension/2;
         sceneset.environments[envcount].invtransform = inverse(environment.transform);
 
         envcount += 1;
@@ -3598,7 +3512,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
     imageinfos[envcount].imageView = params.skybox->envmap->texture.imageview;
     imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    sceneset.environments[envcount].halfdim = Vec4(1e5f, 1e5f, 1e5f, 0);
+    sceneset.environments[envcount].halfdim = Vec3(1e5f, 1e5f, 1e5f);
     sceneset.environments[envcount].invtransform = inverse(params.skyboxorientation);
 
     envcount += 1;
@@ -3624,6 +3538,8 @@ extern void draw_overlays(RenderContext &context, VkCommandBuffer commandbuffer,
 ///////////////////////// render_fallback ///////////////////////////////////
 void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap, int width, int height)
 {
+  assert(context.vulkan);
+
   CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
   wait_fence(context.vulkan, context.framefence);
@@ -3662,6 +3578,8 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 ///////////////////////// render ////////////////////////////////////////////
 void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
 {
+  assert(context.ready);
+
   if (!prepare_render_pipeline(context, params))
   {
     render_fallback(context, viewport);

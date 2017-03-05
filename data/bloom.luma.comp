@@ -11,7 +11,7 @@ layout(set=3, binding=1) uniform sampler2D src;
 layout(set=3, binding=11) writeonly uniform image2D dest;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 { 
   gl_WorkGroupSize;
 

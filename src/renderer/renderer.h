@@ -206,10 +206,7 @@ struct ShadowMap
 
 struct RenderContext
 {
-  RenderContext()
-    : frame(0), initialised(false)
-  {
-  }
+  bool ready = false;
 
   Vulkan::VulkanDevice vulkan;
 
@@ -281,7 +278,7 @@ struct RenderContext
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
   Vulkan::Pipeline fogpipeline;
-  Vulkan::Pipeline oceanpipeline[2];
+  Vulkan::Pipeline oceanpipeline;
   Vulkan::Pipeline waterpipeline;
   Vulkan::Pipeline particlepipeline[1];
   Vulkan::Pipeline ssrpipeline;
@@ -308,8 +305,6 @@ struct RenderContext
   ResourcePool resourcepool;
 
   size_t frame;
-
-  bool initialised;
 
   Camera camera;
   lml::Matrix4f proj;
@@ -340,6 +335,8 @@ struct RenderParams
   float bloomstrength = 1.0f;
 };
 
+// Initialise
+void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context);
 
 // Prepare
 bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets);

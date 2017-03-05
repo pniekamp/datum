@@ -28,7 +28,7 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 layout(location=0) out vec3 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   mat4 modelworld = { vec4(model.xbasis, 0, 0), vec4(model.ybasis, 0, 0), vec4(0), vec4(model.position.xy, 0, 1) };
 

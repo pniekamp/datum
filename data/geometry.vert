@@ -27,7 +27,7 @@ layout(location=0) out vec2 texcoord;
 layout(location=1) out mat3 tbnworld;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   vec3 normal = quaternion_multiply(model.modelworld.real, vertex_normal);
   vec3 tangent = quaternion_multiply(model.modelworld.real, vertex_tangent.xyz);

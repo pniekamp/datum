@@ -78,6 +78,8 @@ void datumtest_init(PlatformInterface &platform)
 
   initialise_resource_pool(platform, state.rendercontext.resourcepool, 16*1024*1024);
 
+  initialise_render_context(platform, state.rendercontext);
+
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 
   state.scene.initialise_component_storage<NameComponent>();
@@ -146,15 +148,6 @@ void datumtest_init(PlatformInterface &platform)
   state.testparticlesystem->emitters.push_back(emitter);
 
   state.testparticles = state.testparticlesystem->create();
-
-#if 0
-  while (!prepare_skybox_context(platform, state.skyboxcontext, &state.assets, 2))
-    ;
-
-  state.renderframes[0].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
-  state.renderframes[1].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
-  state.renderframes[2].skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
-#endif
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 3.0f));
 
@@ -298,7 +291,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(1, 0, 0, 1), suzannemetalness, suzanneroughness, suzannereflectivity, cbrt(suzanneemissive/128)));
 
-#if  0
+#if 0
   float floormetalness = 0.0f;
   DEBUG_MENU_VALUE("Floor/Metalness", &floormetalness, 0.0f, 1.0f)
 
@@ -348,7 +341,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
         state.writeframe->geometry.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
       }
 
-      state.writeframe->geometry.push_ocean(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.time*Vec2(0.002f, 0.001f));
+      state.writeframe->geometry.push_ocean(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.time*Vec2(0.002f, 0.001f), 0.2f);
 
       state.writeframe->geometry.finalise(buildstate);
     }
@@ -397,17 +390,6 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
   DEBUG_MENU_VALUE("Lighting/Sun Intensity", &state.sunintensity, Color3(0, 0, 0), Color3(10, 10, 10));
   DEBUG_MENU_ENTRY("Lighting/Sun Direction", state.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", state.sundirection, Vec3(-1), Vec3(1))));
-
-#if 0
-  SkyboxParams skyboxparams;
-  skyboxparams.sunintensity = state.sunintensity;
-  skyboxparams.sundirection = state.sundirection;
-
-  DEBUG_MENU_VALUE("Lighting/Sky", &skyboxparams.skycolor, Color3(0, 0, 0), Color3(10, 10, 10));
-  DEBUG_MENU_VALUE("Lighting/Ground", &skyboxparams.groundcolor, Color3(0, 0, 0), Color3(10, 10, 10));
-
-  render_skybox(state.skyboxcontext, state.writeframe->skybox, skyboxparams);
-#endif
 
   DEBUG_MENU_ENTRY("Camera/Position", state.camera.position());
   DEBUG_MENU_ENTRY("Camera/Exposure", state.camera.exposure());
@@ -472,12 +454,12 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       float density = 0.16f;
       DEBUG_MENU_VALUE("Water/Density", &density, 0.0f, 1.0f);
 
+      float bumpscale = 0.2f;
+      DEBUG_MENU_VALUE("Water/BumpScale", &bumpscale, 0.0f, 1.0f)
+
       objects.push_fogplane(buildstate, Color4(0.085f, 0.15f, 0.32f, 1.0f), Plane(Vec3(0.0f, 1.0f, 0.0f), -0.1f), density, 0, 4.0f);
 
-//      if (camera.position().y < 0.1)
-//        objects.push_fogplane(buildstate, Color4(0.085f, 0.15f, 0.32f, 1.0f), Plane(Vec3(0.0f, 1.0f, 0.0f), -0.1f), density, 0, 4.0f);
-//      else
-//        objects.push_water(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.skybox->envmap, state.time*Vec2(0.002f, 0.001f), density);
+      objects.push_water(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.skybox->envmap, state.time*Vec2(0.002f, 0.001f), bumpscale, density);
 
       objects.finalise(buildstate);
     }
@@ -598,7 +580,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 //  renderparams.scale = 0.5f;
   renderparams.aspect = state.aspect;
   renderparams.skybox = state.skybox;
-//  renderparams.skybox = state.readframe->skybox;
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
 //  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);

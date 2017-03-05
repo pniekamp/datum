@@ -26,7 +26,7 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 layout(location=1) out vec3 normal;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   normal = quaternion_multiply(model.modelworld.real, vertex_normal);
   

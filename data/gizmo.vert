@@ -32,7 +32,7 @@ layout(location=1) out vec2 texcoord;
 layout(location=2) out vec3 normal;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   position = transform_multiply(model.modelworld, model.size * vertex_position);
   normal = quaternion_multiply(model.modelworld.real, vertex_normal);

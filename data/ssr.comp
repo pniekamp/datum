@@ -130,7 +130,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 }
  
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 { 
   gl_WorkGroupSize;
 

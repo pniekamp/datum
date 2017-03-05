@@ -68,8 +68,8 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
   {
     auto &pointlight = state.lights->pointlights[state.lights->pointlightcount];
 
-    pointlight.position.xyz = position;
-    pointlight.intensity.rgb = intensity;
+    pointlight.position = position;
+    pointlight.intensity = intensity;
     pointlight.attenuation.x = attenuation.quadratic;
     pointlight.attenuation.y = attenuation.linear;
     pointlight.attenuation.z = attenuation.constant;

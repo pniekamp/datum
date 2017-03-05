@@ -35,5 +35,5 @@ void main()
 
   fragrt0 = vec4(albedo.rgb * material.color.rgb, material.emissive);
   fragrt1 = vec4(material.metalness * specular.r, material.reflectivity * specular.g, 0, material.roughness * specular.a);
-  fragnormal  = vec4(0.5 * normal + 0.5, 1);
+  fragnormal = vec4(0.5 * normal + 0.5, 1);
 }

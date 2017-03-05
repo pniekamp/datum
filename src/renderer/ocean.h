@@ -11,10 +11,7 @@
 
 struct OceanContext
 {
-  OceanContext()
-    : initialised(false)
-  {
-  }
+  bool ready = false;
 
   static const int WaveResolution = 64;
 
@@ -42,8 +39,6 @@ struct OceanContext
   Vulkan::Texture displacementmap;
 
   Vulkan::Fence fence;
-
-  bool initialised;
 };
 
 struct OceanParams
@@ -59,7 +54,7 @@ struct OceanParams
 
   // Waves
   float wavescale = 64;
-  float waveamplitude = 0.000001f;
+  float waveamplitude = 0.00002f;
   float windspeed = 30.0f;
   lml::Vec2 winddirection = { 0.780869f, 0.624695f };
   float choppiness = 1.0f;
@@ -73,6 +68,8 @@ struct OceanParams
 };
 
 void seed_ocean(OceanParams &params);
+void lerp_ocean_swell(OceanParams &params, float swelllength, float swellamplitude, float swellspeed, lml::Vec2 swelldirection, float t);
+void lerp_ocean_waves(OceanParams &params, float wavescale, float waveamplitude, float windspeed, lml::Vec2 winddirection, float t);
 void update_ocean(OceanParams &params, float dt);
 
 // Prepare
