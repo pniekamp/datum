@@ -36,27 +36,27 @@ enum ShaderLocation
   normalmap = 3,
 };
 
-struct alignas(16) Environment
+struct Environment
 {
-  Vec4 halfdim;
-  Transform invtransform;
+  alignas(16) Vec3 halfdim;
+  alignas(16) Transform invtransform;
 };
 
 struct TranslucentMaterialSet
 {
-  Color4 color;
-  float roughness;
-  float reflectivity;
-  float emissive;
+  alignas(16) Color4 color;
+  alignas( 4) float roughness;
+  alignas( 4) float reflectivity;
+  alignas( 4) float emissive;
 };
 
 struct ForPlaneMaterialSet
 {
-  Vec4 plane;
-  Color4 color;
-  float density;
-  float falloff;
-  float startdistance;
+  alignas(16) Vec4 plane;
+  alignas(16) Color4 color;
+  alignas( 4) float density;
+  alignas( 4) float falloff;
+  alignas( 4) float startdistance;
 };
 
 struct ParticleMaterialSet
@@ -65,20 +65,21 @@ struct ParticleMaterialSet
 
 struct alignas(16) Particle
 {
-  Vec4 position;
-  Matrix2f transform;
-  Color4 color;
+  alignas(16) Vec4 position;
+  alignas(16) Matrix2f transform;
+  alignas(16) Color4 color;
 };
 
 struct WaterMaterialSet
 {
-  Color4 color;
-  float metalness;
-  float roughness;
-  float reflectivity;
-  float emissive;
-  Vec2 flow;
-  Environment specular;
+  alignas(16) Color4 color;
+  alignas( 4) float metalness;
+  alignas( 4) float roughness;
+  alignas( 4) float reflectivity;
+  alignas( 4) float emissive;
+  alignas( 4) float bumpscale;
+  alignas( 8) Vec2 flow;
+  alignas(16) Environment specular;
 };
 
 struct ModelSet
@@ -182,15 +183,15 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 ///////////////////////// ForwardList::push_translucent /////////////////////
 void ForwardList::push_translucent(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, float alpha)
 {
+  if (!mesh || !material)
+    return;
+
   assert(state.commandlist);
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-  if (!mesh)
-    return;
 
   if (!mesh->ready())
   {
@@ -201,9 +202,6 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
   }
 
   bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material)
-    return;
 
   if (!material->ready())
   {
@@ -372,39 +370,39 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
 
 ///////////////////////// ForwardList::push_water ///////////////////////////
-void ForwardList::push_water(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, EnvMap const *envmap, Vec2 const &flow, float alpha)
+void ForwardList::push_water(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, EnvMap const *envmap, Vec2 const &flow, float bumpscale, float alpha)
 {
   auto envtransform = Transform::identity();
   auto envdimension = Vec3(2e5f, 2e5f, 2e5f);
 
-  push_water(state, transform, mesh, material, envtransform, envdimension, envmap, flow, alpha);
+  push_water(state, transform, mesh, material, envtransform, envdimension, envmap, flow, bumpscale, alpha);
 }
 
 
 ///////////////////////// ForwardList::push_water ///////////////////////////
-void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, SkyBox const *skybox, Vec2 const &flow, float alpha)
+void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, SkyBox const *skybox, Vec2 const &flow, float bumpscale, float alpha)
 {
   if (!skybox)
     return;
 
   auto envdimension = Vec3(2e5f, 2e5f, 2e5f);
 
-  push_water(state, transform, mesh, material, envtransform, envdimension, skybox->envmap, flow, alpha);
+  push_water(state, transform, mesh, material, envtransform, envdimension, skybox->envmap, flow, bumpscale, alpha);
 }
 
 
 ///////////////////////// ForwardList::push_water ///////////////////////////
-void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, Vec3 const &envdimension, EnvMap const *envmap, Vec2 const &flow, float alpha)
+void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, Vec3 const &envdimension, EnvMap const *envmap, Vec2 const &flow, float bumpscale, float alpha)
 {
+  if (!mesh || !material)
+    return;
+
   assert(state.commandlist);
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.waterpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-  if (!mesh)
-    return;
 
   if (!mesh->ready())
   {
@@ -415,9 +413,6 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
   }
 
   bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material)
-    return;
 
   if (!material->ready())
   {
@@ -443,8 +438,9 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
     materialset->emissive = material->emissive;
+    materialset->bumpscale = bumpscale;
     materialset->flow = flow;
-    materialset->specular.halfdim = Vec4(envdimension/2, 0);
+    materialset->specular.halfdim = envdimension/2;
     materialset->specular.invtransform = inverse(envtransform);
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);

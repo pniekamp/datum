@@ -39,7 +39,7 @@ struct CasterMaterialSet
 
 struct ModelSet
 {
-  Transform modelworld;
+  alignas(16) Transform modelworld;
 };
 
 
@@ -92,10 +92,7 @@ bool CasterList::begin(BuildState &state, PlatformInterface &platform, RenderCon
 ///////////////////////// CasterList::push_mesh /////////////////////////////
 void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
-  if (!mesh)
-    return;
-
-  if (!material)
+  if (!mesh || !material)
     return;
 
   assert(state.commandlist);

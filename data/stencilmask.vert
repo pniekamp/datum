@@ -28,7 +28,7 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 } model;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   vec3 position = transform_multiply(model.modelworld, model.size * vertex_position);
   

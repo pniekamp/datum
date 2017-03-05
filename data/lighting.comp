@@ -114,16 +114,17 @@ void environment(inout vec3 envdiffuse, inout vec3 envspecular, vec3 position, v
   for(uint end = max(scene.environmentcount, 1u) - 1; i < end; ++i)
   {
     vec3 localpos = transform_multiply(scene.environments[i].invtransform, position);
-    vec3 localdir = quaternion_multiply(scene.environments[i].invtransform.real, speculardirection);
+    vec3 localdiffuse = quaternion_multiply(scene.environments[i].invtransform.real, diffusedirection);
+    vec3 localspecular = quaternion_multiply(scene.environments[i].invtransform.real, speculardirection);
     
-    vec2 hittest = intersections(localpos, localdir, scene.environments[i].halfdim);
+    vec2 hittest = intersections(localpos, localspecular, scene.environments[i].halfdim);
     
     if (hittest.y > max(hittest.x, 0) && hittest.x < 0)
     { 
-      vec3 localray = localpos + hittest.y * localdir;
+      vec3 localray = localpos + hittest.y * localspecular;
       float localroughness = clamp(material.roughness * hittest.y / length(localray), 0, material.roughness);
     
-      envdiffuse = textureLod(envmap[i], diffusedirection * vec3(1, -1, -1), 6.3).rgb;        
+      envdiffuse = textureLod(envmap[i], localdiffuse * vec3(1, -1, -1), 6.3).rgb;        
       envspecular = textureLod(envmap[i], localray * vec3(1, -1, -1), localroughness * 8.0).rgb;
       return;
     }
@@ -131,15 +132,16 @@ void environment(inout vec3 envdiffuse, inout vec3 envspecular, vec3 position, v
 
   if (scene.environmentcount != 0)
   {
-    vec3 localdir = quaternion_multiply(scene.environments[i].invtransform.real, speculardirection);
+    vec3 localdiffuse = quaternion_multiply(scene.environments[i].invtransform.real, diffusedirection);
+    vec3 localspecular = quaternion_multiply(scene.environments[i].invtransform.real, speculardirection);
 
-    envdiffuse = textureLod(envmap[i], diffusedirection * vec3(1, -1, -1), 6.3).rgb;        
-    envspecular = textureLod(envmap[i], localdir * vec3(1, -1, -1), material.roughness * 8.0).rgb;
+    envdiffuse = textureLod(envmap[i], localdiffuse * vec3(1, -1, -1), 6.3).rgb;        
+    envspecular = textureLod(envmap[i], localspecular * vec3(1, -1, -1), material.roughness * 8.0).rgb;
   }
 }
   
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 { 
   gl_WorkGroupSize;
 

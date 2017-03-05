@@ -16,7 +16,7 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 layout(location=0) out vec2 texcoords;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   texcoords = vertex_texcoord;
   

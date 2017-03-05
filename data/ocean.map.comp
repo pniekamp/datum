@@ -57,12 +57,12 @@ void main()
   ivec2 xy = ivec2(gl_WorkGroupID.x * SizeX + ij.x - 1, gl_WorkGroupID.y * SizeY + ij.y - 1);
   
   uint index = ((xy.y + WaveResolution) % WaveResolution) * WaveResolution + ((xy.x + WaveResolution) % WaveResolution);
-	
+
   float sigma = signs[(xy.x + xy.y) & 1];
 
+  float dz = spectrum.h[index].x * sigma;
   float dx = spectrum.hx[index].x * sigma * params.choppiness;
   float dy = spectrum.hy[index].x * sigma * params.choppiness;
-  float dz = spectrum.h[index].x * sigma;
 
   displacements[ij.y][ij.x] = vec3(dx, dy, dz);
   

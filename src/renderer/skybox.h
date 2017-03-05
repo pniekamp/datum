@@ -36,10 +36,7 @@ class SkyBox
 
 struct SkyboxContext
 {
-  SkyboxContext()
-    : initialised(false)
-  {
-  }
+  bool ready = false;
 
   Vulkan::VulkanDevice vulkan;
 
@@ -59,8 +56,6 @@ struct SkyboxContext
   Vulkan::DescriptorSet descriptorset;
 
   Vulkan::Fence fence;
-
-  bool initialised;
 };
 
 struct SkyboxParams

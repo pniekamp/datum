@@ -32,8 +32,8 @@ class LightList
 
       struct PointLight
       {
-        lml::Vec4 position;
-        lml::Color4 intensity;
+        lml::Vec3 position;
+        lml::Color3 intensity;
         lml::Vec4 attenuation;
 
       } pointlights[256];

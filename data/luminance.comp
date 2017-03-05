@@ -16,7 +16,7 @@ layout(set=3, binding=1) uniform sampler2D src;
 shared float luminance[SIZEY*SIZEX];
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 { 
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   

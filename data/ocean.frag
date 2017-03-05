@@ -24,6 +24,15 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   float roughness;
   float reflectivity;
   float emissive;
+
+  float bumpscale;
+
+  vec4 foamplane;
+  float foamwaveheight;
+  float foamwavescale;
+  float foamshoreheight;
+  float foamshorescale;
+
   vec2 flow;
   
 } material;
@@ -55,12 +64,12 @@ void main()
 
   if (depth < gl_FragCoord.z)
     discard;
- 
-  vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
-  vec4 bump1 = texture(normalmap, vec3(texcoord * 2.0 + material.flow * 4.0, 0));
-  vec4 bump2 = texture(normalmap, vec3(texcoord * 4.0 + material.flow * 8.0, 0));
 
-  vec3 normal = normalize(tbnworld * (vec3(0, 0, 1) + (2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a)); 
+  vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
+  vec4 bump1 = texture(normalmap, vec3(2.0*texcoord + 4.0*material.flow, 0));
+  vec4 bump2 = texture(normalmap, vec3(4.0*texcoord + 8.0*material.flow, 0));
+
+  vec3 normal = normalize(tbnworld * (vec3(0, 0, 1) + material.bumpscale * ((2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a))); 
 
   float dist = view_depth(scene.proj, depth) - view_depth(scene.proj, gl_FragCoord.z);
 
@@ -69,7 +78,13 @@ void main()
 
   vec4 color = material.color * textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
 
-  fragrt0 = vec4(color.rgb, material.emissive);
+  float height = dot(material.foamplane.xyz, position) + material.foamplane.w; 
+
+  vec3 wavefoam = texture(albedomap, vec3(texcoord + 0.2*bump0.xy, 1)).rgb * clamp(pow(height - material.foamwaveheight, 3) * material.foamwavescale, 0, 1);
+  
+  vec3 shorefoam = (0.25 * texture(albedomap, vec3(texcoord + 8.0*material.flow, 1)).rgb + 0.02) * clamp(height - (dist - material.foamshoreheight) * material.foamshorescale, 0, 1);
+  
+  fragrt0 = vec4(color.rgb + wavefoam + shorefoam, material.emissive);
   fragrt1 = vec4(material.metalness, material.reflectivity, 0, material.roughness);
-  fragnormal  = vec4(0.5 * normal + 0.5, 1);
+  fragnormal = vec4(0.5 * normal + 0.5, 1);
 }

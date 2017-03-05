@@ -29,14 +29,14 @@ add_subdirectory(src/leap)
 #
 
 if(WIN32)
-  find_path(VULKAN_INCLUDE vulkan/vulkan.h PATH_SUFFIXES ../include)
-  find_library(VULKAN_LIBRARIES NAMES vulkan-1 vulkan)
+  find_path(VULKAN_INCLUDE vulkan/vulkan.h HINTS "$ENV{VULKAN_SDK}/Include")
+  find_library(VULKAN_LIBRARIES NAMES vulkan-1 HINTS "$ENV{VULKAN_SDK}/Lib" "$ENV{VULKAN_SDK}/Bin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
 endif(WIN32)
 
 if(UNIX)
-  find_path(VULKAN_INCLUDE vulkan/vulkan.h)
-  find_library(VULKAN_LIBRARIES NAMES libvulkan.so)
+  find_path(VULKAN_INCLUDE vulkan/vulkan.h HINTS "$ENV{VULKAN_SDK}/include")
+  find_library(VULKAN_LIBRARIES NAMES libvulkan.so HINTS "$ENV{VULKAN_SDK}/lib")
   find_path(XCB_INCLUDE_DIRS xcb/xcb.h PATH_SUFFIXES xcb)
   find_library(XCB_LIBRARIES xcb)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_XCB_KHR")

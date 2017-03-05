@@ -11,5 +11,5 @@ void main()
 {
   fragrt0 = vec4(0);
   fragrt1 = vec4(0);
-  fragnormal  = vec4(0.5 * normal + 0.5, 1);
+  fragnormal = vec4(0.5 * normal + 0.5, 1);
 }

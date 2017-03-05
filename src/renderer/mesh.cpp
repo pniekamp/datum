@@ -248,9 +248,9 @@ Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float t
     {
       for(int x = 0; x < sizex; ++x)
       {
-        vertices->position = Vec3(x, 0, y);
-        vertices->normal = Vec3(0, 1, 0);
-        vertices->tangent = Vec4(0, 0, 1, 1);
+        vertices->position = Vec3(x, y, 0);
+        vertices->normal = Vec3(0, 0, 1);
+        vertices->tangent = Vec4(1, 0, 0, 1);
         vertices->texcoord = Vec2((x * tilex)/(sizex-1), (y * tiley)/(sizey-1));
 
         ++vertices;

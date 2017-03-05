@@ -31,7 +31,7 @@ layout(location=1) out vec2 texcoord;
 layout(location=2) out mat3 tbnworld;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   position = transform_multiply(model.modelworld, vertex_position);
 

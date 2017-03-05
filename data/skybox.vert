@@ -21,7 +21,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 layout(location=0) out vec3 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
-void main(void)
+void main()
 {
   texcoord = (scene.skyview * vec4(vertex_position.xy, -1, 1)).xyz * vec3(1, -1, -1);
 

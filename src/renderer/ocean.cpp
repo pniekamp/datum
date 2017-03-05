@@ -9,8 +9,6 @@
 
 using namespace std;
 using namespace lml;
-using namespace Vulkan;
-using namespace DatumPlatform;
 using leap::extentof;
 
 enum ShaderLocation
@@ -24,40 +22,47 @@ enum ShaderLocation
 
 struct OceanSet
 {
-  Matrix4f proj;
-  Matrix4f invproj;
-  Transform camera;
+  alignas(16) Matrix4f proj;
+  alignas(16) Matrix4f invproj;
+  alignas(16) Transform camera;
 
-  Vec4 plane;
-  float swelllength;
-  float swellamplitude;
-  float swellsteepness;
-  float swellphase;
-  Vec2 swelldirection;
+  alignas(16) Vec4 plane;
+  alignas( 4) float swelllength;
+  alignas( 4) float swellamplitude;
+  alignas( 4) float swellsteepness;
+  alignas( 4) float swellphase;
+  alignas( 8) Vec2 swelldirection;
 
-  float scale;
-  float choppiness;
-  float smoothing;
+  alignas( 4) float scale;
+  alignas( 4) float choppiness;
+  alignas( 4) float smoothing;
 
-  uint32_t size;
-  float h0[OceanContext::WaveResolution * OceanContext::WaveResolution][2];
-  float phase[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas( 4) uint32_t size;
+  alignas( 4) float h0[OceanContext::WaveResolution * OceanContext::WaveResolution][2];
+  alignas( 4) float phase[OceanContext::WaveResolution * OceanContext::WaveResolution];
 
-  uint32_t sizex;
-  uint32_t sizey;
+  alignas( 4) uint32_t sizex;
+  alignas( 4) uint32_t sizey;
 };
 
 struct Spectrum
 {
-  complex<float> h[OceanContext::WaveResolution * OceanContext::WaveResolution];
-  complex<float> hx[OceanContext::WaveResolution * OceanContext::WaveResolution];
-  complex<float> hy[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas(4) complex<float> h[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas(4) complex<float> hx[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas(4) complex<float> hy[OceanContext::WaveResolution * OceanContext::WaveResolution];
 
-  float weights[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas(4) float weights[OceanContext::WaveResolution * OceanContext::WaveResolution];
 };
 
 namespace
 {
+  float dispersion(Vec2 const &k)
+  {
+    float klength2 = normsqr(k);
+
+    return sqrt(9.81f * sqrt(klength2) * (1 + klength2 / (370 * 370)));
+  }
+
   float phillips(Vec2 const &k, float a, float v, Vec2 const &w)
   {
     if (k.x == 0 && k.y == 0)
@@ -126,6 +131,43 @@ void seed_ocean(OceanParams &params)
 }
 
 
+///////////////////////// lerp_ocean_swell /////////////////////////////////
+void lerp_ocean_swell(OceanParams &params, float swelllength, float swellamplitude, float swellspeed, Vec2 swelldirection, float t)
+{
+  params.swelllength = lerp(params.swelllength, swelllength, t);
+  params.swellamplitude = lerp(params.swellamplitude, swellamplitude, t);
+  params.swellspeed = lerp(params.swellspeed, swellspeed, t);
+  params.swelldirection = normalise(lerp(params.swelldirection, swelldirection, t));
+}
+
+
+///////////////////////// lerp_ocean_waves //////////////////////////////////
+void lerp_ocean_waves(OceanParams &params, float wavescale, float waveamplitude, float windspeed, Vec2 winddirection, float t)
+{
+  int size = OceanContext::WaveResolution;
+
+  params.wavescale = lerp(params.wavescale, wavescale, t);
+  params.waveamplitude = lerp(params.waveamplitude, waveamplitude, t);
+  params.windspeed = lerp(params.windspeed, windspeed, t);
+  params.winddirection = normalise(lerp(params.winddirection, winddirection, t));
+
+  for(int m = 0; m < size; ++m)
+  {
+    auto y = 2*pi<float>() * (m - 0.5f*size) / params.wavescale;
+
+    for(int n = 0; n < size; ++n)
+    {
+      auto x = 2*pi<float>() * (n - 0.5f*size) / params.wavescale;
+
+      auto h0 = sqrt(phillips({x,y}, params.waveamplitude, params.windspeed, params.winddirection) / 2.0f);
+
+      params.height[m][n][0] = params.seed[m][n][0] * h0;
+      params.height[m][n][1] = params.seed[m][n][1] * h0;
+    }
+  }
+}
+
+
 ///////////////////////// update_ocean ////////////////////////////////////
 void update_ocean(OceanParams &params, float dt)
 {
@@ -141,18 +183,16 @@ void update_ocean(OceanParams &params, float dt)
     {
       auto x = 2*pi<float>() * (n - 0.5f*size) / params.wavescale;
 
-      auto phase = sqrt(9.81f * sqrt(x*x + y*y));
-
-      params.phase[m][n] = fmod(params.phase[m][n] + phase*dt, 2*pi<float>());
+      params.phase[m][n] = fmod(params.phase[m][n] + dispersion({x,y})*dt, 2*pi<float>());
     }
   }
 }
 
 
 ///////////////////////// prepare_ocean_context /////////////////////////////
-bool prepare_ocean_context(PlatformInterface &platform, OceanContext &context, AssetManager *assets, uint32_t queueindex)
+bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager *assets, uint32_t queueindex)
 {
-  if (context.initialised)
+  if (context.ready)
     return true;
 
   if (context.vulkan == 0)
@@ -165,11 +205,11 @@ bool prepare_ocean_context(PlatformInterface &platform, OceanContext &context, A
 
     initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
 
-    context.fence = create_fence(context.vulkan);
-
     context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    context.fence = create_fence(context.vulkan);
 
     // DescriptorPool
 
@@ -417,7 +457,7 @@ bool prepare_ocean_context(PlatformInterface &platform, OceanContext &context, A
     wait_fence(context.vulkan, context.fence);
   }
 
-  context.initialised = true;
+  context.ready = true;
 
   return true;
 }
@@ -426,6 +466,9 @@ bool prepare_ocean_context(PlatformInterface &platform, OceanContext &context, A
 ///////////////////////// render ////////////////////////////////////////////
 void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params)
 {
+  using namespace Vulkan;
+
+  assert(context.ready);
   assert(mesh->vertexbuffer.vertexcount == sizex*sizey);
 
   auto &commandbuffer = context.commandbuffer;
@@ -476,19 +519,19 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
 
   dispatch(commandbuffer, OceanContext::WaveResolution/16, OceanContext::WaveResolution/16, 1);
 
-  barrier(commandbuffer);
+  barrier(commandbuffer, context.spectrum, 0, context.spectrum.size);
 
   bind_pipeline(commandbuffer, context.pipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
   dispatch(commandbuffer, 1, OceanContext::WaveResolution, 1);
 
-  barrier(commandbuffer);
+  barrier(commandbuffer, context.spectrum, 0, context.spectrum.size);
 
   bind_pipeline(commandbuffer, context.pipeline[2], VK_PIPELINE_BIND_POINT_COMPUTE);
 
   dispatch(commandbuffer, OceanContext::WaveResolution, 1, 1);
 
-  barrier(commandbuffer);
+  barrier(commandbuffer, context.spectrum, 0, context.spectrum.size);
 
   bind_pipeline(commandbuffer, context.pipeline[3], VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -502,7 +545,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
 
   dispatch(commandbuffer, sizex/16, sizey/16, 1);
 
-  barrier(commandbuffer);
+  barrier(commandbuffer, verticesbuffer, 0, verticesbuffer.size);
 
   end(context.vulkan, commandbuffer);
 

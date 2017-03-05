@@ -36,11 +36,11 @@ enum ShaderLocation
 
 struct SkyboxSet
 {
-  Color4 skycolor;
-  Color4 groundcolor;
-  Vec4 sundirection;
-  Color3 sunintensity;
-  float exposure;
+  alignas(16) Color3 skycolor;
+  alignas(16) Color3 groundcolor;
+  alignas(16) Vec3 sundirection;
+  alignas(16) Color3 sunintensity;
+  alignas( 4) float exposure;
 };
 
 
@@ -174,7 +174,7 @@ void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 ///////////////////////// prepare_skybox_context ////////////////////////////
 bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager *assets, uint32_t queueindex)
 {
-  if (context.initialised)
+  if (context.ready)
     return true;
 
   if (context.vulkan == 0)
@@ -187,11 +187,11 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxCo
 
     initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
 
-    context.fence = create_fence(context.vulkan);
-
     context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+    context.fence = create_fence(context.vulkan);
 
     // DescriptorPool
 
@@ -285,7 +285,7 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxCo
     context.pipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
-  context.initialised = true;
+  context.ready = true;
 
   return true;
 }
@@ -296,10 +296,12 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 { 
   using namespace Vulkan;
 
+  assert(context.ready);
+
   SkyboxSet skyboxset;
   skyboxset.skycolor = params.skycolor;
   skyboxset.groundcolor = params.groundcolor;
-  skyboxset.sundirection.xyz = params.sundirection;
+  skyboxset.sundirection = params.sundirection;
   skyboxset.sunintensity = params.sunintensity;
   skyboxset.exposure = params.exposure;
 
