@@ -6,6 +6,7 @@
 #include "datum/debug.h"
 #include <random>
 #include <complex>
+#include <numeric>
 
 using namespace std;
 using namespace lml;

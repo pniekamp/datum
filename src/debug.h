@@ -22,6 +22,12 @@
 #include <thread>
 #include "math/color.h"
 
+#ifdef _WIN32
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
+
 #if 0
 inline __attribute__((always_inline)) void *operator new(std::size_t)
 {
