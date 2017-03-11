@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 #include "transform.glsl"
 
 layout(location=0) in vec3 vertex_position;

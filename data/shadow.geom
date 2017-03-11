@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 #include "camera.glsl"
 #include "transform.glsl"
 #include "lighting.glsl"

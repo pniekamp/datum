@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 #include "gbuffer.glsl"
 #include "camera.glsl"
 
@@ -64,12 +64,14 @@ void main()
 
   if (depth < gl_FragCoord.z)
     discard;
-
+    
   vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
   vec4 bump1 = texture(normalmap, vec3(2.0*texcoord + 4.0*material.flow, 0));
   vec4 bump2 = texture(normalmap, vec3(4.0*texcoord + 8.0*material.flow, 0));
 
-  vec3 normal = normalize(tbnworld * (vec3(0, 0, 1) + material.bumpscale * ((2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a))); 
+  float bumpscale = material.bumpscale * mix(1, 0.2, max(500*(gl_FragCoord.z - 0.998), 0));
+
+  vec3 normal = normalize(tbnworld * (vec3(0, 0, 1) + bumpscale * ((2*bump0.rgb-1)*bump0.a + (2*bump1.rgb-1)*bump1.a + (2*bump2.rgb-1)*bump2.a))); 
 
   float dist = view_depth(scene.proj, depth) - view_depth(scene.proj, gl_FragCoord.z);
 
