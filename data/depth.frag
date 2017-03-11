@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 
 layout(location=1) in vec3 normal;
 

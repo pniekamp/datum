@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 #include "camera.glsl"
 
 layout(std430, set=0, binding=0, row_major) buffer SceneSet 

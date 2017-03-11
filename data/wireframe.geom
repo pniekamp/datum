@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
@@ -20,7 +20,7 @@ layout(location=0) noperspective out vec3 edgedist;
 
 void EmitPt(vec4 position, vec3 dist)
 {
-  edgedist = dist;
+  edgedist = dist; 
   gl_Position = position;
   EmitVertex();
 }

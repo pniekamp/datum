@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 
 #define SIZEX 48
 #define SIZEY 21

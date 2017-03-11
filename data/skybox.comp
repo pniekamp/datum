@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -12,7 +12,7 @@ layout(std140, push_constant, row_major) uniform SkyboxParams
 
 } params;
 
-layout(set=0, binding=0) writeonly uniform imageCube dest;
+layout(set=0, binding=1) writeonly uniform imageCube dest;
 
 const float OuterRadius = 1.025;
 const float OuterRadius2 = OuterRadius*OuterRadius;
@@ -82,7 +82,7 @@ vec3 skybox(vec3 eyeray)
   vec3 c0 = frontcolor * InvWavelength * Kr * params.sunintensity;
   vec3 c1 = frontcolor * Km * params.sunintensity;
 
-  vec3 skycolor = c0 * rayleighphase(cosangle) + c1 * miephase(cosangle, -0.990);
+  vec3 skycolor = c0 * rayleighphase(cosangle) + clamp(c1 * miephase(cosangle, -0.990), 0, 1);
   vec3 groundcolor = params.groundcolor * max(dot(-params.sundirection, vec3(0, 1, 0)), 0);
 
   return params.exposure * mix(skycolor, groundcolor, clamp(-10 * eyeray.y, 0, 1));
@@ -114,5 +114,5 @@ void main()
   imageStore(dest, ivec3(xy, 3), vec4(skybox(normalize(vec3(eyeray.x, 1, eyeray.y))), 1));
 
   // bottom
-  imageStore(dest, ivec3(xy, 2), vec4(skybox(normalize(vec3(eyeray.x, -1, eyeray.y))), 1));
+  imageStore(dest, ivec3(xy, 2), vec4(skybox(normalize(vec3(eyeray.x, -1, -eyeray.y))), 1));
 }

@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 
 layout(set=1, binding=1) uniform sampler2DArray albedomap;
 

@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 #include "bound.glsl"
 #include "camera.glsl"
 #include "gbuffer.glsl"

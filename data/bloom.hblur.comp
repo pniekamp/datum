@@ -1,4 +1,4 @@
-#version 450 core
+#version 440 core
 
 layout(local_size_x = 64) in;
 layout(local_size_x_id = 1) in;
