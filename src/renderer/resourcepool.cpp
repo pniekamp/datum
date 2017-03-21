@@ -239,11 +239,11 @@ ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump con
 
 
 ///////////////////////// initialise_resource_pool //////////////////////////
-bool initialise_resource_pool(DatumPlatform::PlatformInterface &platform, ResourcePool &resourcepool, size_t storagesize)
+bool initialise_resource_pool(DatumPlatform::PlatformInterface &platform, ResourcePool &resourcepool, size_t storagesize, uint32_t queueindex)
 {
   auto renderdevice = platform.render_device();
 
-  resourcepool.initialise(renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.renderqueue].queue, renderdevice.queues[renderdevice.renderqueue].familyindex, storagesize);
+  resourcepool.initialise(renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex, storagesize);
 
   return true;
 }

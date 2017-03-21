@@ -9,10 +9,16 @@ layout(std140, push_constant, row_major) uniform SkyboxParams
   vec3 sundirection;
   vec3 sunintensity;
   float exposure;
+  uint cloudlayers;
+  float cloudheight;
+  vec4 cloudcolor;
 
 } params;
 
 layout(set=0, binding=1) writeonly uniform imageCube dest;
+
+layout(set=0, binding=2) uniform sampler2DArray clouddensitymap;
+layout(set=0, binding=3) uniform sampler2DArray cloudnormalmap;
 
 const float OuterRadius = 1.025;
 const float OuterRadius2 = OuterRadius*OuterRadius;
@@ -84,8 +90,27 @@ vec3 skybox(vec3 eyeray)
 
   vec3 skycolor = c0 * rayleighphase(cosangle) + clamp(c1 * miephase(cosangle, -0.990), 0, 1);
   vec3 groundcolor = params.groundcolor * max(dot(-params.sundirection, vec3(0, 1, 0)), 0);
+  vec3 cloudcolor = params.cloudcolor.rgb;
+  
+  float skyalpha = clamp(-10 * eyeray.y, 0, 1);
+  float cloudalpha = 0;
+  
+  if (params.cloudlayers != 0)
+  {
+    vec3 cloudpos = eyeray * (params.cloudheight / eyeray.y);
+    vec2 clouduv = 0.000005 * cloudpos.xz;
+    vec3 cloudnormal = normalize(2 * texture(cloudnormalmap, vec3(clouduv, 0)).xyz - 1);
 
-  return params.exposure * mix(skycolor, groundcolor, clamp(-10 * eyeray.y, 0, 1));
+    float NdotL = max(dot(cloudnormal.xzy, -params.sundirection), 0);
+    
+    cloudalpha = NdotL * texture(clouddensitymap, vec3(clouduv, 0)).r;
+    
+    cloudalpha *= clamp(10 * eyeray.y, 0.0, 1.0);
+    
+    cloudalpha *= params.cloudcolor.a;
+  }
+
+  return params.exposure * mix(mix(skycolor, groundcolor, skyalpha), cloudcolor, cloudalpha);
 }
 
 

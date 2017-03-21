@@ -52,11 +52,11 @@ namespace
       {
         if (texcoords.x > 0)
         {
-          result = sample(0, Vec2(0.5f - 0.5f*texcoords.z/mx, 0.5f + 0.5f*texcoords.y/mx));
+          result = sample(0, Vec2(0.5f + 0.5f*texcoords.z/mx, 0.5f + 0.5f*texcoords.y/mx));
         }
         else
         {
-          result = sample(1, Vec2(0.5f + 0.5f*texcoords.z/mx, 0.5f + 0.5f*texcoords.y/mx));
+          result = sample(1, Vec2(0.5f - 0.5f*texcoords.z/mx, 0.5f + 0.5f*texcoords.y/mx));
         }
       }
 
@@ -64,11 +64,11 @@ namespace
       {
         if (texcoords.y > 0)
         {
-          result = sample(3, Vec2(0.5f + 0.5f*texcoords.x/my, 0.5f - 0.5f*texcoords.z/my));
+          result = sample(3, Vec2(0.5f + 0.5f*texcoords.x/my, 0.5f + 0.5f*texcoords.z/my));
         }
         else
         {
-          result = sample(2, Vec2(0.5f + 0.5f*texcoords.x/my, 0.5f + 0.5f*texcoords.z/my));
+          result = sample(2, Vec2(0.5f + 0.5f*texcoords.x/my, 0.5f - 0.5f*texcoords.z/my));
         }
       }
 
@@ -76,11 +76,11 @@ namespace
       {
         if (texcoords.z > 0)
         {
-          result = sample(4, Vec2(0.5f + 0.5f*texcoords.x/mz, 0.5f + 0.5f*texcoords.y/mz));
+          result = sample(5, Vec2(0.5f - 0.5f*texcoords.x/mz, 0.5f + 0.5f*texcoords.y/mz));
         }
         else
         {
-          result = sample(5, Vec2(0.5f - 0.5f*texcoords.x/mz, 0.5f + 0.5f*texcoords.y/mz));
+          result = sample(4, Vec2(0.5f + 0.5f*texcoords.x/mz, 0.5f + 0.5f*texcoords.y/mz));
         }
       }
 
@@ -205,11 +205,11 @@ void image_buildmips_cube_ibl(int width, int height, int levels, void *bits)
 
     Transform transforms[] =
     {
-      Transform::rotation(Vec3(0, 1, 0), pi<float>()/2),  // right
-      Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), // left
-      Transform::rotation(Vec3(1, 0, 0), pi<float>()/2),  // down
-      Transform::rotation(Vec3(1, 0, 0), -pi<float>()/2), // up
-      Transform::rotation(Vec3(0, 1, 0), 0),              // forward
+      Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), // right
+      Transform::rotation(Vec3(0, 1, 0), pi<float>()/2),  // left
+      Transform::rotation(Vec3(1, 0, 0), -pi<float>()/2), // bottom
+      Transform::rotation(Vec3(1, 0, 0), pi<float>()/2),  // top
+      Transform::rotation(Vec3(0, 1, 0), 0),              // front
       Transform::rotation(Vec3(0, 1, 0), pi<float>()),    // back
     };
 
@@ -219,7 +219,7 @@ void image_buildmips_cube_ibl(int width, int height, int levels, void *bits)
       {
         for(int x = 0, end = width >> 1; x < end; ++x)
         {
-          *dst++ = rgbe(convolve(roughness, transform * normalise(Vec3(2 * (x + 0.5f)/(width >> 1) - 1, 2 * (y + 0.5f)/(height >> 1) - 1, 1.0)), envmap));
+          *dst++ = rgbe(convolve(roughness, transform * normalise(Vec3(2 * (x + 0.5f)/(width >> 1) - 1, 2 * (y + 0.5f)/(height >> 1) - 1, -1.0)), envmap));
         }
       }
     }

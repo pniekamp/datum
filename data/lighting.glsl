@@ -209,11 +209,11 @@ float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
 ///////////////////////// specular_ggx ////////////////////////////////////
 vec3 specular_ggx(vec3 f0, float f90, float NdotV, float NdotL, float LdotH, float NdotH, float alpha)
 {
-  vec3 F = fresnel_schlick(f0, f90, LdotH);
+  vec3 Fc = fresnel_schlick(f0, f90, LdotH);
   float Vis = visibility_smith(NdotV, NdotL, alpha);
   float D = distribution_ggx(NdotH, alpha);
 
-  return D * F * Vis;
+  return D * Vis * Fc;
 }
 
 

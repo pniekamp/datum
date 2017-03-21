@@ -265,7 +265,7 @@ void *PushBuffer::push(Renderable::Type type, size_t size, size_t alignment)
 //|--------------------------------------------------------------------------
 
 ///////////////////////// initialise_render_context //////////////////////////
-void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context)
+void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, size_t storagesize, uint32_t queueindex)
 {
   //
   // Vulkan Device
@@ -273,7 +273,7 @@ void initialise_render_context(DatumPlatform::PlatformInterface &platform, Rende
 
   auto renderdevice = platform.render_device();
 
-  initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.renderqueue].queue, renderdevice.queues[renderdevice.renderqueue].familyindex);
+  initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
 
   // Command Buffers
 
@@ -287,6 +287,10 @@ void initialise_render_context(DatumPlatform::PlatformInterface &platform, Rende
   context.transferbuffer = create_transferbuffer(context.vulkan, TransferBufferSize);
 
   context.framefence = create_fence(context.vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
+
+  // Resource Pool
+
+  initialise_resource_pool(platform, context.resourcepool, storagesize, queueindex);
 
   context.frame = 0;
 }

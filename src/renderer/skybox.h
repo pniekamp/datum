@@ -10,6 +10,7 @@
 
 #include "resource.h"
 #include "envmap.h"
+#include "material.h"
 
 //|---------------------- SkyBox --------------------------------------------
 //|--------------------------------------------------------------------------
@@ -49,11 +50,13 @@ struct SkyboxContext
 
   Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::Pipeline pipeline;
+  Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline convolvepipeline;
 
   Vulkan::DescriptorSetLayout descriptorsetlayout;
 
-  Vulkan::DescriptorSet descriptorset;
+  Vulkan::DescriptorSet skyboxdescriptor;
+  Vulkan::DescriptorSet convolvedescriptors[8];
 
   Vulkan::Fence fence;
 };
@@ -64,6 +67,12 @@ struct SkyboxParams
   lml::Color3 groundcolor = { 0.41f, 0.41f, 0.4f };
   lml::Vec3 sundirection = { -0.57735f, -0.57735f, -0.57735f };
   lml::Color3 sunintensity = { 8.0f, 7.56f, 7.88f };
+
+  float cloudheight = 10000.0f;
+  Material const *clouds = nullptr;
+
+  int convolesamples = 0;
+
   float exposure = 1.0f;
 };
 

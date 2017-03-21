@@ -74,11 +74,9 @@ void datumtest_init(PlatformInterface &platform)
 
   initialise_asset_system(platform, state.assets, 64*1024, 256*1024*1024);
 
-  initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024);
+  initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024, 1);
 
-  initialise_resource_pool(platform, state.rendercontext.resourcepool, 16*1024*1024);
-
-  initialise_render_context(platform, state.rendercontext);
+  initialise_render_context(platform, state.rendercontext, 16*1024*1024, 0);
 
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 
@@ -109,7 +107,7 @@ void datumtest_init(PlatformInterface &platform)
 
   state.watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
   state.waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
-  state.watermaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.1f, 0.5f, 0.0f, state.watercolor, (Texture const *)nullptr, state.waternormal);
+  state.watermaterial = state.resources.create<Material>(Color4(1.0f, 1.0f, 1.0f, 1), 0.0f, 0.2f, 0.5f, 0.0f, state.watercolor, (Texture const *)nullptr, state.waternormal);
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
 
@@ -341,7 +339,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
         state.writeframe->geometry.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
       }
 
-      state.writeframe->geometry.push_ocean(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.time*Vec2(0.002f, 0.001f), 0.2f);
+      state.writeframe->geometry.push_ocean(buildstate, Transform::identity(), state.testplane, state.watermaterial, state.time*Vec2(0.002f, 0.001f), 0.1f);
 
       state.writeframe->geometry.finalise(buildstate);
     }
@@ -583,7 +581,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   renderparams.sundirection = state.sundirection;
   renderparams.sunintensity = state.sunintensity;
 //  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
-  renderparams.ssrstrength = 2.0f;
+  renderparams.ssrstrength = 1.0f;
   renderparams.ssaoscale = 0.5f;
 
   DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);

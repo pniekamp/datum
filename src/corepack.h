@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 22;
+  const uint32_t version = 24;
 
   enum
   {
@@ -76,14 +76,18 @@ namespace CoreAsset
     outline_vert,
     outline_geom,
     outline_frag,
-    wave_color,
-    wave_normal,
-    skybox_comp,
+    convolve_comp,
+    skybox_gen_comp,
     ocean_sim_comp,
     ocean_fftx_comp,
     ocean_ffty_comp,
     ocean_map_comp,
     ocean_gen_comp,
+    wave_color,
+    wave_normal,
+    cloud_density,
+    cloud_normal,
+    noise_normal,
     default_material,
     default_particle,
     loader_image,
