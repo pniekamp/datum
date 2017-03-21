@@ -103,9 +103,6 @@ namespace DatumPlatform
       };
 
       Queue queues[8];
-
-      uint32_t renderqueue;
-      uint32_t transferqueue;
     };
 
 

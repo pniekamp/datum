@@ -63,14 +63,14 @@ Color4 HDRImage::sample(Vec2 const &texcoords, Vec2 const &area) const
 //|///////////////////// sample /////////////////////////////////////////////
 Color4 HDRImage::sample(Vec3 const &texcoords) const
 {
-  return sample(Vec2(pi<float>()/2 + atan2(texcoords.x, texcoords.z) / (2*pi<float>()), acos(texcoords.y) / pi<float>()));
+  return sample(Vec2(pi<float>()/2 + atan2(texcoords.x, -texcoords.z) / (2*pi<float>()), acos(texcoords.y) / pi<float>()));
 }
 
 
 //|///////////////////// sample /////////////////////////////////////////////
 Color4 HDRImage::sample(Vec3 const &texcoords, Vec2 const &area) const
 {
-  return sample(Vec2(pi<float>()/2 + atan2(texcoords.x, texcoords.z) / (2*pi<float>()), acos(texcoords.y) / pi<float>()), area);
+  return sample(Vec2(pi<float>()/2 + atan2(texcoords.x, -texcoords.z) / (2*pi<float>()), acos(texcoords.y) / pi<float>()), area);
 }
 
 
@@ -334,11 +334,11 @@ void image_pack_cube(HDRImage const &image, int width, int height, int levels, v
 
   Transform transforms[] =
   {
-    Transform::rotation(Vec3(0, 1, 0), pi<float>()/2),  // right
-    Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), // left
-    Transform::rotation(Vec3(1, 0, 0), pi<float>()/2),  // down
-    Transform::rotation(Vec3(1, 0, 0), -pi<float>()/2), // up
-    Transform::rotation(Vec3(0, 1, 0), 0),              // forward
+    Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), // right
+    Transform::rotation(Vec3(0, 1, 0), pi<float>()/2),  // left
+    Transform::rotation(Vec3(1, 0, 0), -pi<float>()/2), // bottom
+    Transform::rotation(Vec3(1, 0, 0), pi<float>()/2),  // top
+    Transform::rotation(Vec3(0, 1, 0), 0),              // front
     Transform::rotation(Vec3(0, 1, 0), pi<float>()),    // back
   };
 
@@ -350,7 +350,7 @@ void image_pack_cube(HDRImage const &image, int width, int height, int levels, v
     {
       for(int x = 0; x < width; ++x)
       {
-        *dst++ = rgbe(image.sample(transform * normalise(Vec3(2 * (x + 0.5f)/width - 1, 2 * (y + 0.5f)/height - 1, 1.0)), area));
+        *dst++ = rgbe(image.sample(transform * normalise(Vec3(2 * (x + 0.5f)/width - 1, 2 * (y + 0.5f)/height - 1, -1.0)), area));
       }
     }
   }

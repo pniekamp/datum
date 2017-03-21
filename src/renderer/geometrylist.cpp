@@ -259,7 +259,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
       materialset->roughness = material->roughness;
       materialset->reflectivity = material->reflectivity;
       materialset->emissive = material->emissive;
-      materialset->bumpscale = bumpscale;
+      materialset->bumpscale = 1.0f / (0.01f + bumpscale);
       materialset->foamplane = Vec4(foamplane.normal, foamplane.distance);
       materialset->foamwaveheight = foamwaveheight;
       materialset->foamwavescale = foamwavescale;

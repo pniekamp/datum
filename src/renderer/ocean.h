@@ -57,14 +57,15 @@ struct OceanParams
   float waveamplitude = 0.00002f;
   float windspeed = 30.0f;
   lml::Vec2 winddirection = { 0.780869f, 0.624695f };
-  float choppiness = 1.0f;
-  float smoothing = 350.0f;
+  float choppiness = 1.35f;
+  float smoothing = 280.0f;
 
   // State
   float swellphase;
   float seed[OceanContext::WaveResolution][OceanContext::WaveResolution][2];
   float height[OceanContext::WaveResolution][OceanContext::WaveResolution][2];
   float phase[OceanContext::WaveResolution][OceanContext::WaveResolution];
+  lml::Vec2 flow;
 };
 
 void seed_ocean(OceanParams &params);

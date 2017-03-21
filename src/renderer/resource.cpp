@@ -297,12 +297,12 @@ void ResourceManager::submit_transfer(TransferLump const *lump)
 
 
 ///////////////////////// initialise_resource_system ////////////////////////
-bool initialise_resource_system(DatumPlatform::PlatformInterface &platform, ResourceManager &resourcemanager, size_t slabsize, size_t buffersize, size_t maxbuffersize)
+bool initialise_resource_system(DatumPlatform::PlatformInterface &platform, ResourceManager &resourcemanager, size_t slabsize, size_t buffersize, size_t maxbuffersize, uint32_t queueindex)
 {
   auto renderdevice = platform.render_device();
 
   resourcemanager.initialise_slab(slabsize);
-  resourcemanager.initialise_device(renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[renderdevice.transferqueue].queue, renderdevice.queues[renderdevice.transferqueue].familyindex, buffersize, maxbuffersize);
+  resourcemanager.initialise_device(renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex, buffersize, maxbuffersize);
 
   return true;
 }

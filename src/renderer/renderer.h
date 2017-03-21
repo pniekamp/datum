@@ -336,7 +336,7 @@ struct RenderParams
 };
 
 // Initialise
-void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context);
+void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, size_t storagesize, uint32_t queueindex);
 
 // Prepare
 bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets);

@@ -438,7 +438,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
     materialset->emissive = material->emissive;
-    materialset->bumpscale = bumpscale;
+    materialset->bumpscale = 1.0f / (0.01f + bumpscale);
     materialset->flow = flow;
     materialset->specular.halfdim = envdimension/2;
     materialset->specular.invtransform = inverse(envtransform);

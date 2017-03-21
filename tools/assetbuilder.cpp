@@ -834,16 +834,23 @@ void write_core()
   write_shader_asset(fout, CoreAsset::outline_geom, "../../data/outline.geom");
   write_shader_asset(fout, CoreAsset::outline_frag, "../../data/outline.frag");
 
-  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0, 0.032, 0.046), Color3(0.1, 0.6, 0.7), 1.0, Color3(0.0, 0.05, 0.08), 0.328f, 5.0f, "../../data/foam.png");
-  write_normalmap_asset(fout, CoreAsset::wave_normal, "../../data/wavenormal.png");
+  write_shader_asset(fout, CoreAsset::convolve_comp, "../../data/convolve.comp");
 
-  write_shader_asset(fout, CoreAsset::skybox_comp, "../../data/skybox.comp");
+  write_shader_asset(fout, CoreAsset::skybox_gen_comp, "../../data/skybox.comp");
 
   write_shader_asset(fout, CoreAsset::ocean_sim_comp, "../../data/ocean.sim.comp");
   write_shader_asset(fout, CoreAsset::ocean_fftx_comp, "../../data/ocean.fftx.comp");
   write_shader_asset(fout, CoreAsset::ocean_ffty_comp, "../../data/ocean.ffty.comp");
   write_shader_asset(fout, CoreAsset::ocean_map_comp, "../../data/ocean.map.comp");
   write_shader_asset(fout, CoreAsset::ocean_gen_comp, "../../data/ocean.gen.comp");
+
+  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0f, 0.007f, 0.005f), Color3(0.1, 0.6, 0.7), 1.0, Color3(0.006f, 0.115f, 0.324f), 0.015f, 5.0f, "../../data/foam.png");
+  write_normalmap_asset(fout, CoreAsset::wave_normal, "../../data/wavenormal.png");
+
+  write_image_asset(fout, CoreAsset::cloud_density, "../../data/clouds.png");
+  write_normalmap_asset(fout, CoreAsset::cloud_normal, "../../data/cloudsnormal.png");
+
+  write_normalmap_asset(fout, CoreAsset::noise_normal, "../../data/noisenormal.png");
 
   write_material_asset(fout, CoreAsset::default_material, Color3(0.64, 0.64, 0.64), 0, 1, 0.5, 0.0, "", "", "");
 

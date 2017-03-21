@@ -1,0 +1,102 @@
+#version 440 core
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(std140, push_constant, row_major) uniform ConvolveParams 
+{ 
+  uint level;
+  uint samples;
+  float roughness;
+
+} params;
+
+layout(set=0, binding=0) uniform samplerCube envmap;
+
+layout(set=0, binding=1) writeonly uniform imageCube dest;
+
+float radicalinverse_VdC(uint bits)
+{
+  bits = (bits << 16u) | (bits >> 16u);
+  bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+  bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+  bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+  bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+
+  return float(bits) * 2.3283064365386963e-10f; // / 0x100000000
+}
+
+vec2 hammersley(int i, uint samples)
+{
+  return vec2(float(i)/float(samples), radicalinverse_VdC(i));
+}
+
+vec3 importancesample_ggx(vec2 u, float alpha, vec3 normal)
+{
+  float phi = 2*3.14159265 * u.x;
+  float costheta = sqrt((1 - u.y) / (1 + (alpha*alpha - 1) * u.y));
+  float sintheta = sqrt(1 - costheta*costheta);
+
+  vec3 up = abs(normal.z) < 0.999 ? vec3(0,0,1) : vec3(1,0,0);
+  vec3 tangent = normalize(cross(up, normal));
+  vec3 bitangent = cross(normal, tangent);
+
+  return sintheta * cos(phi) * tangent + sintheta * sin(phi) * bitangent + costheta * normal;
+}
+
+vec3 convolve(vec3 ray)
+{
+  vec3 N = ray;
+  vec3 V = ray;
+
+  vec3 sum = vec3(0);
+  float totalweight = 0;
+
+  for(int i = 0; i < params.samples; ++i)
+  {
+    vec2 u = hammersley(i, params.samples);
+    vec3 H = importancesample_ggx(u, params.roughness * params.roughness, N);
+    vec3 L = 2 * dot(V, H) * H - V;
+
+    float NdotL = clamp(dot(N, L), 0, 1);
+
+    if (NdotL > 0)
+    {
+      sum += textureLod(envmap, L * vec3(1, -1, -1), params.level - 1).rgb * NdotL;
+
+      totalweight += NdotL;
+    }
+  }
+
+  return sum / totalweight;
+}
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+
+  ivec2 dim = imageSize(dest);
+
+  vec2 eyeray = vec2(2 * (xy.x + 0.5f)/dim.x - 1, 2 * (xy.y + 0.5f)/dim.y - 1);
+
+  if (xy.x < dim.x && xy.y < dim.y)
+  {
+    // front
+    imageStore(dest, ivec3(xy, 4), vec4(convolve(normalize(vec3(eyeray.x, eyeray.y, -1))), 1));
+
+    // left
+    imageStore(dest, ivec3(xy, 1), vec4(convolve(normalize(vec3(-1, eyeray.y, -eyeray.x))), 1));
+
+    // right
+    imageStore(dest, ivec3(xy, 0), vec4(convolve(normalize(vec3(1, eyeray.y, eyeray.x))), 1));
+
+    // back
+    imageStore(dest, ivec3(xy, 5), vec4(convolve(normalize(vec3(-eyeray.x, eyeray.y, 1))), 1));
+
+    // top
+    imageStore(dest, ivec3(xy, 3), vec4(convolve(normalize(vec3(eyeray.x, 1, eyeray.y))), 1));
+
+    // bottom
+    imageStore(dest, ivec3(xy, 2), vec4(convolve(normalize(vec3(eyeray.x, -1, -eyeray.y))), 1));
+  }
+}

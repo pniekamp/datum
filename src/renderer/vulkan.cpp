@@ -342,7 +342,15 @@ namespace Vulkan
 
     StorageBuffer storagebuffer = create_storagebuffer(vulkan, size);
 
-    update(setupbuffer, storagebuffer, 0, size, data);
+    for(size_t offset = 0, remaining = size; remaining > 0; )
+    {
+      auto bytes = min(remaining, size_t(65536));
+
+      update(setupbuffer, storagebuffer, offset, bytes, (uint8_t*)data + offset);
+
+      offset += bytes;
+      remaining -= bytes;
+    }
 
     end(vulkan, setupbuffer);
 

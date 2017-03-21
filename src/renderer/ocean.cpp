@@ -129,6 +129,8 @@ void seed_ocean(OceanParams &params)
       params.phase[m][n] = 0.0f;
     }
   }
+
+  params.flow = Vec2(0);
 }
 
 
@@ -187,6 +189,8 @@ void update_ocean(OceanParams &params, float dt)
       params.phase[m][n] = fmod(params.phase[m][n] + dispersion({x,y})*dt, 2*pi<float>());
     }
   }
+
+  params.flow += 0.002f * params.windspeed * params.winddirection * dt;
 }
 
 
