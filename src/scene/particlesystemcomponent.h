@@ -9,7 +9,7 @@
 #pragma once
 
 #include "scene.h"
-#include "basiccomponent.h"
+#include "storage.h"
 #include "transformcomponent.h"
 #include "datum/math.h"
 #include "datum/renderer.h"
@@ -17,40 +17,44 @@
 //|---------------------- ParticleSystemComponentStorage --------------------
 //|--------------------------------------------------------------------------
 
-struct ParticleSystemComponentData
-{
-  int flags;
-  lml::Bound3 bound;
-  ParticleSystem *system;
-  ParticleSystem::Instance const *instance;
-};
-
-class ParticleSystemComponentStorage : public BasicComponentStorage<ParticleSystemComponentData>
+class ParticleSystemComponentStorage : public DefaultStorage<Scene::EntityId, int, lml::Bound3, ParticleSystem const *, ParticleSystem::Instance *>
 {
   public:
-    using BasicComponentStorage::BasicComponentStorage;
+
+    enum DataLayout
+    {
+      entityid = 0,
+      flagbits = 1,
+      boundingbox = 2,
+      particlesystem = 3,
+      particlesysteminstance = 4,
+    };
+
+  public:
+    ParticleSystemComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class ParticleSystemComponent>
     Component get(EntityId entity)
     {
-      return data(entity);
+      return { this->index(entity), this };
     }
-
-  protected:
-
-    ParticleSystemComponentData *add(EntityId entity, lml::Bound3 const &bound, ParticleSystem *particlesystem, int flags);
-
-    void remove(EntityId entity) override;
 
     void update_particlesystem_bounds();
 
+  protected:
+
+    void add(EntityId entity, lml::Bound3 const &bound, ParticleSystem const *system, int flags);
+
+    void remove(EntityId entity) override;
+
+  protected:
+
+    FreeList m_freelist;
+    StackAllocatorWithFreelist<> m_allocator;
+
     friend class Scene;
     friend class ParticleSystemComponent;
-    friend void update_particlesystem_bounds(Scene &scene);
 };
-
-///////////////////////// update_particlesystem_bounds //////////////////////
-void update_particlesystem_bounds(Scene &scene);
 
 ///////////////////////// update_particlesystems ////////////////////////////
 void update_particlesystems(Scene &scene, Camera const &camera, float dt);
@@ -69,21 +73,22 @@ class ParticleSystemComponent
     };
 
   public:
-    friend ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem *particlesystem, int flags);
+    friend ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem const *particlesystem, int flags);
     friend ParticleSystemComponent Scene::get_component<ParticleSystemComponent>(Scene::EntityId entity);
 
   public:
     ParticleSystemComponent() = default;
-    ParticleSystemComponent(ParticleSystemComponentData *data);
+    ParticleSystemComponent(size_t index, ParticleSystemComponentStorage *storage);
 
-    int flags() const { return m_data->flags; }
+    int flags() const { return storage->data<ParticleSystemComponentStorage::flagbits>(index); }
 
-    lml::Bound3 const &bound() const { return m_data->bound; }
+    lml::Bound3 const &bound() const { return storage->data<ParticleSystemComponentStorage::boundingbox>(index); }
 
-    ParticleSystem *system() const { return m_data->system; }
-    ParticleSystem::Instance const *instance() const { return m_data->instance; }
+    ParticleSystem const *system() const { return storage->data<ParticleSystemComponentStorage::particlesystem>(index); }
+    ParticleSystem::Instance *instance() const { return storage->data<ParticleSystemComponentStorage::particlesysteminstance>(index); }
 
-  private:
+  protected:
 
-    ParticleSystemComponentData *m_data;
+    size_t index;
+    ParticleSystemComponentStorage *storage;
 };

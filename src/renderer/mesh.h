@@ -10,23 +10,33 @@
 
 #include "resource.h"
 
-//|---------------------- Vertex --------------------------------------------
-//|--------------------------------------------------------------------------
-
-struct Vertex
-{
-  lml::Vec3 position;
-  lml::Vec2 texcoord;
-  lml::Vec3 normal;
-  lml::Vec4 tangent;
-};
-
-
 //|---------------------- Mesh ----------------------------------------------
 //|--------------------------------------------------------------------------
 
 class Mesh
 {
+  public:
+
+    struct Vertex
+    {
+      lml::Vec3 position;
+      lml::Vec2 texcoord;
+      lml::Vec3 normal;
+      lml::Vec4 tangent;
+    };
+
+    struct Bone
+    {
+      char name[32];
+      lml::Transform transform;
+    };
+
+    struct Rig
+    {
+      uint32_t bone[4];
+      float weight[4];
+    };
+
   public:
     friend Mesh const *ResourceManager::create<Mesh>(Asset const *asset);
     friend Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount);
@@ -39,6 +49,11 @@ class Mesh
     lml::Bound3 bound;
 
     Vulkan::VertexBuffer vertexbuffer;
+
+    Vulkan::VertexBuffer rigbuffer;
+
+    int bonecount;
+    Bone const *bones;
 
   public:
 
@@ -56,7 +71,9 @@ class Mesh
 
     std::atomic<State> state;
 
-  private:
+    alignas(16) uint8_t data[1];
+
+  protected:
     Mesh() = default;
 };
 

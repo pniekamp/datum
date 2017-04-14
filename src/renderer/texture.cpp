@@ -17,8 +17,6 @@ namespace
 {
   size_t image_datasize(int width, int height, int layers, int levels, VkFormat format)
   {
-    assert(width > 0 && height > 0 && layers > 0 && levels > 0);
-
     size_t size = 0;
     for(int i = 0; i < levels; ++i)
     {
@@ -137,28 +135,23 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
       break;
   }
 
-  auto lump = acquire_lump(0);
-
-  if (!lump)
   {
-    texture->~Texture();
+    leap::threadlib::SyncLock lock(m_mutex);
 
-    release_slot(texture, sizeof(Texture));
+    auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    auto setupfence = create_fence(vulkan, 0);
 
-    return nullptr;
+    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    texture->texture = create_texture(vulkan, setupbuffer, width, height, layers, levels, vkformat);
+
+    end(vulkan, setupbuffer);
+
+    submit(vulkan, setupbuffer, setupfence);
+
+    wait_fence(vulkan, setupfence);
   }
-
-  wait_fence(vulkan, lump->fence);
-
-  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-  texture->texture = create_texture(vulkan, lump->commandbuffer, width, height, layers, levels, vkformat);
-
-  end(vulkan, lump->commandbuffer);
-
-  submit_transfer(lump);
-
-  release_lump(lump);
 
   texture->state = Texture::State::Ready;
 
@@ -186,7 +179,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  update_texture(lump->commandbuffer, lump->transferbuffer, slot->texture);
+  update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
 
   end(vulkan, lump->commandbuffer);
 
@@ -262,42 +255,38 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
 
           slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat);
 
-          memcpy(lump->transfermemory, (char*)bits, lump->transferbuffer.size);
+          memcpy(lump->memory(), bits, lump->transferbuffer.size);
 
-          update_texture(lump->commandbuffer, lump->transferbuffer, slot->texture);
+          update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
 
           end(vulkan, lump->commandbuffer);
 
           submit_transfer(lump);
 
           slot->transferlump = lump;
-
-          slot->state = Texture::State::Waiting;
         }
-        else
-          slot->state = Texture::State::Empty;
       }
-      else
-        slot->state = Texture::State::Empty;
     }
-    else
-      slot->state = Texture::State::Empty;
+
+    slot->state = (slot->texture) ? Texture::State::Waiting : Texture::State::Empty;
   }
 
   Texture::State waiting = Texture::State::Waiting;
 
   if (slot->state.compare_exchange_strong(waiting, Texture::State::Testing))
   {
+    bool ready = false;
+
     if (test_fence(vulkan, slot->transferlump->fence))
     {
       release_lump(slot->transferlump);
 
       slot->transferlump = nullptr;
 
-      slot->state = Texture::State::Ready;
+      ready = true;
     }
-    else
-      slot->state = Texture::State::Waiting;
+
+    slot->state = (ready) ? Texture::State::Ready : Texture::State::Waiting;
   }
 }
 
@@ -306,8 +295,6 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
 template<>
 void ResourceManager::release<Texture>(Texture const *texture)
 {
-  assert(texture);
-
   defer_destroy(texture);
 }
 
@@ -316,12 +303,13 @@ void ResourceManager::release<Texture>(Texture const *texture)
 template<>
 void ResourceManager::destroy<Texture>(Texture const *texture)
 {
-  assert(texture);
+  if (texture)
+  {
+    if (texture->transferlump)
+      release_lump(texture->transferlump);
 
-  if (texture->transferlump)
-    release_lump(texture->transferlump);
+    texture->~Texture();
 
-  texture->~Texture();
-
-  release_slot(const_cast<Texture*>(texture), sizeof(Texture));
+    release_slot(const_cast<Texture*>(texture), sizeof(Texture));
+  }
 }

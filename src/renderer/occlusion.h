@@ -8,14 +8,20 @@
 
 #pragma once
 
-#include "mesh.h"
-#include "math/vec.h"
+#include "datum/math.h"
 
 //|---------------------- OcclusionBuffer -----------------------------------
 //|--------------------------------------------------------------------------
 
 class OcclusionBuffer
 {
+  public:
+
+    struct Vertex
+    {
+      lml::Vec3 position;
+    };
+
   public:
     OcclusionBuffer();
 

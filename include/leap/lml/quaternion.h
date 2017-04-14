@@ -65,9 +65,18 @@ namespace leap { namespace lml
         struct
         {
           T w;
-          T x;
-          T y;
-          T z;
+
+          union
+          {
+            struct
+            {
+              T x;
+              T y;
+              T z;
+            };
+
+            vector_t xyz;
+          };
         };
 
         struct

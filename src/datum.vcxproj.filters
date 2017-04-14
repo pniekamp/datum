@@ -103,6 +103,12 @@
     <ClCompile Include="assetpack.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="renderer\animation.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="scene\actorcomponent.cpp">
+      <Filter>Source Files\scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asset.h">
@@ -254,6 +260,12 @@
     </ClInclude>
     <ClInclude Include="renderer\geometrylist.h">
       <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\animation.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="scene\actorcomponent.h">
+      <Filter>Source Files\scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

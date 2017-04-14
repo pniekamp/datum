@@ -49,7 +49,7 @@ class LightList
       CommandList *commandlist = nullptr;
     };
 
-    bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
+    bool begin(BuildState &state, RenderContext &context, ResourceManager *resources);
 
     void push_pointlight(BuildState &state, lml::Vec3 const &position, float range, lml::Color3 const &intensity, lml::Attenuation const &attenuation);
 

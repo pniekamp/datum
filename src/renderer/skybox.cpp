@@ -56,8 +56,7 @@ struct ConvolveSet
 ///////////////////////// draw_skybox ///////////////////////////////////////
 void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderParams const &params)
 {
-  if (!params.skybox || !params.skybox->ready())
-    return;
+  assert(params.skybox && params.skybox->ready());
 
   auto &skyboxcommands = context.skyboxcommands[context.frame & 1];
 
@@ -67,11 +66,11 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   bind_pipeline(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_texture(context.vulkan, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->envmap->texture);
+  bind_texture(context.vulkan, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->texture);
 
   bind_descriptor(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(skyboxcommands, context.unitquad);
+  bind_vertexbuffer(skyboxcommands, 0, context.unitquad);
 
   draw(skyboxcommands, context.unitquad.vertexcount, 1, 0, 0);
 
@@ -88,21 +87,9 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 template<>
 SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset)
 {
-  if (!asset)
-    return nullptr;
+  assert(sizeof(SkyBox) == sizeof(EnvMap));
 
-  assert(asset->layers == 6);
-
-  auto slot = acquire_slot(sizeof(SkyBox));
-
-  if (!slot)
-    return nullptr;
-
-  auto skybox = new(slot) SkyBox;
-
-  skybox->envmap = create<EnvMap>(asset);
-
-  return skybox;
+  return (SkyBox const *)create<EnvMap>(asset);
 }
 
 
@@ -110,16 +97,9 @@ SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset)
 template<>
 SkyBox const *ResourceManager::create<SkyBox>(int width, int height, EnvMap::Format format)
 {
-  auto slot = acquire_slot(sizeof(SkyBox));
+  assert(sizeof(SkyBox) == sizeof(EnvMap));
 
-  if (!slot)
-    return nullptr;
-
-  auto skybox = new(slot) SkyBox;
-
-  skybox->envmap = create<EnvMap>(width, height, format);
-
-  return skybox;
+  return (SkyBox const *)create<EnvMap>(width, height, format);
 }
 
 
@@ -134,11 +114,7 @@ SkyBox const *ResourceManager::create<SkyBox>(uint32_t width, uint32_t height, E
 template<>
 void ResourceManager::update<SkyBox>(SkyBox const *skybox, ResourceManager::TransferLump const *lump)
 {
-  assert(lump);
-  assert(skybox);
-  assert(skybox->envmap);
-
-  update<EnvMap>(skybox->envmap, lump);
+  update<EnvMap>(skybox, lump);
 }
 
 
@@ -146,10 +122,7 @@ void ResourceManager::update<SkyBox>(SkyBox const *skybox, ResourceManager::Tran
 template<>
 void ResourceManager::request<SkyBox>(DatumPlatform::PlatformInterface &platform, SkyBox const *skybox)
 {
-  assert(skybox);
-  assert(skybox->envmap);
-
-  request(platform, skybox->envmap);
+  request<EnvMap>(platform, skybox);
 }
 
 
@@ -157,8 +130,6 @@ void ResourceManager::request<SkyBox>(DatumPlatform::PlatformInterface &platform
 template<>
 void ResourceManager::release<SkyBox>(SkyBox const *skybox)
 {
-  assert(skybox);
-
   defer_destroy(skybox);
 }
 
@@ -167,13 +138,7 @@ void ResourceManager::release<SkyBox>(SkyBox const *skybox)
 template<>
 void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 {
-  assert(skybox);
-
-  destroy(skybox->envmap);
-
-  skybox->~SkyBox();
-
-  release_slot(const_cast<SkyBox*>(skybox), sizeof(SkyBox));
+  destroy<EnvMap>(skybox);
 }
 
 
@@ -361,8 +326,10 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
   skyboxset.exposure = params.exposure;
   skyboxset.cloudlayers = 0;
 
-  if (params.clouds && params.clouds->ready())
+  if (params.clouds)
   {
+    assert(params.clouds->ready());
+
     bind_texture(context.vulkan, context.skyboxdescriptor, 2, params.clouds->albedomap->texture);
     bind_texture(context.vulkan, context.skyboxdescriptor, 3, params.clouds->normalmap->texture);
 
@@ -373,7 +340,7 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   auto &commandbuffer = context.commandbuffer;
 
-  bind_imageview(context.vulkan, context.skyboxdescriptor, 1, skybox->envmap->texture.imageview);
+  bind_imageview(context.vulkan, context.skyboxdescriptor, 1, skybox->texture.imageview);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -383,7 +350,7 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(skyboxset), &skyboxset, VK_SHADER_STAGE_COMPUTE_BIT);
 
-  dispatch(commandbuffer, skybox->envmap->texture.width/16, skybox->envmap->texture.height/16, 1);
+  dispatch(commandbuffer, skybox->texture.width/16, skybox->texture.height/16, 1);
 
   bind_pipeline(commandbuffer, context.convolvepipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -403,26 +370,26 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
       VkImageViewCreateInfo viewinfo = {};
       viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       viewinfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-      viewinfo.format = skybox->envmap->texture.format;
+      viewinfo.format = skybox->texture.format;
       viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
       viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 };
-      viewinfo.image = skybox->envmap->texture.image;
+      viewinfo.image = skybox->texture.image;
 
       convolveimageviews[level] = create_imageview(context.vulkan, viewinfo);
 
-      bind_texture(context.vulkan, context.convolvedescriptors[level], 0, skybox->envmap->texture);
+      bind_texture(context.vulkan, context.convolvedescriptors[level], 0, skybox->texture);
       bind_imageview(context.vulkan, context.convolvedescriptors[level], 1, convolveimageviews[level]);
 
       bind_descriptor(commandbuffer, context.convolvedescriptors[level], context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
       push(commandbuffer, context.pipelinelayout, 0, sizeof(convolveset), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
 
-      dispatch(commandbuffer, (skybox->envmap->texture.width + 15)/16, (skybox->envmap->texture.height + 15)/16, 1);
+      dispatch(commandbuffer, (skybox->texture.width + 15)/16, (skybox->texture.height + 15)/16, 1);
     }
   }
   else
   {
-    mip(commandbuffer, skybox->envmap->texture.image, skybox->envmap->texture.width, skybox->envmap->texture.height, skybox->envmap->texture.layers, skybox->envmap->texture.levels);
+    mip(commandbuffer, skybox->texture.image, skybox->texture.width, skybox->texture.height, skybox->texture.layers, skybox->texture.levels);
   }
 
   end(context.vulkan, commandbuffer);

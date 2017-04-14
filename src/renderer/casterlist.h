@@ -13,6 +13,7 @@
 #include "commandlist.h"
 #include "mesh.h"
 #include "material.h"
+#include "animation.h"
 #include <utility>
 
 //|---------------------- CasterList ----------------------------------------
@@ -30,10 +31,10 @@ class CasterList
 
     struct BuildState
     {
-      DatumPlatform::PlatformInterface *platform;
-
       RenderContext *context;
       ResourceManager *resources;
+
+      VkPipeline pipeline;
 
       CommandList::Descriptor materialset;
 
@@ -45,9 +46,11 @@ class CasterList
       Material const *material;
     };
 
-    bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
+    bool begin(BuildState &state, RenderContext &context, ResourceManager *resources);
 
     void push_mesh(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material);
+
+    void push_mesh(BuildState &state, lml::Transform const &transform, Pose const &pose, Mesh const *mesh, Material const *material);
 
     void finalise(BuildState &state);
 

@@ -13,6 +13,14 @@
 using namespace std;
 using namespace lml;
 
+namespace
+{
+  size_t font_datasize(int glyphcount)
+  {
+    return 8*glyphcount*sizeof(float) + glyphcount*glyphcount*sizeof(uint8_t);
+  }
+}
+
 //|---------------------- Font ----------------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -23,7 +31,7 @@ Font const *ResourceManager::create<Font>(Asset const *asset)
   if (!asset)
     return nullptr;
 
-  auto slot = acquire_slot(sizeof(Font));
+  auto slot = acquire_slot(sizeof(Font) + font_datasize(asset->glyphcount));
 
   if (!slot)
     return nullptr;
@@ -35,7 +43,10 @@ Font const *ResourceManager::create<Font>(Asset const *asset)
   font->leading = asset->leading;
   font->glyphcount = asset->glyphcount;
   font->glyphs = nullptr;
-  font->memory = nullptr;
+  font->texcoords = nullptr;
+  font->alignment = nullptr;
+  font->dimension = nullptr;
+  font->advance = nullptr;
   font->asset = asset;
   font->state = Font::State::Empty;
 
@@ -73,46 +84,41 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
         auto offsetytable = PackFontPayload::offsetytable(payload, asset->glyphcount);
         auto advancetable = PackFontPayload::advancetable(payload, asset->glyphcount);
 
-        slot->memorysize = 8*count*sizeof(float) + count*count*sizeof(uint8_t);
+        slot->glyphs = create<Texture>(assets()->find(asset->id + glyphs), Texture::Format::RGBA);
 
-        slot->memory = acquire_slot(slot->memorysize);
+        float sx = (slot->glyphs) ? 1.0f / slot->glyphs->width : 0.0f;
+        float sy = (slot->glyphs) ? 1.0f / slot->glyphs->height : 0.0f;
 
-        if (slot->memory)
-        {
-          slot->glyphs = create<Texture>(assets()->find(asset->id + glyphs), Texture::Format::RGBA);
+        auto texcoordsdata = reinterpret_cast<Vec4*>(slot->data + 0*count*sizeof(float));
 
-          float sx = 1.0f / slot->glyphs->width;
-          float sy = 1.0f / slot->glyphs->height;
+        for(int codepoint = 0; codepoint < count; ++codepoint)
+          texcoordsdata[codepoint] = Vec4(sx * xtable[codepoint], sy * ytable[codepoint], sx * widthtable[codepoint], sy * heighttable[codepoint]);
 
-          slot->texcoords = reinterpret_cast<Vec4*>((size_t)slot->memory + 0*count*sizeof(float));
+        slot->texcoords = texcoordsdata;
 
-          for(int codepoint = 0; codepoint < count; ++codepoint)
-            slot->texcoords[codepoint] = Vec4(sx * xtable[codepoint], sy * ytable[codepoint], sx * widthtable[codepoint], sy * heighttable[codepoint]);
+        auto alignmentdata = reinterpret_cast<Vec2*>(slot->data + 4*count*sizeof(float));
 
-          slot->alignment = reinterpret_cast<Vec2*>((size_t)slot->memory + 4*count*sizeof(float));
+        for(int codepoint = 0; codepoint < count; ++codepoint)
+          alignmentdata[codepoint] = Vec2(offsetxtable[codepoint], offsetytable[codepoint]);
 
-          for(int codepoint = 0; codepoint < count; ++codepoint)
-            slot->alignment[codepoint] = Vec2(offsetxtable[codepoint], offsetytable[codepoint]);
+        slot->alignment = alignmentdata;
 
-          slot->dimension = reinterpret_cast<Vec2*>((size_t)slot->memory + 6*count*sizeof(float));
+        auto dimensiondata = reinterpret_cast<Vec2*>(slot->data + 6*count*sizeof(float));
 
-          for(int codepoint = 0; codepoint < count; ++codepoint)
-            slot->dimension[codepoint] = Vec2(widthtable[codepoint], heighttable[codepoint]);
+        for(int codepoint = 0; codepoint < count; ++codepoint)
+          dimensiondata[codepoint] = Vec2(widthtable[codepoint], heighttable[codepoint]);
 
-          slot->advance = reinterpret_cast<uint8_t*>((size_t)slot->memory + 8*count*sizeof(float));
+        slot->dimension = dimensiondata;
 
-          memcpy(slot->advance, advancetable, count*count*sizeof(uint8_t));
+        auto advancedata = reinterpret_cast<uint8_t*>(slot->data + 8*count*sizeof(float));
 
-          slot->state = Font::State::Waiting;
-        }
-        else
-          slot->state = Font::State::Empty;
+        memcpy(advancedata, advancetable, count*count*sizeof(uint8_t));
+
+        slot->advance = advancedata;
       }
-      else
-        slot->state = Font::State::Empty;
     }
-    else
-      slot->state = Font::State::Empty;
+
+    slot->state = (slot->texcoords && slot->alignment && slot->dimension && slot->advance && slot->glyphs) ? Font::State::Waiting : Font::State::Empty;
   }
 
   Font::State waiting = Font::State::Waiting;
@@ -121,12 +127,7 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
   {
     request(platform, slot->glyphs);
 
-    if (slot->glyphs->ready())
-    {
-      slot->state = Font::State::Ready;
-    }
-    else
-      slot->state = Font::State::Waiting;
+    slot->state = (slot->glyphs->ready()) ? Font::State::Ready : Font::State::Waiting;
   }
 }
 
@@ -135,8 +136,6 @@ void ResourceManager::request<Font>(DatumPlatform::PlatformInterface &platform, 
 template<>
 void ResourceManager::release<Font>(Font const *font)
 {
-  assert(font);
-
   defer_destroy(font);
 }
 
@@ -145,15 +144,13 @@ void ResourceManager::release<Font>(Font const *font)
 template<>
 void ResourceManager::destroy<Font>(Font const *font)
 {
-  assert(font);
+  if (font)
+  {
+    if (font->glyphs)
+      destroy(font->glyphs);
 
-  if (font->glyphs)
-    destroy(font->glyphs);
+    font->~Font();
 
-  if (font->memory)
-    release_slot(font->memory, font->memorysize);
-
-  font->~Font();
-
-  release_slot(const_cast<Font*>(font), sizeof(Font));
+    release_slot(const_cast<Font*>(font), sizeof(Font) + font_datasize(font->glyphcount));
+  }
 }

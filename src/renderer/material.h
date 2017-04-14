@@ -58,7 +58,7 @@ class Material
     Asset const *asset;
     std::atomic<State> state;
 
-  private:
+  protected:
     Material() = default;
 };
 

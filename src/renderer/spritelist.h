@@ -30,8 +30,6 @@ class SpriteList
 
     struct BuildState
     {
-      DatumPlatform::PlatformInterface *platform;
-
       RenderContext *context;
       ResourceManager *resources;
 
@@ -46,7 +44,7 @@ class SpriteList
       lml::Vec4 texcoords;
     };
 
-    bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
+    bool begin(BuildState &state, RenderContext &context, ResourceManager *resources);
 
     void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Vec4 const &texcoords, lml::Color4 const &tint);
 

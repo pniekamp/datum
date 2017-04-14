@@ -18,7 +18,7 @@ using namespace std;
 
 ///////////////////////// Scene::Constructor ////////////////////////////////
 Scene::Scene(allocator_type const &allocator)
-  : m_allocator(allocator),
+  : m_allocator(allocator, m_freelist),
     m_systems(allocator),
     m_slots(allocator),
     m_freeslots(allocator)

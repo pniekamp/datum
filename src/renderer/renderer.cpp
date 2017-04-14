@@ -44,6 +44,9 @@ enum ShaderLocation
   vertex_normal = 2,
   vertex_tangent = 3,
 
+  rig_bone = 4,
+  rig_weight = 5,
+
   sceneset = 0,
   materialset = 1,
   modelset = 2,
@@ -772,13 +775,118 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.scenedescriptor = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout, context.sceneset, 0, sizeof(SceneSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
   }
 
-  if (context.shadowpipeline == 0)
+  if (context.modelpipeline == 0)
   {
     //
-    // Shadow Pipeline
+    // Model Pipeline
     //
 
-    auto vs = assets->find(CoreAsset::shadow_vert);
+    auto vs = assets->find(CoreAsset::model_vert);
+    auto fs = assets->find(CoreAsset::geometry_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineColorBlendAttachmentState blendattachments[3] = {};
+    blendattachments[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    blendattachments[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    blendattachments[2].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorblend = {};
+    colorblend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorblend.attachmentCount = extentof(blendattachments);
+    colorblend.pAttachments = blendattachments;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.geometrypass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pColorBlendState = &colorblend;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.modelpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.modelshadowpipeline == 0)
+  {
+    //
+    // Model Shadow Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::model_shadow_vert);
     auto gs = assets->find(CoreAsset::shadow_geom);
     auto fs = assets->find(CoreAsset::shadow_frag);
 
@@ -880,16 +988,16 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.shadowpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+    context.modelshadowpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
-  if (context.geometrypipeline == 0)
+  if (context.actorpipeline == 0)
   {
     //
-    // Geometry Pipeline
+    // Actor Pipeline
     //
 
-    auto vs = assets->find(CoreAsset::geometry_vert);
+    auto vs = assets->find(CoreAsset::actor_vert);
     auto fs = assets->find(CoreAsset::geometry_frag);
 
     if (!vs || !fs)
@@ -906,16 +1014,34 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
     auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
-    VkVertexInputBindingDescription vertexbindings[1] = {};
+    VkVertexInputBindingDescription vertexbindings[2] = {};
+    vertexbindings[0].binding = 0;
     vertexbindings[0].stride = VertexLayout::stride;
     vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vertexbindings[1].binding = 1;
+    vertexbindings[1].stride = 32;
+    vertexbindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkVertexInputAttributeDescription vertexattributes[6] = {};
+    vertexattributes[0] = context.vertexattributes[0];
+    vertexattributes[1] = context.vertexattributes[1];
+    vertexattributes[2] = context.vertexattributes[2];
+    vertexattributes[3] = context.vertexattributes[3];
+    vertexattributes[4].binding = 1;
+    vertexattributes[4].location = ShaderLocation::rig_bone;
+    vertexattributes[4].format = VK_FORMAT_R32G32B32A32_UINT;
+    vertexattributes[4].offset = 0;
+    vertexattributes[5].binding = 1;
+    vertexattributes[5].location = ShaderLocation::rig_weight;
+    vertexattributes[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    vertexattributes[5].offset = 16;
 
     VkPipelineVertexInputStateCreateInfo vertexinput = {};
     vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
     vertexinput.pVertexBindingDescriptions = vertexbindings;
-    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
-    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+    vertexinput.vertexAttributeDescriptionCount = extentof(vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = vertexattributes;
 
     VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
     inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -985,7 +1111,118 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.geometrypipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+    context.actorpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.actorshadowpipeline == 0)
+  {
+    //
+    // Actor Shadow Pipeline
+    //
+
+    auto vs = assets->find(CoreAsset::actor_shadow_vert);
+    auto gs = assets->find(CoreAsset::shadow_geom);
+    auto fs = assets->find(CoreAsset::shadow_frag);
+
+    if (!vs || !gs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets->request(platform, vs);
+    auto gssrc = assets->request(platform, gs);
+    auto fssrc = assets->request(platform, fs);
+
+    if (!vssrc || !gssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto gsmodule = create_shadermodule(context.vulkan, gssrc, gs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkSpecializationMapEntry specializationmap[1] = {};
+    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkPipelineShaderStageCreateInfo shaders[3] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+    shaders[1].module = gsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
+    shaders[1].pName = "main";
+    shaders[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[2].module = fsmodule;
+    shaders[2].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.shadowpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.actorshadowpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.translucentpipeline == 0)
@@ -3344,7 +3581,7 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     begin(context.vulkan, context.compositecommands, context.framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
     bind_pipeline(context.compositecommands, context.compositepipeline, context.fbox, context.fboy, context.width-2*context.fbox, context.height-2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bind_descriptor(context.compositecommands, context.compositedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_vertexbuffer(context.compositecommands, context.unitquad);
+    bind_vertexbuffer(context.compositecommands, 0, context.unitquad);
     draw(context.compositecommands, context.unitquad.vertexcount, 1, 0, 0);
     end(context.vulkan, context.compositecommands);
 
@@ -3507,8 +3744,10 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
     {
       auto &environment = *renderable_cast<Renderable::Environment>(&renderable);
 
-      if (environment.envmap && environment.envmap->ready() && envcount + 1 < extentof(imageinfos))
+      if (envcount + 1 < extentof(imageinfos))
       {
+        assert(environment.envmap && environment.envmap->ready());
+
         imageinfos[envcount].sampler = environment.envmap->texture.sampler;
         imageinfos[envcount].imageView = environment.envmap->texture.imageview;
         imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -3521,10 +3760,12 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
     }
   }
 
-  if (params.skybox && params.skybox->ready())
+  if (params.skybox)
   {
-    imageinfos[envcount].sampler = params.skybox->envmap->texture.sampler;
-    imageinfos[envcount].imageView = params.skybox->envmap->texture.imageview;
+    assert(params.skybox->ready());
+
+    imageinfos[envcount].sampler = params.skybox->texture.sampler;
+    imageinfos[envcount].imageView = params.skybox->texture.imageview;
     imageinfos[envcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     sceneset.environments[envcount].halfdim = Vec3(1e5f, 1e5f, 1e5f);
@@ -3695,11 +3936,14 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // SkyBox
   //
 
-  beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, 0, nullptr);
+  if (params.skybox)
+  {
+    beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, 0, nullptr);
 
-  draw_skybox(context, commandbuffer, params);
+    draw_skybox(context, commandbuffer, params);
 
-  endpass(commandbuffer, context.forwardpass);
+    endpass(commandbuffer, context.forwardpass);
+  }
 
   querytimestamp(commandbuffer, context.timingquerypool, 5);
 

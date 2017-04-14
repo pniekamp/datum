@@ -95,12 +95,11 @@ void draw_overlays(RenderContext &context, VkCommandBuffer commandbuffer, Render
 //|--------------------------------------------------------------------------
 
 ///////////////////////// OverlayList::begin ////////////////////////////////
-bool OverlayList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
+bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
 {
   m_commandlist = {};
 
   state = {};
-  state.platform = &platform;
   state.context = &context;
   state.resources = resources;
   state.clipx = 0;
@@ -135,33 +134,16 @@ bool OverlayList::begin(BuildState &state, PlatformInterface &platform, RenderCo
 ///////////////////////// OverlayList::push_gizmo ///////////////////////////
 void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3f const &rotation, Mesh const *mesh, Material const *material, Color4 const &tint)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.gizmopipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material->ready())
-  {
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GizmoMaterialSet), state.materialset);
 
@@ -209,25 +191,15 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 ///////////////////////// OverlayList::push_wireframe ///////////////////////
 void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Color4 const &color)
 {
-  if (!mesh)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.wireframepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WireframeMaterialSet), state.materialset);
 
@@ -267,27 +239,17 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
 ///////////////////////// OverlayList::push_stencilmask /////////////////////
 void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, uint32_t reference)
 {
-  if (!mesh)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
+  set_stencil_reference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
@@ -324,35 +286,18 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilmask /////////////////////
 void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, uint32_t reference)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
+  set_stencil_reference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material->ready())
-  {
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
@@ -389,27 +334,17 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilfill /////////////////////
 void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Color4 const &color, uint32_t reference)
 {
-  if (!mesh)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
+  set_stencil_reference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
@@ -452,35 +387,18 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilfill /////////////////////
 void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &base, Vec2 const &tiling, uint32_t reference)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
+  set_stencil_reference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material->ready())
-  {
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
@@ -523,27 +441,17 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilpath /////////////////////
 void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Color4 const &color, float thickness, uint32_t reference)
 {
-  if (!mesh)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
+  set_stencil_reference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -588,35 +496,18 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilpath /////////////////////
 void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &base, Vec2 const &tiling, float thickness, uint32_t reference)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  vkCmdSetStencilReference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
+  set_stencil_reference(commandlist, VK_STENCIL_FRONT_AND_BACK, reference);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material->ready())
-  {
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -668,7 +559,7 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 
   bind_pipeline(commandlist, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, 0, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -713,25 +604,15 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 ///////////////////////// OverlayList::push_volume //////////////////////////
 void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3f const &rotation, Mesh const *mesh, Color4 const &color, float thickness)
 {
-  if (!mesh)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
@@ -783,33 +664,16 @@ void OverlayList::push_volume(BuildState &state, Bound3 const &bound, Mesh const
 ///////////////////////// OverlayList::push_outline /////////////////////////
 void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Color4 const &color)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.outlinepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material->ready())
-  {
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OutlineMaterialSet), state.materialset);
 

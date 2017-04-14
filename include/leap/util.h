@@ -499,7 +499,7 @@ namespace leap
   template<typename Array, typename T>
   constexpr size_t indexof(Array const &array, T const &element)
   {
-    return std::distance(&array[0], &dereference(element));
+    return std::distance<decltype(&dereference(element))>(&array[0], &dereference(element));
   }
 
 

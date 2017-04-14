@@ -34,8 +34,6 @@ class OverlayList
 
       int clipx, clipy, clipwidth, clipheight;
 
-      DatumPlatform::PlatformInterface *platform;
-
       RenderContext *context;
       ResourceManager *resources;
 
@@ -46,7 +44,7 @@ class OverlayList
       CommandList *commandlist = nullptr;
     };
 
-    bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
+    bool begin(BuildState &state, RenderContext &context, ResourceManager *resources);
 
     void push_gizmo(BuildState &state, lml::Vec3 const &position, lml::Vec3 const &size, lml::Quaternion3f const &rotation, Mesh const *mesh, Material const *material, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 

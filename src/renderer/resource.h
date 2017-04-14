@@ -12,6 +12,7 @@
 #include "datum/asset.h"
 #include "vulkan.h"
 #include <vector>
+#include <bitset>
 
 //|---------------------- ResourceManager -----------------------------------
 //|--------------------------------------------------------------------------
@@ -70,17 +71,11 @@ class ResourceManager
 
     allocator_type m_allocator;
 
-    template<typename T = char>
-    StackAllocator<T> allocator()
-    {
-      return StackAllocator<T>(m_allocator);
-    }
-
   private:
 
     struct Slot
     {
-      alignas(16) char data[128];
+      alignas(16) char data[256];
     };
 
     Slot *m_slots;
@@ -89,8 +84,9 @@ class ResourceManager
     void release_slot(void *slot, size_t size);
 
     size_t m_slathead;
+    size_t m_slatsize;
 
-    std::vector<bool, StackAllocator<bool>> m_slat;
+    std::vector<std::bitset<64>, StackAllocator<std::bitset<64>>> m_slat;
 
 #ifndef NDEBUG
     size_t m_slatused;
@@ -105,20 +101,18 @@ class ResourceManager
       Vulkan::CommandBuffer commandbuffer;
       Vulkan::StorageBuffer transferbuffer;
 
-      void *transfermemory;
-
-      template<typename View>
+      template<typename View = void>
       View *memory(VkDeviceSize offset = 0) const
       {
         return (View*)((uint8_t*)transfermemory + offset);
       }
+
+      void *transfermemory;
     };
 
     TransferLump const *acquire_lump(size_t size);
 
     void release_lump(TransferLump const *lump);
-
-    void submit_transfer(TransferLump const *lump);
 
   private:
 
@@ -142,6 +136,8 @@ class ResourceManager
 #ifndef NDEBUG
     size_t m_bufferused;
 #endif
+
+    void submit_transfer(TransferLump const *lump);
 
   private:
 
@@ -246,6 +242,22 @@ class unique_resource
     ResourceManager *m_resources;
 };
 
+// Request Utility
+template<typename Resource>
+void request(DatumPlatform::PlatformInterface &platform, ResourceManager &resources, Resource const *resource, int *ready, int *total)
+{
+  *total += 1;
+
+  if (resource)
+  {
+    resources.request(platform, resource);
+
+    if (resource->ready())
+    {
+      *ready += 1;
+    }
+  }
+}
 
 // Initialise
 bool initialise_resource_system(DatumPlatform::PlatformInterface &platform, ResourceManager &resourcemanager, size_t slabsize, size_t buffersize, size_t maxbuffersize, uint32_t queueindex);

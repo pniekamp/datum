@@ -31,10 +31,10 @@ class Font
     int lineheight() const;
 
     int glyphcount;
-    lml::Vec4 *texcoords;//[count]
-    lml::Vec2 *alignment;//[count]
-    lml::Vec2 *dimension;//[count]
-    uint8_t *advance;//[count][count];
+    lml::Vec4 const *texcoords;//[count]
+    lml::Vec2 const *alignment;//[count]
+    lml::Vec2 const *dimension;//[count]
+    uint8_t const *advance;//[count][count];
 
     Texture const *glyphs;
 
@@ -51,12 +51,11 @@ class Font
 
     Asset const *asset;
 
-    void *memory;
-    size_t memorysize;
-
     std::atomic<State> state;
 
-  private:
+    alignas(16) uint8_t data[1];
+
+  protected:
     Font() = default;
 };
 

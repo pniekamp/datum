@@ -25,6 +25,8 @@ struct GameState
   const float fov = 60.0f;
   const float aspect = 1920.0f/1080.0f;
 
+  enum { Startup, Load, Play } mode;
+
   float time = 0;
 
   Camera camera;
@@ -40,7 +42,6 @@ struct GameState
   Mesh const *linequad;
   Mesh const *linecube;
   Material const *defaultmaterial;
-  SkyBox const *skybox;
 
   AssetManager assets;
 
@@ -54,19 +55,14 @@ struct GameState
   Mesh const *testsphere;
   Sprite const *testimage;
 
-  Texture const *watercolor;
-  Texture const *waternormal;
-  Material  const *watermaterial;
-
+  Mesh const *suzanne;
+  unique_resource<Material> suzannematerial;
   unique_resource<Material> floormaterial;
 
-  unique_resource<Mesh> suzanne;
-  unique_resource<Material> suzannematerial;
+  ParticleSystem const *testparticlesystem;
+  ParticleSystem::Instance *testparticles;
 
-  FreeList particlefreelist;
-  ParticleSystem *testparticlesystem;
-  ParticleSystem::Instance const *testparticles;
-
+  SkyBox const *skybox;
   Vec3 sundirection = normalise(Vec3(0.4f, -1.0f, -0.1f));
   Color3 sunintensity = Color3(8.0f, 7.56f, 7.88f);
 
@@ -74,9 +70,15 @@ struct GameState
 
   struct RenderFrame
   {
+    int mode;
+
     float time;
 
     Camera camera;
+
+    SkyBox const *skybox;
+    Vec3 sundirection;
+    Color3 sunintensity;
 
     CasterList casters;
     GeometryList geometry;

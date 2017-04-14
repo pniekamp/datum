@@ -42,7 +42,7 @@ namespace
 
   void dump(string const &indent, PackMeshHeader *mesh)
   {
-    cout << indent << "MESH " << mesh->vertexcount << " vertices " << mesh->indexcount << " indices " << pack_payload_size(*mesh) << " bytes" << '\n';
+    cout << indent << "MESH " << mesh->vertexcount << " vertices " << mesh->indexcount << " indices " << mesh->bonecount << " bones " << pack_payload_size(*mesh) << " bytes" << '\n';
   }
 
   void dump(string const &indent, PackMaterialHeader *matl)
@@ -55,9 +55,9 @@ namespace
     cout << indent << "MODL " << modl->texturecount << " textures " << modl->materialcount << " materials " << modl->meshcount << " meshes " << modl->instancecount << " instances " << pack_payload_size(*modl) << " bytes" << '\n';
   }
 
-  void dump(string const &indent, PackParticleSystemHeader *ptsm)
+  void dump(string const &indent, PackParticleSystemHeader *part)
   {
-    cout << indent << "PTSM " << ptsm->emittercount << " emitters " << pack_payload_size(*ptsm) << " bytes" << '\n';
+    cout << indent << "PART " << part->emittercount << " emitters " << pack_payload_size(*part) << " bytes" << '\n';
   }
 }
 
@@ -113,7 +113,7 @@ void dump(const char *path)
         dump(indent, reinterpret_cast<PackModelHeader*>(buffer.data()));
         break;
 
-      case "PTSM"_packchunktype:
+      case "PART"_packchunktype:
         dump(indent, reinterpret_cast<PackParticleSystemHeader*>(buffer.data()));
         break;
 

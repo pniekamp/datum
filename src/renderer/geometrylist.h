@@ -13,6 +13,7 @@
 #include "commandlist.h"
 #include "mesh.h"
 #include "material.h"
+#include "animation.h"
 #include <utility>
 
 //|---------------------- GeometryList --------------------------------------
@@ -30,8 +31,6 @@ class GeometryList
 
     struct BuildState
     {
-      DatumPlatform::PlatformInterface *platform;
-
       RenderContext *context;
       ResourceManager *resources;
 
@@ -47,9 +46,11 @@ class GeometryList
       Material const *material;
     };
 
-    bool begin(BuildState &state, DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources);
+    bool begin(BuildState &state, RenderContext &context, ResourceManager *resources);
 
     void push_mesh(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material);
+
+    void push_mesh(BuildState &state, lml::Transform const &transform, Pose const &pose, Mesh const *mesh, Material const *material);
 
     void push_ocean(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, lml::Vec2 const &flow, float bumpscale = 1.0f, lml::Plane const &foamplane = { { 0, 1, 0 }, 0 }, float foamwaveheight = 1.0f, float foamwavescale = 0.0f, float foamshoreheight = 0.1f, float foamshorescale = 0.1f);
 

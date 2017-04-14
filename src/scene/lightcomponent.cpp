@@ -15,16 +15,22 @@ using namespace lml;
 //|---------------------- PointLightStorage ---------------------------------
 //|--------------------------------------------------------------------------
 
-///////////////////////// PointLightStorage::add ////////////////////////////
-PointLightComponentData *PointLightComponentStorage::add(Scene::EntityId entity, Color3 intensity, Attenuation attenuation)
+///////////////////////// PointLightStorage::Constructor //////////////////////////
+PointLightComponentStorage::PointLightComponentStorage(Scene *scene, StackAllocator<> allocator)
+  : DefaultStorage(scene, allocator)
 {
-  auto data = BasicComponentStorage<PointLightComponentData>::add(entity);
+}
 
-  data->intensity = intensity;
-  data->attenuation = attenuation;
-  data->range = lml::range(attenuation, max_element(intensity));
 
-  return data;
+///////////////////////// PointLightStorage::add ////////////////////////////
+void PointLightComponentStorage::add(Scene::EntityId entity, Color3 intensity, Attenuation attenuation)
+{
+  auto index = DefaultStorage::add(entity);
+
+  data<entityid>(index) = entity;
+  data<lightintensity>(index) = intensity;
+  data<lightattenuation>(index) = attenuation;
+  data<lightrange>(index) = range(attenuation, max_element(intensity));
 }
 
 
@@ -32,7 +38,7 @@ PointLightComponentData *PointLightComponentStorage::add(Scene::EntityId entity,
 template<>
 void Scene::initialise_component_storage<PointLightComponent>()
 {
-  m_systems[typeid(PointLightComponentStorage)] = new(allocator<PointLightComponentStorage>().allocate(1)) PointLightComponentStorage(this, allocator());
+  m_systems[typeid(PointLightComponentStorage)] = new(allocator<PointLightComponentStorage>().allocate(1)) PointLightComponentStorage(this, m_allocator);
 }
 
 
@@ -40,8 +46,9 @@ void Scene::initialise_component_storage<PointLightComponent>()
 //|--------------------------------------------------------------------------
 
 ///////////////////////// PointLightComponent::Constructor //////////////////
-PointLightComponent::PointLightComponent(PointLightComponentData *data)
-  : m_data(data)
+PointLightComponent::PointLightComponent(size_t index, PointLightComponentStorage *storage)
+  : index(index),
+    storage(storage)
 {
 }
 
@@ -49,18 +56,18 @@ PointLightComponent::PointLightComponent(PointLightComponentData *data)
 ///////////////////////// PointLightComponent::set_intensity ////////////////
 void PointLightComponent::set_intensity(Color3 const &intensity)
 {
-  m_data->intensity = intensity;
+  storage->data<PointLightComponentStorage::lightintensity>(index) = intensity;
 
-  m_data->range = lml::range(m_data->attenuation, max_element(m_data->intensity));
+  storage->data<PointLightComponentStorage::lightrange>(index) = lml::range(attenuation(), max_element(intensity()));
 }
 
 
 ///////////////////////// PointLightComponent::set_attenuation //////////////
 void PointLightComponent::set_attenuation(Attenuation const &attenuation)
 {
-  m_data->attenuation = attenuation;
+  storage->data<PointLightComponentStorage::lightattenuation>(index) = attenuation;
 
-  m_data->range = lml::range(m_data->attenuation, max_element(m_data->intensity));
+  storage->data<PointLightComponentStorage::lightrange>(index) = lml::range(attenuation(), max_element(intensity()));
 }
 
 
@@ -72,7 +79,11 @@ PointLightComponent Scene::add_component<PointLightComponent>(Scene::EntityId en
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
 
-  return system<PointLightComponentStorage>()->add(entity, intensity, attenuation);
+  auto storage = system<PointLightComponentStorage>();
+
+  storage->add(entity, intensity, attenuation);
+
+  return { storage->index(entity), storage };
 }
 
 

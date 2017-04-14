@@ -271,8 +271,10 @@ struct RenderContext
   Vulkan::Texture whitediffuse;
   Vulkan::Texture nominalnormal;
 
-  Vulkan::Pipeline shadowpipeline;
-  Vulkan::Pipeline geometrypipeline;
+  Vulkan::Pipeline modelpipeline;
+  Vulkan::Pipeline modelshadowpipeline;
+  Vulkan::Pipeline actorpipeline;
+  Vulkan::Pipeline actorshadowpipeline;
   Vulkan::Pipeline translucentpipeline;
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;

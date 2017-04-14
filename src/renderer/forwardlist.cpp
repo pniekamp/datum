@@ -63,7 +63,7 @@ struct ParticleMaterialSet
 {
 };
 
-struct alignas(16) Particle
+struct Particle
 {
   alignas(16) Vec4 position;
   alignas(16) Matrix2f transform;
@@ -84,7 +84,7 @@ struct WaterMaterialSet
 
 struct ModelSet
 {
-  Transform modelworld;
+  alignas(16) Transform modelworld;
 };
 
 ///////////////////////// draw_objects //////////////////////////////////////
@@ -98,12 +98,11 @@ void draw_objects(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ForwardList::begin ////////////////////////////////
-bool ForwardList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
+bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
 {
   m_commandlist = {};
 
   state = {};
-  state.platform = &platform;
   state.context = &context;
   state.resources = resources;
 
@@ -141,7 +140,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
   bind_pipeline(commandlist, context.fogpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, 0, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ForPlaneMaterialSet), state.materialset);
 
@@ -182,34 +181,17 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
 ///////////////////////// ForwardList::push_translucent /////////////////////
 void ForwardList::push_translucent(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, float alpha)
-{
-  if (!mesh || !material)
-    return;
-
+{ 
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material->ready())
-  {
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(TranslucentMaterialSet), state.materialset);
 
@@ -252,27 +234,21 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
 
 ///////////////////////// ForwardList::push_particlesystem //////////////////
-void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSystem::Instance const *particles)
+void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
 {
-  if (!particles || particles->count == 0 || particles->spritesheet == nullptr)
-    return;
-
-  if (!particles->spritesheet->ready())
-  {
-    state.resources->request(*state.platform, particles->spritesheet);
-
-    if (!particles->spritesheet->ready())
-      return;
-  }
-
   assert(state.commandlist);
+  assert(particlesystem && particlesystem->ready());
+  assert(particles);
+
+  if (particles->count == 0)
+    return;
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, 0, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
@@ -280,7 +256,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
   {
     auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
 
-    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
 
     bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
@@ -296,7 +272,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
     auto modelset = state.modelset.memory<Particle>(offset);
 
-    for(size_t i = 0; i < particles->count; ++i)
+    for(int i = 0; i < particles->count; ++i)
     {
       modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
       modelset[i].transform = particles->transform[i];
@@ -311,27 +287,21 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
 
 ///////////////////////// ForwardList::push_particlesystem //////////////////
-void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform const &transform, ParticleSystem::Instance const *particles)
-{
-  if (!particles || particles->count == 0 || particles->spritesheet == nullptr)
-    return;
-
-  if (!particles->spritesheet->ready())
-  {
-    state.resources->request(*state.platform, particles->spritesheet);
-
-    if (!particles->spritesheet->ready())
-      return;
-  }
-
+void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
+{ 
   assert(state.commandlist);
+  assert(particlesystem && particlesystem->ready());
+  assert(particles);
+
+  if (particles->count == 0)
+    return;
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, context.unitquad);
+  bind_vertexbuffer(commandlist, 0, context.unitquad);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
@@ -339,7 +309,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
   {
     auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
 
-    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particles->spritesheet->texture);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
 
     bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
@@ -355,7 +325,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
     auto modelset = state.modelset.memory<Particle>(offset);
 
-    for(size_t i = 0; i < particles->count; ++i)
+    for(int i = 0; i < particles->count; ++i)
     {
       modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
       modelset[i].transform = particles->transform[i];
@@ -382,48 +352,28 @@ void ForwardList::push_water(ForwardList::BuildState &state, Transform const &tr
 ///////////////////////// ForwardList::push_water ///////////////////////////
 void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, SkyBox const *skybox, Vec2 const &flow, float bumpscale, float alpha)
 {
-  if (!skybox)
-    return;
+  assert(skybox && skybox->ready());
 
   auto envdimension = Vec3(2e5f, 2e5f, 2e5f);
 
-  push_water(state, transform, mesh, material, envtransform, envdimension, skybox->envmap, flow, bumpscale, alpha);
+  push_water(state, transform, mesh, material, envtransform, envdimension, skybox, flow, bumpscale, alpha);
 }
 
 
 ///////////////////////// ForwardList::push_water ///////////////////////////
 void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, Vec3 const &envdimension, EnvMap const *envmap, Vec2 const &flow, float bumpscale, float alpha)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
+  assert(envmap && envmap->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
   bind_pipeline(commandlist, context.waterpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  if (!mesh->ready())
-  {
-    state.resources->request(*state.platform, mesh);
-
-    if (!mesh->ready())
-      return;
-  }
-
-  bind_vertexbuffer(commandlist, mesh->vertexbuffer);
-
-  if (!material->ready())
-  {
-    state.resources->request(*state.platform, material);
-
-    if (!material->ready())
-      return;
-  }
-
-  if (!envmap || !envmap->ready())
-    return;
+  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WaterMaterialSet), state.materialset);
 

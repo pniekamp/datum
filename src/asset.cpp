@@ -173,6 +173,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
 
             asset.vertexcount = mesh.vertexcount;
             asset.indexcount = mesh.indexcount;
+            asset.bonecount = mesh.bonecount;
             asset.mincorner[0] = mesh.mincorner[0];
             asset.mincorner[1] = mesh.mincorner[1];
             asset.mincorner[2] = mesh.mincorner[2];
@@ -197,6 +198,41 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             break;
           }
 
+        case "ANIM"_packchunktype:
+          {
+            PackAnimationHeader anim;
+
+            platform.read_handle(file.handle, position + sizeof(chunk), &anim, sizeof(anim));
+
+            asset.duration = anim.duration;
+            asset.jointcount = anim.jointcount;
+            asset.transformcount = anim.transformcount;
+            asset.datasize = pack_payload_size(anim);
+            asset.datapos = anim.dataoffset;
+
+            break;
+          }
+
+        case "PART"_packchunktype:
+          {
+            PackParticleSystemHeader part;
+
+            platform.read_handle(file.handle, position + sizeof(chunk), &part, sizeof(part));
+
+            asset.minrange[0] = part.minrange[0];
+            asset.minrange[1] = part.minrange[1];
+            asset.minrange[2] = part.minrange[2];
+            asset.maxrange[0] = part.maxrange[0];
+            asset.maxrange[1] = part.maxrange[1];
+            asset.maxrange[2] = part.maxrange[2];
+            asset.maxparticles = part.maxparticles;
+            asset.emittercount = part.emittercount;
+            asset.datasize = pack_payload_size(part);
+            asset.datapos = part.dataoffset;
+
+            break;
+          }
+
         case "MODL"_packchunktype:
           {
             PackModelHeader modl;
@@ -209,26 +245,6 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
             asset.instancecount = modl.instancecount;
             asset.datasize = pack_payload_size(modl);
             asset.datapos = modl.dataoffset;
-
-            break;
-          }
-
-        case "PTSM"_packchunktype:
-          {
-            PackParticleSystemHeader ptsm;
-
-            platform.read_handle(file.handle, position + sizeof(chunk), &ptsm, sizeof(ptsm));
-
-            asset.minrange[0] = ptsm.minrange[0];
-            asset.minrange[1] = ptsm.minrange[1];
-            asset.minrange[2] = ptsm.minrange[2];
-            asset.maxrange[0] = ptsm.maxrange[0];
-            asset.maxrange[1] = ptsm.maxrange[1];
-            asset.maxrange[2] = ptsm.maxrange[2];
-            asset.maxparticles = ptsm.maxparticles;
-            asset.emittercount = ptsm.emittercount;
-            asset.datasize = pack_payload_size(ptsm);
-            asset.datapos = ptsm.dataoffset;
 
             break;
           }
@@ -290,7 +306,11 @@ AssetManager::Slot *AssetManager::acquire_slot(size_t size)
   for(auto slot = m_head; true; slot = slot->next)
   {
     if (slot->state == Slot::State::Barrier)
+    {
+      m_head = slot;
+
       return nullptr;
+    }
 
     if (slot->state == Slot::State::Loaded)
     {

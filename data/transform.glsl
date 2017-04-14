@@ -60,6 +60,29 @@ Transform transform_inverse(Transform t)
   return result;
 }
 
+///////////////////////// transform_inverse /////////////////////////////////
+Transform transform_negate(Transform t)
+{
+  Transform result;
+  
+  result.real = -t.real;
+  result.dual = -t.dual;
+
+  return result;
+}
+
+///////////////////////// transform_normalize ///////////////////////////////
+Transform transform_normalize(Transform t)
+{
+  Transform result;
+  
+  float norm = length(t.real);
+  
+  result.real = t.real / norm;
+  result.dual = t.dual / norm;
+
+  return result;
+}
 
 ///////////////////////// transform_multiply ////////////////////////////////
 Transform transform_multiply(Transform t1, Transform t2)
@@ -108,6 +131,24 @@ mat4 transform_matrix(Transform transform)
   result[3][1] = shift.y;
   result[3][2] = shift.z;
   result[3][3] = 1;
+
+  return result;
+}
+
+
+///////////////////////// transform_blend ///////////////////////////////////
+Transform transform_blend(vec4 weights, Transform t1, Transform t2, Transform t3, Transform t4)
+{
+  Transform result;
+
+  if (dot(t1.real, t2.real) < 0) weights[1] *= -1.0;
+  if (dot(t1.real, t3.real) < 0) weights[2] *= -1.0;
+  if (dot(t1.real, t4.real) < 0) weights[3] *= -1.0;
+
+  result.real = weights[0]*t1.real + weights[1]*t2.real + weights[2]*t3.real + weights[3]*t4.real;
+  result.dual = weights[0]*t1.dual + weights[1]*t2.dual + weights[2]*t3.dual + weights[3]*t4.dual;
+  
+  result = transform_normalize(result); 
 
   return result;
 }

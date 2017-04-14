@@ -74,6 +74,9 @@ Material const *ResourceManager::create<Material>(Color4 color, float metalness,
   material->asset = nullptr;
   material->state = Material::State::Waiting;
 
+  if ((!albedomap || albedomap->ready()) && (!specularmap || specularmap->ready()) && (!normalmap || normalmap->ready()))
+    material->state = Material::State::Ready;
+
   return material;
 }
 
@@ -124,6 +127,9 @@ void ResourceManager::update<Material>(Material const *material, Color4 color, f
 {
   assert(material);
   assert((material->flags & (MaterialOwnsAlbedoMap | MaterialOwnsSpecularMap | MaterialOwnsNormalMap)) == 0);
+  assert(!albedomap || albedomap->ready());
+  assert(!specularmap || specularmap->ready());
+  assert(!normalmap || normalmap->ready());
 
   auto slot = const_cast<Material*>(material);
 
@@ -165,28 +171,28 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
         slot->reflectivity = payload->reflectivity;
         slot->emissive = payload->emissive;
 
-        if (payload->albedomap)
+        if (payload->albedomap && !slot->albedomap)
         {
           slot->albedomap = create<Texture>(assets()->find(asset->id + payload->albedomap), Texture::Format::SRGBA);
 
           slot->flags |= MaterialOwnsAlbedoMap;
         }
 
-        if (payload->specularmap)
+        if (payload->specularmap && !slot->specularmap)
         {
           slot->specularmap = create<Texture>(assets()->find(asset->id + payload->specularmap), Texture::Format::SRGBA);
 
           slot->flags |= MaterialOwnsSpecularMap;
         }
 
-        if (payload->normalmap)
+        if (payload->normalmap && !slot->normalmap)
         {
           slot->normalmap = create<Texture>(assets()->find(asset->id + payload->normalmap), Texture::Format::RGBA);
 
           slot->flags |= MaterialOwnsNormalMap;
         }
 
-        slot->state = Material::State::Waiting;
+        slot->state = ((!payload->albedomap || slot->albedomap) && (!payload->specularmap || slot->specularmap) && (!payload->normalmap || slot->normalmap)) ? Material::State::Waiting : Material::State::Empty;
       }
       else
         slot->state = Material::State::Empty;
@@ -222,12 +228,7 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
       ready &= slot->normalmap->ready();
     }
 
-    if (ready)
-    {
-      slot->state = Material::State::Ready;
-    }
-    else
-      slot->state = Material::State::Waiting;
+    slot->state = (ready) ? Material::State::Ready : Material::State::Waiting;
   }
 }
 
@@ -236,8 +237,6 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
 template<>
 void ResourceManager::release<Material>(Material const *material)
 {
-  assert(material);
-
   defer_destroy(material);
 }
 
@@ -246,19 +245,20 @@ void ResourceManager::release<Material>(Material const *material)
 template<>
 void ResourceManager::destroy<Material>(Material const *material)
 {
-  assert(material);
+  if (material)
+  {
+    if (material->flags & MaterialOwnsAlbedoMap)
+      destroy(material->albedomap);
 
-  if (material->flags & MaterialOwnsAlbedoMap)
-    destroy(material->albedomap);
+    if (material->flags & MaterialOwnsSpecularMap)
+      destroy(material->specularmap);
 
-  if (material->flags & MaterialOwnsSpecularMap)
-    destroy(material->specularmap);
+    if (material->flags & MaterialOwnsNormalMap)
+      destroy(material->normalmap);
 
-  if (material->flags & MaterialOwnsNormalMap)
-    destroy(material->normalmap);
+    material->~Material();
 
-  material->~Material();
-
-  release_slot(const_cast<Material*>(material), sizeof(Material));
+    release_slot(const_cast<Material*>(material), sizeof(Material));
+  }
 }
 
