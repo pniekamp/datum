@@ -9,7 +9,7 @@
 #pragma once
 
 #include "scene.h"
-#include "basiccomponent.h"
+#include "storage.h"
 #include "transformcomponent.h"
 #include "datum/math.h"
 #include "datum/renderer.h"
@@ -17,27 +17,30 @@
 //|---------------------- PointLightComponentStorage ------------------------
 //|--------------------------------------------------------------------------
 
-struct PointLightComponentData
-{
-  float range;
-  lml::Color3 intensity;
-  lml::Attenuation attenuation;
-};
-
-class PointLightComponentStorage : public BasicComponentStorage<PointLightComponentData>
+class PointLightComponentStorage : public DefaultStorage<Scene::EntityId, float, lml::Color3, lml::Attenuation>
 {
   public:
-    using BasicComponentStorage::BasicComponentStorage;
+
+    enum DataLayout
+    {
+      entityid = 0,
+      lightrange = 1,
+      lightintensity = 2,
+      lightattenuation = 3,
+    };
+
+  public:
+    PointLightComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class PointLightComponent>
     Component get(EntityId entity)
     {
-      return data(entity);
+      return { this->index(entity), this };
     }
 
   protected:
 
-    PointLightComponentData *add(EntityId entity, lml::Color3 intensity, lml::Attenuation attenuation);
+    void add(EntityId entity, lml::Color3 intensity, lml::Attenuation attenuation);
 
     friend class Scene;
     friend class PointLightComponent;
@@ -55,18 +58,19 @@ class PointLightComponent
 
   public:
     PointLightComponent() = default;
-    PointLightComponent(PointLightComponentData *data);
+    PointLightComponent(size_t index, PointLightComponentStorage *storage);
 
-    float range() const { return m_data->range; }
-    lml::Color3 const &intensity() const { return m_data->intensity; }
-    lml::Attenuation const &attenuation() const { return m_data->attenuation; }
+    float range() const { return storage->data<PointLightComponentStorage::lightrange>(index); }
+    lml::Color3 const &intensity() const { return storage->data<PointLightComponentStorage::lightintensity>(index); }
+    lml::Attenuation const &attenuation() const { return storage->data<PointLightComponentStorage::lightattenuation>(index); }
 
     void set_intensity(lml::Color3 const &intensity);
     void set_attenuation(lml::Attenuation const &attenuation);
 
-  private:
+  protected:
 
-    PointLightComponentData *m_data;
+    size_t index;
+    PointLightComponentStorage *storage;
 };
 
 

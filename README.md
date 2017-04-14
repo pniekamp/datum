@@ -16,6 +16,7 @@
 - Particle System
 - Exponential Height Fog
 - Water and FFT Ocean
+- Skeletal Animation
 - Entity-Component Scene Management
 
 ![Datum](/bin/datumtest.png?raw=true "Datum")

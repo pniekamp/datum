@@ -15,26 +15,33 @@ using namespace lml;
 //|---------------------- ParticleSystemStorage -----------------------------
 //|--------------------------------------------------------------------------
 
-///////////////////////// ParticleSystemStorage::add ////////////////////////
-ParticleSystemComponentData *ParticleSystemComponentStorage::add(EntityId entity, Bound3 const &bound, ParticleSystem *particlesystem, int flags)
+///////////////////////// ParticleSystemStorage::Constructor ////////////////
+ParticleSystemComponentStorage::ParticleSystemComponentStorage(Scene *scene, StackAllocator<> allocator)
+  : DefaultStorage(scene, allocator),
+    m_allocator(allocator, m_freelist)
 {
-  auto data = BasicComponentStorage<ParticleSystemComponentData>::add(entity);
+}
 
-  data->flags = flags;
-  data->bound = bound;
-  data->system = particlesystem;
-  data->instance = particlesystem->create();
 
-  return data;
+///////////////////////// ParticleSystemStorage::add ////////////////////////
+void ParticleSystemComponentStorage::add(EntityId entity, Bound3 const &bound, ParticleSystem const *system, int flags)
+{
+  auto index = DefaultStorage::add(entity);
+
+  data<flagbits>(index) = flags;
+  data<entityid>(index) = entity;
+  data<boundingbox>(index) = bound;
+  data<particlesystem>(index) = system;
+  data<particlesysteminstance>(index) = system->create(m_allocator);
 }
 
 
 ///////////////////////// ParticleSystemStorage::remove /////////////////////
 void ParticleSystemComponentStorage::remove(EntityId entity)
 {
-  auto data = this->data(entity);
+  auto index = this->index(entity);
 
-  data->system->destroy(data->instance);
+  data<particlesystem>(index)->destroy(data<particlesysteminstance>(index));
 
   DefaultStorage::remove(entity);
 }
@@ -45,14 +52,16 @@ void ParticleSystemComponentStorage::update_particlesystem_bounds()
 {
   auto transformstorage = m_scene->system<TransformComponentStorage>();
 
-  for(auto &entity : entities())
+  for(size_t index = 1; index < size(); ++index)
   {
-    assert(transformstorage->has(entity));
+    if (data<entityid>(index) != 0)
+    {
+      assert(transformstorage->has(data<entityid>(index)));
 
-    auto data = this->data(entity);
-    auto transform = transformstorage->get(entity);
+      auto transform = transformstorage->get(data<entityid>(index));
 
-    data->bound = transform.world() * data->system->bound;
+      data<boundingbox>(index) = transform.world() * data<particlesystem>(index)->bound;
+    }
   }
 }
 
@@ -76,13 +85,8 @@ void update_particlesystems(Scene &scene, Camera const &camera, float dt)
       particles.system()->update(particles.instance(), camera, transform.world(), dt);
     }
   }
-}
 
-
-///////////////////////// update_particlesystem_bounds //////////////////////
-void update_particlesystem_bounds(Scene &scene)
-{
-  scene.system<ParticleSystemComponentStorage>()->update_particlesystem_bounds();
+  particlestorage->update_particlesystem_bounds();
 }
 
 
@@ -90,7 +94,7 @@ void update_particlesystem_bounds(Scene &scene)
 template<>
 void Scene::initialise_component_storage<ParticleSystemComponent>()
 {
-  m_systems[typeid(ParticleSystemComponentStorage)] = new(allocator<ParticleSystemComponentStorage>().allocate(1)) ParticleSystemComponentStorage(this, allocator());
+  m_systems[typeid(ParticleSystemComponentStorage)] = new(allocate<ParticleSystemComponentStorage>(m_allocator)) ParticleSystemComponentStorage(this, m_allocator);
 }
 
 
@@ -99,19 +103,21 @@ void Scene::initialise_component_storage<ParticleSystemComponent>()
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ParticleSystemComponent::Constructor //////////////
-ParticleSystemComponent::ParticleSystemComponent(ParticleSystemComponentData *data)
-  : m_data(data)
+ParticleSystemComponent::ParticleSystemComponent(size_t index, ParticleSystemComponentStorage *storage)
+  : index(index),
+    storage(storage)
 {
 }
 
 
 ///////////////////////// Scene::add_component //////////////////////////////
 template<>
-ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem *particlesystem, int flags)
+ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem const *particlesystem, int flags)
 {
   assert(get(entity) != nullptr);
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
+  assert(particlesystem);
 
   auto storage = system<ParticleSystemComponentStorage>();
 
@@ -119,11 +125,13 @@ ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::Ent
 
   auto bound = transform.world() * particlesystem->bound;
 
-  return storage->add(entity, bound, particlesystem, flags);
+  storage->add(entity, bound, particlesystem, flags);
+
+  return { storage->index(entity), storage };
 }
 
 template<>
-ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem *particlesystem, ParticleSystemComponent::Flags flags)
+ParticleSystemComponent Scene::add_component<ParticleSystemComponent>(Scene::EntityId entity, ParticleSystem const *particlesystem, ParticleSystemComponent::Flags flags)
 {
   return add_component<ParticleSystemComponent>(entity, particlesystem, (int)flags);
 }

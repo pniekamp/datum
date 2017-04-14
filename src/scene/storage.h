@@ -66,6 +66,55 @@ class DefaultStorage : public Storage
 
     bool has(EntityId entity) const;
 
+  public:
+
+    class iterator
+    {
+      public:
+        explicit iterator(size_t index, DefaultStorage const *storage)
+          : index(index), storage(storage)
+        {
+          if (index != storage->size() && storage->data<0>(index) == 0)
+            ++*this;
+        }
+
+        bool operator ==(iterator const &that) const { return index == that.index; }
+        bool operator !=(iterator const &that) const { return index != that.index; }
+
+        EntityId const &operator *() const { return storage->data<0>(index); }
+        EntityId const *operator ->() const { return &storage->data<0>(index); }
+
+        iterator &operator++()
+        {
+          ++index;
+
+          while (index != storage->size() && storage->data<0>(index) == 0)
+            ++index;
+
+          return *this;
+        }
+
+      private:
+
+        size_t index;
+        DefaultStorage const *storage;
+    };
+
+    template<typename Iterator>
+    class iterator_pair : public std::pair<Iterator, Iterator>
+    {
+      public:
+        using std::pair<Iterator, Iterator>::pair;
+
+        Iterator begin() const { return this->first; }
+        Iterator end() const { return this->second; }
+    };
+
+    iterator_pair<iterator> entities() const
+    {
+      return { iterator{ 0, this }, iterator{ this->size(), this } };
+    }
+
   protected:
 
     void clear() override;
@@ -88,7 +137,7 @@ class DefaultStorage : public Storage
 
     size_t size() const { return std::get<0>(m_data).size(); }
 
-    void add(EntityId entity);
+    size_t add(EntityId entity);
     virtual void remove(EntityId entity);
 
   protected:
@@ -169,7 +218,7 @@ size_t DefaultStorage<Types...>::index(EntityId entity) const
 
 ///////////////////////// DefaultStorage::add ///////////////////////////////
 template<typename ...Types>
-void DefaultStorage<Types...>::add(EntityId entity)
+size_t DefaultStorage<Types...>::add(EntityId entity)
 {
   assert(!has(entity));
 
@@ -191,6 +240,8 @@ void DefaultStorage<Types...>::add(EntityId entity)
   }
 
   m_index[entity.index()] = index;
+
+  return index;
 }
 
 

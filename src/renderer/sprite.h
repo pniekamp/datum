@@ -21,7 +21,7 @@ class Sprite
     friend Sprite const *ResourceManager::create<Sprite>(Asset const *asset, lml::Vec2 align);
     friend Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, lml::Rect2 extent, lml::Vec2 align);
 
-    bool ready() const { return atlas->ready(); }
+    bool ready() const { return (state == State::Ready); }
 
     int flags;
 
@@ -34,7 +34,22 @@ class Sprite
 
     Texture const *atlas;
 
-  private:
+  public:
+
+    enum class State
+    {
+      Empty,
+      Loading,
+      Waiting,
+      Testing,
+      Ready,
+    };
+
+    Asset const *asset;
+
+    std::atomic<State> state;
+
+  protected:
     Sprite() = default;
 };
 

@@ -14,6 +14,8 @@
 namespace lml
 {
   using namespace leap::lml;
+  using leap::lml::lerp;
+  using leap::lml::slerp;
 
   //|-------------------- Transform -----------------------------------------
   //|------------------------------------------------------------------------
@@ -192,5 +194,28 @@ namespace lml
     return result;
   }
 
+
+  //////////////////////// lerp /////////////////////////////////////////////
+  inline Transform lerp(Transform const &t1, Transform const &t2, float alpha)
+  {
+    Transform result;
+
+    auto flip = std::copysign(1.0f, dot(t1.real, t2.real));
+
+    result.real = lerp(t1.real, flip*t2.real, alpha);
+    result.dual = lerp(t1.dual, flip*t2.dual, alpha);
+
+    return normalise(result);
+  }
+
+
+  //////////////////////// slerp ////////////////////////////////////////////
+  inline Transform slerp(Transform const &t1, Transform const &t2, float alpha)
+  {
+    auto rotation = slerp(t1.rotation(), t2.rotation(), alpha);
+    auto translation = lerp(t1.translation(), t2.translation(), alpha);
+
+    return Transform::translation(translation) * Transform::rotation(rotation);
+  }
 }
 

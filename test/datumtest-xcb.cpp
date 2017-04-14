@@ -395,6 +395,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   devicefeatures.geometryShader = true;
   devicefeatures.shaderTessellationAndGeometryPointSize = true;
   devicefeatures.shaderStorageImageWriteWithoutFormat = true;
+  devicefeatures.samplerAnisotropy = true;
 
   VkDeviceCreateInfo deviceinfo = {};
   deviceinfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

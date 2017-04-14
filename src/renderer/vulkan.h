@@ -374,7 +374,8 @@ namespace Vulkan
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize);
   VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize);
 
-  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer);
+  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, VertexBuffer &vertexbuffer);
+  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize verticesoffset, VkDeviceSize indicesoffset, VertexBuffer &vertexbuffer);
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
 
@@ -384,7 +385,7 @@ namespace Vulkan
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
   Texture create_texture(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
-  void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, Texture &texture);
+  void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, Texture &texture);
   void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, Texture &texture, const void *bits);
 
   QueryPool create_querypool(VulkanDevice const &vulkan, VkQueryPoolCreateInfo const &createinfo);
@@ -475,6 +476,8 @@ namespace Vulkan
 
   void push(VkCommandBuffer commandbuffer, VkPipelineLayout layout, VkDeviceSize offset, VkDeviceSize size, const void *data, VkShaderStageFlags stage);
 
+  void set_stencil_reference(VkCommandBuffer commandbuffer, VkStencilFaceFlags facemask, uint32_t reference);
+
   void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint);
   void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint);
 
@@ -482,7 +485,7 @@ namespace Vulkan
   void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint);
   void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, int clipx, int clipy, int clipwidth, int clipheight, VkPipelineBindPoint bindpoint);
 
-  void bind_vertexbuffer(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer);
+  void bind_vertexbuffer(VkCommandBuffer commandbuffer, uint32_t binding, VertexBuffer const &vertexbuffer);
 
   void draw(VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t instancecount, uint32_t firstvertex, uint32_t firstinstance);
   void draw(VkCommandBuffer commandbuffer, uint32_t indexcount, uint32_t instancecount, uint32_t firstindex, int32_t vertexoffset, uint32_t firstinstance);

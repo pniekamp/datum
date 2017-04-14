@@ -376,157 +376,102 @@ namespace
 
 
   ///////////////////////// push_debug_overlay //////////////////////////////
-  void push_debug_overlay(DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font, Ui::Interaction *interaction)
+  void push_debug_overlay(RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font, Ui::Interaction *interaction)
   {
     BEGIN_TIMED_BLOCK(DebugOverlay, Color3(1.0f, 0.0f, 0.0f))
-
-    asset_guard lock(resources->assets());
 
     SpriteList overlay;
     SpriteList::BuildState buildstate;
 
-    if (!overlay.begin(buildstate, platform, context, resources))
-      return;
-
-    auto mousepos = viewport.width * g_interaction.mousepos;
-
-    auto cursor = Vec2(5.0f, 5.0f);
-
-    //
-    // Frame Timing
-    //
-
-    if (g_displayfps)
+    if (overlay.begin(buildstate, context, resources))
     {
-      char buffer[128];
-      snprintf(buffer, sizeof(buffer), "%f (%.0f fps)", g_frametime / clock_frequency(), clock_frequency() / g_frametime + 0.5);
+      auto mousepos = viewport.width * g_interaction.mousepos;
 
-      overlay.push_text(buildstate, cursor + Vec2(0, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleVisible) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+      auto cursor = Vec2(5.0f, 5.0f);
 
-      if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
-        *interaction = { Ui::Interaction::ToggleVisible };
-
-      cursor += Vec2(0.0f, font->lineheight() + 2);
-    }
-
-    if (g_visible)
-    {
       //
-      // Block Timing
+      // Frame Timing
       //
 
-      if (g_displayblocktiming)
+      if (g_displayfps)
       {
-        const float BarDepth = 4.0f;
-        const float BarHeight = 6.0f;
-        const float LabelWidth = 150.0f;
-        const float TimingsWidth = viewport.width - 20.0f;
-        const float TimingsHeight = 100.0f;
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), "%f (%.0f fps)", g_frametime / clock_frequency(), clock_frequency() / g_frametime + 0.5);
 
-        Vec2 labelorigin = cursor + Vec2(16.0f, 2.0f);
-        Vec2 timingsorigin = cursor + Vec2(LabelWidth, 6.0f);
+        overlay.push_text(buildstate, cursor + Vec2(0, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleVisible) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
-        overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, TimingsHeight}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
+        if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
+          *interaction = { Ui::Interaction::ToggleVisible };
 
-        float scale = (TimingsWidth - LabelWidth)/(g_blockend - g_blockbeg);
+        cursor += Vec2(0.0f, font->lineheight() + 2);
+      }
 
-        Vec2 tippos;
-        Thread::Block const *tipblk = nullptr;
-
-        for(size_t i = 0; i < extentof(g_threads); ++i)
-        {
-          if (g_threads[i].blockcount != 0)
-          {
-            int totalcount = 0;
-            unsigned long long totaltime = 0;
-
-            for(size_t k = 0; k < g_threads[i].blockcount; ++k)
-            {
-              auto &block = g_threads[i].blocks[k];
-
-              if (block.end < g_blockbeg || block.beg > g_blockend)
-                continue;
-
-              auto beg = max(block.beg, g_blockbeg) - g_blockbeg;
-              auto end = min(block.end, g_blockend) - g_blockbeg;
-
-              if (block.level == 0)
-              {
-                totaltime += block.end - block.beg;
-                totalcount += 1;
-              }
-
-              Rect2 barrect({ beg * scale, BarHeight*block.level }, { end * scale, BarHeight*block.level + 8.0f });
-
-              overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
-
-              if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), mousepos))
-              {
-                tippos = floor(timingsorigin + barrect.min);
-                tipblk = &block;
-              }
-            }
-
-            char buffer[128];
-            snprintf(buffer, sizeof(buffer), "%s (%f)", g_threads[i].blocks[0].info->name, totaltime / max(totalcount, 1) / clock_frequency());
-
-            overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
-
-            labelorigin.y += BarDepth * BarHeight;
-            timingsorigin.y += BarDepth * BarHeight;
-          }
-        }
-
-        if (tipblk)
-        {
-          char buffer[128];
-          snprintf(buffer, sizeof(buffer), "%s (%f)", tipblk->info->name, (tipblk->end - tipblk->beg) / clock_frequency());
-
-          overlay.push_text(buildstate, tippos, font->height(), font, buffer);
-        }
-
+      if (g_visible)
+      {
         //
-        // Gpu Timing
+        // Block Timing
         //
 
-        if (g_displaygputiming)
+        if (g_displayblocktiming)
         {
-          Gpu::Block const *tipblk = nullptr;
+          const float BarDepth = 4.0f;
+          const float BarHeight = 6.0f;
+          const float LabelWidth = 150.0f;
+          const float TimingsWidth = viewport.width - 20.0f;
+          const float TimingsHeight = 100.0f;
 
-          if (g_gpu.blockcount != 0)
+          Vec2 labelorigin = cursor + Vec2(16.0f, 2.0f);
+          Vec2 timingsorigin = cursor + Vec2(LabelWidth, 6.0f);
+
+          overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, TimingsHeight}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
+
+          float scale = (TimingsWidth - LabelWidth)/(g_blockend - g_blockbeg);
+
+          Vec2 tippos;
+          Thread::Block const *tipblk = nullptr;
+
+          for(size_t i = 0; i < extentof(g_threads); ++i)
           {
-            unsigned long long totaltime = 0;
-
-            for(size_t k = 0; k < g_gpu.blockcount; ++k)
+            if (g_threads[i].blockcount != 0)
             {
-              auto &block = g_gpu.blocks[k];
+              int totalcount = 0;
+              unsigned long long totaltime = 0;
 
-              if (block.end < g_blockbeg || block.beg > g_blockend)
-                continue;
-
-              auto beg = max(block.beg, g_blockbeg) - g_blockbeg;
-              auto end = min(block.end, g_blockend) - g_blockbeg;
-
-              totaltime += block.end - block.beg;
-
-              Rect2 barrect({ beg * scale, 0.0f }, { end * scale, 8.0 });
-
-              overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
-
-              if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), mousepos))
+              for(size_t k = 0; k < g_threads[i].blockcount; ++k)
               {
-                tippos = floor(timingsorigin + barrect.min);
-                tipblk = &block;
+                auto &block = g_threads[i].blocks[k];
+
+                if (block.end < g_blockbeg || block.beg > g_blockend)
+                  continue;
+
+                auto beg = max(block.beg, g_blockbeg) - g_blockbeg;
+                auto end = min(block.end, g_blockend) - g_blockbeg;
+
+                if (block.level == 0)
+                {
+                  totaltime += block.end - block.beg;
+                  totalcount += 1;
+                }
+
+                Rect2 barrect({ beg * scale, BarHeight*block.level }, { end * scale, BarHeight*block.level + 8.0f });
+
+                overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
+
+                if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), mousepos))
+                {
+                  tippos = floor(timingsorigin + barrect.min);
+                  tipblk = &block;
+                }
               }
+
+              char buffer[128];
+              snprintf(buffer, sizeof(buffer), "%s (%f)", g_threads[i].blocks[0].info->name, totaltime / max(totalcount, 1) / clock_frequency());
+
+              overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
+
+              labelorigin.y += BarDepth * BarHeight;
+              timingsorigin.y += BarDepth * BarHeight;
             }
-
-            char buffer[128];
-            snprintf(buffer, sizeof(buffer), "GPU (%f)", totaltime / Frames / clock_frequency());
-
-            overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
-
-            labelorigin.y += BarDepth * BarHeight;
-            timingsorigin.y += BarDepth * BarHeight;
           }
 
           if (tipblk)
@@ -536,212 +481,265 @@ namespace
 
             overlay.push_text(buildstate, tippos, font->height(), font, buffer);
           }
+
+          //
+          // Gpu Timing
+          //
+
+          if (g_displaygputiming)
+          {
+            Gpu::Block const *tipblk = nullptr;
+
+            if (g_gpu.blockcount != 0)
+            {
+              unsigned long long totaltime = 0;
+
+              for(size_t k = 0; k < g_gpu.blockcount; ++k)
+              {
+                auto &block = g_gpu.blocks[k];
+
+                if (block.end < g_blockbeg || block.beg > g_blockend)
+                  continue;
+
+                auto beg = max(block.beg, g_blockbeg) - g_blockbeg;
+                auto end = min(block.end, g_blockend) - g_blockbeg;
+
+                totaltime += block.end - block.beg;
+
+                Rect2 barrect({ beg * scale, 0.0f }, { end * scale, 8.0 });
+
+                overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
+
+                if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), mousepos))
+                {
+                  tippos = floor(timingsorigin + barrect.min);
+                  tipblk = &block;
+                }
+              }
+
+              char buffer[128];
+              snprintf(buffer, sizeof(buffer), "GPU (%f)", totaltime / Frames / clock_frequency());
+
+              overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
+
+              labelorigin.y += BarDepth * BarHeight;
+              timingsorigin.y += BarDepth * BarHeight;
+            }
+
+            if (tipblk)
+            {
+              char buffer[128];
+              snprintf(buffer, sizeof(buffer), "%s (%f)", tipblk->info->name, (tipblk->end - tipblk->beg) / clock_frequency());
+
+              overlay.push_text(buildstate, tippos, font->height(), font, buffer);
+            }
+          }
+
+          overlay.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+          if (contains(Rect2(cursor, cursor + Vec2(15, font->lineheight())), mousepos))
+            *interaction = { Ui::Interaction::ToggleBlockTiming };
+
+          cursor += Vec2(0.0f, TimingsHeight + 4.0f);
         }
-
-        overlay.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-        if (contains(Rect2(cursor, cursor + Vec2(15, font->lineheight())), mousepos))
-          *interaction = { Ui::Interaction::ToggleBlockTiming };
-
-        cursor += Vec2(0.0f, TimingsHeight + 4.0f);
-      }
-      else
-      {
-        char buffer[] = "Block Timing";
-
-        overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-        if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
-          *interaction = { Ui::Interaction::ToggleBlockTiming };
-
-        cursor += Vec2(0.0f, font->lineheight() + 2);
-      }
-
-      //
-      // Graphs
-      //
-
-      if (g_displayframegraph)
-      {
-        const float GraphHeight = 80.0f;
-        const float FpsScale = GraphHeight / (1.0f/15.0f);
-
-        overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, GraphHeight + 5.0f}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
-
-        size_t fpswidth = viewport.width - 75;
-        size_t fpsbase = max(g_fpshistorytail, fpswidth) - fpswidth;
-
-        for(size_t i = 1, j = 1; i < fpswidth; ++i, ++j)
+        else
         {
-          auto a = g_fpshistory[(fpsbase + i - 1) % extentof(g_fpshistory)] * FpsScale;
-          auto b = g_fpshistory[(fpsbase + i) % extentof(g_fpshistory)] * FpsScale;
+          char buffer[] = "Block Timing";
 
-          overlay.push_line(buildstate, cursor + Vec2(j, max(GraphHeight-a, 0.0f)), cursor + Vec2(j+1, max(GraphHeight-b, 0.0f)), Color4(0.5f, 0.8f, 0.5f, 1.0f));
-        }
+          overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
-        size_t resbase = viewport.width - 70;
-
-        char tiptxt[128] = {};
-
-        auto resourceslots = g_resources.resourceslotsused / (float)g_resources.resourceslotscapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase, 0), Rect2({0, GraphHeight * (1 - resourceslots)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
-
-        if (contains(Rect2(cursor + Vec2(resbase, 0), cursor + Vec2(resbase + 12, GraphHeight)), mousepos))
-        {
-          snprintf(tiptxt, sizeof(tiptxt), "Resource Slots (%zu / %zu)", g_resources.resourceslotsused, g_resources.resourceslotscapacity);
-        }
-
-        auto resourcebuffer = g_resources.resourcebufferused / (float)g_resources.resourcebuffercapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase + 15, 0), Rect2({0, GraphHeight * (1 - resourcebuffer)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
-
-        if (contains(Rect2(cursor + Vec2(resbase + 15, 0), cursor + Vec2(resbase + 27, GraphHeight)), mousepos))
-        {
-          snprintf(tiptxt, sizeof(tiptxt), "Resource Buffers (%zu / %zu)", g_resources.resourcebufferused, g_resources.resourcebuffercapacity);
-        }
-
-        auto renderstorage = g_resources.renderstorageused / (float)g_resources.renderstoragecapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase + 30, 0), Rect2({0, GraphHeight * (1 - renderstorage)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
-
-        if (contains(Rect2(cursor + Vec2(resbase + 30, 0), cursor + Vec2(resbase + 42, GraphHeight)), mousepos))
-        {
-          snprintf(tiptxt, sizeof(tiptxt), "Render Storage (%zu / %zu)", g_resources.renderstorageused, g_resources.renderstoragecapacity);
-        }
-
-        auto renderlumps = g_resources.renderlumpsused / (float)g_resources.renderlumpscapacity;
-        overlay.push_rect(buildstate, cursor + Vec2(resbase + 45, 0), Rect2({0, GraphHeight * (1 - renderlumps)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
-
-        if (contains(Rect2(cursor + Vec2(resbase + 45, 0), cursor + Vec2(resbase + 57, GraphHeight)), mousepos))
-        {
-          snprintf(tiptxt, sizeof(tiptxt), "Render Lumps (%zu / %zu)", g_resources.renderlumpsused, g_resources.renderlumpscapacity);
-        }
-
-        if (tiptxt[0] != 0)
-        {
-          overlay.push_text(buildstate, Vec2(mousepos.x - font->width(tiptxt), mousepos.y), font->height(), font, tiptxt);
-        }
-
-        overlay.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-        if (contains(Rect2(cursor, cursor + Vec2(15, font->lineheight())), mousepos))
-          *interaction = { Ui::Interaction::ToggleFrameGraph };
-
-        cursor += Vec2(0.0f, GraphHeight + 4.0f);
-      }
-      else
-      {
-        char buffer[] = "Frame Graph";
-
-        overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-        if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
-          *interaction = { Ui::Interaction::ToggleFrameGraph };
-
-        cursor += Vec2(0.0f, font->lineheight() + 2);
-      }
-
-      //
-      // Debug Menu
-      //
-
-      if (g_displaydebugmenu)
-      {
-        SyncLock M(g_menu.m_mutex);
-
-        for(size_t i = 0; i < g_menu.groupcount; ++i)
-        {
-          auto &group = g_menu.groups[i];
-
-          char buffer[128] = "";
-          strncat(buffer, group.name, group.namelen);
-
-          overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleGroup, i) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-          if (contains(Rect2(cursor, cursor + Vec2(5 + font->width(buffer), font->lineheight())), mousepos))
-            *interaction = { Ui::Interaction::ToggleGroup, i };
+          if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
+            *interaction = { Ui::Interaction::ToggleBlockTiming };
 
           cursor += Vec2(0.0f, font->lineheight() + 2);
+        }
 
-          if (group.expanded)
+        //
+        // Graphs
+        //
+
+        if (g_displayframegraph)
+        {
+          const float GraphHeight = 80.0f;
+          const float FpsScale = GraphHeight / (1.0f/15.0f);
+
+          overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, GraphHeight + 5.0f}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
+
+          size_t fpswidth = viewport.width - 75;
+          size_t fpsbase = max(g_fpshistorytail, fpswidth) - fpswidth;
+
+          for(size_t i = 1, j = 1; i < fpswidth; ++i, ++j)
           {
-            for(size_t j = 0; j < group.entrycount; ++j)
+            auto a = g_fpshistory[(fpsbase + i - 1) % extentof(g_fpshistory)] * FpsScale;
+            auto b = g_fpshistory[(fpsbase + i) % extentof(g_fpshistory)] * FpsScale;
+
+            overlay.push_line(buildstate, cursor + Vec2(j, max(GraphHeight-a, 0.0f)), cursor + Vec2(j+1, max(GraphHeight-b, 0.0f)), Color4(0.5f, 0.8f, 0.5f, 1.0f));
+          }
+
+          size_t resbase = viewport.width - 70;
+
+          char tiptxt[128] = {};
+
+          auto resourceslots = g_resources.resourceslotsused / (float)g_resources.resourceslotscapacity;
+          overlay.push_rect(buildstate, cursor + Vec2(resbase, 0), Rect2({0, GraphHeight * (1 - resourceslots)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+
+          if (contains(Rect2(cursor + Vec2(resbase, 0), cursor + Vec2(resbase + 12, GraphHeight)), mousepos))
+          {
+            snprintf(tiptxt, sizeof(tiptxt), "Resource Slots (%zu / %zu)", g_resources.resourceslotsused, g_resources.resourceslotscapacity);
+          }
+
+          auto resourcebuffer = g_resources.resourcebufferused / (float)g_resources.resourcebuffercapacity;
+          overlay.push_rect(buildstate, cursor + Vec2(resbase + 15, 0), Rect2({0, GraphHeight * (1 - resourcebuffer)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+
+          if (contains(Rect2(cursor + Vec2(resbase + 15, 0), cursor + Vec2(resbase + 27, GraphHeight)), mousepos))
+          {
+            snprintf(tiptxt, sizeof(tiptxt), "Resource Buffers (%zu / %zu)", g_resources.resourcebufferused, g_resources.resourcebuffercapacity);
+          }
+
+          auto renderstorage = g_resources.renderstorageused / (float)g_resources.renderstoragecapacity;
+          overlay.push_rect(buildstate, cursor + Vec2(resbase + 30, 0), Rect2({0, GraphHeight * (1 - renderstorage)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+
+          if (contains(Rect2(cursor + Vec2(resbase + 30, 0), cursor + Vec2(resbase + 42, GraphHeight)), mousepos))
+          {
+            snprintf(tiptxt, sizeof(tiptxt), "Render Storage (%zu / %zu)", g_resources.renderstorageused, g_resources.renderstoragecapacity);
+          }
+
+          auto renderlumps = g_resources.renderlumpsused / (float)g_resources.renderlumpscapacity;
+          overlay.push_rect(buildstate, cursor + Vec2(resbase + 45, 0), Rect2({0, GraphHeight * (1 - renderlumps)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+
+          if (contains(Rect2(cursor + Vec2(resbase + 45, 0), cursor + Vec2(resbase + 57, GraphHeight)), mousepos))
+          {
+            snprintf(tiptxt, sizeof(tiptxt), "Render Lumps (%zu / %zu)", g_resources.renderlumpsused, g_resources.renderlumpscapacity);
+          }
+
+          if (tiptxt[0] != 0)
+          {
+            overlay.push_text(buildstate, Vec2(mousepos.x - font->width(tiptxt), mousepos.y), font->height(), font, tiptxt);
+          }
+
+          overlay.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+          if (contains(Rect2(cursor, cursor + Vec2(15, font->lineheight())), mousepos))
+            *interaction = { Ui::Interaction::ToggleFrameGraph };
+
+          cursor += Vec2(0.0f, GraphHeight + 4.0f);
+        }
+        else
+        {
+          char buffer[] = "Frame Graph";
+
+          overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+          if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
+            *interaction = { Ui::Interaction::ToggleFrameGraph };
+
+          cursor += Vec2(0.0f, font->lineheight() + 2);
+        }
+
+        //
+        // Debug Menu
+        //
+
+        if (g_displaydebugmenu)
+        {
+          SyncLock M(g_menu.m_mutex);
+
+          for(size_t i = 0; i < g_menu.groupcount; ++i)
+          {
+            auto &group = g_menu.groups[i];
+
+            char buffer[128] = "";
+            strncat(buffer, group.name, group.namelen);
+
+            overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleGroup, i) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+            if (contains(Rect2(cursor, cursor + Vec2(5 + font->width(buffer), font->lineheight())), mousepos))
+              *interaction = { Ui::Interaction::ToggleGroup, i };
+
+            cursor += Vec2(0.0f, font->lineheight() + 2);
+
+            if (group.expanded)
             {
-              size_t k = group.entries[j] - g_menu.entries;
-
-              auto &entry = g_menu.entries[k];
-
-              int x = 15;
-
-              snprintf(buffer, sizeof(buffer), "%s: ", entry.label);
-
-              overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer);
-
-              x += font->width(buffer);
-
-              if (entry.type == typeid(bool))
+              for(size_t j = 0; j < group.entrycount; ++j)
               {
-                snprintf(buffer, sizeof(buffer), "%s", entry.value<bool>() ? "true" : "false");
+                size_t k = group.entries[j] - g_menu.entries;
 
-                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBoolEntry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+                auto &entry = g_menu.entries[k];
 
-                if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
-                  *interaction = { Ui::Interaction::ToggleBoolEntry, k };
+                int x = 15;
+
+                snprintf(buffer, sizeof(buffer), "%s: ", entry.label);
+
+                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer);
 
                 x += font->width(buffer);
+
+                if (entry.type == typeid(bool))
+                {
+                  snprintf(buffer, sizeof(buffer), "%s", entry.value<bool>() ? "true" : "false");
+
+                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBoolEntry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+                  if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
+                    *interaction = { Ui::Interaction::ToggleBoolEntry, k };
+
+                  x += font->width(buffer);
+                }
+
+                if (entry.type == typeid(float) || entry.type == typeid(Vec2) || entry.type == typeid(Vec3) || entry.type == typeid(Color3))
+                {
+                  snprintf(buffer, sizeof(buffer), "%f", entry.value<float[]>()[0]);
+
+                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat0Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+                  if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
+                    *interaction = { Ui::Interaction::SlideFloat0Entry, k };
+
+                  x += font->width(buffer);
+                }
+
+                if (entry.type == typeid(Vec2) || entry.type == typeid(Vec3) || entry.type == typeid(Color3))
+                {
+                  snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[1]);
+
+                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
+                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat1Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+                  if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
+                    *interaction = { Ui::Interaction::SlideFloat1Entry, k };
+
+                  x += font->width(buffer);
+                }
+
+                if (entry.type == typeid(Vec3) || entry.type == typeid(Color3))
+                {
+                  snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[2]);
+
+                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
+                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat2Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+                  if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
+                    *interaction = { Ui::Interaction::SlideFloat2Entry, k };
+
+                  x += font->width(buffer);
+                }
+
+                cursor += Vec2(0.0f, font->lineheight() + 2);
               }
-
-              if (entry.type == typeid(float) || entry.type == typeid(Vec2) || entry.type == typeid(Vec3) || entry.type == typeid(Color3))
-              {
-                snprintf(buffer, sizeof(buffer), "%f", entry.value<float[]>()[0]);
-
-                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat0Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-                if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
-                  *interaction = { Ui::Interaction::SlideFloat0Entry, k };
-
-                x += font->width(buffer);
-              }
-
-              if (entry.type == typeid(Vec2) || entry.type == typeid(Vec3) || entry.type == typeid(Color3))
-              {
-                snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[1]);
-
-                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
-                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat1Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-                if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
-                  *interaction = { Ui::Interaction::SlideFloat1Entry, k };
-
-                x += font->width(buffer);
-              }
-
-              if (entry.type == typeid(Vec3) || entry.type == typeid(Color3))
-              {
-                snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[2]);
-
-                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
-                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat2Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
-
-                if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
-                  *interaction = { Ui::Interaction::SlideFloat2Entry, k };
-
-                x += font->width(buffer);
-              }
-
-              cursor += Vec2(0.0f, font->lineheight() + 2);
             }
           }
         }
       }
-    }
 
-    overlay.finalise(buildstate);
+      overlay.finalise(buildstate);
 
-    auto entry = pushbuffer.push<Renderable::Sprites>();
+      auto entry = pushbuffer.push<Renderable::Sprites>();
 
-    if (entry)
-    {
-      entry->viewport = Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height));
-      entry->commandlist = overlay.commandlist();
+      if (entry)
+      {
+        entry->viewport = Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height));
+        entry->commandlist = overlay.commandlist();
+      }
     }
 
     END_TIMED_BLOCK(DebugOverlay)
@@ -999,7 +997,7 @@ void update_debug_overlay(GameInput const &input, bool *accepted)
 
 
 ///////////////////////// render_debug_overlay //////////////////////////////
-void render_debug_overlay(DatumPlatform::PlatformInterface &platform, RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font)
+void render_debug_overlay(RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font)
 {
   if (g_running)
   {
@@ -1010,7 +1008,7 @@ void render_debug_overlay(DatumPlatform::PlatformInterface &platform, RenderCont
 
   if (g_running || g_visible)
   {
-    push_debug_overlay(platform, context, resources, pushbuffer, viewport, font, &interaction);
+    push_debug_overlay(context, resources, pushbuffer, viewport, font, &interaction);
   }
 
   g_interaction.nexthot = interaction;

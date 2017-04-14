@@ -18,7 +18,7 @@ enum ShaderLocation
   spectrum = 1,
   maptarget = 2,
   displacementmap = 3,
-  vertexbuffer = 4,
+  vertexbuffer_datasize = 4,
 };
 
 struct OceanSet
@@ -190,7 +190,7 @@ void update_ocean(OceanParams &params, float dt)
     }
   }
 
-  params.flow += 0.002f * params.windspeed * params.winddirection * dt;
+  params.flow += params.windspeed * params.winddirection * dt;
 }
 
 
@@ -514,7 +514,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
   size_t verticessize = mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize;
   auto verticesbuffer = create_storagebuffer(context.vulkan, mesh->vertexbuffer.memory, mesh->vertexbuffer.verticesoffset, verticessize);
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 

@@ -21,7 +21,7 @@ using namespace lml;
 template<>
 Scene::EntityId Scene::create<Model>(ResourceManager *resourcemanager)
 {
-  auto id = add_entity<Model>(this, resourcemanager, allocator<>());
+  auto id = add_entity<Model>(this, resourcemanager, m_allocator);
 
   add_component<TransformComponent>(id, Transform::identity());
 
@@ -123,7 +123,11 @@ Scene::EntityId Model::add_instance(Transform const &transform, size_t mesh, siz
   auto instance = m_scene->create<Entity>();
 
   m_scene->add_component<TransformComponent>(instance, m_scene->get_component<TransformComponent>(id), transform);
-  m_scene->add_component<MeshComponent>(instance, meshes[mesh], materials[material], flags);
+
+  if (meshes[mesh] && materials[material])
+  {
+    m_scene->add_component<MeshComponent>(instance, meshes[mesh], materials[material], flags);
+  }
 
   dependants.push_back(instance);
 

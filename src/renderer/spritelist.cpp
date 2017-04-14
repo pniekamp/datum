@@ -70,12 +70,11 @@ void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 //|--------------------------------------------------------------------------
 
 ///////////////////////// SpriteList::begin /////////////////////////////////
-bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
+bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
 {
   m_commandlist = {};
 
   state = {};
-  state.platform = &platform;
   state.context = &context;
   state.resources = resources;
 
@@ -106,7 +105,7 @@ bool SpriteList::begin(BuildState &state, PlatformInterface &platform, RenderCon
     commandlist->release(sceneset);
   }
 
-  bind_vertexbuffer(*commandlist, context.unitquad);
+  bind_vertexbuffer(*commandlist, 0, context.unitquad);
 
   m_commandlist = { resources, commandlist };
 
@@ -161,7 +160,6 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-#if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
@@ -181,16 +179,6 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
 
     draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
   }
-#else
-   ModelSet modelset;
-   modelset.xbasis = xbasis;
-   modelset.ybasis = ybasis;
-   modelset.position = Vec4(position, layer - 0.5f + 1e-3f, 1);
-
-   push(commandlist, context.pipelinelayout, 0, sizeof(modelset), &modelset, VK_SHADER_STAGE_VERTEX_BIT);
-
-   draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
-#endif
 }
 
 
@@ -266,16 +254,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
 void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, float size, Sprite const *sprite, float layer, Color4 const &tint)
 {
-  if (!sprite)
-    return;
-
-  if (!sprite->ready())
-  {
-    state.resources->request(*state.platform, sprite);
-
-    if (!sprite->ready())
-      return;
-  }
+  assert(sprite && sprite->ready());
 
   if (state.texture != sprite->atlas->texture || state.texcoords != sprite->extent || state.color != tint)
   {
@@ -332,16 +311,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size
 ///////////////////////// SpriteList::push_text /////////////////////////////
 void SpriteList::push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Vec2 const &position, float size, Font const *font, const char *str, Color4 const &tint)
 {
-  if (!font)
-    return;
-
-  if (!font->ready())
-  {
-    state.resources->request(*state.platform, font);
-
-    if (!font->ready())
-      return;
-  }
+  assert(font && font->ready());
 
   auto scale = size / font->height();
 
@@ -390,13 +360,10 @@ void SpriteList::push_text(BuildState &state, Vec2 const &position, float size, 
 ///////////////////////// SpriteList::push_texture //////////////////////////
 void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 const &rect, Vulkan::Texture const &texture, float layer, lml::Color4 const &tint)
 {
-  if (!texture.sampler)
-    return;
-
-  push_material(state, texture, Vec4(0, 0, 1, 1), tint);
-
   auto xbasis = Vec2(1, 0);
   auto ybasis = Vec2(0, 1);
+
+  push_material(state, texture, Vec4(0, 0, 1, 1), tint);
 
   push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, layer);
 }

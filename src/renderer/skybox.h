@@ -15,7 +15,7 @@
 //|---------------------- SkyBox --------------------------------------------
 //|--------------------------------------------------------------------------
 
-class SkyBox
+class SkyBox : public EnvMap
 {
   public:
     friend SkyBox const *ResourceManager::create<SkyBox>(Asset const *asset);
@@ -23,11 +23,7 @@ class SkyBox
 
     friend void ResourceManager::update<SkyBox>(SkyBox const *skybox, ResourceManager::TransferLump const *lump);
 
-    bool ready() const { return envmap->ready(); }
-
-    EnvMap const *envmap;
-
-  private:
+  protected:
     SkyBox() = default;
 };
 

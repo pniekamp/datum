@@ -758,15 +758,19 @@ void write_core()
   write_mesh_asset(fout, CoreAsset::line_quad, { { -1.0, 1.0, 0.0 }, { -1.0, -1.0, 0.0 }, { 1.0, -1.0, 0.0 }, { 1.0, 1.0, 0.0 } }, { 0, 1, 1, 2, 2, 3, 3, 0 });
   write_mesh_asset(fout, CoreAsset::line_cube, { { -1.0, -1.0, 1.0 }, { 1.0, -1.0, 1.0 }, { 1.0, 1.0, 1.0 }, { -1.0, 1.0, 1.0 }, { -1.0, -1.0, -1.0 }, { 1.0, -1.0, -1.0 }, { 1.0, 1.0, -1.0 }, { -1.0, 1.0, -1.0 } }, { 0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 1, 5, 2, 6, 3, 7, 4, 5, 5, 6, 6, 7, 7, 4 });
 
-  write_shader_asset(fout, CoreAsset::shadow_vert, "../../data/shadow.vert");
   write_shader_asset(fout, CoreAsset::shadow_geom, "../../data/shadow.geom");
   write_shader_asset(fout, CoreAsset::shadow_frag, "../../data/shadow.frag");
+
+  write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
 
   write_shader_asset(fout, CoreAsset::depth_vert, "../../data/depth.vert");
   write_shader_asset(fout, CoreAsset::depth_frag, "../../data/depth.frag");
 
-  write_shader_asset(fout, CoreAsset::geometry_vert, "../../data/geometry.vert");
-  write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
+  write_shader_asset(fout, CoreAsset::model_vert, "../../data/model.vert");
+  write_shader_asset(fout, CoreAsset::model_shadow_vert, "../../data/model.shadow.vert");
+
+  write_shader_asset(fout, CoreAsset::actor_vert, "../../data/actor.vert");
+  write_shader_asset(fout, CoreAsset::actor_shadow_vert, "../../data/actor.shadow.vert");
 
   write_shader_asset(fout, CoreAsset::ocean_vert, "../../data/ocean.vert");
   write_shader_asset(fout, CoreAsset::ocean_frag, "../../data/ocean.frag");

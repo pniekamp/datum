@@ -231,13 +231,13 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t 
 
 
 ///////////////////////// write_mesh_asset //////////////////////////////////
-uint32_t write_mesh_asset(ostream &fout, uint32_t id, uint32_t vertexcount, uint32_t indexcount, Bound3 const &bound, void const *bits)
+uint32_t write_mesh_asset(ostream &fout, uint32_t id, uint32_t vertexcount, uint32_t indexcount, uint32_t bonecount, Bound3 const &bound, void const *bits)
 {
   PackAssetHeader aset = { id };
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackMeshHeader mesh = { vertexcount, indexcount, bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackMeshHeader mesh = { vertexcount, indexcount, bonecount, bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "MESH", sizeof(mesh), &mesh);
 
@@ -267,7 +267,35 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
   memcpy(vertextable, vertices.data(), vertices.size()*sizeof(PackVertex));
   memcpy(indextable, indices.data(), indices.size()*sizeof(uint32_t));
 
-  write_mesh_asset(fout, id, vertices.size(), indices.size(), bound, payload.data());
+  write_mesh_asset(fout, id, vertices.size(), indices.size(), 0, bound, payload.data());
+
+  return id + 1;
+}
+
+
+///////////////////////// write_mesh_asset //////////////////////////////////
+uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &vertices, vector<uint32_t> const &indices, vector<PackMeshPayload::Rig> const &rig, vector<PackMeshPayload::Bone> const &bones)
+{
+  Bound3 bound = bound_limits<Bound3>::min();
+
+  for(auto &vertex : vertices)
+  {
+    bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
+  }
+
+  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t) + rig.size()*sizeof(PackMeshPayload::Rig) + bones.size()*sizeof(PackMeshPayload::Bone));
+
+  auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
+  auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
+  auto rigtable = const_cast<PackMeshPayload::Rig*>(PackMeshPayload::rigtable(payload.data(), vertices.size(), indices.size()));
+  auto bonetable = const_cast<PackMeshPayload::Bone*>(PackMeshPayload::bonetable(payload.data(), vertices.size(), indices.size()));
+
+  memcpy(vertextable, vertices.data(), vertices.size()*sizeof(PackVertex));
+  memcpy(indextable, indices.data(), indices.size()*sizeof(uint32_t));
+  memcpy(rigtable, rig.data(), rig.size()*sizeof(PackMeshPayload::Rig));
+  memcpy(bonetable, bones.data(), bones.size()*sizeof(PackMeshPayload::Bone));
+
+  write_mesh_asset(fout, id, vertices.size(), indices.size(), bones.size(), bound, payload.data());
 
   return id + 1;
 }
@@ -315,6 +343,76 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, Color4 const &color, float
 }
 
 
+///////////////////////// write_anim_asset //////////////////////////////////
+uint32_t write_anim_asset(ostream &fout, uint32_t id, float duration, uint32_t jointcount, uint32_t transformcount, void const *bits)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackAnimationHeader anim = { duration, jointcount, transformcount, (size_t)fout.tellp() + sizeof(anim) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "ANIM", sizeof(anim), &anim);
+
+  write_chunk(fout, "DATA", pack_payload_size(anim), bits);
+
+  write_chunk(fout, "AEND", 0, nullptr);
+
+  return id + 1;
+}
+
+
+///////////////////////// write_anim_asset //////////////////////////////////
+uint32_t write_anim_asset(ostream &fout, uint32_t id, float duration, vector<PackAnimationPayload::Joint> const &joints, vector<PackAnimationPayload::Transform> const &transforms)
+{
+  vector<char> payload(sizeof(PackAnimationPayload) + joints.size()*sizeof(PackAnimationPayload::Joint) + transforms.size()*sizeof(PackAnimationPayload::Transform));
+
+  auto jointtable = const_cast<PackAnimationPayload::Joint*>(PackAnimationPayload::jointtable(payload.data(), joints.size(), transforms.size()));
+  auto transformtable = const_cast<PackAnimationPayload::Transform*>(PackAnimationPayload::transformtable(payload.data(), joints.size(), transforms.size()));
+
+  memcpy(jointtable, joints.data(), joints.size()*sizeof(PackAnimationPayload::Joint));
+  memcpy(transformtable, transforms.data(), transforms.size()*sizeof(PackAnimationPayload::Transform));
+
+  write_anim_asset(fout, id, duration, joints.size(), transforms.size(), payload.data());
+
+  return id + 1;
+}
+
+
+///////////////////////// write_part_asset //////////////////////////////////
+uint32_t write_part_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint32_t maxparticles, uint32_t emittercount, uint32_t emitterssize, void const *bits)
+{
+  PackAssetHeader aset = { id };
+
+  write_chunk(fout, "ASET", sizeof(aset), &aset);
+
+  PackParticleSystemHeader part = { bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, maxparticles, emittercount, emitterssize, (size_t)fout.tellp() + sizeof(part) + sizeof(PackChunk) + sizeof(uint32_t) };
+
+  write_chunk(fout, "PART", sizeof(part), &part);
+
+  write_chunk(fout, "DATA", pack_payload_size(part), bits);
+
+  write_chunk(fout, "AEND", 0, nullptr);
+
+  return id + 1;
+}
+
+
+///////////////////////// write_part_asset //////////////////////////////////
+uint32_t write_part_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint32_t spritesheet, uint32_t maxparticles, uint32_t emittercount, vector<uint8_t> const &emitters)
+{
+  vector<char> payload(sizeof(PackParticleSystemPayload) + emitters.size());
+
+  reinterpret_cast<PackParticleSystemPayload*>(payload.data())->spritesheet = spritesheet;
+
+  memcpy(payload.data() + sizeof(PackParticleSystemPayload), emitters.data(), emitters.size());
+
+  write_part_asset(fout, id, bound, maxparticles, emittercount, emitters.size(), payload.data());
+
+  return id + 1;
+}
+
+
 ///////////////////////// write_modl_asset //////////////////////////////////
 uint32_t write_modl_asset(ostream &fout, uint32_t id, uint32_t texturecount, uint32_t materialcount, uint32_t meshcount, uint32_t instancecount, void const *bits)
 {
@@ -350,40 +448,6 @@ uint32_t write_modl_asset(ostream &fout, uint32_t id, vector<PackModelPayload::T
   memcpy(instancetable, instances.data(), instances.size()*sizeof(PackModelPayload::Instance));
 
   write_modl_asset(fout, id, textures.size(), materials.size(), meshes.size(), instances.size(), payload.data());
-
-  return id + 1;
-}
-
-
-///////////////////////// write_ptsm_asset //////////////////////////////////
-uint32_t write_ptsm_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint32_t maxparticles, uint32_t emittercount, uint32_t emitterssize, void const *bits)
-{
-  PackAssetHeader aset = { id };
-
-  write_chunk(fout, "ASET", sizeof(aset), &aset);
-
-  PackParticleSystemHeader ptsm = { bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, maxparticles, emittercount, emitterssize, (size_t)fout.tellp() + sizeof(ptsm) + sizeof(PackChunk) + sizeof(uint32_t) };
-
-  write_chunk(fout, "PTSM", sizeof(ptsm), &ptsm);
-
-  write_chunk(fout, "DATA", pack_payload_size(ptsm), bits);
-
-  write_chunk(fout, "AEND", 0, nullptr);
-
-  return id + 1;
-}
-
-
-///////////////////////// write_ptsm_asset //////////////////////////////////
-uint32_t write_ptsm_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint32_t spritesheet, uint32_t maxparticles, uint32_t emittercount, vector<uint8_t> const &emitters)
-{
-  vector<char> payload(sizeof(PackParticleSystemPayload) + emitters.size());
-
-  reinterpret_cast<PackParticleSystemPayload*>(payload.data())->spritesheet = spritesheet;
-
-  memcpy(payload.data() + sizeof(PackParticleSystemPayload), emitters.data(), emitters.size());
-
-  write_ptsm_asset(fout, id, bound, maxparticles, emittercount, emitters.size(), payload.data());
 
   return id + 1;
 }

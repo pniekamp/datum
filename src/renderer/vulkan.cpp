@@ -495,10 +495,17 @@ namespace Vulkan
 
 
   ///////////////////////// update_vertexbuffer /////////////////////////////
-  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer)
+  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, VertexBuffer &vertexbuffer)
   {
-    blit(commandbuffer, transferbuffer, vertexbuffer.verticesoffset, vertexbuffer.vertices, 0, vertexbuffer.vertexcount * vertexbuffer.vertexsize);
-    blit(commandbuffer, transferbuffer, vertexbuffer.indicesoffset, vertexbuffer.indices, 0, vertexbuffer.indexcount * vertexbuffer.indexsize);
+    blit(commandbuffer, transferbuffer, offset, vertexbuffer.vertices, 0, vertexbuffer.vertexcount * vertexbuffer.vertexsize);
+  }
+
+
+  ///////////////////////// update_vertexbuffer /////////////////////////////
+  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize verticesoffset, VkDeviceSize indicesoffset, VertexBuffer &vertexbuffer)
+  {
+    blit(commandbuffer, transferbuffer, verticesoffset, vertexbuffer.vertices, 0, vertexbuffer.vertexcount * vertexbuffer.vertexsize);
+    blit(commandbuffer, transferbuffer, indicesoffset, vertexbuffer.indices, 0, vertexbuffer.indexcount * vertexbuffer.indexsize);
   }
 
 
@@ -511,7 +518,7 @@ namespace Vulkan
 
     memcpy(map_memory<uint8_t>(vulkan, transferbuffer, 0, verticessize), vertices, verticessize);
 
-    blit(commandbuffer, transferbuffer, 0, vertexbuffer.vertices, vertexbuffer.verticesoffset, vertexbuffer.vertexcount * vertexbuffer.vertexsize);
+    update_vertexbuffer(commandbuffer, transferbuffer, 0, vertexbuffer);
   }
 
 
@@ -526,8 +533,7 @@ namespace Vulkan
     memcpy(map_memory<uint8_t>(vulkan, transferbuffer, vertexbuffer.verticesoffset, verticessize), vertices, verticessize);
     memcpy(map_memory<uint8_t>(vulkan, transferbuffer, vertexbuffer.indicesoffset, indicessize), indices, indicessize);
 
-    blit(commandbuffer, transferbuffer, vertexbuffer.verticesoffset, vertexbuffer.vertices, 0, vertexbuffer.vertexcount * vertexbuffer.vertexsize);
-    blit(commandbuffer, transferbuffer, vertexbuffer.indicesoffset, vertexbuffer.indices, 0, vertexbuffer.indexcount * vertexbuffer.indexsize);
+    update_vertexbuffer(commandbuffer, transferbuffer, vertexbuffer.verticesoffset, vertexbuffer.indicesoffset, vertexbuffer);
   }
 
 
@@ -643,11 +649,10 @@ namespace Vulkan
 
 
   ///////////////////////// update_texture //////////////////////////////////
-  void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, Texture &texture)
+  void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, Texture &texture)
   {
     setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
 
-    size_t offset = 0;
     for(uint32_t level = 0; level < texture.levels; ++level)
     {
       uint32_t width = texture.width >> level;
@@ -676,7 +681,7 @@ namespace Vulkan
 
     memcpy(map_memory<uint8_t>(vulkan, transferbuffer, 0, size), bits, size);
 
-    update_texture(commandbuffer, transferbuffer, texture);
+    update_texture(commandbuffer, transferbuffer, 0, texture);
   }
 
 
@@ -1451,6 +1456,13 @@ namespace Vulkan
   }
 
 
+  ///////////////////////// set_stencil_reference ///////////////////////////
+  void set_stencil_reference(VkCommandBuffer commandbuffer, VkStencilFaceFlags facemask, uint32_t reference)
+  {
+    vkCmdSetStencilReference(commandbuffer, facemask, reference);
+  }
+
+
   ///////////////////////// bind ////////////////////////////////////////////
   void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint)
   {
@@ -1505,11 +1517,11 @@ namespace Vulkan
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bind_vertexbuffer(VkCommandBuffer commandbuffer, VertexBuffer const &vertexbuffer)
+  void bind_vertexbuffer(VkCommandBuffer commandbuffer, uint32_t binding, VertexBuffer const &vertexbuffer)
   {
     VkDeviceSize offsets[] = { 0 };
 
-    vkCmdBindVertexBuffers(commandbuffer, 0, 1, vertexbuffer.vertices.data(), offsets);
+    vkCmdBindVertexBuffers(commandbuffer, binding, 1, vertexbuffer.vertices.data(), offsets);
 
     switch(vertexbuffer.indexsize)
     {

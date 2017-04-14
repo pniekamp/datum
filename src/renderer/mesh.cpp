@@ -13,14 +13,52 @@
 
 using namespace std;
 using namespace lml;
+using leap::alignto;
 
 namespace
 {
-  size_t mesh_datasize(int vertexcount, int indexcount)
+  size_t mesh_datasize(int bonecount)
   {
-    assert(vertexcount > 0 && indexcount > 0);
+    return bonecount * sizeof(Mesh::Bone);
+  }
 
-    return vertexcount * sizeof(Vertex) + 4096 + indexcount * sizeof(uint32_t);
+  size_t vertexbuffer_verticessize(int vertexcount, int indexcount, int bonecount)
+  {
+    return alignto(vertexcount * sizeof(Mesh::Vertex), size_t(4096));
+  }
+
+  size_t vertexbuffer_indicessize(int vertexcount, int indexcount, int bonecount)
+  {
+    return alignto(indexcount * sizeof(uint32_t), size_t(4096));
+  }
+
+  size_t vertexbuffer_rigsize(int vertexcount, int indexcount, int bonecount)
+  {
+    return (bonecount != 0) ? alignto(vertexcount * sizeof(Mesh::Rig), size_t(4096)) : 0;
+  }
+
+  size_t vertexbuffer_datasize(int vertexcount, int indexcount, int bonecount)
+  {
+    size_t verticessize = vertexbuffer_verticessize(vertexcount, indexcount, bonecount);
+    size_t indicessize = vertexbuffer_indicessize(vertexcount, indexcount, bonecount);
+    size_t rigsize = vertexbuffer_rigsize(vertexcount, indexcount, bonecount);
+
+    return verticessize + indicessize + rigsize;
+  }
+
+  size_t vertexbuffer_verticesoffset(int vertexcount, int indexcount, int bonecount)
+  {
+    return 0;
+  }
+
+  size_t vertexbuffer_indicesoffset(int vertexcount, int indexcount, int bonecount)
+  {
+    return vertexbuffer_verticesoffset(vertexcount, indexcount, bonecount) + vertexbuffer_verticessize(vertexcount, indexcount, bonecount);
+  }
+
+  size_t vertexbuffer_rigoffset(int vertexcount, int indexcount, int bonecount)
+  {
+    return vertexbuffer_indicesoffset(vertexcount, indexcount, bonecount) + vertexbuffer_indicessize(vertexcount, indexcount, bonecount);
   }
 }
 
@@ -34,7 +72,7 @@ Mesh const *ResourceManager::create<Mesh>(Asset const *asset)
   if (!asset)
     return nullptr;
 
-  auto slot = acquire_slot(sizeof(Mesh));
+  auto slot = acquire_slot(sizeof(Mesh) + mesh_datasize(asset->bonecount));
 
   if (!slot)
     return nullptr;
@@ -42,6 +80,8 @@ Mesh const *ResourceManager::create<Mesh>(Asset const *asset)
   auto mesh = new(slot) Mesh;
 
   mesh->bound = Bound3(Vec3(asset->mincorner[0], asset->mincorner[1], asset->mincorner[2]), Vec3(asset->maxcorner[0], asset->maxcorner[1], asset->maxcorner[2]));
+  mesh->bonecount = asset->bonecount;
+  mesh->bones = nullptr;
   mesh->asset = asset;
   mesh->transferlump = nullptr;
   mesh->state = Mesh::State::Empty;
@@ -62,32 +102,29 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
   auto mesh = new(slot) Mesh;
 
   mesh->bound = {};
+  mesh->bonecount = 0;
+  mesh->bones = nullptr;
   mesh->asset = nullptr;
   mesh->transferlump = nullptr;
   mesh->state = Mesh::State::Empty;
 
-  auto lump = acquire_lump(0);
-
-  if (!lump)
   {
-    mesh->~Mesh();
+    leap::threadlib::SyncLock lock(m_mutex);
 
-    release_slot(mesh, sizeof(Mesh));
+    auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    auto setupfence = create_fence(vulkan, 0);
 
-    return nullptr;
+    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    mesh->vertexbuffer = create_vertexbuffer(vulkan, setupbuffer, vertexcount, sizeof(Mesh::Vertex), indexcount, sizeof(uint32_t));
+
+    end(vulkan, setupbuffer);
+
+    submit(vulkan, setupbuffer, setupfence);
+
+    wait_fence(vulkan, setupfence);
   }
-
-  wait_fence(vulkan, lump->fence);
-
-  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-  mesh->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, vertexcount, sizeof(Vertex), indexcount, sizeof(uint32_t));
-
-  end(vulkan, lump->commandbuffer);
-
-  submit_transfer(lump);
-
-  release_lump(lump);
 
   mesh->state = Mesh::State::Ready;
 
@@ -115,7 +152,7 @@ void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLu
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  update_vertexbuffer(lump->commandbuffer, lump->transferbuffer, slot->vertexbuffer);
+  update_vertexbuffer(lump->commandbuffer, lump->transferbuffer, slot->vertexbuffer.verticesoffset, slot->vertexbuffer.indicesoffset, slot->vertexbuffer);
 
   end(vulkan, lump->commandbuffer);
 
@@ -161,18 +198,33 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
         auto vertextable = PackMeshPayload::vertextable(payload, asset->vertexcount, asset->indexcount);
         auto indextable = PackMeshPayload::indextable(payload, asset->vertexcount, asset->indexcount);
 
-        if (auto lump = acquire_lump(mesh_datasize(asset->vertexcount, asset->indexcount)))
+        if (auto lump = acquire_lump(vertexbuffer_datasize(asset->vertexcount, asset->indexcount, asset->bonecount)))
         {
+          auto verticesoffset = vertexbuffer_verticesoffset(asset->vertexcount, asset->indexcount, asset->bonecount);
+          auto indicesoffset = vertexbuffer_indicesoffset(asset->vertexcount, asset->indexcount, asset->bonecount);
+          auto rigoffset = vertexbuffer_rigoffset(asset->vertexcount, asset->indexcount, asset->bonecount);
+
           wait_fence(vulkan, lump->fence);
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, asset->vertexcount, sizeof(Vertex), asset->indexcount, sizeof(uint32_t));
+          slot->vertexbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, asset->vertexcount, sizeof(Mesh::Vertex), asset->indexcount, sizeof(uint32_t));
 
-          memcpy((uint8_t*)lump->transfermemory + slot->vertexbuffer.verticesoffset, vertextable, slot->vertexbuffer.vertexcount * slot->vertexbuffer.vertexsize);
-          memcpy((uint8_t*)lump->transfermemory + slot->vertexbuffer.indicesoffset, indextable, slot->vertexbuffer.indexcount * slot->vertexbuffer.indexsize);
+          memcpy(lump->memory(verticesoffset), vertextable, slot->vertexbuffer.vertexcount * slot->vertexbuffer.vertexsize);
+          memcpy(lump->memory(indicesoffset), indextable, slot->vertexbuffer.indexcount * slot->vertexbuffer.indexsize);
 
-          update_vertexbuffer(lump->commandbuffer, lump->transferbuffer, slot->vertexbuffer);
+          update_vertexbuffer(lump->commandbuffer, lump->transferbuffer, verticesoffset, indicesoffset, slot->vertexbuffer);
+
+          if (asset->bonecount != 0)
+          {
+            auto rigtable = PackMeshPayload::rigtable(payload, asset->vertexcount, asset->indexcount);
+
+            slot->rigbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, asset->vertexcount, sizeof(Mesh::Rig));
+
+            memcpy(lump->memory(rigoffset), rigtable, slot->rigbuffer.vertexcount * slot->rigbuffer.vertexsize);
+
+            update_vertexbuffer(lump->commandbuffer, lump->transferbuffer, rigoffset, slot->rigbuffer);
+          }
 
           end(vulkan, lump->commandbuffer);
 
@@ -180,32 +232,39 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
           slot->transferlump = lump;
 
-          slot->state = Mesh::State::Waiting;
+          if (asset->bonecount != 0)
+          {
+            auto bonetable = PackMeshPayload::bonetable(payload, asset->vertexcount, asset->indexcount);
+
+            auto bonedata = reinterpret_cast<Mesh::Bone*>(slot->data);
+
+            memcpy(bonedata, bonetable, asset->bonecount*sizeof(Mesh::Bone));
+
+            slot->bones = bonedata;
+          }
         }
-        else
-          slot->state = Mesh::State::Empty;
       }
-      else
-        slot->state = Mesh::State::Empty;
     }
-    else
-      slot->state = Mesh::State::Empty;
+
+    slot->state = (slot->vertexbuffer) ? Mesh::State::Waiting : Mesh::State::Empty;
   }
 
   Mesh::State waiting = Mesh::State::Waiting;
 
   if (slot->state.compare_exchange_strong(waiting, Mesh::State::Testing))
   {
+    bool ready = false;
+
     if (test_fence(vulkan, slot->transferlump->fence))
     {
       release_lump(slot->transferlump);
 
       slot->transferlump = nullptr;
 
-      slot->state = Mesh::State::Ready;
+      ready = true;
     }
-    else
-      slot->state = Mesh::State::Waiting;
+
+    slot->state = (ready) ? Mesh::State::Ready : Mesh::State::Waiting;
   }
 }
 
@@ -214,8 +273,6 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 template<>
 void ResourceManager::release<Mesh>(Mesh const *mesh)
 {
-  assert(mesh);
-
   defer_destroy(mesh);
 }
 
@@ -224,14 +281,15 @@ void ResourceManager::release<Mesh>(Mesh const *mesh)
 template<>
 void ResourceManager::destroy<Mesh>(Mesh const *mesh)
 {
-  assert(mesh);
+  if (mesh)
+  {
+    if (mesh->transferlump)
+      release_lump(mesh->transferlump);
 
-  if (mesh->transferlump)
-    release_lump(mesh->transferlump);
+    mesh->~Mesh();
 
-  mesh->~Mesh();
-
-  release_slot(const_cast<Mesh*>(mesh), sizeof(Mesh));
+    release_slot(const_cast<Mesh*>(mesh), sizeof(Mesh) + mesh_datasize(mesh->bonecount));
+  }
 }
 
 
@@ -242,7 +300,7 @@ Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float t
 
   if (auto lump = resources.acquire_lump(mesh->vertexbuffer.size))
   {
-    auto vertices = lump->memory<Vertex>(mesh->vertexbuffer.verticesoffset);
+    auto vertices = lump->memory<Mesh::Vertex>(mesh->vertexbuffer.verticesoffset);
 
     for(int y = 0; y < sizey; ++y)
     {

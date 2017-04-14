@@ -62,7 +62,13 @@ struct GeometryMaterialSet
 
 struct ModelSet
 {
-  Transform modelworld;
+  alignas(16) Transform modelworld;
+};
+
+struct ActorSet
+{
+  alignas(16) Transform modelworld;
+  alignas(16) Transform bones[1];
 };
 
 
@@ -77,12 +83,11 @@ void draw_geometry(RenderContext &context, VkCommandBuffer commandbuffer, Render
 //|--------------------------------------------------------------------------
 
 ///////////////////////// GeometryList::begin ///////////////////////////////
-bool GeometryList::begin(BuildState &state, PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
+bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
 {
   m_commandlist = {};
 
   state = {};
-  state.platform = &platform;
   state.context = &context;
   state.resources = resources;
 
@@ -113,46 +118,29 @@ bool GeometryList::begin(BuildState &state, PlatformInterface &platform, RenderC
 ///////////////////////// GeometryList::push_mesh ///////////////////////////
 void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
 
-  if (state.pipeline != context.geometrypipeline)
+  if (state.pipeline != context.modelpipeline)
   {
-    bind_pipeline(commandlist, context.geometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(commandlist, context.modelpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    state.pipeline = context.geometrypipeline;
+    state.pipeline = context.modelpipeline;
   }
 
   if (state.mesh != mesh)
   {
-    if (!mesh->ready())
-    {
-      state.resources->request(*state.platform, mesh);
-
-      if (!mesh->ready())
-        return;
-    }
-
-    bind_vertexbuffer(commandlist, mesh->vertexbuffer);
+    bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
 
   if (state.material != material)
   {
-    if (!material->ready())
-    {
-      state.resources->request(*state.platform, material);
-
-      if (!material->ready())
-        return;
-    }
-
     state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
 
     if (state.materialset)
@@ -177,7 +165,6 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
     }
   }
 
-#if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
@@ -195,21 +182,88 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
-#else
-  push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
+}
 
-  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
-#endif
+
+///////////////////////// GeometryList::push_mesh ///////////////////////////
+void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose const &pose, Mesh const *mesh, Material const *material)
+{
+  assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+
+  if (state.pipeline != context.actorpipeline)
+  {
+    bind_pipeline(commandlist, context.actorpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    state.pipeline = context.actorpipeline;
+  }
+
+  if (state.mesh != mesh)
+  {
+    bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(commandlist, 1, mesh->rigbuffer);
+
+    state.mesh = mesh;
+  }
+
+  if (state.material != material)
+  {
+    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
+
+    if (state.materialset)
+    {
+      auto offset = state.materialset.reserve(sizeof(GeometryMaterialSet));
+
+      auto materialset = state.materialset.memory<GeometryMaterialSet>(offset);
+
+      materialset->color = material->color;
+      materialset->metalness = material->metalness;
+      materialset->roughness = material->roughness;
+      materialset->reflectivity = material->reflectivity;
+      materialset->emissive = material->emissive;
+
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+
+      bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      state.material = material;
+    }
+  }
+
+  if (state.modelset.capacity() < state.modelset.used() + sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
+  {
+    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), state.modelset);
+  }
+
+  if (state.modelset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ActorSet) + pose.bonecount*sizeof(Transform));
+
+    auto modelset = state.modelset.memory<ActorSet>(offset);
+
+    modelset->modelworld = transform;
+
+    copy(pose.bones, pose.bones + pose.bonecount, modelset->bones);
+
+    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+  }
 }
 
 
 ///////////////////////// GeometryList::push_ocean //////////////////////////
 void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow, float bumpscale, const Plane &foamplane, float foamwaveheight, float foamwavescale, float foamshoreheight, float foamshorescale)
 {
-  if (!mesh || !material)
-    return;
-
   assert(state.commandlist);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
@@ -223,29 +277,13 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   if (state.mesh != mesh)
   {
-    if (!mesh->ready())
-    {
-      state.resources->request(*state.platform, mesh);
-
-      if (!mesh->ready())
-        return;
-    }
-
-    bind_vertexbuffer(commandlist, mesh->vertexbuffer);
+    bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
 
   if (state.material != material)
   {
-    if (!material->ready())
-    {
-      state.resources->request(*state.platform, material);
-
-      if (!material->ready())
-        return;
-    }
-
     state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OceanMaterialSet), state.materialset);
 
     if (state.materialset)
@@ -277,7 +315,6 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
     }
   }
 
-#if 1
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
@@ -297,11 +334,6 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
     draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
-#else
-  push(commandlist, context.pipelinelayout, 0, sizeof(transform), &transform, VK_SHADER_STAGE_VERTEX_BIT);
-
-  draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
-#endif
 }
 
 

@@ -24,7 +24,7 @@ enum ShaderLocation
 //|--------------------------------------------------------------------------
 
 ///////////////////////// LightList::begin //////////////////////////////////
-bool LightList::begin(BuildState &state, DatumPlatform::v1::PlatformInterface &platform, RenderContext &context, ResourceManager *resources)
+bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
 {
   m_commandlist = {};
 

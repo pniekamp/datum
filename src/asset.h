@@ -54,12 +54,20 @@ struct Asset
     {
       int vertexcount;
       int indexcount;
+      int bonecount;
       float mincorner[3];
       float maxcorner[3];
     };
 
     struct // material info
     {
+    };
+
+    struct // animation info
+    {
+      float duration;
+      int jointcount;
+      int transformcount;
     };
 
     struct // particle system
@@ -77,7 +85,6 @@ struct Asset
       int meshcount;
       int instancecount;
     };
-
   };
 };
 

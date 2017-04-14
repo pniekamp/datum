@@ -17,17 +17,23 @@ using namespace lml;
 //|--------------------------------------------------------------------------
 
 ///////////////////////// SpriteStorage::Constructor ////////////////////////
-SpriteComponentData *SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, lml::Color4 tint, int flags)
+SpriteComponentStorage::SpriteComponentStorage(Scene *scene, StackAllocator<> allocator)
+  : DefaultStorage(scene, allocator)
 {
-  auto data = BasicComponentStorage<SpriteComponentData>::add(entity);
+}
 
-  data->flags = flags;
-  data->sprite = sprite;
-  data->size = size;
-  data->layer = layer;
-  data->tint = tint;
 
-  return data;
+///////////////////////// SpriteStorage::Constructor ////////////////////////
+void SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 tint, int flags)
+{
+  auto index = DefaultStorage::add(entity);
+
+  data<entityid>(index) = entity;
+  data<flagbits>(index) = flags;
+  data<spriteresource>(index) = sprite;
+  data<spritesize>(index) = size;
+  data<spritelayer>(index) = layer;
+  data<spritetint>(index) = tint;
 }
 
 
@@ -35,7 +41,7 @@ SpriteComponentData *SpriteComponentStorage::add(EntityId entity, Sprite const *
 template<>
 void Scene::initialise_component_storage<SpriteComponent>()
 {
-  m_systems[typeid(SpriteComponentStorage)] = new(allocator<SpriteComponentStorage>().allocate(1)) SpriteComponentStorage(this, allocator());
+  m_systems[typeid(SpriteComponentStorage)] = new(allocator<SpriteComponentStorage>().allocate(1)) SpriteComponentStorage(this, m_allocator);
 }
 
 
@@ -43,8 +49,9 @@ void Scene::initialise_component_storage<SpriteComponent>()
 //|--------------------------------------------------------------------------
 
 ///////////////////////// SpriteComponent::Constructor //////////////////////
-SpriteComponent::SpriteComponent(SpriteComponentData *data)
-  : m_data(data)
+SpriteComponent::SpriteComponent(size_t index, SpriteComponentStorage *storage)
+  : index(index),
+    storage(storage)
 {
 }
 
@@ -52,38 +59,38 @@ SpriteComponent::SpriteComponent(SpriteComponentData *data)
 ///////////////////////// SpriteComponent::set_size /////////////////////////
 void SpriteComponent::set_size(float size)
 {
-  m_data->size = size;
+  storage->data<SpriteComponentStorage::spritesize>(index) = size;
 }
 
 
 ///////////////////////// SpriteComponent::set_layer ////////////////////////
 void SpriteComponent::set_layer(float layer)
 {
-  m_data->layer = layer;
+  storage->data<SpriteComponentStorage::spritelayer>(index) = layer;
 }
 
 
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size)
 {
-  m_data->sprite = sprite;
-  m_data->size = size;
+  storage->data<SpriteComponentStorage::spriteresource>(index) = sprite;
+  storage->data<SpriteComponentStorage::spritesize>(index) = size;
 }
 
 
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size, Color4 const &tint)
 {
-  m_data->sprite = sprite;
-  m_data->size = size;
-  m_data->tint = tint;
+  storage->data<SpriteComponentStorage::spriteresource>(index) = sprite;
+  storage->data<SpriteComponentStorage::spritesize>(index) = size;
+  storage->data<SpriteComponentStorage::spritetint>(index) = tint;
 }
 
 
 ///////////////////////// SpriteComponent::set_tint /////////////////////////
 void SpriteComponent::set_tint(Color4 const &tint)
 {
-  m_data->tint = tint;
+  storage->data<SpriteComponentStorage::spritetint>(index) = tint;
 }
 
 
@@ -95,7 +102,11 @@ SpriteComponent Scene::add_component<SpriteComponent>(Scene::EntityId entity, Sp
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
 
-  return system<SpriteComponentStorage>()->add(entity, sprite, size, 0.0f, tint, flags);
+  auto storage = system<SpriteComponentStorage>();
+
+  storage->add(entity, sprite, size, 0.0f, tint, flags);
+
+  return { storage->index(entity), storage };
 }
 
 template<>

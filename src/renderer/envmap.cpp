@@ -117,28 +117,23 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
       break;
   }
 
-  auto lump = acquire_lump(0);
-
-  if (!lump)
   {
-    envmap->~EnvMap();
+    leap::threadlib::SyncLock lock(m_mutex);
 
-    release_slot(envmap, sizeof(EnvMap));
+    auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    auto setupfence = create_fence(vulkan, 0);
 
-    return nullptr;
+    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    envmap->texture = create_texture(vulkan, setupbuffer, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    end(vulkan, setupbuffer);
+
+    submit(vulkan, setupbuffer, setupfence);
+
+    wait_fence(vulkan, setupfence);
   }
-
-  wait_fence(vulkan, lump->fence);
-
-  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-  envmap->texture = create_texture(vulkan, lump->commandbuffer, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-  end(vulkan, lump->commandbuffer);
-
-  submit_transfer(lump);
-
-  release_lump(lump);
 
   envmap->state = EnvMap::State::Ready;
 
@@ -166,7 +161,7 @@ void ResourceManager::update<EnvMap>(EnvMap const *envmap, ResourceManager::Tran
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  update_texture(lump->commandbuffer, lump->transferbuffer, slot->texture);
+  update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
 
   end(vulkan, lump->commandbuffer);
 
@@ -205,26 +200,20 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
 
           slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-          memcpy(lump->transfermemory, (char*)bits, lump->transferbuffer.size);
+          memcpy(lump->memory(), bits, lump->transferbuffer.size);
 
-          update_texture(lump->commandbuffer, lump->transferbuffer, slot->texture);
+          update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
 
           end(vulkan, lump->commandbuffer);
 
           submit_transfer(lump);
 
           release_lump(lump);
-
-          slot->state = EnvMap::State::Ready;
         }
-        else
-          slot->state = EnvMap::State::Empty;
       }
-      else
-        slot->state = EnvMap::State::Empty;
     }
-    else
-      slot->state = EnvMap::State::Empty;
+
+    slot->state = (slot->texture) ? EnvMap::State::Ready : EnvMap::State::Empty;
   }
 }
 
@@ -233,8 +222,6 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
 template<>
 void ResourceManager::release<EnvMap>(EnvMap const *envmap)
 {
-  assert(envmap);
-
   defer_destroy(envmap);
 }
 
@@ -243,9 +230,10 @@ void ResourceManager::release<EnvMap>(EnvMap const *envmap)
 template<>
 void ResourceManager::destroy<EnvMap>(EnvMap const *envmap)
 {
-  assert(envmap);
+  if (envmap)
+  {
+    envmap->~EnvMap();
 
-  envmap->~EnvMap();
-
-  release_slot(const_cast<EnvMap*>(envmap), sizeof(EnvMap));
+    release_slot(const_cast<EnvMap*>(envmap), sizeof(EnvMap));
+  }
 }

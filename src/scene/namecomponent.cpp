@@ -76,7 +76,7 @@ Scene::EntityId NameComponentStorage::find(const char *name) const
 template<>
 void Scene::initialise_component_storage<NameComponent>()
 {
-  m_systems[typeid(NameComponentStorage)] = new(allocator<NameComponentStorage>().allocate(1)) NameComponentStorage(this, allocator());
+  m_systems[typeid(NameComponentStorage)] = new(allocator<NameComponentStorage>().allocate(1)) NameComponentStorage(this, m_allocator);
 }
 
 

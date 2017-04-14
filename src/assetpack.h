@@ -135,23 +135,50 @@ struct PackMeshHeader
 {
   uint32_t vertexcount;
   uint32_t indexcount;
+  uint32_t bonecount;
   float mincorner[3];
   float maxcorner[3];
   uint64_t dataoffset;
 };
 
 struct PackMeshPayload
-{
-// float verticies[vertexcount][sizeof(PackVertex)];
+{   
+// PackVertex verticies[vertexcount];
 // uint32_t indicies[indexcount];
 
   static auto vertextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<PackVertex const *>(bits); }
   static auto indextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<uint32_t const *>((size_t)bits + vertexcount*sizeof(PackVertex)); }
+
+  struct Rig
+  {
+    uint32_t bone[4];
+    float weight[4];
+  };
+
+  struct Bone
+  {
+    char name[32];
+    float transform[8];
+  };
+
+  // if bonecount != 0
+  //   Rig rig[vertexcount];
+  //   Bone bones[bonecount];
+
+  static auto rigtable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Rig const *>((size_t)bits + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t)); }
+  static auto bonetable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Bone const *>((size_t)bits + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t) + vertexcount*sizeof(Rig)); }
 };
 
 constexpr size_t pack_payload_size(PackMeshHeader const &mesh)
 {
-  return mesh.vertexcount*sizeof(PackVertex) + mesh.indexcount*sizeof(uint32_t);
+  size_t size = mesh.vertexcount*sizeof(PackVertex) + mesh.indexcount*sizeof(uint32_t);
+
+  if (mesh.bonecount != 0)
+  {
+    size += mesh.vertexcount*sizeof(PackMeshPayload::Rig) + mesh.bonecount*sizeof(PackMeshPayload::Bone);
+  }
+
+  return size;
 }
 
 struct PackMaterialHeader
@@ -176,6 +203,70 @@ constexpr size_t pack_payload_size(PackMaterialHeader const &matl)
 {
   return sizeof(PackMaterialPayload);
 }
+
+struct PackAnimationHeader
+{
+  float duration;
+  uint32_t jointcount;
+  uint32_t transformcount;
+  uint64_t dataoffset;
+};
+
+struct PackAnimationPayload
+{
+  struct Joint
+  {
+    char name[32];
+    uint32_t parent;
+
+    uint32_t index;
+    uint32_t count;
+  };
+
+  struct Transform
+  {
+    float time;
+    float transform[8];
+  };
+
+  // Joint joints[jointcount];
+  // Transform transforms[transformcount];
+
+  static auto jointtable(void const *bits, int jointcount, int transformcount) { return reinterpret_cast<Joint const *>((size_t)bits + sizeof(PackAnimationPayload)); }
+  static auto transformtable(void const *bits, int jointcount, int transformcount) { return reinterpret_cast<Transform const *>((size_t)bits + sizeof(PackAnimationPayload) + jointcount*sizeof(Joint)); }
+};
+
+constexpr size_t pack_payload_size(PackAnimationHeader const &anim)
+{
+  return sizeof(PackAnimationPayload) + anim.jointcount*sizeof(PackAnimationPayload::Joint) + anim.transformcount*sizeof(PackAnimationPayload::Transform);
+}
+
+struct PackParticleSystemHeader
+{
+  float minrange[3];
+  float maxrange[3];
+  uint32_t maxparticles;
+  uint32_t emittercount;
+  uint32_t emitterssize;
+  uint64_t dataoffset;
+};
+
+struct PackParticleSystemPayload
+{
+  uint32_t spritesheet;
+  // PackEmitter emitters[emittercount];
+
+  static auto emitters(void const *bits) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t)); }
+};
+
+void pack(std::vector<uint8_t> &bits, class ParticleEmitter const &emitter);
+void unpack(class ParticleEmitter &emitter, void const *bits, size_t &cursor);
+
+constexpr size_t pack_payload_size(PackParticleSystemHeader const &part)
+{
+  return sizeof(PackParticleSystemPayload) + part.emitterssize;
+}
+
 
 struct PackModelHeader
 {
@@ -236,32 +327,6 @@ struct PackModelPayload
 constexpr size_t pack_payload_size(PackModelHeader const &modl)
 {
   return modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
-}
-
-struct PackParticleSystemHeader
-{
-  float minrange[3];
-  float maxrange[3];
-  uint32_t maxparticles;
-  uint32_t emittercount;
-  uint32_t emitterssize;
-  uint64_t dataoffset;
-};
-
-struct PackParticleSystemPayload
-{
-  uint32_t spritesheet;
-  // PackEmitter emitters[emittercount];
-
-  static auto emitters(void const *bits) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t)); }
-};
-
-void pack(std::vector<uint8_t> &bits, class ParticleEmitter const &emitter);
-void unpack(class ParticleEmitter &emitter, void const *bits, size_t &cursor);
-
-constexpr size_t pack_payload_size(PackParticleSystemHeader const &ptsm)
-{
-  return sizeof(PackParticleSystemPayload) + ptsm.emitterssize;
 }
 
 #pragma pack(pop)

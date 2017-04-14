@@ -73,8 +73,8 @@ void MeshComponentStorage::add(EntityId entity, Bound3 const &bound, Mesh const 
 
   m_index[entity.index()] = index;
 
-  data<flagbits>(index) = flags;
   data<entityid>(index) = entity;
+  data<flagbits>(index) = flags;
   data<boundingbox>(index) = bound;
   data<meshresource>(index) = mesh;
   data<materialresource>(index) = material;
@@ -94,6 +94,8 @@ void MeshComponentStorage::remove(EntityId entity)
   if (index < m_staticpartition)
   {
     m_tree.remove(MeshIndex{ index, this });
+
+    for_each(m_data, [=](auto &v) { v[index] = {}; });
 
     m_freeslots.push_back(index);
   }
@@ -121,15 +123,17 @@ void MeshComponentStorage::update_mesh_bounds()
 
     auto transform = transformstorage->get(data<entityid>(index));
 
-    data<boundingbox>(index) = transform.world() * mesh(index)->bound;
+    data<boundingbox>(index) = transform.world() * data<meshresource>(index)->bound;
   }
 }
 
 
-///////////////////////// update_mesh_bounds ////////////////////////////////
-void update_mesh_bounds(Scene &scene)
+///////////////////////// update_meshes /////////////////////////////////////
+void update_meshes(Scene &scene)
 {
-  scene.system<MeshComponentStorage>()->update_mesh_bounds();
+  auto meshstorage = scene.system<MeshComponentStorage>();
+
+  meshstorage->update_mesh_bounds();
 }
 
 
@@ -137,7 +141,7 @@ void update_mesh_bounds(Scene &scene)
 template<>
 void Scene::initialise_component_storage<MeshComponent>()
 {
-  m_systems[typeid(MeshComponentStorage)] = new(allocator<MeshComponentStorage>().allocate(1)) MeshComponentStorage(this, allocator());
+  m_systems[typeid(MeshComponentStorage)] = new(allocator<MeshComponentStorage>().allocate(1)) MeshComponentStorage(this, m_allocator);
 }
 
 
@@ -160,6 +164,7 @@ MeshComponent Scene::add_component<MeshComponent>(Scene::EntityId entity, Mesh c
   assert(get(entity) != nullptr);
   assert(system<TransformComponentStorage>());
   assert(system<TransformComponentStorage>()->has(entity));
+  assert(mesh);
 
   auto storage = system<MeshComponentStorage>();
 

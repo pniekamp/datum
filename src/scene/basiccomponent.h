@@ -28,53 +28,6 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
     {
     }
 
-    class iterator
-    {
-      public:
-        explicit iterator(size_t index, BasicComponentStorage const *storage)
-          : index(index), storage(storage)
-        {
-          if (index != storage->size() && storage->entityid(index) == 0)
-            ++*this;
-        }
-
-        bool operator ==(iterator const &that) const { return index == that.index; }
-        bool operator !=(iterator const &that) const { return index != that.index; }
-
-        EntityId const &operator *() const { return storage->entityid(index); }
-        EntityId const *operator ->() const { return &storage->entityid(index); }
-
-        iterator &operator++()
-        {
-          ++index;
-
-          while (index != storage->size() && storage->entityid(index) == 0)
-            ++index;
-
-          return *this;
-        }
-
-      private:
-
-        size_t index;
-        BasicComponentStorage const *storage;
-    };
-
-    template<typename Iterator>
-    class iterator_pair : public std::pair<Iterator, Iterator>
-    {
-      public:
-        using std::pair<Iterator, Iterator>::pair;
-
-        Iterator begin() const { return this->first; }
-        Iterator end() const { return this->second; }
-    };
-
-    iterator_pair<iterator> entities() const
-    {
-      return { iterator{ 0, this }, iterator{ this->size(), this } };
-    }
-
   protected:
 
     EntityId const &entityid(size_t index) const
@@ -94,9 +47,7 @@ class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
 
     Data *add(Scene::EntityId entity)
     {
-      DefaultStorage<Scene::EntityId, Data>::add(entity);
-
-      auto index = this->index(entity);
+      auto index = DefaultStorage<Scene::EntityId, Data>::add(entity);
 
       std::get<0>(this->m_data)[index] = entity;
 
@@ -117,7 +68,7 @@ struct Example
 {
   lml::Vec3 position;
   lml::Vec3 velocity;
-  delegate<void(Scene::EntityId)> destroyed;
+  delegate<void(Scene&, Scene::EntityId)> destroyed = [](Scene&, Scene::EntityId) {};
 };
 
 class ExampleComponent
@@ -132,11 +83,6 @@ class ExampleComponent
     {
     }
 
-    ExampleComponent get(EntityId entity)
-    {
-      return data(entity);
-    }
-
   private:
 
     Example *m_data;
@@ -147,6 +93,11 @@ class ExampleComponentStorage : public BasicComponentStorage<ExampleComponent, E
 {
   public:
     using BasicComponentStorage::BasicComponentStorage;
+
+    ExampleComponent get(EntityId entity)
+    {
+      return data(entity);
+    }
 };
 
 
@@ -157,7 +108,7 @@ class ExampleComponentStorage : public BasicComponentStorage<ExampleComponent, E
 template<>
 void Scene::initialise_component_storage<ExampleComponent>()
 {
-  m_systems[typeid(ExampleComponentStorage)] = new(allocator<ExampleComponentStorage>().allocate(1)) ExampleComponentStorage(this, allocator());
+  m_systems[typeid(ExampleComponentStorage)] = new(allocator<ExampleComponentStorage>().allocate(1)) ExampleComponentStorage(this, m_allocator);
 }
 
 

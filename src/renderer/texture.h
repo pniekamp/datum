@@ -58,7 +58,7 @@ class Texture
 
     std::atomic<State> state;
 
-  private:
+  protected:
     Texture() = default;
 };
 

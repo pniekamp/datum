@@ -7,6 +7,7 @@
 //
 
 #include "particlesystem.h"
+#include "resource.h"
 #include "assetpack.h"
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"
@@ -15,6 +16,19 @@ using namespace std;
 using namespace lml;
 using leap::indexof;
 using leap::extentof;
+
+enum ParticleSystemFlags
+{
+  ParticleSystemOwnsSpritesheet = 0x01,
+};
+
+namespace
+{
+  size_t particlesystem_datasize(int emittercount)
+  {
+    return emittercount * sizeof(ParticleEmitter);
+  }
+}
 
 namespace
 {
@@ -61,7 +75,6 @@ namespace
   {
     return Color4(uniform_distribution(entropy, minvalue.r, maxvalue.r), uniform_distribution(entropy, minvalue.g, maxvalue.g), uniform_distribution(entropy, minvalue.b, maxvalue.b), uniform_distribution(entropy, minvalue.a, maxvalue.a));
   }
-
 }
 
 //|---------------------- Distribution --------------------------------------
@@ -186,118 +199,108 @@ template Distribution<Color3> make_uniformtable_distribution<Color3>(Color3 cons
 template Distribution<Color4> make_uniformtable_distribution<Color4>(Color4 const *minvalues, size_t m, Color4 const *maxvalues, size_t n);
 
 
+//|---------------------- Instance ------------------------------------------
+//|--------------------------------------------------------------------------
+
+///////////////////////// Instance::Constructor /////////////////////////////
+ParticleSystem::InstanceEx::InstanceEx(int maxparticles)
+{
+  count = 0;
+  capacity = maxparticles;
+  emitter = new(&data + capacity * offsetof(Particle, emitter)) size_t[capacity];
+  life = new(&data + capacity * offsetof(Particle, life)) float[capacity];
+  growth = new(&data + capacity * offsetof(Particle, growth)) float[capacity];
+  position = new(&data + capacity * offsetof(Particle, position)) Vec3[capacity];
+  velocity = new(&data + capacity * offsetof(Particle, velocity)) Vec3[capacity];
+  transform = new(&data + capacity * offsetof(Particle, transform)) Matrix2f[capacity];
+  scale = new(&data + capacity * offsetof(Particle, scale)) Vec2[capacity];
+  rotation = new(&data + capacity * offsetof(Particle, rotation)) float[capacity];
+  color = new(&data + capacity * offsetof(Particle, color)) Color4[capacity];
+  basecolor = new(&data + capacity * offsetof(Particle, basecolor)) Color4[capacity];
+  layer = new(&data + capacity * offsetof(Particle, layer)) float[capacity];
+  layerrate = new(&data + capacity * offsetof(Particle, layerrate)) float[capacity];
+
+  memset(time, 0, sizeof(time));
+  memset(emittime, 0, sizeof(emittime));
+}
+
+
 //|---------------------- ParticleSystem ------------------------------------
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ParticleSystem::Constructor ///////////////////////
-ParticleSystem::ParticleSystem(allocator_type const &allocator)
-  : emitters(allocator),
-    entropy(random_device{}()),
-    m_allocator(allocator)
+ParticleSystem::ParticleSystem()
+  : entropy(random_device{}())
 {
-  bound = Bound3(Vec3(-1.0f, -1.0f, -1.0f), Vec3(1.0f, 1.0f, 1.0f));
-}
-
-
-///////////////////////// ParticleSystem::load ///////////////////////////////
-bool ParticleSystem::load(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset)
-{
-  assert(asset);
-  assert(resources->assets()->barriercount != 0);
-
-  auto assets = resources->assets();
-
-  maxparticles = asset->maxparticles;
-  bound = Bound3(Vec3(asset->minrange[0], asset->minrange[1], asset->minrange[2]), Vec3(asset->maxrange[0], asset->maxrange[1], asset->maxrange[2]));
-
-  auto bits = assets->request(platform, asset);
-
-  if (!bits)
-    return false;
-
-  auto payload = reinterpret_cast<PackParticleSystemPayload const *>(bits);
-
-  spritesheet = resources->create<Texture>(assets->find(asset->id + payload->spritesheet), Texture::Format::SRGBA);
-
-  emitters.resize(asset->emittercount);
-
-  size_t cursor = sizeof(PackParticleSystemPayload);
-
-  for(size_t i = 0; i < emitters.size(); ++i)
-  {
-    unpack(emitters[i], bits, cursor);
-  }
-
-  return true;
 }
 
 
 ///////////////////////// ParticleSystem::create ////////////////////////////
-ParticleSystem::Instance const *ParticleSystem::create()
+ParticleSystem::Instance *ParticleSystem::create(StackAllocator<> const &allocator) const
 {
   size_t bytes = sizeof(InstanceEx) + maxparticles * sizeof(Particle);
 
-  auto instance = new(allocator<char>().allocate(bytes, alignof(InstanceEx))) InstanceEx;
-
-  instance->count = 0;
-  instance->capacity = maxparticles;
-  instance->emitter = new(&instance->data + maxparticles * offsetof(Particle, emitter)) size_t[maxparticles];
-  instance->life = new(&instance->data + maxparticles * offsetof(Particle, life)) float[maxparticles];
-  instance->growth = new(&instance->data + maxparticles * offsetof(Particle, growth)) float[maxparticles];
-  instance->position = new(&instance->data + maxparticles * offsetof(Particle, position)) Vec3[maxparticles];
-  instance->velocity = new(&instance->data + maxparticles * offsetof(Particle, velocity)) Vec3[maxparticles];
-  instance->transform = new(&instance->data + maxparticles * offsetof(Particle, transform)) Matrix2f[maxparticles];
-  instance->scale = new(&instance->data + maxparticles * offsetof(Particle, scale)) Vec2[maxparticles];
-  instance->rotation = new(&instance->data + maxparticles * offsetof(Particle, rotation)) float[maxparticles];
-  instance->color = new(&instance->data + maxparticles * offsetof(Particle, color)) Color4[maxparticles];
-  instance->basecolor = new(&instance->data + maxparticles * offsetof(Particle, basecolor)) Color4[maxparticles];
-  instance->layer = new(&instance->data + maxparticles * offsetof(Particle, layer)) float[maxparticles];
-  instance->layerrate = new(&instance->data + maxparticles * offsetof(Particle, layerrate)) float[maxparticles];
-
-  instance->spritesheet = spritesheet;
-
-  memset(instance->time, 0, sizeof(instance->time));
-  memset(instance->emittime, 0, sizeof(instance->emittime));
+  auto instance = new(allocate<char>(allocator, bytes, alignof(InstanceEx))) InstanceEx(maxparticles);
 
   instance->size = bytes;
+  instance->freelist = nullptr;
+
+  return instance;
+}
+
+ParticleSystem::Instance *ParticleSystem::create(StackAllocatorWithFreelist<> const &allocator) const
+{
+  size_t bytes = sizeof(InstanceEx) + maxparticles * sizeof(Particle);
+
+  auto instance = new(allocate<char>(allocator, bytes, alignof(InstanceEx))) InstanceEx(maxparticles);
+
+  instance->size = bytes;
+  instance->freelist = &allocator.freelist();
 
   return instance;
 }
 
 
 ///////////////////////// ParticleSystem::destroy ///////////////////////////
-void ParticleSystem::destroy(ParticleSystem::Instance const *instance)
+void ParticleSystem::destroy(Instance *instance) const
 {
   auto instanceex = static_cast<InstanceEx*>(const_cast<Instance*>(instance));
 
-  allocator<char>().deallocate((char*)instanceex, instanceex->size);
+  if (instanceex->freelist)
+  {
+    instanceex->freelist->release(instanceex, instanceex->size);
+  }
 }
 
 
 ///////////////////////// ParticleSystem::update ////////////////////////////
-void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera const &camera, Transform const &transform, float dt)
+void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &camera, Transform const &transform, float dt) const
 {
-  assert(emitters.size() < extent<decltype(InstanceEx::time)>::value);
-  assert(emitters.size() < extent<decltype(InstanceEx::emittime)>::value);
+  assert(ready());
+  assert(instance);
+  assert(emittercount < extent<decltype(InstanceEx::time)>::value);
+  assert(emittercount < extent<decltype(InstanceEx::emittime)>::value);
 
-  auto instanceex = static_cast<InstanceEx*>(const_cast<Instance*>(instance));
+  auto instanceex = static_cast<InstanceEx*>(instance);
 
   uniform_real_distribution<float> real01{0.0f, 1.0f};
   uniform_real_distribution<float> real11{-1.0f, 1.0f};
 
   long modules = 0;
-  for(auto const &emitter : emitters)
+  for(size_t k = 0; k < emittercount; ++k)
   {
-    modules |= emitter.modules;
+    modules |= emitters[k].modules;
   }
 
   //
   // Emitters
   //
 
-  for(auto const &emitter : emitters)
+  for(size_t k = 0; k < emittercount; ++k)
   {
-    float &time = instanceex->time[indexof(emitters, emitter)];
+    auto &emitter = emitters[k];
+
+    auto &time = instanceex->time[k];
 
     if (time < emitter.duration)
     {
@@ -305,7 +308,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
       if (emitter.rate != 0)
       {
-        float &emittime = instanceex->emittime[indexof(emitters, emitter)];
+        auto &emittime = instanceex->emittime[k];
 
         emittime += dt;
         emitcount = static_cast<int>(emittime * emitter.rate);
@@ -322,9 +325,9 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
       for(int i = 0; i < emitcount && instance->count < instance->capacity; ++i)
       {
-        float t = time / (emitter.duration + 1e-6f);
+        auto t = time / (emitter.duration + 1e-6f);
 
-        instance->emitter[instance->count] = indexof(emitters, emitter);
+        instance->emitter[instance->count] = k;
         instance->life[instance->count] = 0.0f;
         instance->growth[instance->count] = 1.0f / emitter.life.get(entropy, t);
         instance->scale[instance->count] = emitter.size * emitter.scale.get(entropy, t);
@@ -420,11 +423,11 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
   // Life
   //
 
-  for(size_t i = 0; i < instance->count; )
+  for(int i = 0; i < instance->count; )
   {
     instance->life[i] += instance->growth[i] * dt;
 
-    if (instance->life[i] > 1.0f - 1e-6)
+    if (instance->life[i] > 1.0f - 1e-6 || instance->emitter[i] >= emittercount)
     {
       instance->emitter[i] = instance->emitter[instance->count-1];
       instance->life[i] = instance->life[instance->count-1];
@@ -449,7 +452,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
   // Velocity
   //
 
-  for(size_t i = 0; i < instance->count; ++i)
+  for(int i = 0; i < instance->count; ++i)
   {
     instance->velocity[i] += emitters[instance->emitter[i]].acceleration * dt;
   }
@@ -458,7 +461,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
   // Position
   //
 
-  for(size_t i = 0; i < instance->count; ++i)
+  for(int i = 0; i < instance->count; ++i)
   {
     instance->position[i] += instance->velocity[i] * dt;
   }
@@ -471,9 +474,9 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
   {
     auto proj = camera.aspect() * tan(camera.fov()/2);
 
-    for(size_t i = 0; i < instance->count; ++i)
+    for(int i = 0; i < instance->count; ++i)
     {
-      auto const &emitter = emitters[instance->emitter[i]];
+      auto &emitter = emitters[instance->emitter[i]];
 
       auto scale = instance->scale[i];
       auto rotation = instance->rotation[i];
@@ -519,7 +522,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
   if (modules & ParticleEmitter::ColorOverLife)
   {
-    for(size_t i = 0; i < instance->count; ++i)
+    for(int i = 0; i < instance->count; ++i)
     {
       auto const &emitter = emitters[instance->emitter[i]];
 
@@ -536,7 +539,7 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
 
   if (modules & ParticleEmitter::LayerOverLife)
   {
-    for(size_t i = 0; i < instance->count; ++i)
+    for(int i = 0; i < instance->count; ++i)
     {
       auto const &emitter = emitters[instance->emitter[i]];
 
@@ -546,6 +549,153 @@ void ParticleSystem::update(ParticleSystem::Instance const *instance, Camera con
       }
     }
   }
+}
 
-  instanceex->spritesheet = spritesheet;
+
+//|---------------------- ParticleSystem ------------------------------------
+//|--------------------------------------------------------------------------
+
+///////////////////////// ResourceManager::create ///////////////////////////
+template<>
+ParticleSystem const *ResourceManager::create<ParticleSystem>(Asset const *asset)
+{
+  if (!asset)
+    return nullptr;
+
+  auto slot = acquire_slot(sizeof(ParticleSystem) + particlesystem_datasize(asset->emittercount));
+
+  if (!slot)
+    return nullptr;
+
+  auto particlesystem = new(slot) ParticleSystem;
+
+  particlesystem->flags = 0;
+
+  particlesystem->maxparticles = asset->maxparticles;
+  particlesystem->bound = Bound3(Vec3(asset->minrange[0], asset->minrange[1], asset->minrange[2]), Vec3(asset->maxrange[0], asset->maxrange[1], asset->maxrange[2]));
+  particlesystem->spritesheet = nullptr;
+  particlesystem->emittercount = asset->emittercount;
+  particlesystem->emitters = nullptr;
+  particlesystem->asset = asset;
+  particlesystem->state = ParticleSystem::State::Empty;
+
+  return particlesystem;
+}
+
+
+///////////////////////// ResourceManager::create ///////////////////////////
+template<>
+ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet, size_t emittercount, ParticleEmitter *emitters)
+{
+  auto slot = acquire_slot(sizeof(ParticleSystem) + particlesystem_datasize(emittercount));
+
+  if (!slot)
+    return nullptr;
+
+  auto particlesystem = new(slot) ParticleSystem;
+
+  particlesystem->flags = 0;
+
+  particlesystem->maxparticles = maxparticles;
+  particlesystem->bound = bound;
+  particlesystem->spritesheet = spritesheet;
+  particlesystem->emittercount = emittercount;
+  particlesystem->emitters = nullptr;
+  particlesystem->asset = nullptr;
+  particlesystem->state = ParticleSystem::State::Waiting;
+
+  if (emittercount != 0)
+  {
+    auto emittersdata = reinterpret_cast<ParticleEmitter*>(particlesystem->data);
+
+    copy(emitters, emitters + emittercount, emittersdata);
+
+    particlesystem->emitters = emittersdata;
+  }
+
+  if (spritesheet && spritesheet->ready())
+    particlesystem->state = ParticleSystem::State::Ready;
+
+  return particlesystem;
+}
+
+template<>
+ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet, int emittercount, ParticleEmitter *emitters)
+{
+  return create<ParticleSystem>(maxparticles, bound, spritesheet, (size_t)emittercount, emitters);
+}
+
+
+///////////////////////// ResourceManager::request //////////////////////////
+template<>
+void ResourceManager::request<ParticleSystem>(DatumPlatform::PlatformInterface &platform, ParticleSystem const *particlesystem)
+{
+  assert(particlesystem);
+
+  auto slot = const_cast<ParticleSystem*>(particlesystem);
+
+  ParticleSystem::State empty = ParticleSystem::State::Empty;
+
+  if (slot->state.compare_exchange_strong(empty, ParticleSystem::State::Loading))
+  {
+    if (auto asset = slot->asset)
+    {
+      assert(assets()->barriercount != 0);
+
+      if (auto bits = m_assets->request(platform, asset))
+      {
+        auto payload = reinterpret_cast<PackParticleSystemPayload const *>(bits);
+
+        auto emittersdata = reinterpret_cast<ParticleEmitter*>(slot->data);
+
+        size_t cursor = sizeof(PackParticleSystemPayload);
+
+        for(size_t i = 0; i < asset->emittercount; ++i)
+        {
+          unpack(emittersdata[i], bits, cursor);
+        }
+
+        slot->emitters = emittersdata;
+
+        slot->spritesheet = create<Texture>(assets()->find(asset->id + payload->spritesheet), Texture::Format::SRGBA);
+
+        slot->flags |= ParticleSystemOwnsSpritesheet;
+      }
+    }
+
+    slot->state = (slot->emitters && slot->spritesheet) ? ParticleSystem::State::Waiting : ParticleSystem::State::Empty;
+  }
+
+  ParticleSystem::State waiting = ParticleSystem::State::Waiting;
+
+  if (slot->state.compare_exchange_strong(waiting, ParticleSystem::State::Testing))
+  {
+    request(platform, slot->spritesheet);
+
+    slot->state = (slot->spritesheet->ready()) ? ParticleSystem::State::Ready : ParticleSystem::State::Waiting;
+  }
+}
+
+
+///////////////////////// ResourceManager::release //////////////////////////
+template<>
+void ResourceManager::release<ParticleSystem>(ParticleSystem const *particlesystem)
+{
+  defer_destroy(particlesystem);
+}
+
+
+///////////////////////// ResourceManager::destroy //////////////////////////
+template<>
+void ResourceManager::destroy<ParticleSystem>(ParticleSystem const *particlesystem)
+{
+  if (particlesystem)
+  {
+    if (particlesystem->flags & ParticleSystemOwnsSpritesheet)
+      destroy(particlesystem->spritesheet);
+
+    particlesystem->~ParticleSystem();
+
+    release_slot(const_cast<ParticleSystem*>(particlesystem), sizeof(ParticleSystem) + particlesystem_datasize(particlesystem->emittercount));
+  }
 }

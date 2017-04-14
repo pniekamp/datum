@@ -18,14 +18,14 @@
 //|---------------------- MeshComponentStorage ------------------------------
 //|--------------------------------------------------------------------------
 
-class MeshComponentStorage : public DefaultStorage<int, Scene::EntityId, lml::Bound3, Mesh const *, Material const *>
+class MeshComponentStorage : public DefaultStorage<Scene::EntityId, int, lml::Bound3, Mesh const *, Material const *>
 {
   public:
 
     enum DataLayout
     {
-      flagbits = 0,
-      entityid = 1,
+      entityid = 0,
+      flagbits = 1,
       boundingbox = 2,
       meshresource = 3,
       materialresource = 4,
@@ -39,6 +39,8 @@ class MeshComponentStorage : public DefaultStorage<int, Scene::EntityId, lml::Bo
     {
       return { this->index(entity), this };
     }
+
+    void update_mesh_bounds();
 
   public:
 
@@ -69,16 +71,6 @@ class MeshComponentStorage : public DefaultStorage<int, Scene::EntityId, lml::Bo
       return { index.index, this };
     }
 
-    template<typename Iterator>
-    class iterator_pair : public std::pair<Iterator, Iterator>
-    {
-      public:
-        using std::pair<Iterator, Iterator>::pair;
-
-        Iterator begin() const { return this->first; }
-        Iterator end() const { return this->second; }
-    };
-
     typedef leap::lml::RTree::basic_rtree<MeshIndex, 3, leap::lml::RTree::box<MeshIndex>, StackAllocatorWithFreelist<>>::const_iterator tree_iterator;
 
     iterator_pair<tree_iterator> tree() const
@@ -93,20 +85,11 @@ class MeshComponentStorage : public DefaultStorage<int, Scene::EntityId, lml::Bo
 
   protected:
 
-    auto &flags(size_t index) { return data<flagbits>(index); }
-    auto &bound(size_t index) { return data<boundingbox>(index); }
-    auto &mesh(size_t index) { return data<meshresource>(index); }
-    auto &material(size_t index) { return data<materialresource>(index); }
-
-  protected:
-
     void clear() override;
 
     void add(EntityId entity, lml::Bound3 const &bound, Mesh const *mesh, Material const *material, int flags);
 
     void remove(EntityId entity) override;
-
-    void update_mesh_bounds();
 
   protected:
 
@@ -118,12 +101,11 @@ class MeshComponentStorage : public DefaultStorage<int, Scene::EntityId, lml::Bo
 
     friend class Scene;
     friend class MeshComponent;
-    friend void update_mesh_bounds(Scene &scene);
 };
 
 
-///////////////////////// update_mesh_bounds ////////////////////////////////
-void update_mesh_bounds(Scene &scene);
+///////////////////////// update_meshes /////////////////////////////////////
+void update_meshes(Scene &scene);
 
 
 //|---------------------- MeshComponent -------------------------------------

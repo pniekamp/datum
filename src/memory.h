@@ -355,6 +355,32 @@ T *allocate(StackAllocator<> const &allocator, std::size_t n = 1, std::size_t al
   return typename StackAllocator<>::template rebind<T>::other(allocator).allocate(n, alignment);
 }
 
+template<typename T>
+T *allocate(StackAllocatorWithFreelist<> const &allocator, std::size_t n = 1, std::size_t alignment = alignof(T))
+{
+  return typename StackAllocatorWithFreelist<>::template rebind<T>::other(allocator).allocate(n, alignment);
+}
+
+
+///////////////////////// deallocate ////////////////////////////////////////
+template<typename T>
+void deallocate(StackAllocator<> const &allocator, T * const ptr, std::size_t n = 1)
+{
+  if (ptr)
+  {
+    typename StackAllocator<>::template rebind<T>::other(allocator).deallocate(ptr, n);
+  }
+}
+
+template<typename T>
+void deallocate(StackAllocatorWithFreelist<> const &allocator, T * const ptr, std::size_t n = 1)
+{
+  if (ptr)
+  {
+    typename StackAllocatorWithFreelist<>::template rebind<T>::other(allocator).deallocate(ptr, n);
+  }
+}
+
 
 ///////////////////////// allocate //////////////////////////////////////////
 inline Arena allocate(StackAllocator<> const &allocator, std::size_t slabsize)

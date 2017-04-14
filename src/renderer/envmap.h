@@ -52,6 +52,6 @@ class EnvMap
 
     std::atomic<State> state;
 
-  private:
+  protected:
     EnvMap() = default;
 };

@@ -33,6 +33,7 @@ ResourceManager::ResourceManager(AssetManager *assets, allocator_type const &all
 {
   m_slots = nullptr;
   m_slathead = 0;
+  m_slatsize = 0;
   m_deletershead = 0;
   m_deleterstail = 0;
 
@@ -45,11 +46,12 @@ void ResourceManager::initialise_slab(size_t slabsize)
 {
   int nslots = slabsize / sizeof(Slot);
 
-  m_slots = allocator<Slot>().allocate(nslots);
+  m_slots = StackAllocator<Slot>(m_allocator).allocate(nslots);
 
-  m_slat.resize(nslots);
+  m_slat.resize((nslots - 1) / 64 + 1);
+  m_slatsize = nslots;
 
-  RESOURCE_USE(ResourceSlot, (m_slatused = 0), m_slat.size())
+  RESOURCE_USE(ResourceSlot, (m_slatused = 0), m_slatsize)
 
   m_deletershead = 0;
   m_deleterstail = 0;
@@ -62,30 +64,39 @@ void ResourceManager::initialise_slab(size_t slabsize)
 ///////////////////////// ResourceManager::acquire_slot /////////////////////
 void *ResourceManager::acquire_slot(size_t size)
 {
+  assert(size != 0);
+  assert(size < m_slatsize * sizeof(Slot));
+
   leap::threadlib::SyncLock lock(m_mutex);
 
-  int nslots = (size - 1) / sizeof(Slot) + 1;
+  size_t nslots = (size - 1) / sizeof(Slot) + 1;
 
   for(size_t k = 0; k < 2; ++k)
   {
-    for(size_t i = m_slathead; i < m_slat.size() - nslots; ++i)
-    {
-      bool available = (m_slat[i] == 0);
+    size_t j = m_slathead;
 
-      for(size_t j = i+1; available && j < i+nslots; ++j)
-        available &= (m_slat[j] == 0);
+    while (j < m_slatsize - nslots)
+    {
+      size_t i = j;
+
+      bool available;
+      for(available = true; available && j < i+nslots; ++j)
+        available &= (m_slat[j >> 6][j & 0x3F] == 0);
 
       if (available)
       {
-        for(size_t j = i; j < i+nslots; ++j)
-          m_slat[j] = 1;
+        for(j = i; j < i+nslots; ++j)
+          m_slat[j >> 6][j & 0x3F] = 1;
 
-        RESOURCE_USE(ResourceSlot, (m_slatused += nslots), m_slat.size())
+        RESOURCE_USE(ResourceSlot, (m_slatused += nslots), m_slatsize)
 
-        m_slathead = i + nslots;
+        m_slathead = j;
 
         return m_slots + i;
       }
+
+      while (m_slat[j >> 6].all() && j < m_slatsize)
+        j += 64;
     }
 
     m_slathead = 0;
@@ -102,16 +113,16 @@ void ResourceManager::release_slot(void *slot, size_t size)
 {
   leap::threadlib::SyncLock lock(m_mutex);
 
-  int nslots = (size - 1) / sizeof(Slot) + 1;
+  size_t nslots = (size - 1) / sizeof(Slot) + 1;
 
   size_t i = (Slot*)slot - m_slots;
 
   for(size_t j = i; j < i+nslots; ++j)
-    m_slat[j] = 0;
+    m_slat[j >> 6][j & 0x3F] = 0;
 
-  RESOURCE_USE(ResourceSlot, (m_slatused -= nslots), m_slat.size())
+  RESOURCE_USE(ResourceSlot, (m_slatused -= nslots), m_slatsize)
 
-  m_slathead = i;
+  m_slathead = min(m_slathead, i);
 }
 
 

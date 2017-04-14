@@ -164,8 +164,8 @@ class ParticleSystem
 
     struct Instance
     {
-      size_t count;
-      size_t capacity;
+      int count;
+      int capacity;
 
       size_t *emitter;
       float *life;
@@ -179,51 +179,54 @@ class ParticleSystem
       lml::Color4 *basecolor;
       float *layer;
       float *layerrate;
-
-      Texture const *spritesheet;
     };
 
   public:
+    friend ParticleSystem const *ResourceManager::create<ParticleSystem>(Asset const *asset);
+    friend ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, lml::Bound3 bound, Texture const *spritesheet, size_t emittercount, ParticleEmitter *emitters);
 
-    typedef StackAllocatorWithFreelist<> allocator_type;
-
-    ParticleSystem(allocator_type const &allocator);
-
-    ParticleSystem(ParticleSystem const &) = delete;
+    bool ready() const { return (state == State::Ready); }
 
   public:
+
+    int flags;
 
     lml::Bound3 bound;
 
-    size_t maxparticles = 1000;
+    int maxparticles = 1000;
 
-    Texture const *spritesheet = nullptr;
+    Texture const *spritesheet;
 
-    std::vector<ParticleEmitter, StackAllocatorWithFreelist<ParticleEmitter>> emitters;
+    size_t emittercount;
+    ParticleEmitter const *emitters;
 
-    std::mt19937 entropy;
-
-  public:
-
-    bool load(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset);
+    mutable std::mt19937 entropy;
 
   public:
 
-    Instance const *create();
+    Instance *create(StackAllocator<> const &allocator) const;
+    Instance *create(StackAllocatorWithFreelist<> const &allocator) const;
 
-    void update(Instance const *instance, Camera const &camera, lml::Transform const &transform, float dt);
+    void update(Instance *instance, Camera const &camera, lml::Transform const &transform, float dt) const;
 
-    void destroy(Instance const *instance);
+    void destroy(Instance *instance) const;
 
-  private:
+  public:
 
-    allocator_type m_allocator;
-
-    template<typename T = char>
-    StackAllocatorWithFreelist<T> allocator()
+    enum class State
     {
-      return StackAllocatorWithFreelist<T>(m_allocator);
-    }
+      Empty,
+      Loading,
+      Waiting,
+      Testing,
+      Ready,
+    };
+
+    Asset const *asset;
+
+    std::atomic<State> state;
+
+    alignas(16) uint8_t data[1];
 
   private:
 
@@ -245,11 +248,17 @@ class ParticleSystem
 
     struct InstanceEx : public Instance
     {
+      InstanceEx(int maxparticles);
+
       size_t size;
+      FreeList *freelist;
 
       float time[16];
       float emittime[16];
 
       alignas(16) uint8_t data[1];
     };
+
+  protected:
+    ParticleSystem();
 };
