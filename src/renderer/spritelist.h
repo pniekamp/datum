@@ -77,7 +77,13 @@ class SpriteList
 
     void finalise(BuildState &state);
 
+  public:
+
+    void viewport(lml::Rect2 const &viewport) const;
+
   private:
+
+    void *m_sceneset;
 
     unique_resource<CommandList> m_commandlist;
 };

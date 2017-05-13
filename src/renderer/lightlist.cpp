@@ -7,7 +7,6 @@
 //
 
 #include "lightlist.h"
-#include "renderer.h"
 #include "debug.h"
 
 using namespace std;
@@ -40,15 +39,13 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
   if (!commandlist)
     return false;
 
-  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(Lights));
-
-  if (sceneset)
+  if (auto sceneset = commandlist->acquire(context.scenesetlayout, sizeof(Renderable::Lights::LightList)))
   {
-    auto offset = sceneset.reserve(sizeof(Lights));
+    auto offset = sceneset.reserve(sizeof(Renderable::Lights::LightList));
 
-    state.lights = sceneset.memory<Lights>(offset);
+    m_lights = sceneset.memory<Renderable::Lights::LightList>(offset);
 
-    state.lights->pointlightcount = 0;
+    m_lights->pointlightcount = 0;
 
     commandlist->release(sceneset);
   }
@@ -64,9 +61,9 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
 ///////////////////////// LightList::push_pointlight ////////////////////////
 void LightList::push_pointlight(BuildState &state, Vec3 const &position, float range, Color3 const &intensity, Attenuation const &attenuation)
 {
-  if (state.lights && state.lights->pointlightcount < extentof(state.lights->pointlights))
+  if (m_lights && m_lights->pointlightcount < extentof(m_lights->pointlights))
   {
-    auto &pointlight = state.lights->pointlights[state.lights->pointlightcount];
+    auto &pointlight = m_lights->pointlights[m_lights->pointlightcount];
 
     pointlight.position = position;
     pointlight.intensity = intensity;
@@ -75,7 +72,7 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
     pointlight.attenuation.z = attenuation.constant;
     pointlight.attenuation.w = range;
 
-    state.lights->pointlightcount += 1;
+    m_lights->pointlightcount += 1;
   }
 }
 

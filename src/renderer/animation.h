@@ -113,7 +113,11 @@ class Animator
 
     void set_mesh(Mesh const *mesh);
 
-    void play_animation(Animation const *animation, lml::Vec3 const &scale = lml::Vec3(1.0f));
+    void play(Animation const *animation, lml::Vec3 const &scale = lml::Vec3(1.0f), float rate = 1.0f, bool looping = true);
+
+    void set_time(size_t entry, float time);
+    void set_rate(size_t entry, float rate);
+    void set_weight(size_t entry, float weight, float maxdelta = 1.0f);
 
     void update(float dt);
 
@@ -124,21 +128,39 @@ class Animator
   private:
 
     Mesh const *m_mesh;
-    Animation const *m_animation;
 
   private:
 
     struct Joint
     {
-      int bone;
+      char name[32];
+
       lml::Transform transform;
 
       int parent;
+      int bone;
     };
 
-    std::vector<Joint, StackAllocatorWithFreelist<Joint>> m_jointmap;
+    std::vector<Joint, StackAllocatorWithFreelist<Joint>> m_joints;
 
-    lml::Vec3 m_scale;
+    std::vector<size_t, StackAllocatorWithFreelist<size_t>> m_jointmap;
 
-    float m_time;
+    struct Entry
+    {
+      Animation const *animation;
+
+      lml::Vec3 scale;
+
+      float time;
+      float rate;
+
+      float weight;
+
+      bool looping;
+
+      int jointmapbase;
+      int jointmapcount;
+    };
+
+    std::vector<Entry, StackAllocatorWithFreelist<Entry>> m_entries;
 };

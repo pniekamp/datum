@@ -22,29 +22,14 @@ class LightList
 
     operator bool() const { return m_commandlist; }
 
-    CommandList const *commandlist() const { return m_commandlist; }
+    Renderable::Lights::LightList const *lightlist() const { return m_lights; }
 
   public:
-
-    struct Lights
-    {
-      size_t pointlightcount;
-
-      struct PointLight
-      {
-        lml::Vec3 position;
-        lml::Color3 intensity;
-        lml::Vec4 attenuation;
-
-      } pointlights[256];
-    };
 
     struct BuildState
     {
       RenderContext *context;
       ResourceManager *resources;
-
-      Lights *lights;
 
       CommandList *commandlist = nullptr;
     };
@@ -56,6 +41,8 @@ class LightList
     void finalise(BuildState &state);
 
   private:
+
+    Renderable::Lights::LightList *m_lights;
 
     unique_resource<CommandList> m_commandlist;
 };

@@ -23,10 +23,9 @@ using leap::extentof;
 CommandList::CommandList(RenderContext *context)
   : context(context)
 {
-  m_resourcelump = context->resourcepool.acquire_lump();
   m_commandbuffer = 0;
 
-  memset(m_addressmap, 0, sizeof(m_addressmap));
+  m_resourcelump = context->resourcepool.acquire_lump();
 }
 
 
@@ -75,10 +74,9 @@ void CommandList::end()
 
 
 ///////////////////////// CommandList::acquire //////////////////////////////
-CommandList::Descriptor CommandList::acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset)
+CommandList::Descriptor CommandList::acquire(VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset)
 {
   assert(size != 0);
-  assert(set < extentof(m_addressmap));
 
   Descriptor descriptor = {};
 
@@ -99,8 +97,6 @@ CommandList::Descriptor CommandList::acquire(uint32_t set, VkDescriptorSetLayout
     {
       descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout, descriptor.m_storage.buffer, descriptor.m_storage.offset, descriptor.m_storage.capacity);
     }
-
-    m_addressmap[set] = descriptor.m_storage.memory;
   }
 
   return descriptor;

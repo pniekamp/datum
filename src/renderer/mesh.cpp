@@ -7,7 +7,6 @@
 //
 
 #include "mesh.h"
-#include "resource.h"
 #include "assetpack.h"
 #include "debug.h"
 

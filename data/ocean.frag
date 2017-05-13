@@ -25,7 +25,7 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   float reflectivity;
   float emissive;
 
-  float bumpscale;
+  vec3 bumpscale;
 
   vec4 foamplane;
   float foamwaveheight;
@@ -64,24 +64,22 @@ void main()
 
   if (floordepth < gl_FragCoord.z)
     discard;
-    
-  float surfacedist = view_depth(scene.proj, gl_FragCoord.z);
 
-  vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
-  vec4 bump1 = texture(normalmap, vec3(2.0*texcoord + 4.0*material.flow, 0));
-  vec4 bump2 = texture(normalmap, vec3(4.0*texcoord + 8.0*material.flow, 0));
+  float bumpscale = mix(1, 32, clamp(0.5*gl_FragCoord.w, 0, 1)) * material.bumpscale.z;
+  float roughscale = mix(1, 0, clamp(1.0*gl_FragCoord.w, 0, 1)) * material.roughness;
 
-  float bumpscale = material.bumpscale;
-  float roughscale = mix(0, 1, clamp(0.05*surfacedist, 0, 1));
+  vec4 bump0 = texture(normalmap, vec3(texcoord*material.bumpscale.xy + material.flow, 0));
+  vec4 bump1 = texture(normalmap, vec3(texcoord*material.bumpscale.xy*2.0 + 4.0*material.flow, 0));
+  vec4 bump2 = texture(normalmap, vec3(texcoord*material.bumpscale.xy*4.0 + 8.0*material.flow, 0));
 
   vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, bumpscale)); 
   
   vec3 eyevec = normalize(scene.camera.position - position);
 
-  float dist = view_depth(scene.proj, floordepth) - surfacedist;
+  float dist = view_depth(scene.proj, floordepth) - view_depth(scene.proj, gl_FragCoord.z);
 
   float scale = 0.05 * dist;
-  float facing = 1 - dot(eyevec, normal);
+  float facing = 1 - dot(eyevec, tbnworld[2]);
 
   vec4 color = material.color * textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
 
@@ -92,6 +90,6 @@ void main()
   vec3 shorefoam = (0.25 * texture(albedomap, vec3(texcoord + 2.0*material.flow, 1)).rgb + 0.02) * clamp(height - (dist - material.foamshoreheight) * material.foamshorescale, 0, 1);
 
   fragrt0 = vec4(color.rgb + wavefoam + shorefoam, material.emissive);
-  fragrt1 = vec4(material.metalness, material.reflectivity, 0, material.roughness * roughscale);
+  fragrt1 = vec4(material.metalness, material.reflectivity, 0, roughscale);
   fragnormal = vec4(0.5 * normal + 0.5, 1);
 }

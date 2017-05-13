@@ -731,13 +731,14 @@ namespace
         }
       }
 
+      overlay.viewport(Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height)));
+
       overlay.finalise(buildstate);
 
       auto entry = pushbuffer.push<Renderable::Sprites>();
 
       if (entry)
       {
-        entry->viewport = Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height));
         entry->commandlist = overlay.commandlist();
       }
     }

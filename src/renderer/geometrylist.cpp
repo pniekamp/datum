@@ -7,7 +7,6 @@
 //
 
 #include "geometrylist.h"
-#include "renderer.h"
 #include <leap/lml/matrix.h>
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"
@@ -42,7 +41,7 @@ struct OceanMaterialSet
   alignas( 4) float roughness;
   alignas( 4) float reflectivity;
   alignas( 4) float emissive;
-  alignas( 4) float bumpscale;
+  alignas(16) Vec3 bumpscale;
   alignas(16) Vec4 foamplane;
   alignas( 4) float foamwaveheight;
   alignas( 4) float foamwavescale;
@@ -141,7 +140,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
+    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -167,7 +166,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -212,7 +211,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
+    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -238,7 +237,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), state.modelset);
   }
 
   if (state.modelset)
@@ -259,7 +258,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
 
 ///////////////////////// GeometryList::push_ocean //////////////////////////
-void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow, float bumpscale, const Plane &foamplane, float foamwaveheight, float foamwavescale, float foamshoreheight, float foamshorescale)
+void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow, Vec3 const &bumpscale, const Plane &foamplane, float foamwaveheight, float foamwavescale, float foamshoreheight, float foamshorescale)
 {
   assert(state.commandlist);
   assert(mesh && mesh->ready());
@@ -284,7 +283,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OceanMaterialSet), state.materialset);
+    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(OceanMaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -297,7 +296,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
       materialset->roughness = material->roughness;
       materialset->reflectivity = material->reflectivity;
       materialset->emissive = material->emissive;
-      materialset->bumpscale = 1.0f / (0.01f + bumpscale);
+      materialset->bumpscale = Vec3(bumpscale.xy, 1.0f / (0.01f + bumpscale.z));
       materialset->foamplane = Vec4(foamplane.normal, foamplane.distance);
       materialset->foamwaveheight = foamwaveheight;
       materialset->foamwavescale = foamwavescale;
@@ -317,7 +316,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)

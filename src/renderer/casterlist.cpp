@@ -7,7 +7,6 @@
 //
 
 #include "casterlist.h"
-#include "renderer.h"
 #include <leap/lml/matrix.h>
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"
@@ -118,7 +117,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
+    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -134,7 +133,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -179,7 +178,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaterialSet), state.materialset);
+    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -195,7 +194,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), state.modelset);
   }
 
   if (state.modelset)

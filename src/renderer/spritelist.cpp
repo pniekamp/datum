@@ -7,7 +7,6 @@
 //
 
 #include "spritelist.h"
-#include "renderer.h"
 #include <leap/lml/matrix.h>
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"
@@ -55,14 +54,7 @@ struct ModelSet
 ///////////////////////// draw_sprites //////////////////////////////////////
 void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
 {
-  auto scene = sprites.commandlist->lookup<SceneSet>(ShaderLocation::sceneset);
-
-  if (scene)
-  {
-    scene->worldview = OrthographicProjection(sprites.viewport.min.x, sprites.viewport.min.y, sprites.viewport.max.x, sprites.viewport.max.y, 0.0f, 1000.0f);
-
-    execute(commandbuffer, sprites.commandlist->commandbuffer());
-  }
+  execute(commandbuffer, sprites.commandlist->commandbuffer());
 }
 
 
@@ -94,11 +86,11 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
 
   bind_pipeline(*commandlist, context.spritepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  auto sceneset = commandlist->acquire(ShaderLocation::sceneset, context.scenesetlayout, sizeof(SceneSet));
-
-  if (sceneset)
+  if (auto sceneset = commandlist->acquire(context.scenesetlayout, sizeof(SceneSet)))
   {
-    sceneset.reserve(sizeof(SceneSet));
+    auto offset = sceneset.reserve(sizeof(sceneset));
+
+    m_sceneset = sceneset.memory<SceneSet>(offset);
 
     bind_descriptor(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -125,7 +117,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
   if (state.materialset.capacity() < state.materialset.used() + sizeof(SpriteMaterialSet) || state.texture != texture)
   {
-    state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(SpriteMaterialSet), state.materialset);
+    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(SpriteMaterialSet), state.materialset);
 
     if (state.materialset)
     {
@@ -162,7 +154,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -387,4 +379,14 @@ void SpriteList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
+}
+
+
+///////////////////////// SpriteList::viewport //////////////////////////////
+void SpriteList::viewport(Rect2 const &viewport) const
+{
+  if (auto scene = static_cast<SceneSet*>(m_sceneset))
+  {
+    scene->worldview = OrthographicProjection(viewport.min.x, viewport.min.y, viewport.max.x, viewport.max.y, 0.0f, 1000.0f);
+  }
 }

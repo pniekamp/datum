@@ -7,7 +7,6 @@
 //
 
 #include "overlaylist.h"
-#include "renderer.h"
 #include <leap/lml/matrix.h>
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"
@@ -145,7 +144,7 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(GizmoMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(GizmoMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -169,7 +168,7 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -201,7 +200,7 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WireframeMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(WireframeMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -217,7 +216,7 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -251,7 +250,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -264,7 +263,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -299,7 +298,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(MaskMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -312,7 +311,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -346,7 +345,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -365,7 +364,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -400,7 +399,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(FillMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -419,7 +418,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -453,7 +452,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -474,7 +473,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -509,7 +508,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -530,7 +529,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -561,7 +560,7 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 
   bind_vertexbuffer(commandlist, 0, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -582,7 +581,7 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -614,7 +613,7 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(PathMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -635,7 +634,7 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -675,7 +674,7 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(OutlineMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(OutlineMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -693,7 +692,7 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)

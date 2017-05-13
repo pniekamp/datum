@@ -7,8 +7,7 @@
 //
 
 #include "envmap.h"
-#include "renderer.h"
-#include <leap/lml/matrixconstants.h>
+#include "assetpack.h"
 #include "debug.h"
 
 using namespace std;
