@@ -77,7 +77,7 @@ void RenderList::push_lights(LightList const &lights)
 
     if (entry)
     {
-      entry->commandlist = lights.commandlist();
+      entry->lightlist = lights.lightlist();
     }
   }
 }
@@ -109,7 +109,8 @@ void RenderList::push_sprites(Rect2 const &viewport, SpriteList const &sprites)
 
     if (entry)
     {
-      entry->viewport = viewport;
+      sprites.viewport(viewport);
+
       entry->commandlist = sprites.commandlist();
     }
   }

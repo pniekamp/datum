@@ -3720,7 +3720,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   {
     if (renderable.type == Renderable::Type::Lights)
     {
-      auto lights = renderable_cast<Renderable::Lights>(&renderable)->commandlist->lookup<LightList::Lights>(ShaderLocation::sceneset);
+      auto lights = renderable_cast<Renderable::Lights>(&renderable)->lightlist;
 
       for(size_t i = 0; lights && i < lights->pointlightcount && pointlightcount < extentof(pointlights); ++i)
       {

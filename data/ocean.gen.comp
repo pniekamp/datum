@@ -122,6 +122,6 @@ void main()
   vertexbuffer.vertices[index].tangent[0] = tangent.z;
   vertexbuffer.vertices[index].tangent[0] = 1;
 
-  vertexbuffer.vertices[index].texcoord[0] = 0.01*position.x;
-  vertexbuffer.vertices[index].texcoord[1] = 0.01*position.y;
+  vertexbuffer.vertices[index].texcoord[0] = 0.1*position.x;
+  vertexbuffer.vertices[index].texcoord[1] = 0.1*position.y;
 }

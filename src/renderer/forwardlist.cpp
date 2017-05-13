@@ -7,7 +7,6 @@
 //
 
 #include "forwardlist.h"
-#include "renderer.h"
 #include <leap/lml/matrix.h>
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"
@@ -77,7 +76,7 @@ struct WaterMaterialSet
   alignas( 4) float roughness;
   alignas( 4) float reflectivity;
   alignas( 4) float emissive;
-  alignas( 4) float bumpscale;
+  alignas(16) Vec3 bumpscale;
   alignas( 8) Vec2 flow;
   alignas(16) Environment specular;
 };
@@ -142,7 +141,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
   bind_vertexbuffer(commandlist, 0, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ForPlaneMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(ForPlaneMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -161,7 +160,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -193,7 +192,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(TranslucentMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(TranslucentMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -215,7 +214,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)
@@ -250,7 +249,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
   bind_vertexbuffer(commandlist, 0, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -263,7 +262,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, particles->count*sizeof(Particle), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, particles->count*sizeof(Particle), state.modelset);
   }
 
   if (state.modelset)
@@ -303,7 +302,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
   bind_vertexbuffer(commandlist, 0, context.unitquad);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -316,7 +315,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, particles->count*sizeof(Particle), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, particles->count*sizeof(Particle), state.modelset);
   }
 
   if (state.modelset)
@@ -340,7 +339,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
 
 ///////////////////////// ForwardList::push_water ///////////////////////////
-void ForwardList::push_water(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, EnvMap const *envmap, Vec2 const &flow, float bumpscale, float alpha)
+void ForwardList::push_water(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, EnvMap const *envmap, Vec2 const &flow, Vec3 const &bumpscale, float alpha)
 {
   auto envtransform = Transform::identity();
   auto envdimension = Vec3(2e5f, 2e5f, 2e5f);
@@ -350,7 +349,7 @@ void ForwardList::push_water(ForwardList::BuildState &state, Transform const &tr
 
 
 ///////////////////////// ForwardList::push_water ///////////////////////////
-void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, SkyBox const *skybox, Vec2 const &flow, float bumpscale, float alpha)
+void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, SkyBox const *skybox, Vec2 const &flow, Vec3 const &bumpscale, float alpha)
 {
   assert(skybox && skybox->ready());
 
@@ -361,7 +360,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
 
 ///////////////////////// ForwardList::push_water ///////////////////////////
-void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, Vec3 const &envdimension, EnvMap const *envmap, Vec2 const &flow, float bumpscale, float alpha)
+void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, Vec3 const &envdimension, EnvMap const *envmap, Vec2 const &flow, Vec3 const &bumpscale, float alpha)
 {
   assert(state.commandlist);
   assert(mesh && mesh->ready());
@@ -375,7 +374,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
   bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire(ShaderLocation::materialset, context.materialsetlayout, sizeof(WaterMaterialSet), state.materialset);
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(WaterMaterialSet), state.materialset);
 
   if (state.materialset)
   {
@@ -388,7 +387,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
     materialset->emissive = material->emissive;
-    materialset->bumpscale = 1.0f / (0.01f + bumpscale);
+    materialset->bumpscale = Vec3(bumpscale.xy, 1.0f / (0.01f + bumpscale.z));
     materialset->flow = flow;
     materialset->specular.halfdim = envdimension/2;
     materialset->specular.invtransform = inverse(envtransform);
@@ -402,7 +401,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(ShaderLocation::modelset, context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
   if (state.modelset)

@@ -7,7 +7,6 @@
 //
 
 #include "animation.h"
-#include "resource.h"
 #include "assetpack.h"
 #include "debug.h"
 
@@ -21,6 +20,13 @@ namespace
   size_t anim_datasize(int jointcount, int transformcount)
   {
     return jointcount * sizeof(Animation::Joint) + transformcount * sizeof(Animation::Transform);
+  }
+
+  Transform blend(Transform const &t1, Transform const &t2, float weight)
+  {
+    auto flip = std::copysign(1.0f, dot(t1.real, t2.real));
+
+    return { t1.real + weight * flip * t2.real, t1.dual + weight * flip * t2.dual };
   }
 }
 
@@ -202,12 +208,11 @@ void ResourceManager::destroy<Animation>(Animation const *anim)
 ///////////////////////// Animator::Constructor /////////////////////////////
 Animator::Animator(allocator_type const &allocator)
   : m_allocator(allocator),
-    m_jointmap(allocator)
+    m_joints(allocator),
+    m_jointmap(allocator),
+    m_entries(allocator)
 {
   m_mesh = nullptr;
-  m_animation = nullptr;
-
-  m_time = 0;
 }
 
 
@@ -219,65 +224,163 @@ void Animator::set_mesh(Mesh const *mesh)
   for(int i = 0; i < pose.bonecount; ++i)
     pose.bones[i] = Transform::identity();
 
+  for(auto &entry : m_entries)
+  {
+    entry.jointmapbase = 0;
+    entry.jointmapcount = 0;
+  }
+
+  m_joints.clear();
+  m_jointmap.clear();
+
   m_mesh = mesh;
 }
 
 
-///////////////////////// Animator::play_animation //////////////////////////
-void Animator::play_animation(Animation const *animation, Vec3 const &scale)
+///////////////////////// Animator::play ////////////////////////////////////
+void Animator::play(Animation const *animation, Vec3 const &scale, float rate, bool looping)
 {
-  m_jointmap.clear();
-  m_jointmap.reserve(animation->jointcount);
+  Entry entry = {};
+  entry.animation = animation;
+  entry.scale = scale;
+  entry.time = 0.0f;
+  entry.rate = rate;
+  entry.weight = 1.0f;
+  entry.looping = looping;
 
-  m_animation = animation;
+  m_entries.push_back(entry);
+}
 
-  m_time = 0;
-  m_scale = scale;
+
+///////////////////////// Animator::set_time ////////////////////////////////
+void Animator::set_time(size_t entry, float time)
+{
+  assert(entry < m_entries.size());
+
+  m_entries[entry].time = time;
+}
+
+
+///////////////////////// Animator::set_rate ////////////////////////////////
+void Animator::set_rate(size_t entry, float rate)
+{
+  assert(entry < m_entries.size());
+
+  m_entries[entry].rate = rate;
+}
+
+
+///////////////////////// Animator::set_weight //////////////////////////////
+void Animator::set_weight(size_t entry, float weight, float maxdelta)
+{
+  assert(entry < m_entries.size());
+
+  m_entries[entry].weight += clamp(-maxdelta, weight - m_entries[entry].weight, maxdelta);
 }
 
 
 ///////////////////////// Animator::update //////////////////////////////////
 void Animator::update(float dt)
 {
-  assert(m_mesh && m_mesh->ready());
-  assert(m_animation && m_animation->ready());
+  bool active = false;
 
-  m_time += dt;
+  for(auto &entry : m_entries)
+  {
+    auto &animation = entry.animation;
 
-  float time = fmod(m_time, m_animation->duration);
-
-  if (m_jointmap.empty())
-  {   
-    m_jointmap.resize(m_animation->jointcount);
-
-    for(int i = 0; i < m_animation->jointcount; ++i)
+    if (entry.jointmapcount != animation->jointcount)
     {
-      auto j = find_if(m_mesh->bones, m_mesh->bones + m_mesh->bonecount, [&](auto &bone) { return strcmp(bone.name, m_animation->joints[i].name) == 0; });
+      assert(m_mesh && m_mesh->ready());
+      assert(animation && animation->ready());
 
-      m_jointmap[i].bone = indexof(m_mesh->bones, j);
-      m_jointmap[i].transform = Transform::identity();
-      m_jointmap[i].parent = m_animation->joints[i].parent;
+      entry.jointmapbase = m_jointmap.size();
+
+      m_jointmap.resize(m_jointmap.size() + animation->jointcount);
+
+      for(int i = 0; i < animation->jointcount; ++i)
+      {
+        auto j = find_if(m_joints.begin(), m_joints.end(), [&](auto &joint) { return strcmp(joint.name, animation->joints[i].name) == 0; });
+
+        if (j == m_joints.end())
+        {
+          Joint joint = {};
+
+          memcpy(joint.name, animation->joints[i].name, sizeof(joint.name));
+
+          joint.parent = indexof(m_joints, find_if(m_joints.begin(), m_joints.end(), [&](auto &joint) { return strcmp(joint.name, animation->joints[animation->joints[i].parent].name) == 0; }));
+          joint.bone = indexof(m_mesh->bones, find_if(m_mesh->bones, m_mesh->bones + m_mesh->bonecount, [&](auto &bone) { return strcmp(bone.name, animation->joints[i].name) == 0; }));
+
+          joint.transform = Transform::identity();
+
+          j = m_joints.insert(m_joints.end(), joint);
+        }
+
+        m_jointmap[entry.jointmapbase + i] = indexof(m_joints, j);
+      }
+
+      entry.jointmapcount = animation->jointcount;
+    }
+
+    if (entry.rate != 0.0f)
+    {
+      entry.time += entry.rate * dt;
+
+      if (entry.looping)
+      {
+        entry.time = fmod(entry.time, animation->duration);
+      }
+      else
+      {
+        if (entry.time <= 0.0f || entry.time >= animation->duration)
+        {
+          entry.rate = 0.0f;
+          entry.time = clamp(entry.time, 0.0f, animation->duration);
+        }
+      }
+
+      active = true;
     }
   }
 
-  for(size_t i = 1; i < m_jointmap.size(); ++i)
+  if (active)
   {
-    auto &joint = m_jointmap[i];
-
-    size_t index = m_animation->joints[i].index;
-
-    while (index+2 < m_animation->joints[i].index + m_animation->joints[i].count && m_animation->transforms[index+1].time < time)
-      ++index;
-
-    auto alpha = remap(time, m_animation->transforms[index].time, m_animation->transforms[index+1].time, 0.0f, 1.0f);
-
-    auto transform = lerp(m_animation->transforms[index].transform, m_animation->transforms[index+1].transform, alpha);
-
-    joint.transform = m_jointmap[joint.parent].transform * Transform::translation(hada(m_scale, transform.translation())) * Transform::rotation(transform.rotation());
-
-    if (joint.bone < pose.bonecount)
+    for(auto &joint : m_joints)
     {
-      pose.bones[joint.bone] = joint.transform * m_mesh->bones[joint.bone].transform;
+      joint.transform = {};
+    }
+
+    for(auto &entry : m_entries)
+    {
+      auto &animation = entry.animation;
+
+      if (entry.weight != 0)
+      {
+        for(int i = 0; i < animation->jointcount; ++i)
+        {
+          auto &joint = m_joints[m_jointmap[entry.jointmapbase + i]];
+
+          size_t index = animation->joints[i].index;
+
+          while (index+2 < animation->joints[i].index + animation->joints[i].count && animation->transforms[index+1].time < entry.time)
+            ++index;
+
+          auto alpha = remap(entry.time, animation->transforms[index].time, animation->transforms[index+1].time, 0.0f, 1.0f);
+
+          auto transform = lerp(animation->transforms[index].transform, animation->transforms[index+1].transform, alpha);
+
+          joint.transform = blend(joint.transform, Transform::translation(hada(entry.scale, transform.translation())) * Transform::rotation(transform.rotation()), entry.weight);
+        }
+      }
+    }
+
+    for(auto &joint : m_joints)
+    {
+      joint.transform = m_joints[joint.parent].transform * normalise(joint.transform);
+
+      if (joint.bone < pose.bonecount)
+      {
+        pose.bones[joint.bone] = joint.transform * m_mesh->bones[joint.bone].transform;
+      }
     }
   }
 }

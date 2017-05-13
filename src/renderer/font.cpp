@@ -7,7 +7,7 @@
 //
 
 #include "font.h"
-#include "resource.h"
+#include "assetpack.h"
 #include "debug.h"
 
 using namespace std;

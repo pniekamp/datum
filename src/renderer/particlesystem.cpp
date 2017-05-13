@@ -7,7 +7,6 @@
 //
 
 #include "particlesystem.h"
-#include "resource.h"
 #include "assetpack.h"
 #include <leap/lml/matrixconstants.h>
 #include "debug.h"

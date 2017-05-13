@@ -47,8 +47,6 @@ namespace Renderable
   {
     static constexpr Type type = Type::Sprites;
 
-    Rect2 viewport;
-
     CommandList const *commandlist;
   };
 
@@ -84,7 +82,20 @@ namespace Renderable
   {
     static constexpr Type type = Type::Lights;
 
-    CommandList const *commandlist;
+    struct LightList
+    {
+      size_t pointlightcount;
+
+      struct PointLight
+      {
+        Vec3 position;
+        Color3 intensity;
+        Vec4 attenuation;
+
+      } pointlights[256];
+    };
+
+    LightList const *lightlist;
   };
 
   struct Environment

@@ -7,7 +7,6 @@
 //
 
 #include "texture.h"
-#include "resource.h"
 #include "assetpack.h"
 #include "debug.h"
 

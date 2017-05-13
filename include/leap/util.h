@@ -497,9 +497,15 @@ namespace leap
   **/
 
   template<typename Array, typename T>
-  constexpr size_t indexof(Array const &array, T const &element)
+  constexpr auto indexof(Array const &array, T const &element) -> decltype(std::distance<decltype(&array[0])>(&array[0], &dereference(element)))
   {
-    return std::distance<decltype(&dereference(element))>(&array[0], &dereference(element));
+    return std::distance<decltype(&array[0])>(&array[0], &dereference(element));
+  }
+
+  template<typename Array, typename T>
+  constexpr auto indexof(Array const &array, T const &iterator) -> decltype(std::distance<decltype(begin(array))>(begin(array), iterator))
+  {
+    return std::distance<decltype(begin(array))>(begin(array), iterator);
   }
 
 

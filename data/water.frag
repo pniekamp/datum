@@ -42,7 +42,7 @@ layout(std430, set=1, binding=0, row_major) buffer MaterialSet
   float roughness;
   float reflectivity;
   float emissive;
-  float bumpscale;
+  vec3 bumpscale;
   vec2 flow;
 
   Environment specular;
@@ -108,19 +108,17 @@ void main()
 {
   float floordepth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).r;
   
-  float surfacedist = view_depth(scene.proj, gl_FragCoord.z);
+  float bumpscale = material.bumpscale.z;
 
-  vec4 bump0 = texture(normalmap, vec3(texcoord + material.flow, 0));
-  vec4 bump1 = texture(normalmap, vec3(2.0*texcoord + 4.0*material.flow, 0));
-  vec4 bump2 = texture(normalmap, vec3(4.0*texcoord + 8.0*material.flow, 0));
-
-  float bumpscale = material.bumpscale;// * mix(1, 0.1, clamp(0.2*surfacedist, 0, 1));
+  vec4 bump0 = texture(normalmap, vec3(material.bumpscale.xy*(texcoord + material.flow), 0));
+  vec4 bump1 = texture(normalmap, vec3(material.bumpscale.xy*(2.0*texcoord + 4.0*material.flow), 0));
+  vec4 bump2 = texture(normalmap, vec3(material.bumpscale.xy*(4.0*texcoord + 8.0*material.flow), 0));
 
   vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, bumpscale)); 
 
   vec3 eyevec = normalize(scene.camera.position - position);
 
-  float dist = view_depth(scene.proj, floordepth) - surfacedist;
+  float dist = view_depth(scene.proj, floordepth) - view_depth(scene.proj, gl_FragCoord.z);
 
   float scale = 0.05 * dist;
   float facing = 1 - dot(eyevec, normal);

@@ -83,16 +83,13 @@ class CommandList
 
     bool begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass);
 
-    Descriptor acquire(uint32_t set, VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset = {});
+    Descriptor acquire(VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset = {});
 
     void release(Descriptor const &descriptor);
 
     void end();
 
   public:
-
-    template<typename View>
-    View *lookup(uint32_t set) const { return (View*)m_addressmap[set]; }
 
     operator VkCommandBuffer() const { return m_commandbuffer; }
 
@@ -101,8 +98,6 @@ class CommandList
   private:
 
     VkCommandBuffer m_commandbuffer;
-
-    void *m_addressmap[4];
 
     ResourcePool::ResourceLump const *m_resourcelump;
 
