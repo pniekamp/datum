@@ -327,7 +327,7 @@ void Animator::update(float dt)
 
       if (entry.looping)
       {
-        entry.time = fmod(entry.time, animation->duration);
+        entry.time = fmod2(entry.time, animation->duration);
       }
       else
       {

@@ -67,7 +67,7 @@ bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManage
   state.context = &context;
   state.resources = resources;
 
-  if (!context.shadowbuffer)
+  if (!context.prepared)
     return false;
 
   auto commandlist = resources->allocate<CommandList>(&context);

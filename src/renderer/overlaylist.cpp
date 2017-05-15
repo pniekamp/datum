@@ -106,7 +106,7 @@ bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManag
   state.clipwidth = context.width;
   state.clipheight = context.height;
 
-  if (!context.framebuffer)
+  if (!context.prepared)
     return false;
 
   auto commandlist = resources->allocate<CommandList>(&context);

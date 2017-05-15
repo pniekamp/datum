@@ -90,7 +90,7 @@ bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceMana
   state.context = &context;
   state.resources = resources;
 
-  if (!context.geometrybuffer)
+  if (!context.prepared)
     return false;
 
   auto commandlist = resources->allocate<CommandList>(&context);

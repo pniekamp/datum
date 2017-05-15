@@ -848,7 +848,7 @@ void write_core()
   write_shader_asset(fout, CoreAsset::ocean_map_comp, "../../data/ocean.map.comp");
   write_shader_asset(fout, CoreAsset::ocean_gen_comp, "../../data/ocean.gen.comp");
 
-  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0f, 0.007f, 0.005f), Color3(0.1, 0.6, 0.7), 1.0, Color3(0.006f, 0.115f, 0.324f), 0.015f, 5.0f, "../../data/foam.png");
+  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0f, 0.007f, 0.005f), Color3(0.1, 0.6, 0.7), 1.0, Color3(0.01f, 0.05f, 0.15f), 0.015f, 5.0f, "../../data/foam.png");
   write_normalmap_asset(fout, CoreAsset::wave_normal, "../../data/wavenormal.png");
 
   write_image_asset(fout, CoreAsset::cloud_density, "../../data/clouds.png");

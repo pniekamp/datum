@@ -218,6 +218,7 @@ struct ShadowMap
 struct RenderContext
 {
   bool ready = false;
+  bool prepared = false;
 
   Vulkan::VulkanDevice vulkan;
 

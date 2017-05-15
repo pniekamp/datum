@@ -218,8 +218,6 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
     state.resources.request(platform, state.debugfont);
 
-    prepare_render_context(platform, state.rendercontext, &state.assets);
-
     if (state.rendercontext.ready && state.debugfont->ready())
     {
       state.mode = GameState::Load;
@@ -475,7 +473,9 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   BEGIN_TIMED_BLOCK(Render, Color3(0.0f, 0.2f, 1.0f))
 
   if (state.readframe->mode == GameState::Startup)
-  {
+  {   
+    prepare_render_context(platform, state.rendercontext, &state.assets);
+
     render_fallback(state.rendercontext, viewport, embeded::logo.data, embeded::logo.width, embeded::logo.height);
   }
 
@@ -487,6 +487,23 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   if (state.readframe->mode == GameState::Play)
   {
     auto &camera = state.readframe->camera;
+
+    RenderParams renderparams;
+    renderparams.width = viewport.width;
+    renderparams.height = viewport.height;
+  //  renderparams.scale = 0.5f;
+    renderparams.aspect = state.aspect;
+    renderparams.skybox = state.readframe->skybox;
+    renderparams.sundirection = state.readframe->sundirection;
+    renderparams.sunintensity = state.readframe->sunintensity;
+  //  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
+    renderparams.ssrstrength = 1.0f;
+    renderparams.ssaoscale = 0.5f;
+
+    DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
+    DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
+
+    prepare_render_pipeline(state.rendercontext, renderparams);
 
     RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
@@ -598,21 +615,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 #endif
 
   //  renderlist.push_environment(Vec3(6, 12, 26), Transform::translation(0, 6, 0) * Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), state.testenvmap);
-
-    RenderParams renderparams;
-    renderparams.width = viewport.width;
-    renderparams.height = viewport.height;
-  //  renderparams.scale = 0.5f;
-    renderparams.aspect = state.aspect;
-    renderparams.skybox = state.readframe->skybox;
-    renderparams.sundirection = state.readframe->sundirection;
-    renderparams.sunintensity = state.readframe->sunintensity;
-  //  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
-    renderparams.ssrstrength = 1.0f;
-    renderparams.ssaoscale = 0.5f;
-
-    DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
-    DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
 
     render_debug_overlay(state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);
 

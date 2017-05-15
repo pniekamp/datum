@@ -70,7 +70,7 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
   state.context = &context;
   state.resources = resources;
 
-  if (!context.framebuffer)
+  if (!context.prepared)
     return false;
 
   auto commandlist = resources->allocate<CommandList>(&context);
