@@ -31,7 +31,7 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
   state.context = &context;
   state.resources = resources;
 
-  if (!context.forwardbuffer)
+  if (!context.prepared)
     return false;
 
   auto commandlist = resources->allocate<CommandList>(&context);

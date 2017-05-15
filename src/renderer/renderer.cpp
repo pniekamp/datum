@@ -105,8 +105,6 @@ enum ShaderLocation
   SoftParticles = 28,
 };
 
-static constexpr size_t TransferBufferSize = 512*1024;
-
 struct MainLight
 {
   alignas(16) Vec3 direction;
@@ -170,6 +168,8 @@ struct LumaSet
 {
   float luminance;
 };
+
+static constexpr size_t TransferBufferSize = 512*1024;
 
 struct ComputeConstants
 {
@@ -678,8 +678,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
     attachments[1].format = VK_FORMAT_D32_SFLOAT;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -1140,16 +1140,34 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     auto gsmodule = create_shadermodule(context.vulkan, gssrc, gs->length);
     auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
 
-    VkVertexInputBindingDescription vertexbindings[1] = {};
+    VkVertexInputBindingDescription vertexbindings[2] = {};
+    vertexbindings[0].binding = 0;
     vertexbindings[0].stride = VertexLayout::stride;
     vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vertexbindings[1].binding = 1;
+    vertexbindings[1].stride = 32;
+    vertexbindings[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkVertexInputAttributeDescription vertexattributes[6] = {};
+    vertexattributes[0] = context.vertexattributes[0];
+    vertexattributes[1] = context.vertexattributes[1];
+    vertexattributes[2] = context.vertexattributes[2];
+    vertexattributes[3] = context.vertexattributes[3];
+    vertexattributes[4].binding = 1;
+    vertexattributes[4].location = ShaderLocation::rig_bone;
+    vertexattributes[4].format = VK_FORMAT_R32G32B32A32_UINT;
+    vertexattributes[4].offset = 0;
+    vertexattributes[5].binding = 1;
+    vertexattributes[5].location = ShaderLocation::rig_weight;
+    vertexattributes[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    vertexattributes[5].offset = 16;
 
     VkPipelineVertexInputStateCreateInfo vertexinput = {};
     vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
     vertexinput.pVertexBindingDescriptions = vertexbindings;
-    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
-    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+    vertexinput.vertexAttributeDescriptionCount = extentof(vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = vertexattributes;
 
     VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
     inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -3348,14 +3366,14 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
   if (dirty)
   {
+    assert(context.ready);
+
+    release_render_pipeline(context);
+
     context.width = params.width;
     context.height = params.height;
     context.scale = params.scale;
     context.aspect = params.aspect;
-
-    vkDeviceWaitIdle(context.vulkan);
-    vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-    vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
     context.fbox = (context.width - min((int)(context.height * params.aspect), context.width))/2;
     context.fboy = (context.height - min((int)(context.width / params.aspect), context.height))/2;
@@ -3411,7 +3429,9 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     // Color Attachment
     //
 
-    context.colorbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    context.colorbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+
+    clear(setupbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_GENERAL, Color4(0.0, 0.0, 0.0, 0.0));
 
     //
     // Geometry Attachment
@@ -3593,10 +3613,10 @@ bool prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     vkQueueWaitIdle(context.vulkan.queue);
 
-    return false;
+    context.prepared = true;
   }
 
-  return true;
+  return context.prepared;
 }
 
 
@@ -3606,6 +3626,8 @@ void release_render_pipeline(RenderContext &context)
   vkDeviceWaitIdle(context.vulkan);
   vkResetCommandBuffer(context.commandbuffers[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
   vkResetCommandBuffer(context.commandbuffers[1], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+
+  context.prepared = false;
 
   context.shadowbuffer = {};
 
@@ -3617,6 +3639,8 @@ void release_render_pipeline(RenderContext &context)
   context.normalbuffer = {};
   context.depthbuffer = {};
   context.colorbuffer = {};
+  context.rendertarget = {};
+  context.depthstencil = {};
 
   context.geometrybuffer = {};
   context.forwardbuffer = {};
@@ -3628,6 +3652,8 @@ void release_render_pipeline(RenderContext &context)
 
   context.ssaobuffers[0] = {};
   context.ssaobuffers[1] = {};
+
+  context.shadows.shadowmap = {};
 
   context.width = 0;
   context.height = 0;
@@ -3835,12 +3861,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
 {
   assert(context.ready);
-
-  if (!prepare_render_pipeline(context, params))
-  {
-    render_fallback(context, viewport);
-    return;
-  }
+  assert(context.prepared);
 
   context.camera = camera;
   context.proj = camera.proj();
@@ -3933,25 +3954,15 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   querytimestamp(commandbuffer, context.timingquerypool, 4);
 
   //
-  // SkyBox
-  //
-
-  if (params.skybox)
-  {
-    beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, 0, nullptr);
-
-    draw_skybox(context, commandbuffer, params);
-
-    endpass(commandbuffer, context.forwardpass);
-  }
-
-  querytimestamp(commandbuffer, context.timingquerypool, 5);
-
-  //
   // Forward
   //
 
   beginpass(commandbuffer, context.forwardpass, context.forwardbuffer, 0, 0, context.fbowidth, context.fboheight, 0, nullptr);
+
+  if (params.skybox)
+  {
+    draw_skybox(context, commandbuffer, params);
+  }
 
   for(auto &renderable : renderables)
   {
@@ -3968,7 +3979,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.forwardpass);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 6);
+  querytimestamp(commandbuffer, context.timingquerypool, 5);
 
   //
   // SSR
@@ -3981,7 +3992,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     dispatch(commandbuffer, context.fbowidth, context.fboheight, 1, computeconstants.SSRDispatch);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 7);
+  querytimestamp(commandbuffer, context.timingquerypool, 6);
 
   //
   // Luminance
@@ -3991,7 +4002,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   dispatch(commandbuffer, 1, 1, 1);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 8);
+  querytimestamp(commandbuffer, context.timingquerypool, 7);
 
   //
   // Bloom
@@ -4012,7 +4023,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     dispatch(commandbuffer, context.fbowidth/2, context.fboheight/2, 1, computeconstants.BloomVBlurDispatch);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 9);
+  querytimestamp(commandbuffer, context.timingquerypool, 8);
 
   //
   // Overlay
@@ -4041,7 +4052,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.renderpass);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 10);
+  querytimestamp(commandbuffer, context.timingquerypool, 9);
 
   //
   // Blit
@@ -4056,7 +4067,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     transition_present(commandbuffer, viewport.image);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 11);
+  querytimestamp(commandbuffer, context.timingquerypool, 10);
 
   barrier(commandbuffer);
 
@@ -4079,19 +4090,18 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.vulkan, context.timingquerypool, 0, 12, timings);
+  retreive_querypool(context.vulkan, context.timingquerypool, 0, 11, timings);
 
   GPU_TIMED_BLOCK(Shadows, Color3(0.0f, 0.4f, 0.0f), timings[0], timings[1])
   GPU_TIMED_BLOCK(Geometry, Color3(0.4f, 0.0f, 0.4f), timings[1], timings[2])
   GPU_TIMED_BLOCK(SSAO, Color3(0.2f, 0.8f, 0.2f), timings[2], timings[3])
   GPU_TIMED_BLOCK(Lighting, Color3(0.0f, 0.6f, 0.4f), timings[3], timings[4])
-  GPU_TIMED_BLOCK(SkyBox, Color3(0.2f, 0.6f, 0.6f), timings[4], timings[5])
-  GPU_TIMED_BLOCK(Forward, Color3(0.2f, 0.4f, 0.8f), timings[5], timings[6])
-  GPU_TIMED_BLOCK(SSR, Color3(0.0f, 0.4f, 0.8f), timings[6], timings[7])
-  GPU_TIMED_BLOCK(Luminance, Color3(0.8f, 0.4f, 0.2f), timings[7], timings[8])
-  GPU_TIMED_BLOCK(Bloom, Color3(0.2f, 0.2f, 0.6f), timings[8], timings[9])
-  GPU_TIMED_BLOCK(Overlay, Color3(0.4f, 0.4f, 0.0f), timings[9], timings[10])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4f, 0.4f, 0.4f), timings[10], timings[11])
+  GPU_TIMED_BLOCK(Forward, Color3(0.0f, 0.4f, 0.8f), timings[4], timings[5])
+  GPU_TIMED_BLOCK(SSR, Color3(0.2f, 0.4f, 0.8f), timings[5], timings[6])
+  GPU_TIMED_BLOCK(Luminance, Color3(0.8f, 0.4f, 0.2f), timings[6], timings[7])
+  GPU_TIMED_BLOCK(Bloom, Color3(0.2f, 0.2f, 0.6f), timings[7], timings[8])
+  GPU_TIMED_BLOCK(Overlay, Color3(0.4f, 0.4f, 0.0f), timings[8], timings[9])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4f, 0.4f, 0.4f), timings[9], timings[10])
 
   GPU_SUBMIT();
 

@@ -6,7 +6,7 @@
 // Copyright (c) 2016 Peter Niekamp
 //
 
-#include "ActorComponent.h"
+#include "actorcomponent.h"
 #include "debug.h"
 
 using namespace std;
