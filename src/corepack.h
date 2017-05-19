@@ -95,5 +95,7 @@ namespace CoreAsset
     loader_image,
     test_image,
     debug_font,
+
+    core_asset_count
   };
 }

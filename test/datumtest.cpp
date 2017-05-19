@@ -500,6 +500,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderparams.ssrstrength = 1.0f;
     renderparams.ssaoscale = 0.5f;
 
+    bool ssao = (renderparams.ssaoscale != 0);
+    DEBUG_MENU_VALUE("Lighting/SSAO", &ssao, false, true);
+    renderparams.ssaoscale = ssao * 0.5f;
+
     DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
     DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
 

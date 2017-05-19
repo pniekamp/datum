@@ -453,7 +453,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
   {
     begin(context.vulkan, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
 
     end(context.vulkan, context.commandbuffer);
 
@@ -507,9 +507,9 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
 
   bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
-  bind_imageview(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap.imageview);
+  bind_image(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap);
 
-  bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap);
+  bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap.imageview, context.displacementmap.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
   size_t verticessize = mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize;
   auto verticesbuffer = create_storagebuffer(context.vulkan, mesh->vertexbuffer.memory, mesh->vertexbuffer.verticesoffset, verticessize);
@@ -540,11 +540,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
 
   bind_pipeline(commandbuffer, context.pipeline[3], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  setimagelayout(commandbuffer, context.displacementmap.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 2 });
-
   dispatch(commandbuffer, OceanContext::WaveResolution/16, OceanContext::WaveResolution/16, 1);
-
-  setimagelayout(commandbuffer, context.displacementmap.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 2 });
 
   bind_pipeline(commandbuffer, context.pipeline[4], VK_PIPELINE_BIND_POINT_COMPUTE);
 
