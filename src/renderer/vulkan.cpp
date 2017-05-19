@@ -867,7 +867,7 @@ namespace Vulkan
 
 
   ///////////////////////// bind_image //////////////////////////////////////
-  void bind_imageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
   {
     VkWriteDescriptorSet writeset = {};
     writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -880,15 +880,18 @@ namespace Vulkan
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
   }
 
-
-  ///////////////////////// bind_image //////////////////////////////////////
-  void bind_imageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview)
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout)
   {
     VkDescriptorImageInfo imageinfo = {};
     imageinfo.imageView = imageview;
-    imageinfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageinfo.imageLayout = layout;
 
-    bind_imageview(vulkan, descriptorset, binding, &imageinfo, 1);
+    bind_image(vulkan, descriptorset, binding, &imageinfo, 1);
+  }
+
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture)
+  {
+    bind_image(vulkan, descriptorset, binding, texture.imageview, VK_IMAGE_LAYOUT_GENERAL);
   }
 
 
@@ -906,23 +909,19 @@ namespace Vulkan
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
   }
 
-
-  ///////////////////////// bind_texture ////////////////////////////////////
-  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler)
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler, VkImageLayout layout)
   {
     VkDescriptorImageInfo imageinfo = {};
     imageinfo.sampler = sampler;
     imageinfo.imageView = imageview;
-    imageinfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageinfo.imageLayout = layout;
 
     bind_texture(vulkan, descriptorset, binding, &imageinfo, 1);
   }
 
-
-  ///////////////////////// bind_texture ////////////////////////////////////
   void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture)
   {
-    bind_texture(vulkan, descriptorset, binding, texture.imageview, texture.sampler);
+    bind_texture(vulkan, descriptorset, binding, texture.imageview, texture.sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   }
 
 
@@ -967,8 +966,6 @@ namespace Vulkan
     vkBeginCommandBuffer(commandbuffer, &begininfo);
   }
 
-
-  ///////////////////////// begin ///////////////////////////////////////////
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferInheritanceInfo const &inheritanceinfo, VkCommandBufferUsageFlags flags)
   {
     VkCommandBufferBeginInfo begininfo = {};
@@ -979,8 +976,6 @@ namespace Vulkan
     vkBeginCommandBuffer(commandbuffer, &begininfo);
   }
 
-
-  ///////////////////////// begin ///////////////////////////////////////////
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, VkCommandBufferUsageFlags flags)
   {
     VkCommandBufferInheritanceInfo inheritanceinfo = {};
@@ -1016,7 +1011,6 @@ namespace Vulkan
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
   }
 
-  ///////////////////////// submit //////////////////////////////////////////
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFence fence)
   {
     VkSubmitInfo submitinfo = {};
@@ -1027,7 +1021,6 @@ namespace Vulkan
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
   }
 
-  ///////////////////////// submit //////////////////////////////////////////
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkFence fence)
   {
     VkPipelineStageFlags waitdststagemask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1043,7 +1036,6 @@ namespace Vulkan
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
   }
 
-  ///////////////////////// submit //////////////////////////////////////////
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence)
   {
     VkPipelineStageFlags waitdststagemask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1099,20 +1091,18 @@ namespace Vulkan
 
 
   ///////////////////////// clear ///////////////////////////////////////////
-  void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, Color4 const &clearcolor)
+  void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, Color4 const &clearcolor, VkImageSubresourceRange subresourcerange)
   {
-    assert(layout == VK_IMAGE_LAYOUT_GENERAL || layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
     VkClearColorValue clearvalues = { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a };
 
-    VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    setimagelayout(commandbuffer, image, layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourcerange);
 
-    vkCmdClearColorImage(commandbuffer, image, layout, &clearvalues, 1, &subresourcerange);
+    vkCmdClearColorImage(commandbuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearvalues, 1, &subresourcerange);
+
+    setimagelayout(commandbuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout, subresourcerange);
   }
 
-
-  ///////////////////////// clear ///////////////////////////////////////////
-  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, Color4 const &clearcolor)
+  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, Color4 const &clearcolor, VkImageSubresourceRange subresourcerange)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
@@ -1120,7 +1110,7 @@ namespace Vulkan
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    clear(setupbuffer, image, layout, clearcolor);
+    clear(setupbuffer, image, layout, clearcolor, subresourcerange);
 
     end(vulkan, setupbuffer);
 
@@ -1562,6 +1552,15 @@ namespace Vulkan
   void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3])
   {
     dispatch(commandbuffer, (width + dim[0] - 1)/dim[0], (height + dim[1] - 1)/dim[1], (depth + dim[2] - 1)/dim[2]);
+  }
+
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3])
+  {
+    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+
+    dispatch(commandbuffer, texture.width, texture.height, texture.layers, dim);
+
+    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
   }
 
 

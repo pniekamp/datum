@@ -412,11 +412,12 @@ namespace Vulkan
 
   void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
 
-  void bind_imageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
-  void bind_imageview(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview);
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout);
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
 
   void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
-  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler);
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler, VkImageLayout layout);
   void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
 
   void reset_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPool descriptorpool);
@@ -438,8 +439,8 @@ namespace Vulkan
   void transition_acquire(VkCommandBuffer commandbuffer, VkImage image);
   void transition_present(VkCommandBuffer commandbuffer, VkImage image);
 
-  void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor);
-  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor);
+  void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor, VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor, VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data);
 
@@ -492,5 +493,6 @@ namespace Vulkan
 
   void dispatch(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t z);
   void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3]);
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3]);
 
 } // namespace

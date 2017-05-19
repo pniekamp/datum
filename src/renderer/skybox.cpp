@@ -340,7 +340,7 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   auto &commandbuffer = context.commandbuffer;
 
-  bind_imageview(context.vulkan, context.skyboxdescriptor, 1, skybox->texture.imageview);
+  bind_image(context.vulkan, context.skyboxdescriptor, 1, skybox->texture);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -349,6 +349,8 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
   bind_descriptor(commandbuffer, context.skyboxdescriptor, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(skyboxset), &skyboxset, VK_SHADER_STAGE_COMPUTE_BIT);
+
+  setimagelayout(commandbuffer, skybox->texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, skybox->texture.levels, 0, skybox->texture.layers });
 
   dispatch(commandbuffer, skybox->texture.width/16, skybox->texture.height/16, 1);
 
@@ -377,8 +379,9 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
       convolveimageviews[level] = create_imageview(context.vulkan, viewinfo);
 
-      bind_texture(context.vulkan, context.convolvedescriptors[level], 0, skybox->texture);
-      bind_imageview(context.vulkan, context.convolvedescriptors[level], 1, convolveimageviews[level]);
+      bind_texture(context.vulkan, context.convolvedescriptors[level], 0, skybox->texture.imageview, skybox->texture.sampler, VK_IMAGE_LAYOUT_GENERAL);
+
+      bind_image(context.vulkan, context.convolvedescriptors[level], 1, convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 
       bind_descriptor(commandbuffer, context.convolvedescriptors[level], context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -391,6 +394,8 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
   {
     mip(commandbuffer, skybox->texture.image, skybox->texture.width, skybox->texture.height, skybox->texture.layers, skybox->texture.levels);
   }
+
+  setimagelayout(commandbuffer, skybox->texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, skybox->texture.levels, 0, skybox->texture.layers });
 
   end(context.vulkan, commandbuffer);
 
