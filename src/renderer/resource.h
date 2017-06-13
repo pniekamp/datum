@@ -207,6 +207,11 @@ class unique_resource
     {
     }
 
+    unique_resource(ResourceManager &resources, Resource const *resource)
+      : m_resource(resource), m_resources(&resources)
+    {
+    }
+
     unique_resource(unique_resource const &) = delete;
 
     unique_resource(unique_resource &&other) noexcept

@@ -21,6 +21,8 @@ using leap::extentof;
 enum RenderPasses
 {
   objectpass = 0,
+
+  passcount
 };
 
 enum ShaderLocation
@@ -33,6 +35,8 @@ enum ShaderLocation
   albedomap = 1,
   specularmap = 2,
   normalmap = 3,
+
+  shadowomap = 1,
 };
 
 struct Environment
@@ -81,15 +85,26 @@ struct WaterMaterialSet
   alignas(16) Environment specular;
 };
 
+struct SpotlightMaterialSet
+{
+  alignas(16) Vec3 position;
+  alignas(16) Color3 intensity;
+  alignas(16) Vec4 attenuation;
+  alignas(16) Vec3 direction;
+  alignas( 4) float cutoff;
+};
+
 struct ModelSet
 {
   alignas(16) Transform modelworld;
+  alignas(16) Vec3 scale;
 };
+
 
 ///////////////////////// draw_objects //////////////////////////////////////
 void draw_objects(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Objects const &objects)
 {
-  execute(commandbuffer, objects.commandlist->commandbuffer());
+  execute(commandbuffer, objects.commandlist->commandbuffer(RenderPasses::objectpass));
 }
 
 
@@ -97,29 +112,31 @@ void draw_objects(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ForwardList::begin ////////////////////////////////
-bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
+bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
   m_commandlist = {};
 
   state = {};
   state.context = &context;
-  state.resources = resources;
+  state.resources = &resources;
 
   if (!context.prepared)
     return false;
 
-  auto commandlist = resources->allocate<CommandList>(&context);
+  auto commandlist = resources.allocate<CommandList>(&context);
 
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context.forwardbuffer, context.forwardpass, RenderPasses::objectpass))
+  if (!commandlist->begin(context.forwardbuffer, context.forwardpass, RenderPasses::passcount))
   {
-    resources->destroy(commandlist);
+    resources.destroy(commandlist);
     return false;
   }
 
-  bind_descriptor(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  auto objectpass = commandlist->commandbuffer(RenderPasses::objectpass);
+
+  bind_descriptor(objectpass, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -136,10 +153,11 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto objectpass = commandlist.commandbuffer(RenderPasses::objectpass);
 
-  bind_pipeline(commandlist, context.fogpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(objectpass, context.fogpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, 0, context.unitquad);
+  bind_vertexbuffer(objectpass, 0, context.unitquad);
 
   state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(ForPlaneMaterialSet), state.materialset);
 
@@ -155,7 +173,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
     materialset->falloff = falloff;
     materialset->startdistance = max(startdistance, 0.0f) * 1.4142135f;
 
-    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -163,7 +181,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
     state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(sizeof(ModelSet));
 
@@ -171,9 +189,9 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
     modelset->modelworld = Transform::translation(0, 0, max(startdistance, 0.01f));
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
+    draw(objectpass, context.unitquad.vertexcount, 1, 0, 0);
   }
 }
 
@@ -187,10 +205,11 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto objectpass = commandlist.commandbuffer(RenderPasses::objectpass);
 
-  bind_pipeline(commandlist, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(objectpass, context.translucentpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
+  bind_vertexbuffer(objectpass, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(TranslucentMaterialSet), state.materialset);
 
@@ -209,7 +228,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
     bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
     bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -217,7 +236,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
     state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(sizeof(ModelSet));
 
@@ -225,9 +244,9 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
     modelset->modelworld = transform;
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(objectpass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 
@@ -244,10 +263,11 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto objectpass = commandlist.commandbuffer(RenderPasses::objectpass);
 
-  bind_pipeline(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(objectpass, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, 0, context.unitquad);
+  bind_vertexbuffer(objectpass, 0, context.unitquad);
 
   state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
@@ -257,7 +277,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
 
-    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
@@ -265,7 +285,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
     state.modelset = commandlist.acquire(context.modelsetlayout, particles->count*sizeof(Particle), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(particles->count*sizeof(Particle));
 
@@ -278,9 +298,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
       modelset[i].color = particles->color[i];
     }
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, context.unitquad.vertexcount, particles->count, 0, 0);
+    draw(objectpass, context.unitquad.vertexcount, particles->count, 0, 0);
   }
 }
 
@@ -297,10 +317,11 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto objectpass = commandlist.commandbuffer(RenderPasses::objectpass);
 
-  bind_pipeline(commandlist, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(objectpass, context.particlepipeline[0], 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, 0, context.unitquad);
+  bind_vertexbuffer(objectpass, 0, context.unitquad);
 
   state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(ParticleMaterialSet), state.materialset);
 
@@ -310,7 +331,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
 
-    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + particles->count*sizeof(Particle))
@@ -318,7 +339,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
     state.modelset = commandlist.acquire(context.modelsetlayout, particles->count*sizeof(Particle), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(particles->count*sizeof(Particle));
 
@@ -331,9 +352,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
       modelset[i].color = particles->color[i];
     }
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, context.unitquad.vertexcount, particles->count, 0, 0);
+    draw(objectpass, context.unitquad.vertexcount, particles->count, 0, 0);
   }
 }
 
@@ -369,10 +390,11 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto objectpass = commandlist.commandbuffer(RenderPasses::objectpass);
 
-  bind_pipeline(commandlist, context.waterpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_pipeline(objectpass, context.waterpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
+  bind_vertexbuffer(objectpass, 0, mesh->vertexbuffer);
 
   state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(WaterMaterialSet), state.materialset);
 
@@ -396,7 +418,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, envmap->texture);
     bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
@@ -404,7 +426,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(sizeof(ModelSet));
 
@@ -412,9 +434,66 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
     modelset->modelworld = transform;
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(objectpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(objectpass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+  }
+}
+
+
+///////////////////////// ForwardList::push_spotlight ///////////////////////
+void ForwardList::push_spotlight(BuildState &state, Transform const &transform, Mesh const *mesh, Vec3 const &scale, float cutoff, float range, Color3 const &intensity, Attenuation const &attenuation)
+{
+  assert(state.commandlist);
+  assert(mesh && mesh->ready());
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+  auto objectpass = commandlist.commandbuffer(RenderPasses::objectpass);
+
+  bind_pipeline(objectpass, context.spotlightpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  bind_vertexbuffer(objectpass, 0, mesh->vertexbuffer);
+
+  state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(SpotlightMaterialSet), state.materialset);
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(SpotlightMaterialSet));
+
+    auto materialset = state.materialset.memory<SpotlightMaterialSet>(offset);
+
+    materialset->position = transform.translation();
+    materialset->intensity = intensity;
+    materialset->attenuation.x = attenuation.quadratic;
+    materialset->attenuation.y = attenuation.linear;
+    materialset->attenuation.z = attenuation.constant;
+    materialset->attenuation.w = range;
+    materialset->direction = transform.rotation() * Vec3(1, 0, 0);
+    materialset->cutoff = 1 - cutoff;
+
+//    bind_texture(context.vulkan, state.materialset, ShaderLocation::shadowmap, shadowmap ? shadowmap->texture : context.whitediffuse);
+
+    bind_descriptor(objectpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  }
+
+  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
+  {
+    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
+
+    modelset->modelworld = transform;
+    modelset->scale = scale;
+
+    bind_descriptor(objectpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(objectpass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 

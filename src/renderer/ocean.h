@@ -74,7 +74,7 @@ void lerp_ocean_waves(OceanParams &params, float wavescale, float waveamplitude,
 void update_ocean(OceanParams &params, float dt);
 
 // Prepare
-bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager *assets, uint32_t queueindex);
+bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets, uint32_t queueindex);
 
 // Render
 void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params);

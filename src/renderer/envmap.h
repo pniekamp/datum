@@ -45,10 +45,13 @@ class EnvMap
     {
       Empty,
       Loading,
+      Waiting,
+      Testing,
       Ready,
     };
 
     Asset const *asset;
+    ResourceManager::TransferLump const *transferlump;
 
     std::atomic<State> state;
 

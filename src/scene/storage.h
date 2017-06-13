@@ -150,7 +150,7 @@ class DefaultStorage : public Storage
     void for_each(Tuple &&tuple, Fn &&f, std::index_sequence<Indices...>)
     {
       using sink = int[];
-      (void)(sink{ (std::forward<Fn>(f)(std::get<Indices>(std::forward<Tuple>(tuple))), 0)... });
+      (void)(sink{ ((void)f(std::get<Indices>(std::forward<Tuple>(tuple))), 0)... });
     }
 
     template<typename Tuple, typename Fn>

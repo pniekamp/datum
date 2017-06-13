@@ -3,7 +3,7 @@
 #include "transform.glsl"
 #include "lighting.glsl"
 
-layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -18,7 +18,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 
 } scene;
 
-layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
+layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   float metalness;
@@ -61,6 +61,10 @@ void main()
   
   vec3 eyevec = normalize(scene.camera.position - position);
 
+  MainLight mainlight;
+  mainlight.direction = -eyevec;
+  mainlight.intensity = vec3(1.0f, 0.945f, 0.985f);
+
   vec4 rt0 = texture(albedomap, vec3(texcoord, 0)) * material.color;
   vec4 rt1 = texture(specularmap, vec3(texcoord, 0)) * vec4(0, material.reflectivity, 0, material.roughness);
  
@@ -68,8 +72,6 @@ void main()
     discard;
 
   Material material = unpack_material(rt0, rt1);
-
-  MainLight mainlight = { -eyevec, vec3(1.0f, 0.945f, 0.985f) };
   
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);

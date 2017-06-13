@@ -6,18 +6,20 @@ layout(location=1) in vec2 vertex_texcoord;
 layout(location=2) in vec3 vertex_normal;
 layout(location=3) in vec4 vertex_tangent;
 
-layout(std430, set=2, binding=0, row_major) buffer ModelSet 
+layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
 { 
   Transform modelworld;
 
 } model;
 
-layout(location=0) out vec2 texcoords;
+layout(location=0) out vec2 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  texcoords = vertex_texcoord;
+  Transform modelworld = model.modelworld;
   
-  gl_Position = vec4(transform_multiply(model.modelworld, vertex_position), 1);
+  texcoord = vertex_texcoord;
+  
+  gl_Position = vec4(transform_multiply(modelworld, vertex_position), 1);
 }

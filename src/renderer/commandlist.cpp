@@ -23,7 +23,7 @@ using leap::extentof;
 CommandList::CommandList(RenderContext *context)
   : context(context)
 {
-  m_commandbuffer = 0;
+  m_passcount = 0;
 
   m_resourcelump = context->resourcepool.acquire_lump();
 }
@@ -40,36 +40,47 @@ CommandList::~CommandList()
 
 
 ///////////////////////// CommandList::begin //////////////////////////////
-bool CommandList::begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass)
+bool CommandList::begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpasses)
 {
   assert(context);
+  assert(subpasses < extentof(m_commandbuffers));
 
   if (m_resourcelump)
   {
-    m_commandbuffer = context->resourcepool.acquire_commandbuffer(m_resourcelump).commandbuffer;
+    m_passcount = subpasses;
 
-    if (m_commandbuffer)
+    for(size_t subpass = 0; subpass < m_passcount; ++subpass)
     {
-      VkCommandBufferInheritanceInfo inheritanceinfo = {};
-      inheritanceinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-      inheritanceinfo.framebuffer = framebuffer;
-      inheritanceinfo.renderPass = renderpass;
-      inheritanceinfo.subpass = subpass;
+      m_commandbuffers[subpass] = context->resourcepool.acquire_commandbuffer(m_resourcelump).commandbuffer;
 
-      Vulkan::begin(context->vulkan, m_commandbuffer, inheritanceinfo, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+      if (m_commandbuffers[subpass])
+      {
+        VkCommandBufferInheritanceInfo inheritanceinfo = {};
+        inheritanceinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+        inheritanceinfo.framebuffer = framebuffer;
+        inheritanceinfo.renderPass = renderpass;
+        inheritanceinfo.subpass = subpass;
+
+        Vulkan::begin(context->vulkan, m_commandbuffers[subpass], inheritanceinfo, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+      }
     }
   }
 
-  return m_commandbuffer;
+  return (m_passcount == subpasses);
 }
 
 
 ///////////////////////// CommandList::end ////////////////////////////////
 void CommandList::end()
 {
-  assert(m_commandbuffer);
+  assert(m_passcount != 0);
 
-  Vulkan::end(context->vulkan, m_commandbuffer);
+  for(size_t subpass = 0; subpass < m_passcount; ++subpass)
+  {
+    Vulkan::end(context->vulkan, m_commandbuffers[subpass]);
+  }
+
+  m_passcount = 0;
 }
 
 
@@ -95,7 +106,7 @@ CommandList::Descriptor CommandList::acquire(VkDescriptorSetLayout layout, VkDev
 
     if (descriptor.m_storage.buffer)
     {
-      descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout, descriptor.m_storage.buffer, descriptor.m_storage.offset, descriptor.m_storage.capacity);
+      descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout, descriptor.m_storage);
     }
   }
 
@@ -134,8 +145,6 @@ CommandList *ResourceManager::allocate<CommandList>(RenderContext *context)
 template<>
 void ResourceManager::release<CommandList>(CommandList const *commandlist)
 {
-  assert(commandlist);
-
   defer_destroy(commandlist);
 }
 
@@ -144,9 +153,10 @@ void ResourceManager::release<CommandList>(CommandList const *commandlist)
 template<>
 void ResourceManager::destroy<CommandList>(CommandList const *commandlist)
 {
-  assert(commandlist);
+  if (commandlist)
+  {
+    commandlist->~CommandList();
 
-  commandlist->~CommandList();
-
-  release_slot(const_cast<CommandList*>(commandlist), sizeof(CommandList));
+    release_slot(const_cast<CommandList*>(commandlist), sizeof(CommandList));
+  }
 }

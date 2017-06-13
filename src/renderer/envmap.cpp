@@ -76,6 +76,7 @@ EnvMap const *ResourceManager::create<EnvMap>(Asset const *asset)
   envmap->height = asset->height;
   envmap->format = EnvMap::Format::RGBE;
   envmap->asset = asset;
+  envmap->transferlump = nullptr;
   envmap->state = EnvMap::State::Empty;
 
   return envmap;
@@ -97,6 +98,7 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
   envmap->height = height;
   envmap->format = format;
   envmap->asset = nullptr;
+  envmap->transferlump = nullptr;
   envmap->state = EnvMap::State::Empty;
 
   VkFormat vkformat = VK_FORMAT_UNDEFINED;
@@ -207,12 +209,30 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
 
           submit_transfer(lump);
 
-          release_lump(lump);
+          slot->transferlump = lump;
         }
       }
     }
 
-    slot->state = (slot->texture) ? EnvMap::State::Ready : EnvMap::State::Empty;
+    slot->state = (slot->texture) ? EnvMap::State::Waiting : EnvMap::State::Empty;
+  }
+
+  EnvMap::State waiting = EnvMap::State::Waiting;
+
+  if (slot->state.compare_exchange_strong(waiting, EnvMap::State::Testing))
+  {
+    bool ready = false;
+
+    if (test_fence(vulkan, slot->transferlump->fence))
+    {
+      release_lump(slot->transferlump);
+
+      slot->transferlump = nullptr;
+
+      ready = true;
+    }
+
+    slot->state = (ready) ? EnvMap::State::Ready : EnvMap::State::Waiting;
   }
 }
 
@@ -231,6 +251,9 @@ void ResourceManager::destroy<EnvMap>(EnvMap const *envmap)
 {
   if (envmap)
   {
+    if (envmap->transferlump)
+      release_lump(envmap->transferlump);
+
     envmap->~EnvMap();
 
     release_slot(const_cast<EnvMap*>(envmap), sizeof(EnvMap));

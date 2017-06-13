@@ -5,13 +5,13 @@
 
 layout(local_size_x = SIZEX, local_size_y = SIZEY) in;
 
-layout(std430, set=3, binding=0, row_major) buffer ComputeSet 
+layout(std430, set=3, binding=14, row_major) buffer ComputeSet 
 {
   float luminance;
 
 } compute;
 
-layout(set=3, binding=1) uniform sampler2D src;
+layout(set=3, binding=0) uniform sampler2D src;
   
 shared float luminance[SIZEY*SIZEX];
 

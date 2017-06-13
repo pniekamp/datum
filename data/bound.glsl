@@ -40,18 +40,18 @@ Bound3 make_bound(vec3 min, vec3 max)
 
 
 ///////////////////////// make_bound ////////////////////////////////////////
-Bound3 make_bound(Bound2 tile, float minz, float maxz)
+Bound3 make_bound(Bound2 tile, float nz, float fz)
 {
   Bound3 result;
   
-  float minx = min(tile.min.x * -minz, tile.min.x * -maxz);
-  float maxx = max(tile.max.x * -minz, tile.max.x * -maxz);
+  float minx = min(tile.min.x * nz, tile.min.x * fz);
+  float maxx = max(tile.max.x * nz, tile.max.x * fz);
 
-  float miny = min(tile.min.y * -minz, tile.min.y * -maxz);
-  float maxy = max(tile.max.y * -minz, tile.max.y * -maxz);
+  float miny = min(tile.min.y * nz, tile.min.y * fz);
+  float maxy = max(tile.max.y * nz, tile.max.y * fz);
 
-  result.centre = 0.5*vec3(minx + maxx, miny + maxy, minz + maxz);
-  result.halfdim = 0.5*vec3(maxx - minx, maxy - miny, minz - maxz);
+  result.centre = 0.5*vec3(minx + maxx, miny + maxy, -(nz + fz));
+  result.halfdim = 0.5*vec3(maxx - minx, maxy - miny, fz - nz);
 
   return result;
 }
@@ -80,4 +80,29 @@ vec2 intersections(vec3 origin, vec3 direction, vec3 halfdim)
   tzmax = (((invdirection.z < 0) ? -halfdim.z : +halfdim.z) - origin.z) * invdirection.z;
   
   return vec2(max(max(txmin, tymin), tzmin), min(min(txmax, tymax), tzmax));
+}
+
+
+///////////////////////// spotlight_bound ///////////////////////////////////
+Bound3 spotlight_bound(vec3 origin, vec3 direction, float range, float cutoff)
+{
+	Bound3 result;
+  
+  if (cutoff > 0.707106)
+	{
+		result.centre = origin + range / (2 * cutoff) * direction;
+    result.halfdim = vec3(range / (2 * cutoff));
+	}
+	else if (cutoff > 0)
+	{
+		result.centre = origin + cutoff * range * direction;
+    result.halfdim = vec3(sqrt((1 - cutoff*cutoff)) * range);
+	}
+	else
+	{
+		result.centre = origin;
+    result.halfdim = vec3(range);
+	}  
+
+	return result;
 }

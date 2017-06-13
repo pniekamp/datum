@@ -2,14 +2,11 @@
 #include "gbuffer.glsl"
 #include "camera.glsl"
 
-layout(constant_id = 46) const uint ShadowSlices = 4;
-layout(constant_id = 29) const uint MaxPointLights = 256;
-layout(constant_id = 31) const uint MaxEnvironments = 6;
 layout(constant_id = 28) const bool SoftParticles = true;
 
 layout(origin_upper_left) in vec4 gl_FragCoord;
 
-layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;

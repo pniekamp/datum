@@ -408,9 +408,9 @@ namespace Vulkan
   void signal_semaphore(VulkanDevice const &vulkan, VkSemaphore semaphore);
 
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout);
-  DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
 
   void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
+  void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, StorageBuffer const &buffer, VkDeviceSize offset, VkDeviceSize size);
 
   void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
   void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout);
@@ -456,6 +456,8 @@ namespace Vulkan
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkBuffer dst, VkDeviceSize offset, int dw, int dh, VkImageSubresourceLayers subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
 
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkBuffer dst, VkDeviceSize dstoffset, VkDeviceSize size);
+
+  void fill(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t data);
 
   void setimagelayout(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
   void setimagelayout(VulkanDevice const &vulkan, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);

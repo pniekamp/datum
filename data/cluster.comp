@@ -1,0 +1,161 @@
+#version 440 core
+#include "bound.glsl"
+#include "camera.glsl"
+#include "gbuffer.glsl"
+#include "transform.glsl"
+#include "lighting.glsl"
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 32) in;
+
+layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 worldview;
+  mat4 prevview;
+  mat4 skyview;
+  vec4 viewport;
+
+  Camera camera;
+  
+  MainLight mainlight;
+
+  uint environmentcount;
+  Environment environments[MaxEnvironments];
+
+  uint pointlightcount;
+  PointLight pointlights[MaxPointLights];
+
+  uint spotlightcount;
+  SpotLight spotlights[MaxSpotLights];
+
+  Cluster cluster[];
+  
+} scene;
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  gl_WorkGroupSize;
+
+  uint tile = gl_WorkGroupID.y*gl_NumWorkGroups.x + gl_WorkGroupID.x;
+
+  for(uint tilez = gl_LocalInvocationIndex, end = ClusterSizeZ; tilez < end; tilez += gl_WorkGroupSize.z)
+  {
+    scene.cluster[tile].environmentmask[tilez] = 0;
+
+    scene.cluster[tile].pointlightmask[tilez] = 0;
+
+    for(uint i = 0; i < (scene.pointlightcount + 31)/32; ++i)
+      scene.cluster[tile].pointlightmasks[tilez][i] = 0;
+
+    scene.cluster[tile].spotlightmask[tilez] = 0;
+
+    for(uint i = 0; i < (scene.spotlightcount + 31)/32; ++i)
+      scene.cluster[tile].spotlightmasks[tilez][i] = 0;
+  }
+  
+  barrier(); 
+
+  vec2 step = 2.0 / vec2(gl_NumWorkGroups.xy);
+  vec2 base = vec2(gl_WorkGroupID.xy) * step - 1;
+  
+  vec3 frustum[4];
+  frustum[0] = normalize(vec3(scene.proj[0][0], 0, base.x));
+  frustum[1] = normalize(vec3(-scene.proj[0][0], 0, -base.x - step.x));
+  frustum[2] = normalize(vec3(0, scene.proj[1][1], base.y));
+  frustum[3] = normalize(vec3(0, -scene.proj[1][1], -base.y - step.y));
+
+  Bound2 tilebound = make_bound((scene.invproj * vec4(base.x, base.y + step.y, 1, 1)).xy, (scene.invproj * vec4(base.x + step.x, base.y, 1, 1)).xy);
+
+  //
+  // Environments
+  //
+
+  for(uint tilez = gl_LocalInvocationIndex, end = ClusterSizeZ; tilez < end; tilez += gl_WorkGroupSize.z)
+  {
+    float nz = view_depth(scene.proj, cluster_depth(tilez));
+    float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+    
+    Bound3 aabb = make_bound(tilebound, nz, fz);
+  
+    for(uint i = 0, end = scene.environmentcount; i < end; i += 1)
+    {
+      Bound3 envbound = { vec3(0), scene.environments[i].halfdim };
+
+      vec3 localcentre = transform_multiply(scene.environments[i].invtransform, (scene.invview * vec4(aabb.centre, 1)).xyz);
+      float localradius = length(aabb.halfdim);
+
+      if (intersects(envbound, localcentre, localradius))
+      {
+        atomicOr(scene.cluster[tile].environmentmask[tilez], 1 << (i & 0x1F));
+      }
+    }
+  }
+
+  //
+  // Point Lights
+  //
+
+  for(uint i = gl_LocalInvocationIndex, end = scene.pointlightcount; i < end; i += gl_WorkGroupSize.z)
+  {
+    vec3 lightcentre = view_position(scene.view, scene.pointlights[i].position);
+    float lightradius = scene.pointlights[i].attenuation.w;
+
+    if (dot(frustum[0], lightcentre) >= -lightradius && dot(frustum[1], lightcentre) >= -lightradius && dot(frustum[2], lightcentre) >= -lightradius && dot(frustum[3], lightcentre) >= -lightradius)
+    {    
+      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z + lightradius, -0.1)));
+      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z - lightradius, -0.1)));
+
+      float nz = view_depth(scene.proj, cluster_depth(tilezmin));
+      
+      for(uint tilez = tilezmin; tilez <= tilezmax; ++tilez)
+      {
+        float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+
+        if (intersects(make_bound(tilebound, nz, fz), lightcentre, lightradius))
+        {
+          atomicOr(scene.cluster[tile].pointlightmask[tilez], 1 << (i >> 5));
+          atomicOr(scene.cluster[tile].pointlightmasks[tilez][i >> 5], 1 << (i & 0x1F));
+        }
+        
+        nz = fz;
+      }
+    }
+  }
+
+  //
+  // Spot Lights
+  //
+
+  for(uint i = gl_LocalInvocationIndex, end = scene.spotlightcount; i < end; i += gl_WorkGroupSize.z)
+  {
+    Bound3 sphere = spotlight_bound(scene.spotlights[i].position, scene.spotlights[i].direction, scene.spotlights[i].attenuation.w, scene.spotlights[i].cutoff);
+
+    vec3 lightcentre = view_position(scene.view, sphere.centre);
+    float lightradius = sphere.halfdim.z;
+
+    if (dot(frustum[0], lightcentre) >= -lightradius && dot(frustum[1], lightcentre) >= -lightradius && dot(frustum[2], lightcentre) >= -lightradius && dot(frustum[3], lightcentre) >= -lightradius)
+    {  
+      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z + lightradius, -0.1)));
+      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z - lightradius, -0.1)));
+
+      float nz = view_depth(scene.proj, cluster_depth(tilezmin));
+      
+      for(uint tilez = tilezmin; tilez <= tilezmax; ++tilez)
+      {
+        float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+
+        if (intersects(make_bound(tilebound, nz, fz), lightcentre, lightradius))
+        {
+          atomicOr(scene.cluster[tile].spotlightmask[tilez], 1 << (i >> 5));
+          atomicOr(scene.cluster[tile].spotlightmasks[tilez][i >> 5], 1 << (i & 0x1F));
+        }
+        
+        nz = fz;
+      }
+    }
+  }
+}

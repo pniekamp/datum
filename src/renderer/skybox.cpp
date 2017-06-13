@@ -62,18 +62,13 @@ void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderPa
 
   auto &skyboxdescriptor = context.skyboxdescriptors[context.frame & 1];
 
-  begin(context.vulkan, skyboxcommands, context.forwardbuffer, context.forwardpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-
-  bind_pipeline(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
   bind_texture(context.vulkan, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->texture);
 
-  bind_descriptor(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
+  begin(context.vulkan, skyboxcommands, context.forwardbuffer, context.forwardpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  bind_pipeline(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   bind_vertexbuffer(skyboxcommands, 0, context.unitquad);
-
   draw(skyboxcommands, context.unitquad.vertexcount, 1, 0, 0);
-
   end(context.vulkan, skyboxcommands);
 
   execute(commandbuffer, skyboxcommands);
@@ -146,7 +141,7 @@ void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 //|--------------------------------------------------------------------------
 
 ///////////////////////// prepare_skybox_context ////////////////////////////
-bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager *assets, uint32_t queueindex)
+bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager &assets, uint32_t queueindex)
 {
   if (context.ready)
     return true;
@@ -246,14 +241,14 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxCo
 
   if (context.skyboxpipeline == 0)
   {
-    auto cs = assets->find(CoreAsset::skybox_gen_comp);
+    auto cs = assets.find(CoreAsset::skybox_gen_comp);
 
     if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto cssrc = assets->request(platform, cs);
+    auto cssrc = assets.request(platform, cs);
 
     if (!cssrc)
       return false;
@@ -275,14 +270,14 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxCo
 
   if (context.convolvepipeline == 0)
   {
-    auto cs = assets->find(CoreAsset::convolve_comp);
+    auto cs = assets.find(CoreAsset::convolve_comp);
 
     if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto cssrc = assets->request(platform, cs);
+    auto cssrc = assets.request(platform, cs);
 
     if (!cssrc)
       return false;
@@ -356,8 +351,6 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   bind_pipeline(commandbuffer, context.convolvepipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  ImageView convolveimageviews[8];
-
   if (params.convolesamples != 0)
   {
     uint32_t levels = 8;
@@ -377,11 +370,11 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
       viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 };
       viewinfo.image = skybox->texture.image;
 
-      convolveimageviews[level] = create_imageview(context.vulkan, viewinfo);
+      context.convolveimageviews[level] = create_imageview(context.vulkan, viewinfo);
 
       bind_texture(context.vulkan, context.convolvedescriptors[level], 0, skybox->texture.imageview, skybox->texture.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
-      bind_image(context.vulkan, context.convolvedescriptors[level], 1, convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
+      bind_image(context.vulkan, context.convolvedescriptors[level], 1, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 
       bind_descriptor(commandbuffer, context.convolvedescriptors[level], context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
 

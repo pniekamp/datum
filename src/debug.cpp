@@ -376,7 +376,7 @@ namespace
 
 
   ///////////////////////// push_debug_overlay //////////////////////////////
-  void push_debug_overlay(RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font, Ui::Interaction *interaction)
+  void push_debug_overlay(RenderContext &context, ResourceManager &resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font, Ui::Interaction *interaction)
   {
     BEGIN_TIMED_BLOCK(DebugOverlay, Color3(1.0f, 0.0f, 0.0f))
 
@@ -388,6 +388,8 @@ namespace
       auto mousepos = viewport.width * g_interaction.mousepos;
 
       auto cursor = Vec2(5.0f, 5.0f);
+
+      overlay.viewport(buildstate, viewport);
 
       //
       // Frame Timing
@@ -731,8 +733,6 @@ namespace
         }
       }
 
-      overlay.viewport(Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height)));
-
       overlay.finalise(buildstate);
 
       auto entry = pushbuffer.push<Renderable::Sprites>();
@@ -998,7 +998,7 @@ void update_debug_overlay(GameInput const &input, bool *accepted)
 
 
 ///////////////////////// render_debug_overlay //////////////////////////////
-void render_debug_overlay(RenderContext &context, ResourceManager *resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font)
+void render_debug_overlay(RenderContext &context, ResourceManager &resources, PushBuffer &pushbuffer, DatumPlatform::Viewport const &viewport, Font const *font)
 {
   if (g_running)
   {

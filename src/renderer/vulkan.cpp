@@ -342,14 +342,19 @@ namespace Vulkan
 
     StorageBuffer storagebuffer = create_storagebuffer(vulkan, size);
 
-    for(size_t offset = 0, remaining = size; remaining > 0; )
+    fill(setupbuffer, storagebuffer, 0, size, 0);
+
+    if (data)
     {
-      auto bytes = min(remaining, size_t(65536));
+      for(size_t offset = 0, remaining = size; remaining > 0; )
+      {
+        auto bytes = min(remaining, size_t(65536));
 
-      update(setupbuffer, storagebuffer, offset, bytes, (uint8_t*)data + offset);
+        update(setupbuffer, storagebuffer, offset, bytes, (uint8_t*)data + offset);
 
-      offset += bytes;
-      remaining -= bytes;
+        offset += bytes;
+        remaining -= bytes;
+      }
     }
 
     end(vulkan, setupbuffer);
@@ -814,38 +819,6 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// allocate_descriptorset //////////////////////////
-  DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type)
-  {
-    VkDescriptorSetAllocateInfo allocateinfo = {};
-    allocateinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocateinfo.descriptorPool = pool;
-    allocateinfo.descriptorSetCount = 1;
-    allocateinfo.pSetLayouts = &layout;
-
-    VkDescriptorSet descriptorset;
-    if (vkAllocateDescriptorSets(vulkan.device, &allocateinfo, &descriptorset) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkAllocateDescriptorSets failed");
-
-    VkDescriptorBufferInfo bufferinfo = {};
-    bufferinfo.buffer = buffer;
-    bufferinfo.offset = offset;
-    bufferinfo.range = size;
-
-    VkWriteDescriptorSet writeset = {};
-    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeset.dstSet = descriptorset;
-    writeset.dstBinding = 0;
-    writeset.descriptorCount = 1;
-    writeset.descriptorType = type;
-    writeset.pBufferInfo = &bufferinfo;
-
-    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
-
-    return { descriptorset, { vulkan.device, pool } };
-  }
-
-
   ///////////////////////// bind_buffer /////////////////////////////////////
   void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type)
   {
@@ -863,6 +836,12 @@ namespace Vulkan
     writeset.pBufferInfo = &bufferinfo;
 
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
+
+
+  void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, StorageBuffer const &buffer, VkDeviceSize offset, VkDeviceSize size)
+  {
+    bind_buffer(vulkan, descriptorset, binding, buffer, offset, size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   }
 
 
@@ -1282,6 +1261,13 @@ namespace Vulkan
     buffercopy.size = size;
 
     vkCmdCopyBuffer(commandbuffer, src, dst, 1, &buffercopy);
+  }
+
+
+  ///////////////////////// setimagelayout //////////////////////////////////
+  void fill(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t data)
+  {
+    vkCmdFillBuffer(commandbuffer, buffer, offset, size, data);
   }
 
 

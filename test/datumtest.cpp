@@ -101,9 +101,12 @@ void datumtest_init(PlatformInterface &platform)
   state.debugfont = state.resources.create<Font>(state.assets.find(CoreAsset::debug_font));
 
   state.unitquad = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_quad));
+  state.unitcone = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_cone));
+  state.unithemi = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_hemi));
   state.unitsphere = state.resources.create<Mesh>(state.assets.find(CoreAsset::unit_sphere));
   state.linequad = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_quad));
   state.linecube = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_cube));
+  state.linecone = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_cone));
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
@@ -144,7 +147,7 @@ void datumtest_init(PlatformInterface &platform)
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 3.0f));
 
-#if 0
+#if 1
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
@@ -196,6 +199,8 @@ void datumtest_init(PlatformInterface &platform)
   }
 #endif
 
+  prefetch_core_assets(platform, state.assets);
+
   state.mode = GameState::Startup;
 }
 
@@ -231,9 +236,12 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     int ready = 0, total = 0;
 
     request(platform, state.resources, state.unitquad, &ready, &total);
+    request(platform, state.resources, state.unitcone, &ready, &total);
+    request(platform, state.resources, state.unithemi, &ready, &total);
     request(platform, state.resources, state.unitsphere, &ready, &total);
     request(platform, state.resources, state.linequad, &ready, &total);
     request(platform, state.resources, state.linecube, &ready, &total);
+    request(platform, state.resources, state.linecone, &ready, &total);
     request(platform, state.resources, state.defaultmaterial, &ready, &total);
     request(platform, state.resources, state.loader, &ready, &total);
 
@@ -341,7 +349,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     {
       CasterList::BuildState buildstate;
 
-      if (state.writeframe->casters.begin(buildstate, state.rendercontext, &state.resources))
+      if (state.writeframe->casters.begin(buildstate, state.rendercontext, state.resources))
       {
         for(auto &entity : state.scene.entities<MeshComponent>())
         {
@@ -368,7 +376,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     {
       GeometryList::BuildState buildstate;
 
-      if (state.writeframe->geometry.begin(buildstate, state.rendercontext, &state.resources))
+      if (state.writeframe->geometry.begin(buildstate, state.rendercontext, state.resources))
       {
         state.writeframe->geometry.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
@@ -399,7 +407,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     {
       LightList::BuildState buildstate;
 
-      if (state.writeframe->lights.begin(buildstate, state.rendercontext, &state.resources))
+      if (state.writeframe->lights.begin(buildstate, state.rendercontext, state.resources))
       {
         for(auto &entity : state.scene.entities<PointLightComponent>())
         {
@@ -409,17 +417,24 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
           state.writeframe->lights.push_pointlight(buildstate, transform.world().translation(), light.range(), light.intensity(), light.attenuation());
         }
 
+        state.writeframe->lights.push_pointlight(buildstate, Vec3(0, 1, 1), 2.0, Color3(8, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
+
+        state.writeframe->lights.push_spotlight(buildstate, Vec3(-5, 5, -3), normalise(Vec3(1, -1, 0)), 0.25f, 12, Color3(0, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
+
         state.writeframe->lights.finalise(buildstate);
       }
     }
+
 #endif
 
 #if 0
     {
       SpriteList::BuildState buildstate;
 
-      if (state.writeframe->sprites.begin(buildstate, state.rendercontext, &state.resources))
+      if (state.writeframe->sprites.begin(buildstate, state.rendercontext, state.resources))
       {
+        state.writeframe->sprites.viewport(buildstate, Rect2(Vec2(-1, -1), Vec2(1, 1)));
+
         float count = 15.0f;
         float radius = 0.2f;
 
@@ -474,7 +489,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   if (state.readframe->mode == GameState::Startup)
   {   
-    prepare_render_context(platform, state.rendercontext, &state.assets);
+    prepare_render_context(platform, state.rendercontext, state.assets);
 
     render_fallback(state.rendercontext, viewport, embeded::logo.data, embeded::logo.width, embeded::logo.height);
   }
@@ -491,12 +506,12 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     RenderParams renderparams;
     renderparams.width = viewport.width;
     renderparams.height = viewport.height;
-  //  renderparams.scale = 0.5f;
+//    renderparams.scale = 2.0f;//0.5f;
     renderparams.aspect = state.aspect;
     renderparams.skybox = state.readframe->skybox;
     renderparams.sundirection = state.readframe->sundirection;
     renderparams.sunintensity = state.readframe->sunintensity;
-  //  renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
+//    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
     renderparams.ssrstrength = 1.0f;
     renderparams.ssaoscale = 0.5f;
 
@@ -514,14 +529,14 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderlist.push_casters(state.readframe->casters);
     renderlist.push_geometry(state.readframe->geometry);
     renderlist.push_lights(state.readframe->lights);
-    renderlist.push_sprites(Rect2({ -0.5f, -0.5f * viewport.height / viewport.width }, { 0.5f, 0.5f * viewport.height / viewport.width }), state.readframe->sprites);
+    renderlist.push_sprites(state.readframe->sprites);
 
 #if 0
     {
       ForwardList objects;
       ForwardList::BuildState buildstate;
 
-      if (objects.begin(buildstate, state.rendercontext, &state.resources))
+      if (objects.begin(buildstate, state.rendercontext, state.resources))
       {
         float density = 0.01f;
         DEBUG_MENU_VALUE("Fog/Density", &density, 0.0f, 1.0f);
@@ -561,9 +576,31 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       ForwardList objects;
       ForwardList::BuildState buildstate;
 
-      if (objects.begin(buildstate, state.rendercontext, &state.resources))
+      if (objects.begin(buildstate, state.rendercontext, state.resources))
       {
         objects.push_particlesystem(buildstate, state.testparticlesystem, state.testparticles);
+
+        objects.finalise(buildstate);
+      }
+
+      renderlist.push_objects(objects);
+    }
+#endif
+
+#if 0
+    {
+      Vec3 location(-5, 5, -3);
+      DEBUG_MENU_VALUE("Spotlight/location", &location, Vec3(-15.0f), Vec3(15.0f));
+
+      float rotation = -pi<float>()/2 + 0.7f;
+      DEBUG_MENU_VALUE("Spotlight/rotation", &rotation, -3.14f, 3.14f);
+
+      ForwardList objects;
+      ForwardList::BuildState buildstate;
+
+      if (objects.begin(buildstate, state.rendercontext, state.resources))
+      {
+        objects.push_spotlight(buildstate, Transform::translation(location) * Transform::rotation(Vec3(0, 0, 1), rotation), state.unitcone, Vec3(16), 0.25f, 45, Color3(0, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
 
         objects.finalise(buildstate);
       }
@@ -577,7 +614,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       OverlayList overlays;
       OverlayList::BuildState buildstate;
 
-      if (overlays.begin(buildstate, state.rendercontext, &state.resources))
+      if (overlays.begin(buildstate, state.rendercontext, state.resources))
       {
         buildstate.depthfade = 0.1f;
 
@@ -605,8 +642,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       SpriteList sprites;
       SpriteList::BuildState buildstate;
 
-      if (sprites.begin(buildstate, state.rendercontext, &state.resources))
+      if (sprites.begin(buildstate, state.rendercontext, state.resources))
       {
+        sprites.viewport(buildstate, viewport);
+
         sprites.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, (float)state.loader->layers));
 
 //        sprites.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
@@ -614,13 +653,13 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
         sprites.finalise(buildstate);
       }
 
-      renderlist.push_sprites(viewport, sprites);
+      renderlist.push_sprites(sprites);
     }
 #endif
 
   //  renderlist.push_environment(Vec3(6, 12, 26), Transform::translation(0, 6, 0) * Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), state.testenvmap);
 
-    render_debug_overlay(state.rendercontext, &state.resources, renderlist, viewport, state.debugfont);
+    render_debug_overlay(state.rendercontext, state.resources, renderlist, viewport, state.debugfont);
 
     render(state.rendercontext, viewport, camera, renderlist, renderparams);
   }

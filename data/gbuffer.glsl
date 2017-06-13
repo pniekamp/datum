@@ -11,6 +11,13 @@ vec2 project(mat4 proj, vec3 viewpos)
 }
 
 
+///////////////////////// proj_depth ////////////////////////////////////////
+float proj_depth(mat4 proj, float z)
+{
+  return (proj[2][2] * z + proj[3][2]) / -z;
+}
+
+
 ///////////////////////// view_depth ////////////////////////////////////////
 float view_depth(mat4 proj, float depth)
 {

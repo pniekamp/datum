@@ -3,9 +3,16 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-/*layout(constant_id = 57) */const uint WaveResolution = 64;
+const uint WaveResolution = 64;
 
-layout(std430, set=0, binding=0, row_major) buffer OceanParams 
+layout(std140, push_constant, row_major) uniform MeshParams 
+{ 
+  uint sizex;
+  uint sizey;
+
+} mesh;
+
+layout(std430, set=0, binding=0, row_major) readonly buffer OceanParams 
 { 
   mat4 proj;
   mat4 invproj;
@@ -26,12 +33,9 @@ layout(std430, set=0, binding=0, row_major) buffer OceanParams
   vec2 h0[WaveResolution*WaveResolution];
   float phase[WaveResolution*WaveResolution];
 
-  uint sizex;
-  uint sizey;  
-
 } params;
 
-layout(std430, set=0, binding=1, row_major) buffer Spectrum 
+layout(std430, set=0, binding=1, row_major) readonly buffer Spectrum 
 {
   vec2 h[WaveResolution*WaveResolution];
   vec2 hx[WaveResolution*WaveResolution];
@@ -62,9 +66,11 @@ layout(std430, set=0, binding=4, row_major) buffer VertexBuffer
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
+  gl_WorkGroupSize;
+
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
 
-  uint index = xy.y * params.sizex + xy.x;
+  uint index = xy.y * mesh.sizex + xy.x;
 
   vec3 camerapos = 2 * quaternion_multiply(params.camera.dual, quaternion_conjugate(params.camera.real)).yzw;
 
@@ -72,8 +78,8 @@ void main()
 
   float margin = 1 + sqrt((2*params.swellamplitude + 0.5) / cameraheight);
 
-  float u = (2 * float(xy.x) / (params.sizex-1) - 1) * margin;
-  float v = (1 - 2 * float(xy.y) / (params.sizey-1)) * margin;
+  float u = (2 * float(xy.x) / (mesh.sizex-1) - 1) * margin;
+  float v = (1 - 2 * float(xy.y) / (mesh.sizey-1)) * margin;
 
   vec4 viewvec = params.invproj * vec4(u, v, 0.0f, 1.0f);
   vec3 worlddir = quaternion_multiply(params.camera.real, normalize(viewvec.xyz));

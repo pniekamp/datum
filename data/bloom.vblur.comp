@@ -8,7 +8,7 @@ layout(constant_id = 84) const uint Radius = 16;
 
 const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
 
-layout(set=3, binding=3) uniform sampler2D src;
+layout(set=3, binding=9) uniform sampler2D src;
 
 layout(set=3, binding=11) writeonly uniform image2D dest;
 
@@ -43,15 +43,8 @@ void main()
   
   ivec2 viewport = textureSize(src, 0).xy;
   
-  if (tile.y + ij.y < viewport.y)
-  {
-    texels[ij.y] = texelFetch(src, ivec2(tile.x + ij.x, tile.y + ij.y - Radius), 0).rgb;
-  }
-  else
-  {
-    texels[ij.y] = vec3(0);
-  }
-
+  texels[ij.y] = texelFetch(src, ivec2(tile.x + ij.x, clamp(tile.y + ij.y - int(Radius), 0, viewport.y - 1)), 0).rgb;
+  
   barrier();
   
   if (ij.y < SizeY)

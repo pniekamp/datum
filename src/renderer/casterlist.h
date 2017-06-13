@@ -46,7 +46,7 @@ class CasterList
       Material const *material;
     };
 
-    bool begin(BuildState &state, RenderContext &context, ResourceManager *resources);
+    bool begin(BuildState &state, RenderContext &context, ResourceManager &resources);
 
     void push_mesh(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material);
 

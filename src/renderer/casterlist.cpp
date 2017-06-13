@@ -21,6 +21,8 @@ using leap::extentof;
 enum RenderPasses
 {
   shadowpass = 0,
+
+  passcount
 };
 
 enum ShaderLocation
@@ -51,7 +53,7 @@ struct ActorSet
 ///////////////////////// draw_casters //////////////////////////////////////
 void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Casters const &casters)
 {
-  execute(commandbuffer, casters.commandlist->commandbuffer());
+  execute(commandbuffer, casters.commandlist->commandbuffer(RenderPasses::shadowpass));
 }
 
 
@@ -59,29 +61,31 @@ void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 //|--------------------------------------------------------------------------
 
 ///////////////////////// CasterList::begin /////////////////////////////////
-bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
+bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
   m_commandlist = {};
 
   state = {};
   state.context = &context;
-  state.resources = resources;
+  state.resources = &resources;
 
   if (!context.prepared)
     return false;
 
-  auto commandlist = resources->allocate<CommandList>(&context);
+  auto commandlist = resources.allocate<CommandList>(&context);
 
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context.shadowbuffer, context.shadowpass, RenderPasses::shadowpass))
+  if (!commandlist->begin(context.shadowbuffer, context.shadowpass, RenderPasses::passcount))
   {
-    resources->destroy(commandlist);
+    resources.destroy(commandlist);
     return false;
   }
 
-  bind_descriptor(*commandlist, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  auto shadowpass = commandlist->commandbuffer(RenderPasses::shadowpass);
+
+  bind_descriptor(shadowpass, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -100,17 +104,18 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto shadowpass = state.commandlist->commandbuffer(RenderPasses::shadowpass);
 
   if (state.pipeline != context.modelshadowpipeline)
   {
-    bind_pipeline(commandlist, context.modelshadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(shadowpass, context.modelshadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.pipeline = context.modelshadowpipeline;
   }
 
   if (state.mesh != mesh)
   {
-    bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(shadowpass, 0, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
@@ -125,7 +130,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
       bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
-      bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(shadowpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
@@ -136,7 +141,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
     state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(sizeof(ModelSet));
 
@@ -144,9 +149,9 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
     modelset->modelworld = transform;
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(shadowpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(shadowpass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 
@@ -160,18 +165,19 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto shadowpass = state.commandlist->commandbuffer(RenderPasses::shadowpass);
 
   if (state.pipeline != context.actorshadowpipeline)
   {
-    bind_pipeline(commandlist, context.actorshadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(shadowpass, context.actorshadowpipeline, 0, 0, context.shadows.width, context.shadows.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.pipeline = context.actorshadowpipeline;
   }
 
   if (state.mesh != mesh)
   {
-    bind_vertexbuffer(commandlist, 0, mesh->vertexbuffer);
-    bind_vertexbuffer(commandlist, 1, mesh->rigbuffer);
+    bind_vertexbuffer(shadowpass, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(shadowpass, 1, mesh->rigbuffer);
 
     state.mesh = mesh;
   }
@@ -186,7 +192,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 
       bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
 
-      bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(shadowpass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
@@ -197,7 +203,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
     state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(sizeof(ActorSet) + pose.bonecount*sizeof(Transform));
 
@@ -207,9 +213,9 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 
     copy(pose.bones, pose.bones + pose.bonecount, modelset->bones);
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(shadowpass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(shadowpass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 

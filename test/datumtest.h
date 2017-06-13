@@ -38,9 +38,12 @@ struct GameState
   Sprite const *loader;
   Font const *debugfont;
   Mesh const *unitquad;
+  Mesh const *unitcone;
+  Mesh const *unithemi;
   Mesh const *unitsphere;
   Mesh const *linequad;
   Mesh const *linecube;
+  Mesh const *linecone;
   Material const *defaultmaterial;
 
   AssetManager assets;

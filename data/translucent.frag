@@ -1,15 +1,10 @@
 #version 440 core
-#include "bound.glsl"
 #include "camera.glsl"
 #include "gbuffer.glsl"
 #include "transform.glsl"
 #include "lighting.glsl"
 
-layout(constant_id = 46) const uint ShadowSlices = 4;
-layout(constant_id = 29) const uint MaxPointLights = 256;
-layout(constant_id = 31) const uint MaxEnvironments = 6;
-
-layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -24,18 +19,9 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   
   MainLight mainlight;
 
-  float splits[4];
-  mat4 shadowview[4];
-  
-  uint environmentcount;
-  Environment environments[MaxEnvironments];
-
-  uint pointlightcount;
-  PointLight pointlights[MaxPointLights];
-
 } scene;
 
-layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
+layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   float roughness;
@@ -49,7 +35,7 @@ layout(set=1, binding=2) uniform sampler2DArray specularmap;
 layout(set=1, binding=3) uniform sampler2DArray normalmap;
 
 layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=5) uniform sampler2DArrayShadow shadowmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 texcoord;
@@ -66,13 +52,13 @@ float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
   for(uint i = 0; i < ShadowSlices; ++i)
   {
     vec3 shadowpos = position + bias[i] * normal;
-    vec4 shadowspace = scene.shadowview[i] * vec4(shadowpos, 1);
+    vec4 shadowspace = scene.mainlight.shadowview[i] * vec4(shadowpos, 1);
     
     vec4 texel = vec4(0.5 * shadowspace.xy + 0.5, i, shadowspace.z);
 
     if (texel.x > 0.0 && texel.x < 1.0 && texel.y > 0.0 && texel.y < 1.0 && texel.w > 0.0 && texel.w < 1.0)
     { 
-      return shadow_intensity(scene.shadowview[i], shadowpos, i, shadowmap, spread[i]);
+      return shadow_intensity(scene.mainlight.shadowview[i], shadowpos, i, shadowmap, spread[i]);
     }
   }
   
@@ -90,18 +76,18 @@ void main()
   vec4 rt0 = vec4(color.rgb * material.color.rgb, material.emissive);
   vec4 rt1 = texture(specularmap, vec3(texcoord, 0)) * vec4(0, material.reflectivity, 0, material.roughness);
 
-  Material surface = unpack_material(rt0, rt1);
-
-  float ambientintensity = 1.0;
-  
-  float mainlightshadow = mainlight_shadow(scene.mainlight, position, normal);
-  
+  Material surface = unpack_material(rt0, rt1); 
+ 
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
+  
+  env_light(diffuse, specular, surface, vec3(0.2), vec3(0), vec2(0), 1);
 
-  env_light(diffuse, specular, surface, vec3(0.2), vec3(0), vec2(0), ambientintensity);
+  MainLight mainlight = scene.mainlight;
+  
+  float mainlightshadow = mainlight_shadow(mainlight, position, normal);
 
-  main_light(diffuse, specular, scene.mainlight, normal, eyevec, surface, mainlightshadow);
+  main_light(diffuse, specular, mainlight, normal, eyevec, surface, mainlightshadow);
 
   fragcolor = vec4(scene.camera.exposure * ((diffuse + surface.emissive) * surface.diffuse + specular), color.a * material.color.a);
 }

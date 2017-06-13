@@ -4,7 +4,7 @@
 
 layout(origin_upper_left) in vec4 gl_FragCoord;
 
-layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -19,7 +19,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 
 } scene;
 
-layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
+layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
 {
   vec4 plane;
   vec4 color;

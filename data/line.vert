@@ -6,7 +6,7 @@ layout(location=1) in vec2 vertex_texcoord;
 layout(location=2) in vec3 vertex_normal;
 layout(location=3) in vec4 vertex_tangent;
 
-layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -19,7 +19,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   
 } scene;
 
-layout(std430, set=2, binding=0, row_major) buffer ModelSet 
+layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
 {
   Transform modelworld;
   vec3 size;
@@ -29,7 +29,9 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
-  vec3 position = transform_multiply(model.modelworld, model.size * vertex_position);
+  Transform modelworld = model.modelworld;
+
+  vec3 position = transform_multiply(modelworld, model.size * vertex_position);
   
   gl_Position = (scene.worldview * vec4(position, 1)) * vec4(scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), 1, 1);  
 }
