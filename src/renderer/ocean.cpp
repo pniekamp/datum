@@ -19,6 +19,14 @@ enum ShaderLocation
   maptarget = 2,
   displacementmap = 3,
   vertexbuffer_datasize = 4,
+
+  // Constant Ids
+
+  SizeX = 1,
+  SizeY = 2,
+  SizeZ = 3,
+
+  WaveResolution = 57,
 };
 
 struct OceanSet
@@ -41,19 +49,32 @@ struct OceanSet
   alignas( 4) uint32_t size;
   alignas( 4) float h0[OceanContext::WaveResolution * OceanContext::WaveResolution][2];
   alignas( 4) float phase[OceanContext::WaveResolution * OceanContext::WaveResolution];
+};
 
+struct MeshSet
+{
   alignas( 4) uint32_t sizex;
   alignas( 4) uint32_t sizey;
 };
 
 struct Spectrum
 {
-  alignas(4) complex<float> h[OceanContext::WaveResolution * OceanContext::WaveResolution];
-  alignas(4) complex<float> hx[OceanContext::WaveResolution * OceanContext::WaveResolution];
-  alignas(4) complex<float> hy[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas( 4) complex<float> h[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas( 4) complex<float> hx[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas( 4) complex<float> hy[OceanContext::WaveResolution * OceanContext::WaveResolution];
 
-  alignas(4) float weights[OceanContext::WaveResolution * OceanContext::WaveResolution];
+  alignas( 4) float weights[OceanContext::WaveResolution * OceanContext::WaveResolution];
 };
+
+static struct ComputeConstants
+{
+  uint32_t WaveResolution = OceanContext::WaveResolution;
+
+  uint32_t DisplacementDispatch[3] = { 16, 16, 2 };
+
+  uint32_t One = 1;
+
+} computeconstants;
 
 namespace
 {
@@ -195,7 +216,7 @@ void update_ocean(OceanParams &params, float dt)
 
 
 ///////////////////////// prepare_ocean_context /////////////////////////////
-bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager *assets, uint32_t queueindex)
+bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets, uint32_t queueindex)
 {
   if (context.ready)
     return true;
@@ -287,11 +308,18 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
   {
     // PipelineLayout
 
+    VkPushConstantRange constants[1] = {};
+    constants[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    constants[0].offset = 0;
+    constants[0].size = sizeof(MeshSet);
+
     VkDescriptorSetLayout layouts[1] = {};
     layouts[0] = context.descriptorsetlayout;
 
     VkPipelineLayoutCreateInfo pipelinelayoutinfo = {};
     pipelinelayoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelinelayoutinfo.pushConstantRangeCount = extentof(constants);
+    pipelinelayoutinfo.pPushConstantRanges = constants;
     pipelinelayoutinfo.setLayoutCount = extentof(layouts);
     pipelinelayoutinfo.pSetLayouts = layouts;
 
@@ -300,19 +328,28 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[0] == 0)
   {
-    auto cs = assets->find(CoreAsset::ocean_sim_comp);
+    auto cs = assets.find(CoreAsset::ocean_sim_comp);
 
     if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto cssrc = assets->request(platform, cs);
+    auto cssrc = assets.request(platform, cs);
 
     if (!cssrc)
       return false;
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[1] = {};
+    specializationmap[0] = { ShaderLocation::WaveResolution, offsetof(ComputeConstants, WaveResolution), sizeof(ComputeConstants::WaveResolution) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
 
     VkComputePipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -320,6 +357,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
     context.pipeline[0] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
@@ -327,19 +365,30 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[1] == 0)
   {
-    auto cs = assets->find(CoreAsset::ocean_fftx_comp);
+    auto cs = assets.find(CoreAsset::ocean_fftx_comp);
 
     if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto cssrc = assets->request(platform, cs);
+    auto cssrc = assets.request(platform, cs);
 
     if (!cssrc)
       return false;
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[3] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, WaveResolution), sizeof(ComputeConstants::WaveResolution) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, One), sizeof(ComputeConstants::One) };
+    specializationmap[2] = { ShaderLocation::WaveResolution, offsetof(ComputeConstants, WaveResolution), sizeof(ComputeConstants::WaveResolution) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
 
     VkComputePipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -347,6 +396,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
     context.pipeline[1] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
@@ -354,19 +404,30 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[2] == 0)
   {
-    auto cs = assets->find(CoreAsset::ocean_ffty_comp);
+    auto cs = assets.find(CoreAsset::ocean_ffty_comp);
 
     if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto cssrc = assets->request(platform, cs);
+    auto cssrc = assets.request(platform, cs);
 
     if (!cssrc)
       return false;
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[3] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, One), sizeof(ComputeConstants::One) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, WaveResolution), sizeof(ComputeConstants::WaveResolution) };
+    specializationmap[2] = { ShaderLocation::WaveResolution, offsetof(ComputeConstants, WaveResolution), sizeof(ComputeConstants::WaveResolution) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
 
     VkComputePipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -374,6 +435,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
     context.pipeline[2] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
@@ -381,19 +443,28 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[3] == 0)
   {
-    auto cs = assets->find(CoreAsset::ocean_map_comp);
+    auto cs = assets.find(CoreAsset::ocean_map_comp);
 
     if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto cssrc = assets->request(platform, cs);
+    auto cssrc = assets.request(platform, cs);
 
     if (!cssrc)
       return false;
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[1] = {};
+    specializationmap[0] = { ShaderLocation::WaveResolution, offsetof(ComputeConstants, WaveResolution), sizeof(ComputeConstants::WaveResolution) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
 
     VkComputePipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -401,6 +472,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
     context.pipeline[3] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
@@ -408,19 +480,28 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[4] == 0)
   {
-    auto cs = assets->find(CoreAsset::ocean_gen_comp);
+    auto cs = assets.find(CoreAsset::ocean_gen_comp);
 
     if (!cs)
       return false;
 
     asset_guard lock(assets);
 
-    auto cssrc = assets->request(platform, cs);
+    auto cssrc = assets.request(platform, cs);
 
     if (!cssrc)
       return false;
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[1] = {};
+    specializationmap[0] = { ShaderLocation::WaveResolution, offsetof(ComputeConstants, WaveResolution), sizeof(ComputeConstants::WaveResolution) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
 
     VkComputePipelineCreateInfo pipelineinfo = {};
     pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -428,6 +509,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
     pipelineinfo.stage.pName = "main";
 
     context.pipeline[4] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
@@ -453,7 +535,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
   {
     begin(context.vulkan, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_GENERAL);
+    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     end(context.vulkan, context.commandbuffer);
 
@@ -500,25 +582,28 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
   memcpy(oceanset->h0, params.height, sizeof(oceanset->h0));
   memcpy(oceanset->phase, params.phase, sizeof(oceanset->phase));
 
-  oceanset->sizex = sizex;
-  oceanset->sizey = sizey;
+  MeshSet mshset;
+  mshset.sizex = sizex;
+  mshset.sizey = sizey;
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.transferbuffer, 0, context.transferbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.transferbuffer, 0, context.transferbuffer.size);
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size);
+
+  bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap);
 
   bind_image(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap);
-
-  bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap.imageview, context.displacementmap.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
   size_t verticessize = mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize;
   auto verticesbuffer = create_storagebuffer(context.vulkan, mesh->vertexbuffer.memory, mesh->vertexbuffer.verticesoffset, verticessize);
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, verticesbuffer, 0, verticesbuffer.size);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   bind_descriptor(commandbuffer, context.descriptorset, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+  push(commandbuffer, context.pipelinelayout, 0, sizeof(mshset), &mshset, VK_SHADER_STAGE_COMPUTE_BIT);
 
   bind_pipeline(commandbuffer, context.pipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -540,7 +625,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
 
   bind_pipeline(commandbuffer, context.pipeline[3], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  dispatch(commandbuffer, OceanContext::WaveResolution/16, OceanContext::WaveResolution/16, 1);
+  dispatch(commandbuffer, context.displacementmap, computeconstants.DisplacementDispatch);
 
   bind_pipeline(commandbuffer, context.pipeline[4], VK_PIPELINE_BIND_POINT_COMPUTE);
 

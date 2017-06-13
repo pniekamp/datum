@@ -93,6 +93,18 @@ namespace Renderable
         Vec4 attenuation;
 
       } pointlights[256];
+
+      size_t spotlightcount;
+
+      struct SpotLight
+      {
+        Vec3 position;
+        Color3 intensity;
+        Vec4 attenuation;
+        Vec3 direction;
+        float cutoff;
+
+      } spotlights[16];
     };
 
     LightList const *lightlist;
@@ -283,10 +295,14 @@ struct RenderContext
   Vulkan::Texture whitediffuse;
   Vulkan::Texture nominalnormal;
 
-  Vulkan::Pipeline modelpipeline;
+  Vulkan::Pipeline clusterpipeline;
   Vulkan::Pipeline modelshadowpipeline;
-  Vulkan::Pipeline actorpipeline;
+  Vulkan::Pipeline modelprepasspipeline;
+  Vulkan::Pipeline modelgeometrypipeline;
   Vulkan::Pipeline actorshadowpipeline;
+  Vulkan::Pipeline actorprepasspipeline;
+  Vulkan::Pipeline actorgeometrypipeline;
+  Vulkan::Pipeline spotlightpipeline;
   Vulkan::Pipeline translucentpipeline;
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline lightingpipeline;
@@ -349,12 +365,14 @@ struct RenderParams
   float bloomstrength = 1.0f;
 };
 
+void prefetch_core_assets(DatumPlatform::PlatformInterface &platform, AssetManager &assets);
+
 // Initialise
 void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, size_t storagesize, uint32_t queueindex);
 
 // Prepare
-bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager *assets);
-bool prepare_render_pipeline(RenderContext &context, RenderParams const &params);
+bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, AssetManager &assets);
+void prepare_render_pipeline(RenderContext &context, RenderParams const &params);
 void release_render_pipeline(RenderContext &context);
 
 // Fallback

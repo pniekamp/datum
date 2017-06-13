@@ -101,7 +101,7 @@ class ResourcePool
 
     // descriptor sets
 
-    DescriptorSet acquire_descriptorset(ResourceLump const *lumpref, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
+    DescriptorSet acquire_descriptorset(ResourceLump const *lumpref, VkDescriptorSetLayout layout, StorageBuffer const &buffer);
 
   private:
 

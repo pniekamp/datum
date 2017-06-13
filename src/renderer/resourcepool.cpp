@@ -45,7 +45,7 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
 
   m_storagehead = 0;
 
-  m_transferbuffer = create_transferbuffer(vulkan, slotsize * StorageBufferSlots);
+  m_transferbuffer = create_transferbuffer(vulkan, slotsize * StorageBufferSlots + slotsize);
 
   m_transfermemory = map_memory<uint8_t>(vulkan, m_transferbuffer, 0, m_transferbuffer.size);
 
@@ -151,7 +151,9 @@ ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump con
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  return { allocate_commandbuffer(vulkan, lump.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY).release() };
+  auto commandbuffer = allocate_commandbuffer(vulkan, lump.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+
+  return { commandbuffer.release() };
 }
 
 
@@ -226,7 +228,7 @@ void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t us
 
 
 ///////////////////////// ResourcePool::acquire_descriptorset ///////////////
-ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump const *lumphandle, VkDescriptorSetLayout layout, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
+ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump const *lumphandle, VkDescriptorSetLayout layout, StorageBuffer const &buffer)
 {
   assert(m_initialised);
   assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
@@ -234,7 +236,11 @@ ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump con
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  return { allocate_descriptorset(vulkan, lump.descriptorpool, layout, buffer, offset, size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC).release() };
+  auto descriptorset = allocate_descriptorset(vulkan, lump.descriptorpool, layout);
+
+  bind_buffer(vulkan, descriptorset, 0, buffer.buffer, buffer.offset, buffer.capacity, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+
+  return { descriptorset.release() };
 }
 
 

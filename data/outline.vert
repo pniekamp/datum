@@ -6,7 +6,7 @@ layout(location=1) in vec2 vertex_texcoord;
 layout(location=2) in vec3 vertex_normal;
 layout(location=3) in vec4 vertex_tangent;
 
-layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -19,7 +19,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
   
 } scene;
 
-layout(std430, set=2, binding=0, row_major) buffer ModelSet 
+layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
 {
   Transform modelworld;
   vec3 size;
@@ -31,12 +31,14 @@ layout(location=0) out vec2 texcoords;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  vec3 position = transform_multiply(model.modelworld, model.size * vertex_position);
-  vec3 normal = quaternion_multiply(model.modelworld.real, vertex_normal);
+  Transform modelworld = model.modelworld;
+
+  vec3 position = transform_multiply(modelworld, model.size * vertex_position);
+  vec3 normal = quaternion_multiply(modelworld.real, vertex_normal);
 
   float bias = 0.01 * pow(-(scene.view * vec4(position, 1)).z, 0.6);
 
-  position = transform_multiply(model.modelworld, model.size * vertex_position + bias*normal);
+  position = transform_multiply(modelworld, model.size * vertex_position + bias*normal);
 
   texcoords = vertex_texcoord; 
 

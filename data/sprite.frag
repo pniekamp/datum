@@ -1,6 +1,6 @@
 #version 440 core
 
-layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
+layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   vec4 texcoords;

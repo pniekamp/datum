@@ -415,16 +415,13 @@ void const *AssetManager::request(DatumPlatform::PlatformInterface &platform, As
 
       platform.submit_work(background_loader, this, slot);
     }
-
-    return nullptr;
+  }
+  else
+  {
+    touch_slot(slot);
   }
 
-  touch_slot(slot);
-
-  if (slot->state != Slot::State::Loaded)
-    return nullptr;
-
-  return slot->data;
+  return (slot && slot->state == Slot::State::Loaded) ? slot->data : nullptr;
 }
 
 

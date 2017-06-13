@@ -1,4 +1,14 @@
 
+const uint MaxShadowSplits = 4;
+const uint MaxEnvironments = 8;
+const uint MaxPointLights = 512;
+const uint MaxSpotLights = 16;
+const uint ClusterSizeZ = 24;
+
+layout(constant_id = 4) const uint ClusterTileX = 64;
+layout(constant_id = 5) const uint ClusterTileY = 64;
+layout(constant_id = 6) const uint ShadowSlices = 4;
+
 //----------------------- Main Light ----------------------------------------
 //---------------------------------------------------------------------------
 
@@ -6,6 +16,9 @@ struct MainLight
 {
   vec3 direction;
   vec3 intensity;
+  
+  float splits[MaxShadowSplits];
+  mat4 shadowview[MaxShadowSplits];
 };
 
 //----------------------- Point Light ---------------------------------------
@@ -18,6 +31,18 @@ struct PointLight
   vec4 attenuation;
 };
 
+//----------------------- Spot Light ----------------------------------------
+//---------------------------------------------------------------------------
+
+struct SpotLight
+{
+  vec3 position;
+  vec3 intensity;
+  vec4 attenuation;
+  vec3 direction;
+  float cutoff;
+};
+
 
 //----------------------- Environment ---------------------------------------
 //---------------------------------------------------------------------------
@@ -28,6 +53,38 @@ struct Environment
   Transform invtransform;
 };
 
+
+//----------------------- Cluster -------------------------------------------
+//---------------------------------------------------------------------------
+
+struct Cluster
+{
+  uint environmentmask[ClusterSizeZ];
+  
+  uint pointlightmask[ClusterSizeZ];
+  uint pointlightmasks[ClusterSizeZ][(MaxPointLights + 31)/32];
+
+  uint spotlightmask[ClusterSizeZ];
+  uint spotlightmasks[ClusterSizeZ][(MaxSpotLights + 31)/32];
+};
+
+uint cluster_tile(ivec2 xy, ivec2 viewport)
+{
+  uint ClusterSizeX = uint(float(viewport.x)/ClusterTileX + float(ClusterTileX - 1)/ClusterTileX);
+  uint ClusterSizeY = uint(float(viewport.y)/ClusterTileY + float(ClusterTileY - 1)/ClusterTileY);
+
+  return uint(float(xy.y)*ClusterSizeY/viewport.y)*ClusterSizeX + uint(float(xy.x)*ClusterSizeX/viewport.x);
+}
+
+uint cluster_tilez(float depth)
+{
+  return clamp(uint(pow(depth, 64) * ClusterSizeZ), 0, ClusterSizeZ-1);
+}
+
+float cluster_depth(uint tilez)
+{
+  return pow(tilez * (1.0/ClusterSizeZ), 1.0/64.0);
+}
 
 //----------------------- Material ------------------------------------------
 //---------------------------------------------------------------------------
@@ -274,4 +331,34 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
   diffuse += NdotL * Fd * light.intensity * attenuation;
 
   specular += NdotL * Fr * light.intensity * attenuation;
+}
+
+
+///////////////////////// spot_light  ///////////////////////////////////////
+void spot_light(inout vec3 diffuse, inout vec3 specular, SpotLight light, vec3 position, vec3 normal, vec3 eyevec, Material material, float shadowfactor)
+{
+  vec3 lightvec = normalize(light.position - position);
+
+  vec3 halfvec = normalize(lightvec + eyevec);
+
+  float NdotV = max(dot(normal, eyevec), 0);
+  float NdotL = max(dot(normal, lightvec), 0);
+  float NdotH = max(dot(normal, halfvec), 0);
+  float LdotH = max(dot(lightvec, halfvec), 0);
+
+  float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
+
+  vec3 Fr = specular_ggx(material.specular, 1, NdotV, NdotL, LdotH, NdotH, material.alpha) * (1/PI);
+
+  float lightdistance = length(light.position - position);
+
+  float attenuation = sign(NdotL) / (light.attenuation.z + light.attenuation.y * lightdistance + light.attenuation.x * lightdistance * lightdistance);
+
+  attenuation *= pow(clamp(1 - pow(lightdistance/light.attenuation.w, 4.0), 0, 1), 2);
+  
+  attenuation *= smoothstep(light.cutoff, light.cutoff+0.05, dot(light.direction, -lightvec));
+
+  diffuse += NdotL * Fd * light.intensity * attenuation * shadowfactor;
+
+  specular += NdotL * Fr * light.intensity * attenuation * shadowfactor;
 }

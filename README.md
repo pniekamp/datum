@@ -7,7 +7,7 @@
 - Sprite Rendering
 - Mesh Rendering
 - Single Main Directional Lighting
-- Deferred Tile Based Point Lighting
+- Clustered Deferred Based Lighting
 - Main Light Cascaded Shadow Map
 - Screen Space Ambient Occlusion (SSAO)
 - Screen Space Reflections (SSR)

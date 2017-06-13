@@ -66,22 +66,24 @@ class CommandList
 
     CommandList(CommandList &&other) noexcept
     {
+      m_passcount = 0;
       m_resourcelump = 0;
-      m_commandbuffer = 0;
+      context = nullptr;
 
       *this = std::move(other);
     }
 
     CommandList &operator=(CommandList &&other) noexcept
     {
-      std::swap(m_commandbuffer, other.m_commandbuffer);
+      std::swap(m_passcount, other.m_passcount);
+      std::swap(m_commandbuffers, other.m_commandbuffers);
       std::swap(m_resourcelump, other.m_resourcelump);
       std::swap(context, other.context);
 
       return *this;
     }
 
-    bool begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass);
+    bool begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpasses);
 
     Descriptor acquire(VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset = {});
 
@@ -91,13 +93,14 @@ class CommandList
 
   public:
 
-    operator VkCommandBuffer() const { return m_commandbuffer; }
+    operator bool() const { return m_passcount != 0; }
 
-    VkCommandBuffer commandbuffer() const { return m_commandbuffer; }
+    VkCommandBuffer commandbuffer(size_t subpass) const { return m_commandbuffers[subpass]; }
 
   private:
 
-    VkCommandBuffer m_commandbuffer;
+    size_t m_passcount;
+    VkCommandBuffer m_commandbuffers[8];
 
     ResourcePool::ResourceLump const *m_resourcelump;
 

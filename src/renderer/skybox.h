@@ -53,6 +53,7 @@ struct SkyboxContext
 
   Vulkan::DescriptorSet skyboxdescriptor;
   Vulkan::DescriptorSet convolvedescriptors[8];
+  Vulkan::ImageView convolveimageviews[8];
 
   Vulkan::Fence fence;
 };
@@ -73,7 +74,7 @@ struct SkyboxParams
 };
 
 // Prepare
-bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager *assets, uint32_t queueindex);
+bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager &assets, uint32_t queueindex);
 
 // Render
 void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams const &params);

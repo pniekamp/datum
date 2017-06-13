@@ -100,30 +100,6 @@ void RenderList::push_environment(Transform const &transform, Vec3 const &dimens
 }
 
 
-///////////////////////// RenderList::push_sprites //////////////////////////
-void RenderList::push_sprites(Rect2 const &viewport, SpriteList const &sprites)
-{
-  if (sprites)
-  {
-    auto entry = m_buffer.push<Renderable::Sprites>();
-
-    if (entry)
-    {
-      sprites.viewport(viewport);
-
-      entry->commandlist = sprites.commandlist();
-    }
-  }
-}
-
-
-///////////////////////// RenderList::push_sprites //////////////////////////
-void RenderList::push_sprites(DatumPlatform::Viewport const &viewport, SpriteList const &sprites)
-{
-  push_sprites(Rect2(Vec2(viewport.x, viewport.y), Vec2(viewport.x + viewport.width, viewport.y + viewport.height)), sprites);
-}
-
-
 ///////////////////////// RenderList::push_overlays /////////////////////////
 void RenderList::push_overlays(OverlayList const &overlays)
 {
@@ -134,6 +110,21 @@ void RenderList::push_overlays(OverlayList const &overlays)
     if (entry)
     {
       entry->commandlist = overlays.commandlist();
+    }
+  }
+}
+
+
+///////////////////////// RenderList::push_sprites //////////////////////////
+void RenderList::push_sprites(SpriteList const &sprites)
+{
+  if (sprites)
+  {
+    auto entry = m_buffer.push<Renderable::Sprites>();
+
+    if (entry)
+    {
+      entry->commandlist = sprites.commandlist();
     }
   }
 }

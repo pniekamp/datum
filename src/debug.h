@@ -236,7 +236,7 @@ T debug_menu_value(const char *name, T const &value, T const &min, T const &max)
 //
 
 void update_debug_overlay(struct DatumPlatform::GameInput const &input, bool *accepted);
-void render_debug_overlay(struct RenderContext &context, class ResourceManager *resources, class PushBuffer &pushbuffer, struct DatumPlatform::Viewport const &viewport, class Font const *font);
+void render_debug_overlay(struct RenderContext &context, class ResourceManager &resources, class PushBuffer &pushbuffer, struct DatumPlatform::Viewport const &viewport, class Font const *font);
 
 
 //

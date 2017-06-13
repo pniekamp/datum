@@ -2,7 +2,7 @@
 #include "gbuffer.glsl"
 #include "camera.glsl"
 
-layout(std430, set=0, binding=0, row_major) buffer SceneSet 
+layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -17,7 +17,7 @@ layout(std430, set=0, binding=0, row_major) buffer SceneSet
 
 } scene;
 
-layout(std430, set=1, binding=0, row_major) buffer MaterialSet 
+layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   float metalness;
@@ -42,7 +42,7 @@ layout(set=1, binding=2) uniform sampler2DArray specularmap;
 layout(set=1, binding=3) uniform sampler2DArray normalmap;
 
 layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=0, binding=6) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=5) uniform sampler2DArrayShadow shadowmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 texcoord;

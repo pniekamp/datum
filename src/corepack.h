@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 26;
+  const uint32_t version = 27;
 
   enum
   {
@@ -23,22 +23,30 @@ namespace CoreAsset
     unit_quad,
     unit_cube,
     unit_cone,
+    unit_hemi,
     unit_sphere,
     line_quad,
     line_cube,
+    line_cone,
+    cluster_comp,
     shadow_geom,
     shadow_frag,
+    prepass_frag,
     geometry_frag,
     depth_vert,
     depth_frag,
-    model_vert,
     model_shadow_vert,
-    actor_vert,
+    model_prepass_vert,
+    model_geometry_vert,
     actor_shadow_vert,
+    actor_prepass_vert,
+    actor_geometry_vert,
     ocean_vert,
     ocean_frag,
     fogplane_vert,
     fogplane_frag,
+    spotlight_vert,
+    spotlight_frag,
     translucent_vert,
     translucent_frag,
     water_vert,

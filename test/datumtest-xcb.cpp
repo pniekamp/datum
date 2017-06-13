@@ -638,9 +638,6 @@ void Vulkan::resize()
   VkSurfaceCapabilitiesKHR surfacecapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
 
-  if (surfacecapabilities.currentExtent.width == 0 || surfacecapabilities.currentExtent.height == 0)
-    return;
-
   if (swapchaininfo.imageExtent.width != surfacecapabilities.currentExtent.width || swapchaininfo.imageExtent.height != surfacecapabilities.currentExtent.height)
   {
     swapchaininfo.imageExtent = surfacecapabilities.currentExtent;
@@ -731,6 +728,8 @@ void Vulkan::present()
 struct Window
 {
   void init(Game *gameptr);
+
+  void resize(int width, int height);
 
   void handle_event(xcb_generic_event_t const *event);
 
@@ -845,6 +844,21 @@ void Window::init(Game *gameptr)
 }
 
 
+//|//////////////////// Window::resize //////////////////////////////////////
+void Window::resize(int width, int height)
+{
+  if (width != 0 && height != 0)
+  {
+    window.width = width;
+    window.height = height;
+
+    window.game->inputbuffer().register_viewport(0, 0, width, height);
+
+    vulkan.resize();
+  }
+}
+
+
 //|//////////////////// Window::handle_event ////////////////////////////////
 void Window::handle_event(xcb_generic_event_t const *event)
 {
@@ -856,10 +870,7 @@ void Window::handle_event(xcb_generic_event_t const *event)
       break;
 
     case XCB_CONFIGURE_NOTIFY:
-      width = reinterpret_cast<xcb_configure_notify_event_t const *>(event)->width;
-      height = reinterpret_cast<xcb_configure_notify_event_t const *>(event)->height;
-      game->inputbuffer().register_viewport(0, 0, width, height);
-      vulkan.resize();
+      resize(reinterpret_cast<xcb_configure_notify_event_t const *>(event)->width, reinterpret_cast<xcb_configure_notify_event_t const *>(event)->height);
       break;
 
     case XCB_KEY_PRESS:

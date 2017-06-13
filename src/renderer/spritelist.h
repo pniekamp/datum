@@ -44,7 +44,10 @@ class SpriteList
       lml::Vec4 texcoords;
     };
 
-    bool begin(BuildState &state, RenderContext &context, ResourceManager *resources);
+    bool begin(BuildState &state, RenderContext &context, ResourceManager &resources);
+
+    void viewport(BuildState &state, lml::Rect2 const &viewport) const;
+    void viewport(BuildState &state, DatumPlatform::Viewport const &viewport) const;
 
     void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Vec4 const &texcoords, lml::Color4 const &tint);
 
@@ -77,13 +80,7 @@ class SpriteList
 
     void finalise(BuildState &state);
 
-  public:
-
-    void viewport(lml::Rect2 const &viewport) const;
-
   private:
-
-    void *m_sceneset;
 
     unique_resource<CommandList> m_commandlist;
 };

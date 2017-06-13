@@ -640,9 +640,6 @@ void Vulkan::resize()
   VkSurfaceCapabilitiesKHR surfacecapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
 
-  if (surfacecapabilities.currentExtent.width == 0 || surfacecapabilities.currentExtent.height == 0)
-    return;
-
   if (swapchaininfo.imageExtent.width != surfacecapabilities.currentExtent.width || swapchaininfo.imageExtent.height != surfacecapabilities.currentExtent.height)
   {
     swapchaininfo.imageExtent = surfacecapabilities.currentExtent;
@@ -733,6 +730,8 @@ void Vulkan::present()
 struct Window
 {
   void init(HINSTANCE hinstance, Game *gameptr);
+  
+  void resize(int width, int height);
 
   void keypress(UINT msg, WPARAM wParam, LPARAM lParam);
   void keyrelease(UINT msg, WPARAM wParam, LPARAM lParam);
@@ -775,10 +774,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_SIZE:
-      window.width = (lParam & 0xffff);
-      window.height = (lParam & 0xffff0000) >> 16;
-      window.game->inputbuffer().register_viewport(0, 0, window.width, window.height);
-      vulkan.resize();
+      window.resize(lParam & 0xffff, (lParam & 0xffff0000) >> 16);
       break;
 
     case WM_KEYDOWN:
@@ -871,6 +867,21 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
   keysym['A'] = 'A';  keysym['S'] = 'S';  keysym['D'] = 'D';  keysym['F'] = 'F';  keysym['G'] = 'G';  keysym['H'] = 'H';  keysym['J'] = 'J';  keysym['K'] = 'K';  keysym['L'] = 'L';  keysym[':'] = ':';  keysym['\''] = '\'';
   keysym['Z'] = 'Z';  keysym['X'] = 'X';  keysym['C'] = 'C';  keysym['V'] = 'V';  keysym['B'] = 'B';  keysym['N'] = 'N';  keysym['M'] = 'M';  keysym[VK_OEM_COMMA] = ',';  keysym[VK_OEM_PERIOD] = '.';  keysym['/'] = '/';
   keysym[VK_NUMPAD0] = KB_KEY_NUMPAD0;  keysym[VK_NUMPAD1] = KB_KEY_NUMPAD1;  keysym[VK_NUMPAD2] = KB_KEY_NUMPAD2;  keysym[VK_NUMPAD3] = KB_KEY_NUMPAD3;  keysym[VK_NUMPAD4] = KB_KEY_NUMPAD4;  keysym[VK_NUMPAD5] = KB_KEY_NUMPAD5;  keysym[VK_NUMPAD6] = KB_KEY_NUMPAD6;  keysym[VK_NUMPAD7] = KB_KEY_NUMPAD7;  keysym[VK_NUMPAD8] = KB_KEY_NUMPAD8;  keysym[VK_NUMPAD9] = KB_KEY_NUMPAD9;
+}
+
+
+//|//////////////////// Window::resize //////////////////////////////////////
+void Window::resize(int width, int height)
+{
+  if (width != 0 && height != 0)
+  {
+    window.width = width;
+    window.height = height;
+
+    window.game->inputbuffer().register_viewport(0, 0, width, height);
+
+    vulkan.resize();
+  }
 }
 
 

@@ -8,7 +8,7 @@ layout(location=3) in vec4 vertex_tangent;
 layout(location=4) in uvec4 rig_bone;
 layout(location=5) in vec4 rig_weight;
 
-layout(std430, set=2, binding=0, row_major) buffer ModelSet 
+layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
 { 
   Transform modelworld;
 
@@ -16,16 +16,23 @@ layout(std430, set=2, binding=0, row_major) buffer ModelSet
 
 } model;
 
-layout(location=0) out vec2 texcoords;
+layout(location=0) out vec2 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  Transform morph = transform_blend(rig_weight, model.bones[rig_bone[0]], model.bones[rig_bone[1]], model.bones[rig_bone[2]], model.bones[rig_bone[3]]); 
+  Transform modelworld = model.modelworld;
   
-  Transform modelworld = transform_multiply(model.modelworld, morph);
+  Transform bone0 = model.bones[rig_bone[0]];
+  Transform bone1 = model.bones[rig_bone[1]];
+  Transform bone2 = model.bones[rig_bone[2]];
+  Transform bone3 = model.bones[rig_bone[3]];
   
-  texcoords = vertex_texcoord;
+  Transform morph = transform_blend(rig_weight, bone0, bone1, bone2, bone3); 
   
-  gl_Position = vec4(transform_multiply(modelworld, vertex_position), 1);
+  Transform morphworld = transform_multiply(modelworld, morph);
+  
+  texcoord = vertex_texcoord;
+  
+  gl_Position = vec4(transform_multiply(morphworld, vertex_position), 1);
 }

@@ -3,9 +3,9 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-/*layout(constant_id = 57) */const uint WaveResolution = 64;
+const uint WaveResolution = 64;
 
-layout(std430, set=0, binding=0, row_major) buffer OceanParams 
+layout(std430, set=0, binding=0, row_major) readonly buffer OceanParams 
 { 
   mat4 proj;
   mat4 invproj;
@@ -26,9 +26,6 @@ layout(std430, set=0, binding=0, row_major) buffer OceanParams
   vec2 h0[WaveResolution*WaveResolution];
   float phase[WaveResolution*WaveResolution];
 
-  uint sizex;
-  uint sizey;
-
 } params;
 
 layout(std430, set=0, binding=1, row_major) buffer Spectrum 
@@ -46,6 +43,8 @@ layout(std430, set=0, binding=1, row_major) buffer Spectrum
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
+  gl_WorkGroupSize;
+
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
 
   uint index = xy.y * WaveResolution + xy.x;

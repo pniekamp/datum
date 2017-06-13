@@ -21,6 +21,8 @@ using leap::extentof;
 enum RenderPasses
 {
   overlaypass = 0,
+
+  passcount
 };
 
 enum ShaderLocation
@@ -54,7 +56,7 @@ struct ModelSet
 ///////////////////////// draw_sprites //////////////////////////////////////
 void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
 {
-  execute(commandbuffer, sprites.commandlist->commandbuffer());
+  execute(commandbuffer, sprites.commandlist->commandbuffer(RenderPasses::overlaypass));
 }
 
 
@@ -62,48 +64,70 @@ void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 //|--------------------------------------------------------------------------
 
 ///////////////////////// SpriteList::begin /////////////////////////////////
-bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManager *resources)
+bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
   m_commandlist = {};
 
   state = {};
   state.context = &context;
-  state.resources = resources;
+  state.resources = &resources;
 
   if (!context.prepared)
     return false;
 
-  auto commandlist = resources->allocate<CommandList>(&context);
+  auto commandlist = resources.allocate<CommandList>(&context);
 
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context.framebuffer, context.renderpass, RenderPasses::overlaypass))
+  if (!commandlist->begin(context.framebuffer, context.renderpass, RenderPasses::passcount))
   {
-    resources->destroy(commandlist);
+    resources.destroy(commandlist);
     return false;
   }
 
-  bind_pipeline(*commandlist, context.spritepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  auto overlaypass = commandlist->commandbuffer(RenderPasses::overlaypass);
 
-  if (auto sceneset = commandlist->acquire(context.scenesetlayout, sizeof(SceneSet)))
-  {
-    auto offset = sceneset.reserve(sizeof(sceneset));
+  bind_pipeline(overlaypass, context.spritepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    m_sceneset = sceneset.memory<SceneSet>(offset);
+  bind_descriptor(overlaypass, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    bind_descriptor(*commandlist, sceneset, context.pipelinelayout, ShaderLocation::sceneset, 0, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-    commandlist->release(sceneset);
-  }
-
-  bind_vertexbuffer(*commandlist, 0, context.unitquad);
+  bind_vertexbuffer(overlaypass, 0, context.unitquad);
 
   m_commandlist = { resources, commandlist };
 
   state.commandlist = commandlist;
 
   return true;
+}
+
+
+///////////////////////// SpriteList::viewport //////////////////////////////
+void SpriteList::viewport(BuildState &state, Rect2 const &viewport) const
+{
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto overlaypass = state.commandlist->commandbuffer(RenderPasses::overlaypass);
+
+  auto worldview = OrthographicProjection(viewport.min.x, viewport.min.y, viewport.max.x, viewport.max.y, 0.0f, 1000.0f);
+
+  push(overlaypass, context.pipelinelayout, 0, sizeof(worldview), &worldview, VK_SHADER_STAGE_VERTEX_BIT);
+}
+
+
+///////////////////////// SpriteList::viewport //////////////////////////////
+void SpriteList::viewport(BuildState &state, DatumPlatform::Viewport const &viewport) const
+{
+  assert(state.commandlist);
+
+  auto &context = *state.context;
+  auto &commandlist = *state.commandlist;
+  auto overlaypass = commandlist.commandbuffer(RenderPasses::overlaypass);
+
+  auto worldview = OrthographicProjection(0.0f, 0.0f, (float)viewport.width, (float)viewport.height, 0.0f, 1000.0f);
+
+  push(overlaypass, context.pipelinelayout, 0, sizeof(worldview), &worldview, VK_SHADER_STAGE_VERTEX_BIT);
 }
 
 
@@ -114,6 +138,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto overlaypass = commandlist.commandbuffer(RenderPasses::overlaypass);
 
   if (state.materialset.capacity() < state.materialset.used() + sizeof(SpriteMaterialSet) || state.texture != texture)
   {
@@ -136,7 +161,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
     materialset->color = premultiply(tint);
     materialset->texcoords = texcoords;
 
-    bind_descriptor(commandlist, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(overlaypass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.color = tint;
     state.texcoords = texcoords;
@@ -151,13 +176,14 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
+  auto overlaypass = commandlist.commandbuffer(RenderPasses::overlaypass);
 
   if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
   {
     state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
   }
 
-  if (state.modelset)
+  if (state.modelset && state.materialset)
   {
     auto offset = state.modelset.reserve(sizeof(ModelSet));
 
@@ -167,9 +193,9 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
     modelset->ybasis = ybasis;
     modelset->position = Vec4(position, layer - 0.5f + 1e-3f, 1);
 
-    bind_descriptor(commandlist, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(overlaypass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(commandlist, context.unitquad.vertexcount, 1, 0, 0);
+    draw(overlaypass, context.unitquad.vertexcount, 1, 0, 0);
   }
 }
 
@@ -364,7 +390,12 @@ void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 con
 ///////////////////////// SpriteList::push_scissor //////////////////////////
 void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {
-  scissor(*state.commandlist, (int)cliprect.min.x, (int)cliprect.min.y, (int)(cliprect.max.x - cliprect.min.x), (int)(cliprect.max.y - cliprect.min.y));
+  assert(state.commandlist);
+
+  auto &commandlist = *state.commandlist;
+  auto overlaypass = commandlist.commandbuffer(RenderPasses::overlaypass);
+
+  scissor(overlaypass, (int)cliprect.min.x, (int)cliprect.min.y, (int)(cliprect.max.x - cliprect.min.x), (int)(cliprect.max.y - cliprect.min.y));
 }
 
 
@@ -379,14 +410,4 @@ void SpriteList::finalise(BuildState &state)
   state.commandlist->end();
 
   state.commandlist = nullptr;
-}
-
-
-///////////////////////// SpriteList::viewport //////////////////////////////
-void SpriteList::viewport(Rect2 const &viewport) const
-{
-  if (auto scene = static_cast<SceneSet*>(m_sceneset))
-  {
-    scene->worldview = OrthographicProjection(viewport.min.x, viewport.min.y, viewport.max.x, viewport.max.y, 0.0f, 1000.0f);
-  }
 }
