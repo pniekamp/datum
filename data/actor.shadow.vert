@@ -8,7 +8,7 @@ layout(location=3) in vec4 vertex_tangent;
 layout(location=4) in uvec4 rig_bone;
 layout(location=5) in vec4 rig_weight;
 
-layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
+layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet 
 { 
   Transform modelworld;
 

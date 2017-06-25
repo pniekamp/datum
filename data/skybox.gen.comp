@@ -1,0 +1,143 @@
+#version 440 core
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(push_constant, std140, row_major) uniform SkyboxParams 
+{ 
+  vec3 skycolor;
+  vec3 groundcolor;
+  vec3 sundirection;
+  vec3 sunintensity;
+  float exposure;
+  uint cloudlayers;
+  float cloudheight;
+  vec4 cloudcolor;
+
+} params;
+
+layout(set=0, binding=1) writeonly uniform imageCube dest;
+
+layout(set=0, binding=2) uniform sampler2DArray clouddensitymap;
+layout(set=0, binding=3) uniform sampler2DArray cloudnormalmap;
+
+const float OuterRadius = 1.025;
+const float OuterRadius2 = OuterRadius*OuterRadius;
+const float InnerRadius = 1.0;
+const float InnerRadius2 = InnerRadius*InnerRadius;
+const float CameraHeight = 0.0001;
+
+const float Kr = 0.0025f;
+const float Km = 0.0015f;
+const float Kr4PI = Kr * 4.0 * 3.14159265;
+const float Km4PI = Km * 4.0 * 3.14159265;
+const float Scale = 1.0 / (OuterRadius - InnerRadius);
+const float ScaleDepth = 0.25;
+const float Samples = 2.0;
+
+float scale(float cosangle)
+{
+  float x = 1 - cosangle;
+  return 0.25 * exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
+}
+
+float miephase(float cosangle, float g)
+{
+  return 1.5 * ((1 - g*g) / (2 + g*g)) * (1 + cosangle*cosangle) / pow(1 + g*g - 2.0*g*cosangle, 1.5);
+}
+
+float rayleighphase(float cosangle)
+{
+  return 0.75 + 0.75*cosangle*cosangle;
+}
+
+vec3 skybox(vec3 eyeray)
+{
+  vec3 eyepos = vec3(0, InnerRadius + CameraHeight, 0);
+
+  float far = sqrt(OuterRadius2 + InnerRadius2 * eyeray.y * eyeray.y - InnerRadius2) - InnerRadius * eyeray.y;
+
+  float startangle = dot(eyeray, eyepos) / eyepos.y;
+  float startdepth = exp(-Scale / ScaleDepth * CameraHeight);
+  float startoffset = startdepth * scale(startangle);
+
+  float samplelength = far / Samples;
+  float scaledlength = samplelength * Scale;
+  vec3 sampleray = eyeray * samplelength;
+  vec3 samplepoint = eyepos + 0.5 * sampleray;
+
+  vec3 InvWavelength = 1 / pow(params.skycolor, vec3(4));
+  
+  vec3 frontcolor = vec3(0);
+
+  for(uint i=0; i < uint(Samples); i++)
+  {
+    float height = max(length(samplepoint), InnerRadius);
+    float depth = exp(Scale / ScaleDepth * (InnerRadius - height));
+    float lightangle = dot(-params.sundirection, samplepoint) / height;
+    float cameraangle = dot(eyeray, samplepoint) / height;
+    float scatter = (startoffset + depth*(scale(lightangle) - scale(cameraangle)));
+    vec3 attenuate = exp(-clamp(scatter, 0, 50) * (InvWavelength * Kr4PI + Km4PI));
+
+    frontcolor += attenuate * (depth * scaledlength);
+
+    samplepoint += sampleray;
+  }
+
+  float cosangle = dot(-params.sundirection, -eyeray);
+  
+  vec3 c0 = frontcolor * InvWavelength * Kr * params.sunintensity;
+  vec3 c1 = frontcolor * Km * params.sunintensity;
+
+  vec3 skycolor = c0 * rayleighphase(cosangle) + clamp(c1 * miephase(cosangle, -0.990), 0, 1);
+  vec3 groundcolor = params.groundcolor * max(dot(-params.sundirection, vec3(0, 1, 0)), 0);
+  vec3 cloudcolor = params.cloudcolor.rgb;
+  
+  float skyalpha = clamp(-10 * eyeray.y, 0, 1);
+  float cloudalpha = 0;
+  
+  if (params.cloudlayers != 0)
+  {
+    vec3 cloudpos = eyeray * (params.cloudheight / eyeray.y);
+    vec2 clouduv = 0.000005 * cloudpos.xz;
+    vec3 cloudnormal = normalize(2 * texture(cloudnormalmap, vec3(clouduv, 0)).xyz - 1);
+
+    float NdotL = max(dot(cloudnormal.xzy, -params.sundirection), 0);
+    
+    cloudalpha = NdotL * texture(clouddensitymap, vec3(clouduv, 0)).r;
+    
+    cloudalpha *= clamp(10 * eyeray.y, 0.0, 1.0);
+    
+    cloudalpha *= params.cloudcolor.a;
+  }
+
+  return params.exposure * mix(mix(skycolor, groundcolor, skyalpha), cloudcolor, cloudalpha);
+}
+
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  gl_WorkGroupSize;
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy); 
+  ivec2 dim = imageSize(dest);
+
+  vec2 eyeray = vec2(2 * (xy.x + 0.5f)/dim.x - 1, 2 * (xy.y + 0.5f)/dim.y - 1);
+
+  // front
+  imageStore(dest, ivec3(xy, 4), vec4(skybox(normalize(vec3(eyeray.x, eyeray.y, -1))), 1));
+
+  // left
+  imageStore(dest, ivec3(xy, 1), vec4(skybox(normalize(vec3(-1, eyeray.y, -eyeray.x))), 1));
+
+  // right
+  imageStore(dest, ivec3(xy, 0), vec4(skybox(normalize(vec3(1, eyeray.y, eyeray.x))), 1));
+
+  // back
+  imageStore(dest, ivec3(xy, 5), vec4(skybox(normalize(vec3(-eyeray.x, eyeray.y, 1))), 1));
+
+  // top
+  imageStore(dest, ivec3(xy, 3), vec4(skybox(normalize(vec3(eyeray.x, 1, eyeray.y))), 1));
+
+  // bottom
+  imageStore(dest, ivec3(xy, 2), vec4(skybox(normalize(vec3(eyeray.x, -1, -eyeray.y))), 1));
+}

@@ -91,13 +91,10 @@ float cluster_depth(uint tilez)
 
 struct Material
 {
-  vec3 albedo;
   vec3 diffuse;
   vec3 specular;
   float emissive;
-  float metalness;
   float roughness;
-  float reflectivity;
   float alpha;
 };
 
@@ -131,26 +128,32 @@ Material make_material(vec3 albedo, float emissive, float metalness, float refle
 {
   Material material;
 
-  material.albedo = albedo;
   material.emissive = 128*emissive*emissive*emissive;
-  material.metalness = metalness;
+
+  material.diffuse = albedo * (1 - metalness);
+  material.specular = mix(vec3(0.16 * reflectivity * reflectivity), albedo, metalness);
+
   material.roughness = roughness;
-  material.reflectivity = reflectivity;
-
-  material.diffuse = material.albedo * (1 - material.metalness);
-  material.specular = mix(vec3(0.16 * material.reflectivity * material.reflectivity), material.albedo, material.metalness);
-
-  material.alpha = material.roughness * material.roughness;
+  material.alpha = material.roughness * material.roughness;;
 
   return material;
 }
 
-///////////////////////// unpack_material ///////////////////////////////////
-Material unpack_material(vec4 rt0, vec4 rt1)
+///////////////////////// make_material /////////////////////////////////////
+Material make_material(vec4 diffusemap, vec4 specularmap)
 {
-  return make_material(rt0.rgb, rt0.a, rt1.r, rt1.g, rt1.a);
-}
+  Material material;
 
+  material.emissive = 128*diffusemap.a*diffusemap.a*diffusemap.a;
+
+  material.diffuse = diffusemap.rgb;
+  material.specular = specularmap.rgb;
+
+  material.roughness = specularmap.a;
+  material.alpha = material.roughness * material.roughness;
+
+  return material;
+}
 
 ///////////////////////// ambient_intensity /////////////////////////////////
 float ambient_intensity(MainLight light, sampler2D ssaomap, ivec2 xy, ivec2 viewport)
@@ -279,7 +282,7 @@ void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 
 {
   float f90 = 0.8f;
 
-  diffuse += envdiffuse * material.diffuse * ambientintensity;
+  diffuse += envdiffuse * ambientintensity;
   specular += envspecular * (material.specular * envbrdf.x + f90 * envbrdf.y) * ambientintensity;
 }
 

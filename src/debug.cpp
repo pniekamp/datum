@@ -739,7 +739,7 @@ namespace
 
       if (entry)
       {
-        entry->commandlist = overlay.commandlist();
+        entry->spritecommands = overlay.spritecommands;
       }
     }
 

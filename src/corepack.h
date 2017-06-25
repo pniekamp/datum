@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 27;
+  const uint32_t version = 28;
 
   enum
   {
@@ -33,32 +33,29 @@ namespace CoreAsset
     shadow_frag,
     prepass_frag,
     geometry_frag,
-    depth_vert,
-    depth_frag,
     model_shadow_vert,
     model_prepass_vert,
     model_geometry_vert,
     actor_shadow_vert,
     actor_prepass_vert,
     actor_geometry_vert,
+    depth_mip_comp,
+    ssao_comp,
+    envbrdf_lut,
+    lighting_comp,
+    skybox_vert,
+    skybox_frag,
     ocean_vert,
     ocean_frag,
     fogplane_vert,
     fogplane_frag,
-    spotlight_vert,
-    spotlight_frag,
     translucent_vert,
     translucent_frag,
     water_vert,
     water_frag,
     particle_vert,
     particle_frag,
-    ssao_comp,
-    envbrdf_lut,
-    lighting_comp,
     ssr_comp,
-    skybox_vert,
-    skybox_frag,
     default_skybox,
     bloom_luma_comp,
     bloom_hblur_comp,

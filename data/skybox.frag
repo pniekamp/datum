@@ -1,7 +1,9 @@
 #version 440 core
 #include "camera.glsl"
+#include "transform.glsl"
+#include "lighting.glsl"
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -13,16 +15,29 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
   vec4 viewport;
   
   Camera camera;
+  
+  MainLight mainlight;
+
+  uint environmentcount;
+  Environment environments[MaxEnvironments];
+
+  uint pointlightcount;
+  PointLight pointlights[MaxPointLights];
+
+  uint spotlightcount;
+  SpotLight spotlights[MaxSpotLights];
 
 } scene;
 
-layout(set=0, binding=1) uniform samplerCube skyboxmap;
+layout(set=3, binding=6) uniform samplerCube envmaps[MaxEnvironments];
 
 layout(location=0) in vec3 texcoord;
 
 layout(location=0) out vec4 fragcolor;
 
 void main()
-{
-  fragcolor = vec4(scene.camera.exposure * textureLod(skyboxmap, texcoord, scene.camera.skyboxlod).rgb, 0);
+{ 
+  vec3 skycolor = textureLod(envmaps[scene.environmentcount-1], texcoord, scene.camera.skyboxlod).rgb;
+  
+  fragcolor = vec4(scene.camera.exposure * skycolor, 0);
 }

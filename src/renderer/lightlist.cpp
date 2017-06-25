@@ -28,7 +28,7 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
   state.context = &context;
   state.resources = &resources;
 
-  if (!context.prepared)
+  if (!context.ready)
     return false;
 
   auto commandlist = resources.allocate<CommandList>(&context);
@@ -36,17 +36,19 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
   if (!commandlist)
     return false;
 
-  if (auto sceneset = commandlist->acquire(context.modelsetlayout, sizeof(Renderable::Lights::LightList)))
+  auto lightset = commandlist->acquire_descriptor(sizeof(Renderable::Lights::LightList));
+
+  if (lightset.capacity() == 0)
   {
-    auto offset = sceneset.reserve(sizeof(Renderable::Lights::LightList));
-
-    m_lights = sceneset.memory<Renderable::Lights::LightList>(offset);
-
-    m_lights->pointlightcount = 0;
-    m_lights->spotlightcount = 0;
-
-    commandlist->release(sceneset);
+    resources.destroy(commandlist);
+    return false;
   }
+
+  lightlist = lightset.memory<Renderable::Lights::LightList>(lightset.reserve(sizeof(Renderable::Lights::LightList)));
+
+  lightlist->pointlightcount = 0;
+  lightlist->spotlightcount = 0;
+  lightlist->environmentcount = 0;
 
   m_commandlist = { resources, commandlist };
 
@@ -59,9 +61,9 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
 ///////////////////////// LightList::push_pointlight ////////////////////////
 void LightList::push_pointlight(BuildState &state, Vec3 const &position, float range, Color3 const &intensity, Attenuation const &attenuation)
 {
-  if (m_lights && m_lights->pointlightcount < extentof(m_lights->pointlights))
+  if (lightlist && lightlist->pointlightcount < extentof(lightlist->pointlights))
   {
-    auto &pointlight = m_lights->pointlights[m_lights->pointlightcount];
+    auto &pointlight = lightlist->pointlights[lightlist->pointlightcount];
 
     pointlight.position = position;
     pointlight.intensity = intensity;
@@ -70,7 +72,7 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
     pointlight.attenuation.z = attenuation.constant;
     pointlight.attenuation.w = range;
 
-    m_lights->pointlightcount += 1;
+    lightlist->pointlightcount += 1;
   }
 }
 
@@ -78,9 +80,9 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
 ///////////////////////// LightList::push_spotlight /////////////////////////
 void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 const &direction, float cutoff, float range, Color3 const &intensity, Attenuation const &attenuation)
 {
-  if (m_lights && m_lights->spotlightcount < extentof(m_lights->spotlights))
+  if (lightlist && lightlist->spotlightcount < extentof(lightlist->spotlights))
   {
-    auto &spotlight = m_lights->spotlights[m_lights->spotlightcount];
+    auto &spotlight = lightlist->spotlights[lightlist->spotlightcount];
 
     spotlight.position = position;
     spotlight.intensity = intensity;
@@ -91,7 +93,25 @@ void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 con
     spotlight.direction = direction;
     spotlight.cutoff = 1 - cutoff;
 
-    m_lights->spotlightcount += 1;
+    lightlist->spotlightcount += 1;
+  }
+}
+
+
+///////////////////////// LightList::push_environment ///////////////////////
+void LightList::push_environment(BuildState &state, Transform const &transform, Vec3 const &dimension, EnvMap const *envmap)
+{
+  assert(envmap && envmap->ready());
+
+  if (lightlist && lightlist->environmentcount < extentof(lightlist->environments))
+  {
+    auto &environment = lightlist->environments[lightlist->environmentcount];
+
+    environment.dimension = dimension;
+    environment.transform = transform;
+    environment.envmap = envmap;
+
+    lightlist->environmentcount += 1;
   }
 }
 

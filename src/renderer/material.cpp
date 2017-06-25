@@ -40,7 +40,7 @@ Material const *ResourceManager::create<Material>(Asset const *asset)
   material->flags = 0;
 
   material->albedomap = nullptr;
-  material->specularmap = nullptr;
+  material->surfacemap = nullptr;
   material->normalmap = nullptr;
   material->asset = asset;
   material->state = Material::State::Empty;
@@ -51,7 +51,7 @@ Material const *ResourceManager::create<Material>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Material const *ResourceManager::create<Material>(Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
+Material const *ResourceManager::create<Material>(Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *surfacemap, Texture const *normalmap)
 {
   auto slot = acquire_slot(sizeof(Material));
 
@@ -68,12 +68,12 @@ Material const *ResourceManager::create<Material>(Color4 color, float metalness,
   material->roughness = roughness;
   material->reflectivity = reflectivity;
   material->emissive = emissive;
-  material->specularmap = specularmap;
+  material->surfacemap = surfacemap;
   material->normalmap = normalmap;
   material->asset = nullptr;
   material->state = Material::State::Waiting;
 
-  if ((!albedomap || albedomap->ready()) && (!specularmap || specularmap->ready()) && (!normalmap || normalmap->ready()))
+  if ((!albedomap || albedomap->ready()) && (!surfacemap || surfacemap->ready()) && (!normalmap || normalmap->ready()))
     material->state = Material::State::Ready;
 
   return material;
@@ -122,12 +122,12 @@ void ResourceManager::update<Material>(Material const *material, Color4 color, f
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap)
+void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *surfacemap, Texture const *normalmap)
 {
   assert(material);
   assert((material->flags & (MaterialOwnsAlbedoMap | MaterialOwnsSpecularMap | MaterialOwnsNormalMap)) == 0);
   assert(!albedomap || albedomap->ready());
-  assert(!specularmap || specularmap->ready());
+  assert(!surfacemap || surfacemap->ready());
   assert(!normalmap || normalmap->ready());
 
   auto slot = const_cast<Material*>(material);
@@ -138,7 +138,7 @@ void ResourceManager::update<Material>(Material const *material, Color4 color, f
   slot->reflectivity = reflectivity;
   slot->emissive = emissive;
   slot->albedomap = albedomap;
-  slot->specularmap = specularmap;
+  slot->surfacemap = surfacemap;
   slot->normalmap = normalmap;
 }
 
@@ -177,9 +177,9 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
           slot->flags |= MaterialOwnsAlbedoMap;
         }
 
-        if (payload->specularmap && !slot->specularmap)
+        if (payload->surfacemap && !slot->surfacemap)
         {
-          slot->specularmap = create<Texture>(assets()->find(asset->id + payload->specularmap), Texture::Format::SRGBA);
+          slot->surfacemap = create<Texture>(assets()->find(asset->id + payload->surfacemap), Texture::Format::SRGBA);
 
           slot->flags |= MaterialOwnsSpecularMap;
         }
@@ -191,7 +191,7 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
           slot->flags |= MaterialOwnsNormalMap;
         }
 
-        slot->state = ((!payload->albedomap || slot->albedomap) && (!payload->specularmap || slot->specularmap) && (!payload->normalmap || slot->normalmap)) ? Material::State::Waiting : Material::State::Empty;
+        slot->state = ((!payload->albedomap || slot->albedomap) && (!payload->surfacemap || slot->surfacemap) && (!payload->normalmap || slot->normalmap)) ? Material::State::Waiting : Material::State::Empty;
       }
       else
         slot->state = Material::State::Empty;
@@ -213,11 +213,11 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
       ready &= slot->albedomap->ready();
     }
 
-    if (slot->specularmap)
+    if (slot->surfacemap)
     {
-      request(platform, slot->specularmap);
+      request(platform, slot->surfacemap);
 
-      ready &= slot->specularmap->ready();
+      ready &= slot->surfacemap->ready();
     }
 
     if (slot->normalmap)
@@ -250,7 +250,7 @@ void ResourceManager::destroy<Material>(Material const *material)
       destroy(material->albedomap);
 
     if (material->flags & MaterialOwnsSpecularMap)
-      destroy(material->specularmap);
+      destroy(material->surfacemap);
 
     if (material->flags & MaterialOwnsNormalMap)
       destroy(material->normalmap);

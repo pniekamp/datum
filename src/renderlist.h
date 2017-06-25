@@ -28,19 +28,17 @@ class RenderList
     operator PushBuffer &() { return m_buffer; }
     operator PushBuffer const &() const { return m_buffer; }
 
-    void push_geometry(GeometryList const &geometry);
+    void push_geometry(GeometryList const &geometrylist);
 
-    void push_objects(ForwardList const &objects);
+    void push_forward(ForwardList const &forwardlist);
 
-    void push_casters(CasterList const &casters);
+    void push_casters(CasterList const &casterlist);
 
-    void push_lights(LightList const &lights);
+    void push_lights(LightList const &lightlist);
 
-    void push_environment(lml::Transform const &transform, lml::Vec3 const &dimension, EnvMap const *envmap);
+    void push_overlays(OverlayList const &overlaylist);
 
-    void push_overlays(OverlayList const &overlays);
-
-    void push_sprites(SpriteList const &sprites);
+    void push_sprites(SpriteList const &spritelist);
 
   private:
 

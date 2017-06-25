@@ -5,7 +5,7 @@
 #include "transform.glsl"
 #include "lighting.glsl"
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -20,9 +20,26 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
   
   MainLight mainlight;
 
+  uint environmentcount;
+  Environment environments[MaxEnvironments];
+
+  uint pointlightcount;
+  PointLight pointlights[MaxPointLights];
+
+  uint spotlightcount;
+  SpotLight spotlights[MaxSpotLights];
+
+  Cluster cluster[];
+
 } scene;
 
-layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
+layout(set=0, binding=1) uniform sampler2D colormap;
+layout(set=3, binding=4) uniform sampler2DArrayShadow shadowmap;
+layout(set=3, binding=5) uniform sampler2DArray envbrdfmap;
+layout(set=3, binding=6) uniform samplerCube envmaps[MaxEnvironments];
+//layout(set=3, binding=7) uniform sampler2D spotmaps[MaxSpotLights];
+
+layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   float metalness;
@@ -34,15 +51,13 @@ layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet
 
   Environment specular;
 
-} material;
+} params;
 
 layout(set=1, binding=1) uniform sampler2DArray albedomap;
 layout(set=1, binding=2) uniform samplerCube specularmap;
 layout(set=1, binding=3) uniform sampler2DArray normalmap;
 
-layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=0, binding=5) uniform sampler2DArrayShadow shadowmap;
-layout(set=0, binding=6) uniform sampler2DArray envbrdfmap;
+layout(set=3, binding=2, input_attachment_index=3) uniform subpassInput depthmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 texcoord;
@@ -75,16 +90,21 @@ float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  float floordepth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).r;
-  
-  float bumpscale = material.bumpscale.z;
+  ivec2 xy = ivec2(gl_FragCoord.xy);
+  ivec2 viewport = textureSize(colormap, 0).xy;
 
-  vec4 bump0 = texture(normalmap, vec3(material.bumpscale.xy*(texcoord + material.flow), 0));
-  vec4 bump1 = texture(normalmap, vec3(material.bumpscale.xy*(2.0*texcoord + 4.0*material.flow), 0));
-  vec4 bump2 = texture(normalmap, vec3(material.bumpscale.xy*(4.0*texcoord + 8.0*material.flow), 0));
+  uint tile = cluster_tile(xy, viewport);
+  uint tilez = cluster_tilez(gl_FragCoord.z);
+
+  float floordepth = subpassLoad(depthmap).r;
+  
+  float bumpscale = params.bumpscale.z;
+
+  vec4 bump0 = texture(normalmap, vec3(params.bumpscale.xy*(texcoord + params.flow), 0));
+  vec4 bump1 = texture(normalmap, vec3(params.bumpscale.xy*(2.0*texcoord + 4.0*params.flow), 0));
+  vec4 bump2 = texture(normalmap, vec3(params.bumpscale.xy*(4.0*texcoord + 8.0*params.flow), 0));
 
   vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, bumpscale)); 
-
   vec3 eyevec = normalize(scene.camera.position - position);
 
   float dist = view_depth(scene.proj, floordepth) - view_depth(scene.proj, gl_FragCoord.z);
@@ -94,39 +114,80 @@ void main()
 
   vec4 color = textureLod(albedomap, vec3(clamp(vec2(scale, facing), 1/255.0, 254/255.0), 0), 0);
   
-  Material surface = make_material(color.rgb*material.color.rgb, material.emissive, material.metalness, material.reflectivity, material.roughness);
-
+  Material material = make_material(color.rgb*params.color.rgb, params.emissive, params.metalness, params.reflectivity, params.roughness);
+  
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
-  
+
+  MainLight mainlight = scene.mainlight;
+
+  //
+  // Environment Lighting
+  //
+
   vec3 envdiffuse = vec3(0.2);
   vec3 envspecular = vec3(0);
 
+  float ambientintensity = 1.0;
+  
   vec3 diffusedirection = normal;
   vec3 speculardirection = reflect(-eyevec, normal);
 
-  vec3 localpos = transform_multiply(material.specular.invtransform, position);
-  vec3 localdiffuse = quaternion_multiply(material.specular.invtransform.real, diffusedirection);
-  vec3 localspecular = quaternion_multiply(material.specular.invtransform.real, speculardirection);
+  vec3 localpos = transform_multiply(params.specular.invtransform, position);
+  vec3 localdiffuse = quaternion_multiply(params.specular.invtransform.real, diffusedirection);
+  vec3 localspecular = quaternion_multiply(params.specular.invtransform.real, speculardirection);
 
-  vec2 hittest = intersections(localpos, localspecular, material.specular.halfdim);
+  vec2 hittest = intersections(localpos, localspecular, params.specular.halfdim);
 
   vec3 localray = localpos + hittest.y * localspecular;
   
   envdiffuse = textureLod(specularmap, localdiffuse * vec3(1, -1, -1), 6.3).rgb;
   envspecular = textureLod(specularmap, localray * vec3(1, -1, -1), material.roughness * 8.0).rgb;
 
-  vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), surface.roughness, 0)).rg;
+  vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0)).rg;
 
-  env_light(diffuse, specular, surface, envdiffuse, envspecular, envbrdf, 1);
+  env_light(diffuse, specular, material, envdiffuse, envspecular, envbrdf, ambientintensity);
 
-  MainLight mainlight = scene.mainlight;
-  
+  //
+  // Main Light
+  //
+
   float mainlightshadow = mainlight_shadow(mainlight, position, normal);
+  
+  if (mainlightshadow != 0)
+  {      
+    main_light(diffuse, specular, mainlight, normal, eyevec, material, mainlightshadow);
+  }
 
-  main_light(diffuse, specular, mainlight, normal, eyevec, surface, mainlightshadow);
+  //
+  // Point Lights
+  //
 
-  float fogfactor = clamp(exp2(-pow(material.color.a * dist, 2)), 0, 1); 
+  for(uint jm = scene.cluster[tile].pointlightmask[tilez], j = findLSB(jm); jm != 0; jm ^= (1 << j), j = findLSB(jm))
+  {
+    for(uint im = scene.cluster[tile].pointlightmasks[tilez][j], i = findLSB(im); im != 0; im ^= (1 << i), i = findLSB(im))
+    {
+      PointLight pointlight = scene.pointlights[(j << 5) + i];
+      
+      point_light(diffuse, specular, pointlight, position, normal, eyevec, material);
+    }
+  }
 
-  fragcolor = vec4(scene.camera.exposure * ((diffuse + surface.emissive) * surface.diffuse + specular), mix(1, 1 - 0.8*envbrdf.x, fogfactor));
+  //
+  // Spot Lights
+  //
+
+  for(uint jm = scene.cluster[tile].spotlightmask[tilez], j = findLSB(jm); jm != 0; jm ^= (1 << j), j = findLSB(jm))
+  {
+    for(uint im = scene.cluster[tile].spotlightmasks[tilez][j], i = findLSB(im); im != 0; im ^= (1 << i), i = findLSB(im))
+    {
+      SpotLight spotlight = scene.spotlights[(j << 5) + i];
+      
+      spot_light(diffuse, specular, spotlight, position, normal, eyevec, material, 1.0);
+    }
+  }
+
+  float fogfactor = clamp(exp2(-pow(params.color.a * dist, 2)), 0, 1); 
+
+  fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), mix(1, 1 - 0.8*envbrdf.x, fogfactor));
 }

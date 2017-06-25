@@ -316,7 +316,7 @@ void write_model(string const &filename)
     float specularexponent = 96.0f;
 
     uint32_t albedomap = 0;
-    uint32_t specularmap = 0;
+    uint32_t surfacemap = 0;
     uint32_t normalmap = 0;
 
     float disolve = 1.0f;
@@ -568,15 +568,15 @@ void write_model(string const &filename)
 
     if (material.roughmap != "")
     {
-      auto j = find_if(textures.begin(), textures.end(), [&](auto &texture) { return (texture.type == PackModelPayload::Texture::specularmap && texture.paths[0] == material.roughmap && texture.paths[1] == material.metalmap); });
+      auto j = find_if(textures.begin(), textures.end(), [&](auto &texture) { return (texture.type == PackModelPayload::Texture::surfacemap && texture.paths[0] == material.roughmap && texture.paths[1] == material.metalmap); });
 
       if (j == textures.end())
       {
-        textures.push_back({ PackModelPayload::Texture::specularmap, material.roughmap, material.metalmap });
+        textures.push_back({ PackModelPayload::Texture::surfacemap, material.roughmap, material.metalmap });
         j = textures.end() - 1;
       }
 
-      material.specularmap = j - textures.begin();
+      material.surfacemap = j - textures.begin();
     }
 
     if (material.bumpmap != "")
@@ -638,7 +638,7 @@ void write_model(string const &filename)
     entry.reflectivity = 0.5f;
     entry.emissive = 0.0f;
     entry.albedomap = materials[i].albedomap;
-    entry.specularmap = materials[i].specularmap;
+    entry.surfacemap = materials[i].surfacemap;
     entry.normalmap = materials[i].normalmap;
 
     materialtable.push_back(entry);
@@ -692,7 +692,7 @@ void write_model(string const &filename)
         write_diffmap_asset(fout, id++, pathstring(basepath, texture.paths[0]), pathstring(basepath, texture.paths[1]));
         break;
 
-      case PackModelPayload::Texture::specularmap:
+      case PackModelPayload::Texture::surfacemap:
         write_specmap_asset(fout, id++, pathstring(basepath, texture.paths[1]), pathstring(basepath, texture.paths[0]));
         break;
 

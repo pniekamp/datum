@@ -6,7 +6,7 @@ layout(constant_id = 28) const bool SoftParticles = true;
 
 layout(origin_upper_left) in vec4 gl_FragCoord;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -16,14 +16,14 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
   mat4 prevview;
   mat4 skyview;
   vec4 viewport;
-  
+
   Camera camera;
 
 } scene;
 
 layout(set=1, binding=1) uniform sampler2DArray albedomap;
 
-layout(set=0, binding=4) uniform sampler2D depthmap;
+layout(set=3, binding=2, input_attachment_index=3) uniform subpassInput depthmap;
 
 layout(location=0) in vec3 texcoord;
 layout(location=1) flat in vec4 tint;
@@ -37,7 +37,7 @@ void main()
 
   if (SoftParticles)
   {
-    float depth = texelFetch(depthmap, ivec2(gl_FragCoord.xy), 0).r;
+    float depth = subpassLoad(depthmap).r;
   
     color *= clamp(0.6 * (view_depth(scene.proj, depth) - gl_FragCoord.z/gl_FragCoord.w), 0, 1);
   }

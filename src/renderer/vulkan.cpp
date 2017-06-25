@@ -594,7 +594,6 @@ namespace Vulkan
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewinfo.viewType = type;
     viewinfo.format = format;
-    viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
     viewinfo.subresourceRange = { (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
     viewinfo.image = texture.image;
 
@@ -839,12 +838,6 @@ namespace Vulkan
   }
 
 
-  void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, StorageBuffer const &buffer, VkDeviceSize offset, VkDeviceSize size)
-  {
-    bind_buffer(vulkan, descriptorset, binding, buffer, offset, size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  }
-
-
   ///////////////////////// bind_image //////////////////////////////////////
   void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
   {
@@ -859,18 +852,26 @@ namespace Vulkan
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
   }
 
-  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout)
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout, uint32_t index)
   {
     VkDescriptorImageInfo imageinfo = {};
     imageinfo.imageView = imageview;
     imageinfo.imageLayout = layout;
 
-    bind_image(vulkan, descriptorset, binding, &imageinfo, 1);
-  }
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstArrayElement = index;
+    writeset.dstBinding = binding;
+    writeset.descriptorCount = 1;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    writeset.pImageInfo = &imageinfo;
 
-  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture)
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);  }
+
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index)
   {
-    bind_image(vulkan, descriptorset, binding, texture.imageview, VK_IMAGE_LAYOUT_GENERAL);
+    bind_image(vulkan, descriptorset, binding, texture.imageview, VK_IMAGE_LAYOUT_GENERAL, index);
   }
 
 
@@ -888,19 +889,48 @@ namespace Vulkan
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
   }
 
-  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler, VkImageLayout layout)
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler, VkImageLayout layout, uint32_t index)
   {
     VkDescriptorImageInfo imageinfo = {};
     imageinfo.sampler = sampler;
     imageinfo.imageView = imageview;
     imageinfo.imageLayout = layout;
 
-    bind_texture(vulkan, descriptorset, binding, &imageinfo, 1);
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = binding;
+    writeset.dstArrayElement = index;
+    writeset.descriptorCount = 1;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writeset.pImageInfo = &imageinfo;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
   }
 
-  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture)
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index)
   {
-    bind_texture(vulkan, descriptorset, binding, texture.imageview, texture.sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    bind_texture(vulkan, descriptorset, binding, texture.imageview, texture.sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
+  }
+
+
+  ///////////////////////// bind_attachment /////////////////////////////////
+  void bind_attachment(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout, uint32_t index)
+  {
+    VkDescriptorImageInfo imageinfo = {};
+    imageinfo.imageView = imageview;
+    imageinfo.imageLayout = layout;
+
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = binding;
+    writeset.dstArrayElement = index;
+    writeset.descriptorCount = 1;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    writeset.pImageInfo = &imageinfo;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
   }
 
 
@@ -940,16 +970,6 @@ namespace Vulkan
   {
     VkCommandBufferBeginInfo begininfo = {};
     begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begininfo.flags = flags;
-
-    vkBeginCommandBuffer(commandbuffer, &begininfo);
-  }
-
-  void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferInheritanceInfo const &inheritanceinfo, VkCommandBufferUsageFlags flags)
-  {
-    VkCommandBufferBeginInfo begininfo = {};
-    begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begininfo.pInheritanceInfo = &inheritanceinfo;
     begininfo.flags = flags;
 
     vkBeginCommandBuffer(commandbuffer, &begininfo);
@@ -1039,11 +1059,11 @@ namespace Vulkan
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     imagebarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    imagebarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    imagebarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    imagebarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    imagebarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     imagebarrier.image = image;
     imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
@@ -1056,11 +1076,11 @@ namespace Vulkan
   {
     VkImageMemoryBarrier imagebarrier = {};
     imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imagebarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    imagebarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     imagebarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     imagebarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     imagebarrier.image = image;
     imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
@@ -1440,14 +1460,14 @@ namespace Vulkan
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint)
+  void bind_descriptor(VkCommandBuffer commandbuffer, VkPipelineLayout layout, uint32_t set, VkDescriptorSet descriptorset, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 0, nullptr);
   }
 
 
   ///////////////////////// bind ////////////////////////////////////////////
-  void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint)
+  void bind_descriptor(VkCommandBuffer commandbuffer, VkPipelineLayout layout, uint32_t set, VkDescriptorSet descriptorset, uint32_t offset, VkPipelineBindPoint bindpoint)
   {
     vkCmdBindDescriptorSets(commandbuffer, bindpoint, layout, set, 1, &descriptorset, 1, &offset);
   }

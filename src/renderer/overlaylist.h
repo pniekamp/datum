@@ -22,9 +22,9 @@ class OverlayList
 {
   public:
 
-    operator bool() const { return m_commandlist; }
+    VkCommandBuffer overlaycommands;
 
-    CommandList const *commandlist() const { return m_commandlist; }
+    operator bool() const { return m_commandlist; }
 
   public:
 

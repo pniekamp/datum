@@ -1,6 +1,6 @@
 #version 440 core
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -13,16 +13,16 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
   
 } scene;
 
-layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
+layout(set=0, binding=5) uniform sampler2D depthmap;
+
+layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   float depthfade;
 
-} material;
+} params;
 
 layout(set=1, binding=1) uniform sampler2DArray albedomap;
-
-layout(set=0, binding=4) uniform sampler2D depthmap;
 
 layout(location=0) in vec2 texcoord;
 
@@ -39,5 +39,5 @@ void main()
   if (texture(depthmap, fbocoord.st).r < gl_FragCoord.z)
     discard;
 
-  fragcolor = material.color * texture(albedomap, vec3(texcoord, 0)).a;
+  fragcolor = params.color * texture(albedomap, vec3(texcoord, 0)).a;
 }

@@ -14,7 +14,6 @@
 #include "camera.h"
 #include "vulkan.h"
 #include "resourcepool.h"
-#include "commandlist.h"
 #include "skybox.h"
 #include "envmap.h"
 
@@ -27,10 +26,9 @@ namespace Renderable
     Sprites,
     Overlays,
     Geometry,
-    Objects,
+    Forward,
     Casters,
     Lights,
-    Environment,
   };
 
   using Vec2 = lml::Vec2;
@@ -47,35 +45,89 @@ namespace Renderable
   {
     static constexpr Type type = Type::Sprites;
 
-    CommandList const *commandlist;
+    VkCommandBuffer spritecommands;
   };
 
   struct Overlays
   {
     static constexpr Type type = Type::Overlays;
 
-    CommandList const *commandlist;
+    VkCommandBuffer overlaycommands;
   };
 
   struct Geometry
   {
     static constexpr Type type = Type::Geometry;
 
-    CommandList const *commandlist;
+    VkCommandBuffer prepasscommands;
+    VkCommandBuffer geometrycommands;
   };
 
-  struct Objects
+  struct Forward
   {
-    static constexpr Type type = Type::Objects;
+    static constexpr Type type = Type::Forward;
 
-    CommandList const *commandlist;
+    struct Command
+    {
+      enum class Type
+      {
+        bind_pipeline,
+        bind_vertexbuffer,
+        bind_descriptor,
+        draw,
+        draw_indexed
+
+      } type;
+
+      union
+      {
+        struct
+        {
+          Vulkan::Pipeline const *pipeline;
+
+        } bind_pipeline;
+
+        struct
+        {
+          uint32_t binding;
+          Vulkan::VertexBuffer const *vertexbuffer;
+
+        } bind_vertexbuffer;
+
+        struct
+        {
+          uint32_t set;
+          VkDescriptorSet descriptor;
+          VkDeviceSize offset;
+
+        } bind_descriptor;
+
+        struct
+        {
+          uint32_t vertexcount;
+          uint32_t instancecount;
+
+        } draw;
+
+        struct
+        {
+          uint32_t indexcount;
+          uint32_t instancecount;
+
+        } draw_indexed;
+      };
+
+      Command *next;
+    };
+
+    Command const *forwardcommands;
   };
 
   struct Casters
   {
     static constexpr Type type = Type::Casters;
 
-    CommandList const *commandlist;
+    VkCommandBuffer castercommands;
   };
 
   struct Lights
@@ -105,18 +157,19 @@ namespace Renderable
         float cutoff;
 
       } spotlights[16];
+
+      size_t environmentcount;
+
+      struct Environment
+      {
+        Vec3 dimension;
+        Transform transform;
+        EnvMap const *envmap;
+
+      } environments[8];
     };
 
     LightList const *lightlist;
-  };
-
-  struct Environment
-  {
-    static constexpr Type type = Type::Environment;
-
-    Vec3 dimension;
-    Transform transform;
-    EnvMap const *envmap;
   };
 }
 
@@ -230,7 +283,6 @@ struct ShadowMap
 struct RenderContext
 {
   bool ready = false;
-  bool prepared = false;
 
   Vulkan::VulkanDevice vulkan;
 
@@ -248,44 +300,38 @@ struct RenderContext
   Vulkan::DescriptorSetLayout scenesetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;
-  Vulkan::DescriptorSetLayout computesetlayout;
+  Vulkan::DescriptorSetLayout framesetlayout;
 
   Vulkan::PipelineLayout pipelinelayout;
 
   Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::Texture rendertarget;
-  Vulkan::Texture depthstencil;
-
-  Vulkan::Texture rt0buffer;
-  Vulkan::Texture rt1buffer;
-  Vulkan::Texture normalbuffer;
   Vulkan::Texture colorbuffer;
+  Vulkan::Texture diffusebuffer;
+  Vulkan::Texture specularbuffer;
+  Vulkan::Texture normalbuffer;
   Vulkan::Texture depthbuffer;
+  Vulkan::Texture depthmipbuffer;
   Vulkan::Texture ssaobuffers[2];
   Vulkan::Texture scratchbuffers[3];
-  Vulkan::FrameBuffer geometrybuffer;
-  Vulkan::FrameBuffer forwardbuffer;
-  Vulkan::FrameBuffer framebuffer;
+  Vulkan::FrameBuffer preframebuffer;
+  Vulkan::FrameBuffer geometryframebuffer;
+  Vulkan::FrameBuffer forwardframebuffer;
+
+  Vulkan::Texture depthstencil;
+  Vulkan::ImageView frameimages[2];
+  Vulkan::FrameBuffer framebuffers[2];
 
   Vulkan::RenderPass shadowpass;
+  Vulkan::RenderPass prepass;
   Vulkan::RenderPass geometrypass;
   Vulkan::RenderPass forwardpass;
-  Vulkan::RenderPass renderpass;
+  Vulkan::RenderPass overlaypass;
 
   Vulkan::StorageBuffer sceneset;
   Vulkan::DescriptorSet scenedescriptor;
 
   Vulkan::DescriptorSet framedescriptors[2];
-
-  float ssaoscale;
-  Vulkan::StorageBuffer ssaoset;
-
-  Vulkan::DescriptorSet skyboxdescriptors[2];
-  Vulkan::CommandBuffer skyboxcommands[2];
-
-  Vulkan::DescriptorSet compositedescriptor;
-  Vulkan::CommandBuffer compositecommands;
 
   Vulkan::VertexAttribute vertexattributes[4];
 
@@ -302,11 +348,11 @@ struct RenderContext
   Vulkan::Pipeline actorshadowpipeline;
   Vulkan::Pipeline actorprepasspipeline;
   Vulkan::Pipeline actorgeometrypipeline;
-  Vulkan::Pipeline spotlightpipeline;
-  Vulkan::Pipeline translucentpipeline;
-  Vulkan::Pipeline ssaopipeline;
+  Vulkan::Pipeline depthmippipeline;
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline translucentpipeline;
+  Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline fogpipeline;
   Vulkan::Pipeline oceanpipeline;
   Vulkan::Pipeline waterpipeline;
@@ -324,6 +370,13 @@ struct RenderContext
   Vulkan::Pipeline linepipeline;
   Vulkan::Pipeline outlinepipeline;
 
+  Vulkan::CommandBuffer skyboxcommands[2];
+  Vulkan::CommandBuffer forwardcommands[2];
+  Vulkan::CommandBuffer compositecommands[2];
+
+  float ssaoscale;
+  Vulkan::StorageBuffer ssaoset;
+
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
 
@@ -333,6 +386,8 @@ struct RenderContext
   int fbowidth, fboheight, fbox, fboy;
 
   ResourcePool resourcepool;
+
+  bool prepared = false;
 
   size_t frame;
 

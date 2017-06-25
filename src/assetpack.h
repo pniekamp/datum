@@ -195,7 +195,7 @@ struct PackMaterialPayload
   float emissive;
 
   uint32_t albedomap;
-  uint32_t specularmap;
+  uint32_t surfacemap;
   uint32_t normalmap;
 };
 
@@ -281,7 +281,7 @@ struct PackModelPayload
 {
   struct Texture
   {
-    enum { nullmap, albedomap, specularmap, normalmap };
+    enum { nullmap, albedomap, surfacemap, normalmap };
 
     uint32_t type;
     uint32_t texture;
@@ -296,7 +296,7 @@ struct PackModelPayload
     float emissive;
 
     uint32_t albedomap;
-    uint32_t specularmap;
+    uint32_t surfacemap;
     uint32_t normalmap;
   };
 

@@ -1,6 +1,6 @@
 #version 440 core
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -13,14 +13,14 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
   
 } scene;
 
-layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
+layout(set=0, binding=5) uniform sampler2D depthmap;
+
+layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   float depthfade;
 
-} material;
-
-layout(set=0, binding=4) uniform sampler2D depthmap;
+} params;
 
 layout(location=0) noperspective in vec3 edgedist;
 
@@ -38,7 +38,7 @@ void main()
   
   if (texture(depthmap, fbocoord).r <= gl_FragCoord.z - 1e-5)
   {
-    depthfade = material.depthfade;
+    depthfade = params.depthfade;
   }
 
   if (!gl_FrontFacing) 
@@ -48,5 +48,5 @@ void main()
 
   float dist = min(min(edgedist[0], edgedist[1]), edgedist[2]);
 
-  fragcolor = material.color * mix(0, material.color.a, exp2(-1.0*dist*dist)) * depthfade;
+  fragcolor = params.color * mix(0, params.color.a, exp2(-1.0*dist*dist)) * depthfade;
 }

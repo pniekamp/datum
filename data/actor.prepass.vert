@@ -8,7 +8,7 @@ layout(location=3) in vec4 vertex_tangent;
 layout(location=4) in uvec4 rig_bone;
 layout(location=5) in vec4 rig_weight;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -18,7 +18,7 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
+layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet 
 { 
   Transform modelworld;
 
@@ -41,7 +41,7 @@ void main()
   Transform morph = transform_blend(rig_weight, bone0, bone1, bone2, bone3); 
   
   Transform morphworld = transform_multiply(modelworld, morph);
-  
+ 
   texcoord = vertex_texcoord;
   
   gl_Position = scene.worldview * vec4(transform_multiply(morphworld, vertex_position), 1);

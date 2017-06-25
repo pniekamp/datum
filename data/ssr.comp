@@ -1,4 +1,6 @@
 #version 440 core
+#include "bound.glsl"
+#include "camera.glsl"
 #include "gbuffer.glsl"
 #include "transform.glsl"
 #include "lighting.glsl"
@@ -6,37 +8,42 @@
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(local_size_x_id = 1, local_size_y_id = 2) in;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
   mat4 view;
   mat4 invview;
   mat4 worldview;
+  mat4 prevview;
+  mat4 skyview;
+  vec4 viewport;
+
+  Camera camera;
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D rt0map;
-layout(set=0, binding=2) uniform sampler2D rt1map;
-layout(set=0, binding=3) uniform sampler2D normalmap;
-layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=3, binding=0) uniform sampler2D colormap;
+layout(set=0, binding=1) uniform sampler2D colormap;
+layout(set=0, binding=2) uniform sampler2D diffusemap;
+layout(set=0, binding=3) uniform sampler2D specularmap;
+layout(set=0, binding=4) uniform sampler2D normalmap;
+layout(set=0, binding=5) uniform sampler2D depthmap;
+layout(set=0, binding=6) uniform sampler2D depthmipmap;
+layout(set=3, binding=5) uniform sampler2DArray envbrdfmap;
 
-layout(set=3, binding=13) writeonly uniform image2D dest;
+layout(set=3, binding=16) writeonly uniform image2D dest;
 
 const float Stride = 1.0;
 const float Jitter = 1.0;
-const float Multiplier = 8.0;
+const float Multiplier = 16.0;
 const float Thickness = 0.05f;
-const float MaxSteps = 350.0;
-const float MaxDistance = 2.5;
+const float MaxSteps = 300.0;
+const float MaxDistance = 3.5;
 
 ///////////////////////// traceray //////////////////////////////////////////
 // http://casual-effects.blogspot.com.au/2014/08/screen-space-ray-tracing.html
-bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec3 hitpoint, out float stepcount)
+bool traceray(vec3 origin, vec3 direction, mat4 proj, vec2 viewport, out vec2 hitpixel, out vec3 hitpoint, inout float stepcount)
 {
-  stepcount = 0;
-
   vec3 endpoint = origin + direction * MaxDistance;
 
   vec4 H0 = proj * vec4(origin, 1);
@@ -48,8 +55,8 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
   vec3 Q0 = origin * k0;
   vec3 Q1 = endpoint * k1;
 
-  vec2 P0 = H0.xy * k0;
-  vec2 P1 = H1.xy * k1;
+  vec2 P0 = (0.5 + 0.5 * H0.xy * k0) * viewport;
+  vec2 P1 = (0.5 + 0.5 * H1.xy * k1) * viewport;
 
   P1 += (distance(P0, P1) < 0.01) ? 0.01 : 0.0;
   
@@ -80,13 +87,13 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
   Q0 += dQ * Jitter; 
   k0 += dk * Jitter;
 
-  float k = k0;
-  float end = P1.x * stepdir;
-    
-  vec2 P = P0;
-  vec3 Q = Q0;
+  float k = k0 + stepcount*dk;
+  float end = clamp(P1.x, 0, permute ? viewport.y - 1 : viewport.x - 1) * stepdir;
+  
+  vec2 P = P0 + stepcount*dP;
+  vec3 Q = Q0 + vec3(0, 0, stepcount*dQ.z);
 
-  while (P.x * stepdir <= end && stepcount < MaxSteps-Multiplier)
+  while (P.x * stepdir <= end && stepcount < MaxSteps)
   { 
     P += Multiplier*dP; Q.z += Multiplier*dQ.z; k += Multiplier*dk; stepcount += Multiplier;
 
@@ -95,10 +102,11 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
     float scenezmax = -view_depth(scene.proj, texelFetch(depthmap, ivec2(hitpixel), 0).r);
     
     if (Q.z / k <= scenezmax)
+    {
+      P -= Multiplier*dP; Q.z -= Multiplier*dQ.z; k -= Multiplier*dk; stepcount -= Multiplier;
       break;
+    }
   }
- 
-  P -= Multiplier*dP; Q.z -= Multiplier*dQ.z; k -= Multiplier*dk; stepcount -= Multiplier;
 
   bool result = false;
   float rayzmin = Q.z / k;
@@ -133,43 +141,41 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, out vec2 hitpixel, out vec
 void main()
 { 
   gl_WorkGroupSize;
-
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
-  
-  ivec2 viewport = textureSize(colormap, 0).xy;//imageSize(dest);
+  ivec2 viewport = imageSize(dest);
   
   float depth = texelFetch(depthmap, xy, 0).r;
   
   vec3 fragcolor = vec3(0);
 
   vec4 srccolor = texelFetch(colormap, xy, 0);
-  
-  Material material = unpack_material(srccolor, texelFetch(rt1map, xy, 0) * vec4(1, 2, 1, 1)); 
+  vec4 specular = texelFetch(specularmap, xy, 0);
 
-  if (depth < 0.99 && material.roughness < 0.4 && srccolor.a < 0.85)
+  if (depth < 0.995 && specular.w < 0.4 && srccolor.a < 0.85)
   {
     vec3 position = view_position(scene.proj, scene.invproj, xy, viewport, depth);
     vec3 normal = view_normal(scene.view, texelFetch(normalmap, xy, 0).xyz);
+    vec3 eyevec = normalize(scene.camera.position - position);
 
     vec3 direction = normalize(position);
     vec3 reflection = normalize(reflect(direction, normal));
-
-    mat4 proj = mat4(vec4(0.5*viewport.x, 0, 0, 0), vec4(0, 0.5*viewport.y, 0, 0), vec4(0, 0, 1, 0), vec4(0.5*viewport, 0, 1)) * scene.proj;
     
+    float stepcount = 0;
     vec2 hitpixel = vec2(0);
     vec3 hitpoint  = vec3(0);
-    float stepcount = 0;
     
-    if (traceray(position, reflection, proj, hitpixel, hitpoint, stepcount))
+    if (traceray(position, reflection, scene.proj, viewport, hitpixel, hitpoint, stepcount))
     {
       float edgefade = 1 - 10 * max(max(abs(hitpixel.x / viewport.x - 0.5), abs(hitpixel.y / viewport.y - 0.5)) - 0.4, 0);
-      float depthfade = 1 - 1000 * max(depth - 0.989, 0);
+      float depthfade = 1 - 200 * max(depth - 0.99, 0);
       float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
-      float roughnessfade = 1 - min(2.5 * material.roughness, 1);
+      float roughnessfade = 1 - min(2.5 * specular.w, 1);
 
       vec4 hitcolor = texelFetch(colormap, ivec2(hitpixel), 0);
 
-      fragcolor = depthfade * edgefade * distancefade * roughnessfade * (1 - srccolor.a) * (1 - hitcolor.a) * hitcolor.rgb * material.specular;     
+      vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), specular.w, 0)).rg;
+
+      fragcolor = depthfade * edgefade * distancefade * roughnessfade * (1 - srccolor.a) * (1 - hitcolor.a) * hitcolor.rgb * (envbrdf.x*specular.rgb + envbrdf.y);
     }
   }
 

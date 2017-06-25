@@ -6,7 +6,7 @@ layout(location=1) in vec2 vertex_texcoord;
 layout(location=2) in vec3 vertex_normal;
 layout(location=3) in vec4 vertex_tangent;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -16,7 +16,7 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
+layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet 
 { 
   Transform modelworld;
 
@@ -25,8 +25,8 @@ layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet
 } model;
 
 layout(location=0) out vec3 position;
-layout(location=1) out vec2 texcoord;
-layout(location=2) out mat3 tbnworld;
+layout(location=1) out mat3 tbnworld;
+layout(location=4) out vec2 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

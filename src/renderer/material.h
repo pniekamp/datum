@@ -24,10 +24,10 @@ class Material
     friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness);
     friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity);
     friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive);
-    friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
+    friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *surfacemap, Texture const *normalmap);
 
     friend void ResourceManager::update<Material>(Material const *material, lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive);
-    friend void ResourceManager::update<Material>(Material const *material, lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *specularmap, Texture const *normalmap);
+    friend void ResourceManager::update<Material>(Material const *material, lml::Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *surfacemap, Texture const *normalmap);
 
     bool ready() const { return (state == State::Ready); }
 
@@ -41,7 +41,7 @@ class Material
     float emissive;
 
     Texture const *albedomap;
-    Texture const *specularmap;
+    Texture const *surfacemap;
     Texture const *normalmap;
 
   public:

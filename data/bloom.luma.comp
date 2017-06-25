@@ -6,18 +6,17 @@ layout(local_size_x_id = 1, local_size_y_id = 2) in;
 
 layout(constant_id = 81) const float Cutoff = 11.2;
 
-layout(set=3, binding=0) uniform sampler2D src;
+layout(set=0, binding=1) uniform sampler2D src;
 
-layout(set=3, binding=11) writeonly uniform image2D dest;
+layout(set=3, binding=14) writeonly uniform image2D dest;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
   gl_WorkGroupSize;
-
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   
-  vec2 texelsize = 1.0 / textureSize(src, 0);
+  vec2 texelsize = 1.0 / textureSize(src, 0).xy;
   
   vec3 texel = texture(src, (2 * vec2(xy) + 0.5) * texelsize).rgb;
 

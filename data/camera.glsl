@@ -9,6 +9,7 @@ struct Camera
   float skyboxlod;
   float ssrstrength;
   float bloomstrength;
+  uint frame;
 };
 
 

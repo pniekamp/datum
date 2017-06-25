@@ -11,7 +11,7 @@ layout(constant_id = 63) const uint KernelSize = 16;
 const uint SizeX = gl_WorkGroupSize.x - Radius - Radius;
 const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -22,20 +22,19 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(std430, set=3, binding=4, row_major) readonly buffer ComputeSet 
+layout(set=0, binding=4) uniform sampler2D normalmap;
+layout(set=0, binding=5) uniform sampler2D depthmap;
+
+layout(set=3, binding=8, std430, row_major) readonly buffer SSAOParams 
 {
   vec3 noise[NoiseSize];
   vec3 kernel[KernelSize];
 
-} compute;
+} params;
 
-layout(set=0, binding=1) uniform sampler2D rt0map;
-layout(set=0, binding=2) uniform sampler2D rt1map;
-layout(set=0, binding=3) uniform sampler2D normalmap;
-layout(set=0, binding=4) uniform sampler2D depthmap;
-layout(set=3, binding=6) uniform sampler2D prevmap;
+layout(set=3, binding=9) uniform sampler2D prevmap;
 
-layout(set=3, binding=7) writeonly uniform image2D dest;
+layout(set=3, binding=10) writeonly uniform image2D dest;
 
 const uint Rays = 8;
 const uint Steps = 4;
@@ -45,8 +44,8 @@ const float Bias = 0.03;
 
 #define PI 3.1415926535897932384626433832795
 
-shared float texels[SizeY + Radius + Radius][SizeX + Radius + Radius];
-shared float depths[SizeY + Radius + Radius][SizeX + Radius + Radius];
+shared float texels[(SizeY + Radius + Radius) * (SizeX + Radius + Radius)];
+shared float depths[(SizeY + Radius + Radius) * (SizeX + Radius + Radius)];
 
 ///////////////////////// rotate ////////////////////////////////////////////
 vec2 rotate(vec2 vec, vec2 basisx, vec2 basisy)
@@ -76,10 +75,10 @@ float sampleocclusion(vec3 position, vec3 normal, vec3 samplepos,inout float top
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
+  gl_WorkGroupSize;
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   ivec2 xy = ivec2(gl_WorkGroupID.x * SizeX + ij.x - Radius, gl_WorkGroupID.y * SizeY + ij.y - Radius);
-
-  vec2 viewport = textureSize(prevmap, 0).xy;//imageSize(dest);
+  vec2 viewport = imageSize(dest);
   
   vec2 texcoord = vec2(xy + 0.5) / viewport;
  
@@ -88,20 +87,20 @@ void main()
   vec3 position = view_position(scene.proj, scene.invproj, texcoord, depth);
   vec3 normal = view_normal(scene.view, texture(normalmap, texcoord).xyz);
 
-  vec3 randomvec = compute.noise[(xy.x + xy.y * 4) % NoiseSize];
+  vec3 randomvec = params.noise[(xy.x + xy.y * 4) % NoiseSize];
 
   vec2 basisx = normalize(randomvec.xy);
 	vec2 basisy = vec2(-basisx.y, basisx.x);
  
   float screenpixels = (0.25 * viewport.x * scene.proj[1][1]) / position.z;
-    
+
   float steppixels = screenpixels / (Steps + 1);
 
   float occlusion = 0;
 
   for(uint i = 0; i < Rays; ++i)
   {
-    vec2 sampledir = rotate(compute.kernel[i].xy, basisx, basisy);
+    vec2 sampledir = rotate(params.kernel[i].xy, basisx, basisy);
 
     float topocclusion = Bias;
 
@@ -121,8 +120,8 @@ void main()
   
   occlusion = 1 - min(Strength * occlusion, 1);
 
-  texels[ij.y][ij.x] = occlusion;
-  depths[ij.y][ij.x] = depth;
+  texels[ij.y*(SizeX + Radius + Radius) + ij.x] = occlusion;
+  depths[ij.y*(SizeX + Radius + Radius) + ij.x] = depth;
 
   barrier();
   
@@ -135,9 +134,9 @@ void main()
     {
       for(uint i = ij.x - Radius; i < ij.x + Radius; ++i)
       {
-        float weight = max(1 - 250*abs(depths[j][i] - depth), 0);
+        float weight = max(1 - 250*abs(depths[j*(SizeX + Radius + Radius) + i] - depth), 0);
         
-        avg += weight * texels[j][i];
+        avg += weight * texels[j*(SizeX + Radius + Radius) + i];
         spatialweight += weight;
       }
     }
