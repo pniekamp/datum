@@ -410,15 +410,16 @@ namespace Vulkan
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout);
 
   void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, VkDescriptorType type);
-  void bind_buffer(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, StorageBuffer const &buffer, VkDeviceSize offset, VkDeviceSize size);
 
   void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
-  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout);
-  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout, uint32_t index = 0);
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index = 0);
 
   void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count);
-  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler, VkImageLayout layout);
-  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture);
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkSampler sampler, VkImageLayout layout, uint32_t index = 0);
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index = 0);
+
+  void bind_attachment(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout, uint32_t index = 0);
 
   void reset_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPool descriptorpool);
 
@@ -427,7 +428,6 @@ namespace Vulkan
   void reset_commandpool(VulkanDevice const &vulkan, VkCommandPool commandpool);
 
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferUsageFlags flags);
-  void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkCommandBufferInheritanceInfo const &inheritanceinfo, VkCommandBufferUsageFlags flags);
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, VkCommandBufferUsageFlags flags);
   void end(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);
 
@@ -481,8 +481,8 @@ namespace Vulkan
 
   void set_stencil_reference(VkCommandBuffer commandbuffer, VkStencilFaceFlags facemask, uint32_t reference);
 
-  void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, VkPipelineBindPoint bindpoint);
-  void bind_descriptor(VkCommandBuffer commandbuffer, VkDescriptorSet descriptorset, VkPipelineLayout layout, uint32_t set, uint32_t offset, VkPipelineBindPoint bindpoint);
+  void bind_descriptor(VkCommandBuffer commandbuffer, VkPipelineLayout layout, uint32_t set, VkDescriptorSet descriptorset, VkPipelineBindPoint bindpoint);
+  void bind_descriptor(VkCommandBuffer commandbuffer, VkPipelineLayout layout, uint32_t set, VkDescriptorSet descriptorset, uint32_t offset, VkPipelineBindPoint bindpoint);
 
   void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint);
   void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint);

@@ -21,9 +21,9 @@ class LightList
 {
   public:
 
-    operator bool() const { return m_commandlist; }
+    Renderable::Lights::LightList *lightlist;
 
-    Renderable::Lights::LightList const *lightlist() const { return m_lights; }
+    operator bool() const { return m_commandlist; }
 
   public:
 
@@ -41,11 +41,11 @@ class LightList
 
     void push_spotlight(BuildState &state, lml::Vec3 const &position, lml::Vec3 const &direction, float cutoff, float range, lml::Color3 const &intensity, lml::Attenuation const &attenuation);
 
+    void push_environment(BuildState &state, lml::Transform const &transform, lml::Vec3 const &dimension, EnvMap const *envmap);
+
     void finalise(BuildState &state);
 
   private:
-
-    Renderable::Lights::LightList *m_lights;
 
     unique_resource<CommandList> m_commandlist;
 };

@@ -53,27 +53,6 @@ struct ConvolveSet
   alignas( 4) float roughness;
 };
 
-///////////////////////// draw_skybox ///////////////////////////////////////
-void draw_skybox(RenderContext &context, VkCommandBuffer commandbuffer, RenderParams const &params)
-{
-  assert(params.skybox && params.skybox->ready());
-
-  auto &skyboxcommands = context.skyboxcommands[context.frame & 1];
-
-  auto &skyboxdescriptor = context.skyboxdescriptors[context.frame & 1];
-
-  bind_texture(context.vulkan, skyboxdescriptor, ShaderLocation::skyboxmap, params.skybox->texture);
-
-  begin(context.vulkan, skyboxcommands, context.forwardbuffer, context.forwardpass, RenderPasses::skyboxpass, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-  bind_pipeline(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_descriptor(skyboxcommands, skyboxdescriptor, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_vertexbuffer(skyboxcommands, 0, context.unitquad);
-  draw(skyboxcommands, context.unitquad.vertexcount, 1, 0, 0);
-  end(context.vulkan, skyboxcommands);
-
-  execute(commandbuffer, skyboxcommands);
-}
-
 
 //|---------------------- SkyBox --------------------------------------------
 //|--------------------------------------------------------------------------
@@ -341,7 +320,7 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   bind_pipeline(commandbuffer, context.skyboxpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  bind_descriptor(commandbuffer, context.skyboxdescriptor, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.skyboxdescriptor, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(skyboxset), &skyboxset, VK_SHADER_STAGE_COMPUTE_BIT);
 
@@ -366,7 +345,6 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
       viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       viewinfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
       viewinfo.format = skybox->texture.format;
-      viewinfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
       viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 };
       viewinfo.image = skybox->texture.image;
 
@@ -376,7 +354,7 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
       bind_image(context.vulkan, context.convolvedescriptors[level], 1, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 
-      bind_descriptor(commandbuffer, context.convolvedescriptors[level], context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+      bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.convolvedescriptors[level], VK_PIPELINE_BIND_POINT_COMPUTE);
 
       push(commandbuffer, context.pipelinelayout, 0, sizeof(convolveset), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
 

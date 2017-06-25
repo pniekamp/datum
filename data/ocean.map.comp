@@ -8,7 +8,7 @@ const uint WaveResolution = 64;
 const uint SizeX = gl_WorkGroupSize.x - 2;
 const uint SizeY = gl_WorkGroupSize.y - 2;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer OceanParams 
+layout(set=0, binding=0, std430, row_major) readonly buffer OceanParams 
 { 
   mat4 proj;
   mat4 invproj;
@@ -31,7 +31,7 @@ layout(std430, set=0, binding=0, row_major) readonly buffer OceanParams
 
 } params;
 
-layout(std430, set=0, binding=1, row_major) readonly buffer Spectrum 
+layout(set=0, binding=1, std430, row_major) readonly buffer Spectrum 
 {
   vec2 h[WaveResolution*WaveResolution];
   vec2 hx[WaveResolution*WaveResolution];

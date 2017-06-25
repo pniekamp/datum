@@ -8,7 +8,7 @@ layout(location=3) in vec4 vertex_tangent;
 layout(location=4) in uvec4 rig_bone;
 layout(location=5) in vec4 rig_weight;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -18,7 +18,7 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet 
+layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet 
 { 
   Transform modelworld;
 
@@ -26,8 +26,9 @@ layout(std430, set=2, binding=0, row_major) readonly buffer ModelSet
 
 } model;
 
-layout(location=0) out vec2 texcoord;
+layout(location=0) out vec3 position;
 layout(location=1) out mat3 tbnworld;
+layout(location=4) out vec2 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
@@ -43,6 +44,8 @@ void main()
   
   Transform morphworld = transform_multiply(modelworld, morph);
   
+  position = transform_multiply(morphworld, vertex_position);
+
   vec3 normal = quaternion_multiply(morphworld.real, vertex_normal);
   vec3 tangent = quaternion_multiply(morphworld.real, vertex_tangent.xyz);
   vec3 bitangent = cross(normal, tangent) * vertex_tangent.w;
@@ -51,5 +54,5 @@ void main()
 
   texcoord = vertex_texcoord;
   
-  gl_Position = scene.worldview * vec4(transform_multiply(morphworld, vertex_position), 1);
+  gl_Position = scene.worldview * vec4(position, 1);
 }

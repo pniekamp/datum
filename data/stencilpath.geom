@@ -3,7 +3,7 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 12) out;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -16,7 +16,7 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
   
 } scene;
 
-layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
+layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   vec4 texcoords;
@@ -24,7 +24,7 @@ layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet
   float halfwidth;
   float overhang;
 
-} material;
+} params;
 
 void EmitPt(vec4 position)
 {
@@ -35,8 +35,8 @@ void EmitPt(vec4 position)
 void EmitEdge(vec4 p0, vec4 p1)
 {
   vec2 v = normalize(p1.xy/p1.w - p0.xy/p0.w);
-  vec2 e = vec2(v.x / scene.viewport.z, v.y / scene.viewport.w) * material.overhang;
-  vec2 n = vec2(-v.y / scene.viewport.z, v.x / scene.viewport.w) * material.halfwidth;
+  vec2 e = vec2(v.x / scene.viewport.z, v.y / scene.viewport.w) * params.overhang;
+  vec2 n = vec2(-v.y / scene.viewport.z, v.x / scene.viewport.w) * params.halfwidth;
 
   EmitPt(vec4(p0.xy + (n - e)*p0.w, p0.z, p0.w)); 
   EmitPt(vec4(p1.xy + (n + e)*p1.w, p1.z, p1.w)); 

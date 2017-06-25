@@ -35,12 +35,11 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
 {
   initialise_vulkan_device(&vulkan, physicaldevice, device, renderqueue, renderqueuefamily);
 
-  VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
+  VkDeviceSize alignment = max(alignof(max_align_t), vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment);
 
   VkDeviceSize slotsize = alignto(storagesize / StorageBufferSlots - alignment + 1, alignment);
 
   assert(slotsize >= alignment);
-  assert(alignment >= alignof(max_align_t));
   assert(slotsize <= vulkan.physicaldeviceproperties.limits.maxStorageBufferRange);
 
   m_storagehead = 0;
@@ -151,9 +150,7 @@ ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump con
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  auto commandbuffer = allocate_commandbuffer(vulkan, lump.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-
-  return { commandbuffer.release() };
+  return { allocate_commandbuffer(vulkan, lump.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY).release() };
 }
 
 
@@ -169,6 +166,8 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
   size_t storagehead = m_storagehead;
+
+  VkDeviceSize alignment = max(alignof(max_align_t), vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment);
 
   for(size_t i = 0; i < StorageBufferSlots; ++i)
   {
@@ -194,7 +193,6 @@ ResourcePool::StorageBuffer ResourcePool::acquire_storagebuffer(ResourceLump con
         m_storagehead = i;
 
         void *memory = m_transfermemory + buffer.base + buffer.used;
-        VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
 
         return { memory, alignment, buffer.buffer, buffer.base + buffer.used, buffer.size - buffer.used, &buffer };
       }
@@ -219,16 +217,14 @@ void ResourcePool::release_storagebuffer(StorageBuffer const &storage, size_t us
 
   RESOURCE_USE(RenderStorage, (m_storageused -= buffer.size - buffer.used - used), m_transferbuffer.size)
 
-  VkDeviceSize alignment = vulkan.physicaldeviceproperties.limits.minStorageBufferOffsetAlignment;
-
-  buffer.used = alignto(buffer.used + used, alignment);
+  buffer.used = alignto(buffer.used + used, storage.alignment);
 
   buffer.lock.clear(std::memory_order_release);
 }
 
 
 ///////////////////////// ResourcePool::acquire_descriptorset ///////////////
-ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump const *lumphandle, VkDescriptorSetLayout layout, StorageBuffer const &buffer)
+ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump const *lumphandle, VkDescriptorSetLayout layout)
 {
   assert(m_initialised);
   assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
@@ -236,11 +232,7 @@ ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump con
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  auto descriptorset = allocate_descriptorset(vulkan, lump.descriptorpool, layout);
-
-  bind_buffer(vulkan, descriptorset, 0, buffer.buffer, buffer.offset, buffer.capacity, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
-
-  return { descriptorset.release() };
+  return { allocate_descriptorset(vulkan, lump.descriptorpool, layout).release() };
 }
 
 

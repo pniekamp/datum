@@ -30,7 +30,7 @@ uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, uint32_t vertexcount,
 uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, std::vector<PackVertex> const &vertices, std::vector<uint32_t> const &indices);
 uint32_t write_mesh_asset(std::ostream &fout, uint32_t id, std::vector<PackVertex> const &vertices, std::vector<uint32_t> const &indices, std::vector<PackMeshPayload::Rig> const &rig, std::vector<PackMeshPayload::Bone> const &bones);
 uint32_t write_matl_asset(std::ostream &fout, uint32_t id, void const *bits);
-uint32_t write_matl_asset(std::ostream &fout, uint32_t id, lml::Color4 const &color, float metalness, float roughness, float reflectivity, float emissive, uint32_t albedomap, uint32_t specularmap, uint32_t normalmap);
+uint32_t write_matl_asset(std::ostream &fout, uint32_t id, lml::Color4 const &color, float metalness, float roughness, float reflectivity, float emissive, uint32_t albedomap, uint32_t surfacemap, uint32_t normalmap);
 uint32_t write_anim_asset(std::ostream &fout, uint32_t id, float duration, uint32_t jointcount, uint32_t transformcount, void const *bits);
 uint32_t write_anim_asset(std::ostream &fout, uint32_t id, float duration, std::vector<PackAnimationPayload::Joint> const &joints, std::vector<PackAnimationPayload::Transform> const &transforms);
 uint32_t write_part_asset(std::ostream &fout, uint32_t id, lml::Bound3 const &bound, uint32_t maxparticles, uint32_t emittercount, uint32_t emitterssize, void const *bits);

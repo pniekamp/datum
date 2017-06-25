@@ -23,8 +23,6 @@ using leap::extentof;
 CommandList::CommandList(RenderContext *context)
   : context(context)
 {
-  m_passcount = 0;
-
   m_resourcelump = context->resourcepool.acquire_lump();
 }
 
@@ -39,90 +37,85 @@ CommandList::~CommandList()
 }
 
 
-///////////////////////// CommandList::begin //////////////////////////////
-bool CommandList::begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpasses)
+///////////////////////// CommandList::allocate_commandbuffer ///////////////
+VkCommandBuffer CommandList::allocate_commandbuffer()
 {
   assert(context);
-  assert(subpasses < extentof(m_commandbuffers));
+
+  VkCommandBuffer commandbuffer = VK_NULL_HANDLE;
 
   if (m_resourcelump)
   {
-    m_passcount = subpasses;
-
-    for(size_t subpass = 0; subpass < m_passcount; ++subpass)
-    {
-      m_commandbuffers[subpass] = context->resourcepool.acquire_commandbuffer(m_resourcelump).commandbuffer;
-
-      if (m_commandbuffers[subpass])
-      {
-        VkCommandBufferInheritanceInfo inheritanceinfo = {};
-        inheritanceinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-        inheritanceinfo.framebuffer = framebuffer;
-        inheritanceinfo.renderPass = renderpass;
-        inheritanceinfo.subpass = subpass;
-
-        Vulkan::begin(context->vulkan, m_commandbuffers[subpass], inheritanceinfo, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-      }
-    }
+    commandbuffer = context->resourcepool.acquire_commandbuffer(m_resourcelump);
   }
 
-  return (m_passcount == subpasses);
+  return commandbuffer;
 }
 
 
-///////////////////////// CommandList::end ////////////////////////////////
-void CommandList::end()
+///////////////////////// CommandList::allocate_descriptorset ///////////////
+VkDescriptorSet CommandList::allocate_descriptorset(VkDescriptorSetLayout layout)
 {
-  assert(m_passcount != 0);
+  assert(context);
 
-  for(size_t subpass = 0; subpass < m_passcount; ++subpass)
+  VkDescriptorSet descriptorset = VK_NULL_HANDLE;
+
+  if (m_resourcelump)
   {
-    Vulkan::end(context->vulkan, m_commandbuffers[subpass]);
+    descriptorset = context->resourcepool.acquire_descriptorset(m_resourcelump, layout);
   }
 
-  m_passcount = 0;
+  return descriptorset;
 }
 
 
-///////////////////////// CommandList::acquire //////////////////////////////
-CommandList::Descriptor CommandList::acquire(VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset)
+///////////////////////// CommandList::acquire_descriptor ///////////////////
+CommandList::Descriptor CommandList::acquire_descriptor(VkDeviceSize required, Descriptor &&oldset)
 {
-  assert(size != 0);
+  assert(context);
+  assert(required != 0);
 
   Descriptor descriptor = {};
 
   if (m_resourcelump)
   {
-    descriptor.m_used = oldset.m_used;
-    descriptor.m_storage = oldset.m_storage;
+    swap(descriptor.m_used, oldset.m_used);
+    swap(descriptor.m_storage, oldset.m_storage);
 
-    if (descriptor.capacity() < descriptor.used() + size)
+    if (descriptor.available() < required)
     {
-      release(oldset);
+      if (descriptor.m_storage)
+      {
+        context->resourcepool.release_storagebuffer(descriptor.m_storage, descriptor.m_used);
+      }
 
       descriptor.m_used = 0;
-      descriptor.m_storage = context->resourcepool.acquire_storagebuffer(m_resourcelump, size);
-    }
-
-    if (descriptor.m_storage.buffer)
-    {
-      descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout, descriptor.m_storage);
+      descriptor.m_storage = context->resourcepool.acquire_storagebuffer(m_resourcelump, required);
     }
   }
+
+  descriptor.m_pool = &context->resourcepool;
 
   return descriptor;
 }
 
 
-///////////////////////// CommandList::release //////////////////////////////
-void CommandList::release(Descriptor const &descriptor)
+///////////////////////// CommandList::acquire_descriptor ///////////////////
+CommandList::Descriptor CommandList::acquire_descriptor(VkDescriptorSetLayout layout, VkDeviceSize required, Descriptor &&oldset)
 {
-  if (descriptor.m_storage.buffer)
-  {
-    context->resourcepool.release_storagebuffer(descriptor.m_storage, descriptor.m_used);
-  }
-}
+  assert(context);
 
+  Descriptor descriptor = acquire_descriptor(required, std::move(oldset));
+
+  if (descriptor.m_storage)
+  {
+    descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout);
+
+    bind_buffer(context->vulkan, descriptor.m_descriptor, 0, descriptor.m_storage, descriptor.m_storage.offset, descriptor.m_storage.capacity, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+  }
+
+  return descriptor;
+}
 
 
 //|---------------------- CommandList Resource ------------------------------

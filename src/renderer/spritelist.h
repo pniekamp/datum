@@ -22,9 +22,9 @@ class SpriteList
 {
   public:
 
-    operator bool() const { return m_commandlist; }
+    VkCommandBuffer spritecommands;
 
-    CommandList const *commandlist() const { return m_commandlist; }
+    operator bool() const { return m_commandlist; }
 
   public:
 

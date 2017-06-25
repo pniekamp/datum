@@ -586,9 +586,9 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
   mshset.sizex = sizex;
   mshset.sizey = sizey;
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.transferbuffer, 0, context.transferbuffer.size);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.transferbuffer, 0, context.transferbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap);
 
@@ -597,11 +597,11 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
   size_t verticessize = mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize;
   auto verticesbuffer = create_storagebuffer(context.vulkan, mesh->vertexbuffer.memory, mesh->vertexbuffer.verticesoffset, verticessize);
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, verticesbuffer, 0, verticesbuffer.size);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  bind_descriptor(commandbuffer, context.descriptorset, context.pipelinelayout, 0, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.descriptorset,VK_PIPELINE_BIND_POINT_COMPUTE);
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(mshset), &mshset, VK_SHADER_STAGE_COMPUTE_BIT);
 

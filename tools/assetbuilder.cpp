@@ -286,7 +286,7 @@ uint32_t write_albedomap_asset(ostream &fout, uint32_t id, string const &path)
 }
 
 
-uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
+uint32_t write_surfacemap_asset(ostream &fout, uint32_t id, string const &path)
 {
   QImage image(path.c_str());
 
@@ -315,7 +315,7 @@ uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &path)
   return id + 1;
 }
 
-uint32_t write_specularmap_asset(ostream &fout, uint32_t id, string const &metalpath, string const &roughpath)
+uint32_t write_surfacemap_asset(ostream &fout, uint32_t id, string const &metalpath, string const &roughpath)
 {
   QImage roughmap(roughpath.c_str());
 
@@ -614,20 +614,20 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
 }
 
 
-uint32_t write_material_asset(ostream &fout, uint32_t id, Color4 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
+uint32_t write_material_asset(ostream &fout, uint32_t id, Color4 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string surfacemap, string normalmap)
 {
   int mapid = 0;
   uint32_t albedomapid = (albedomap != "") ? ++mapid : 0;
-  uint32_t specularmapid = (specularmap != "") ? ++mapid : 0;
+  uint32_t surfacemapid = (surfacemap != "") ? ++mapid : 0;
   uint32_t normalmapid = (normalmap != "") ? ++mapid : 0;
 
-  write_matl_asset(fout, id, color, metalness, roughness, reflectivity, emissive, albedomapid, specularmapid, normalmapid);
+  write_matl_asset(fout, id, color, metalness, roughness, reflectivity, emissive, albedomapid, surfacemapid, normalmapid);
 
   if (albedomapid)
     write_albedomap_asset(fout, id + albedomapid, albedomap);
 
-  if (specularmapid)
-    write_specularmap_asset(fout, id + specularmapid, specularmap);
+  if (surfacemapid)
+    write_surfacemap_asset(fout, id + surfacemapid, surfacemap);
 
   if (normalmapid)
     write_normalmap_asset(fout, id + normalmapid, normalmap);
@@ -711,13 +711,13 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 }
 
 
-void write_material(string const &output, Color4 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string specularmap, string normalmap)
+void write_material(string const &output, Color4 color, float metalness, float roughness, float reflectivity, float emissive, string albedomap, string surfacemap, string normalmap)
 {
   ofstream fout(output, ios::binary | ios::trunc);
 
   write_header(fout);
 
-  write_material_asset(fout, 0, color, metalness, roughness, reflectivity, emissive, albedomap, specularmap, normalmap);
+  write_material_asset(fout, 0, color, metalness, roughness, reflectivity, emissive, albedomap, surfacemap, normalmap);
 
   write_chunk(fout, "HEND", 0, nullptr);
 
@@ -768,9 +768,6 @@ void write_core()
   write_shader_asset(fout, CoreAsset::prepass_frag, "../../data/prepass.frag");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
 
-  write_shader_asset(fout, CoreAsset::depth_vert, "../../data/depth.vert");
-  write_shader_asset(fout, CoreAsset::depth_frag, "../../data/depth.frag");
-
   write_shader_asset(fout, CoreAsset::model_shadow_vert, "../../data/model.shadow.vert");
   write_shader_asset(fout, CoreAsset::model_prepass_vert, "../../data/model.prepass.vert");
   write_shader_asset(fout, CoreAsset::model_geometry_vert, "../../data/model.geometry.vert");
@@ -779,14 +776,22 @@ void write_core()
   write_shader_asset(fout, CoreAsset::actor_prepass_vert, "../../data/actor.prepass.vert");
   write_shader_asset(fout, CoreAsset::actor_geometry_vert, "../../data/actor.geometry.vert");
 
+  write_shader_asset(fout, CoreAsset::depth_mip_comp, "../../data/depth.mip.comp");
+
+  write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/hbao.comp");
+
+  write_envbrdf_asset(fout, CoreAsset::envbrdf_lut);
+
+  write_shader_asset(fout, CoreAsset::lighting_comp, "../../data/lighting.comp");
+
+  write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
+  write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
+
   write_shader_asset(fout, CoreAsset::ocean_vert, "../../data/ocean.vert");
   write_shader_asset(fout, CoreAsset::ocean_frag, "../../data/ocean.frag");
 
   write_shader_asset(fout, CoreAsset::fogplane_vert, "../../data/fogplane.vert");
   write_shader_asset(fout, CoreAsset::fogplane_frag, "../../data/fogplane.frag");
-
-  write_shader_asset(fout, CoreAsset::spotlight_vert, "../../data/spotlight.vert");
-  write_shader_asset(fout, CoreAsset::spotlight_frag, "../../data/spotlight.frag");
 
   write_shader_asset(fout, CoreAsset::translucent_vert, "../../data/translucent.vert");
   write_shader_asset(fout, CoreAsset::translucent_frag, "../../data/translucent.frag");
@@ -797,16 +802,8 @@ void write_core()
   write_shader_asset(fout, CoreAsset::particle_vert, "../../data/particle.vert");
   write_shader_asset(fout, CoreAsset::particle_frag, "../../data/particle.frag");
 
-  write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/hbao.comp");
-
-  write_envbrdf_asset(fout, CoreAsset::envbrdf_lut);
-
-  write_shader_asset(fout, CoreAsset::lighting_comp, "../../data/lighting.comp");
-
   write_shader_asset(fout, CoreAsset::ssr_comp, "../../data/ssr.comp");
 
-  write_shader_asset(fout, CoreAsset::skybox_vert, "../../data/skybox.vert");
-  write_shader_asset(fout, CoreAsset::skybox_frag, "../../data/skybox.frag");
 //  write_skybox_asset(fout, CoreAsset::default_skybox, { "../../data/skybox_rt.jpg", "../../data/skybox_lf.jpg", "../../data/skybox_dn.jpg", "../../data/skybox_up.jpg", "../../data/skybox_fr.jpg", "../../data/skybox_bk.jpg" });
 //  write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/pisa.hdr");
   write_skybox_asset(fout, CoreAsset::default_skybox, "../../data/Serpentine_Valley_3k.hdr");
@@ -850,7 +847,7 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::convolve_comp, "../../data/convolve.comp");
 
-  write_shader_asset(fout, CoreAsset::skybox_gen_comp, "../../data/skybox.comp");
+  write_shader_asset(fout, CoreAsset::skybox_gen_comp, "../../data/skybox.gen.comp");
 
   write_shader_asset(fout, CoreAsset::ocean_sim_comp, "../../data/ocean.sim.comp");
   write_shader_asset(fout, CoreAsset::ocean_fftx_comp, "../../data/ocean.fftx.comp");

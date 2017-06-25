@@ -147,7 +147,7 @@ void datumtest_init(PlatformInterface &platform)
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 3.0f));
 
-#if 1
+#if 0
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
 
   random_lights(state.scene, 128);
@@ -341,7 +341,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     DEBUG_MENU_VALUE("Floor/Roughness", &floorroughness, 0.0f, 1.0f)
 
     float floorflectivity = 0.5f;
-    DEBUG_MENU_VALUE("Floor/Reflectivity", &floorflectivity, 0.0f, 1.0f)
+    DEBUG_MENU_VALUE("Floor/Reflectivity", &floorflectivity, 0.0f, 4.0f)
 
     state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(0.4f, 0.4f, 0.4f, 1.0f), floormetalness, floorroughness, floorflectivity));
 
@@ -417,9 +417,9 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
           state.writeframe->lights.push_pointlight(buildstate, transform.world().translation(), light.range(), light.intensity(), light.attenuation());
         }
 
-        state.writeframe->lights.push_pointlight(buildstate, Vec3(0, 1, 1), 2.0, Color3(8, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
+//        state.writeframe->lights.push_pointlight(buildstate, Vec3(0, 1, 1), 2.0, Color3(8, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
 
-        state.writeframe->lights.push_spotlight(buildstate, Vec3(-5, 5, -3), normalise(Vec3(1, -1, 0)), 0.25f, 12, Color3(0, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
+//        state.writeframe->lights.push_spotlight(buildstate, Vec3(-5, 5, -3), normalise(Vec3(1, -1, 0)), 0.25f, 12, Color3(0, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
 
         state.writeframe->lights.finalise(buildstate);
       }
@@ -436,13 +436,13 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
         state.writeframe->sprites.viewport(buildstate, Rect2(Vec2(-1, -1), Vec2(1, 1)));
 
         float count = 15.0f;
-        float radius = 0.2f;
+        float radius = 0.4f;
 
         for(float angle = 0.0f; angle < 2*pi<float>(); angle += pi<float>()/count)
         {
           Vec2 position = radius * rotate(Vec2(1.0f, 0.0f), angle + state.time);
 
-          state.writeframe->sprites.push_rect(buildstate, position, Rect2({0.0f, -0.008f}, {0.05f, 0.008f}), angle + state.time, Color4(1, 0, 0, 1));
+          state.writeframe->sprites.push_rect(buildstate, position, Rect2({0.0f, -0.016f}, {0.1f, 0.016f}), angle + state.time, Color4(1, 0, 0, 1));
         }
 
         state.writeframe->sprites.finalise(buildstate);
@@ -461,6 +461,11 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     DEBUG_MENU_ENTRY("Camera/Exposure", state.camera.exposure());
     DEBUG_MENU_ENTRY("Camera/LumaTarget", state.luminancetarget);
     DEBUG_MENU_ENTRY("Camera/Luminance", state.rendercontext.luminance);
+  }
+
+  if (input.keys[KB_KEY_ESCAPE].pressed())
+  {
+    platform.terminate();
   }
 
   state.writeframe->resourcetoken = state.resources.token();
@@ -489,7 +494,17 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
   if (state.readframe->mode == GameState::Startup)
   {   
-    prepare_render_context(platform, state.rendercontext, state.assets);
+    if (prepare_render_context(platform, state.rendercontext, state.assets))
+    {
+      RenderParams renderparams;
+      renderparams.width = viewport.width;
+      renderparams.height = viewport.height;
+  //    renderparams.scale = 2.0f;//0.5f;
+      renderparams.aspect = state.aspect;
+      renderparams.ssaoscale = 0.5f;
+
+      prepare_render_pipeline(state.rendercontext, renderparams);
+    }
 
     render_fallback(state.rendercontext, viewport, embeded::logo.data, embeded::logo.width, embeded::logo.height);
   }
@@ -502,27 +517,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   if (state.readframe->mode == GameState::Play)
   {
     auto &camera = state.readframe->camera;
-
-    RenderParams renderparams;
-    renderparams.width = viewport.width;
-    renderparams.height = viewport.height;
-//    renderparams.scale = 2.0f;//0.5f;
-    renderparams.aspect = state.aspect;
-    renderparams.skybox = state.readframe->skybox;
-    renderparams.sundirection = state.readframe->sundirection;
-    renderparams.sunintensity = state.readframe->sunintensity;
-//    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
-    renderparams.ssrstrength = 1.0f;
-    renderparams.ssaoscale = 0.5f;
-
-    bool ssao = (renderparams.ssaoscale != 0);
-    DEBUG_MENU_VALUE("Lighting/SSAO", &ssao, false, true);
-    renderparams.ssaoscale = ssao * 0.5f;
-
-    DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
-    DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
-
-    prepare_render_pipeline(state.rendercontext, renderparams);
 
     RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
@@ -550,12 +544,16 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
         float height = 2.0f;
         DEBUG_MENU_VALUE("Fog/Height", &height, -20.0f, 100.0f);
 
+        //objects.push_water(buildstate, Transform::translation(0, 0.7f, 0), state.testplane, state.defaultmaterial, state.skybox, Vec2(0.1f));
+
+        //objects.push_translucent(buildstate, Transform::translation(0, 0.7f, 0), state.testplane, state.floormaterial, 0.9f);
+
         objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), Plane(Vec3(0.0f, 1.0f, 0.0f), -height), density, startdistance, falloff);
 
         objects.finalise(buildstate);
       }
 
-      renderlist.push_objects(objects);
+      renderlist.push_forward(objects);
     }
 #endif
 
@@ -583,29 +581,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
         objects.finalise(buildstate);
       }
 
-      renderlist.push_objects(objects);
-    }
-#endif
-
-#if 0
-    {
-      Vec3 location(-5, 5, -3);
-      DEBUG_MENU_VALUE("Spotlight/location", &location, Vec3(-15.0f), Vec3(15.0f));
-
-      float rotation = -pi<float>()/2 + 0.7f;
-      DEBUG_MENU_VALUE("Spotlight/rotation", &rotation, -3.14f, 3.14f);
-
-      ForwardList objects;
-      ForwardList::BuildState buildstate;
-
-      if (objects.begin(buildstate, state.rendercontext, state.resources))
-      {
-        objects.push_spotlight(buildstate, Transform::translation(location) * Transform::rotation(Vec3(0, 0, 1), rotation), state.unitcone, Vec3(16), 0.25f, 45, Color3(0, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
-
-        objects.finalise(buildstate);
-      }
-
-      renderlist.push_objects(objects);
+      renderlist.push_forward(objects);
     }
 #endif
 
@@ -660,6 +636,16 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   //  renderlist.push_environment(Vec3(6, 12, 26), Transform::translation(0, 6, 0) * Transform::rotation(Vec3(0, 1, 0), -pi<float>()/2), state.testenvmap);
 
     render_debug_overlay(state.rendercontext, state.resources, renderlist, viewport, state.debugfont);
+
+    RenderParams renderparams;
+    renderparams.skybox = state.readframe->skybox;
+    renderparams.sundirection = state.readframe->sundirection;
+    renderparams.sunintensity = state.readframe->sunintensity;
+//    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
+    renderparams.ssrstrength = 1.0f;
+
+    DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
+    DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
 
     render(state.rendercontext, viewport, camera, renderlist, renderparams);
   }

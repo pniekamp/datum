@@ -2,7 +2,7 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-layout(std140, push_constant, row_major) uniform ConvolveParams 
+layout(push_constant, std140, row_major) uniform ConvolveParams 
 { 
   uint level;
   uint samples;
@@ -73,8 +73,8 @@ vec3 convolve(vec3 ray)
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
+  gl_WorkGroupSize;
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
-
   ivec2 dim = imageSize(dest);
 
   vec2 eyeray = vec2(2 * (xy.x + 0.5f)/dim.x - 1, 2 * (xy.y + 0.5f)/dim.y - 1);

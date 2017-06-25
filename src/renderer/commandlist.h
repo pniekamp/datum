@@ -12,6 +12,8 @@
 #include <utility>
 #include <cassert>
 
+struct RenderContext;
+
 //|---------------------- CommandList ---------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -24,7 +26,7 @@ class CommandList
       public:
 
         template<typename View>
-        View *memory(VkDeviceSize offset = 0)
+        View *memory(VkDeviceSize offset = 0) const
         {
           return (View*)((uint8_t*)m_storage.memory + offset);
         }
@@ -40,18 +42,53 @@ class CommandList
           return offset;
         }
 
-        VkDeviceSize used() { return m_used; }
+        VkDeviceSize used() const { return m_used; }
+        VkDeviceSize capacity() const { return m_storage.capacity; }
+        VkDeviceSize available() const { return m_storage.capacity - m_used; }
 
-        VkDeviceSize capacity() { return m_storage.capacity; }
+        operator VkDescriptorSet() { return m_descriptor; }
 
-        VkDeviceSize alignment() { return m_storage.alignment; }
+      public:
 
-        operator VkDescriptorSet() { return m_descriptor.descriptorset; }
+        Descriptor()
+        {
+          m_used = 0;
+          m_pool = nullptr;
+          m_storage = {};
+          m_descriptor = {};
+        }
+
+        Descriptor(Descriptor const &) = delete;
+
+        Descriptor(Descriptor &&other) noexcept
+          : Descriptor()
+        {
+          operator=(std::move(other));
+        }
+
+        ~Descriptor()
+        {
+          if (m_pool && m_storage)
+          {
+            m_pool->release_storagebuffer(m_storage, m_used);
+          }
+        }
+
+        Descriptor &operator=(Descriptor &&other) noexcept
+        {
+          std::swap(m_used, other.m_used);
+          std::swap(m_pool, other.m_pool);
+          std::swap(m_storage, other.m_storage);
+          std::swap(m_descriptor, other.m_descriptor);
+
+          return *this;
+        }
 
       private:
 
         VkDeviceSize m_used;
 
+        ResourcePool *m_pool;
         ResourcePool::StorageBuffer m_storage;
         ResourcePool::DescriptorSet m_descriptor;
 
@@ -59,50 +96,20 @@ class CommandList
     };
 
   public:
-    CommandList(struct RenderContext *context);
+    CommandList(RenderContext *context);
+    CommandList(CommandList const &) = delete;
     ~CommandList();
 
-    CommandList(CommandList const &) = delete;
+    VkCommandBuffer allocate_commandbuffer();
 
-    CommandList(CommandList &&other) noexcept
-    {
-      m_passcount = 0;
-      m_resourcelump = 0;
-      context = nullptr;
+    VkDescriptorSet allocate_descriptorset(VkDescriptorSetLayout layout);
 
-      *this = std::move(other);
-    }
-
-    CommandList &operator=(CommandList &&other) noexcept
-    {
-      std::swap(m_passcount, other.m_passcount);
-      std::swap(m_commandbuffers, other.m_commandbuffers);
-      std::swap(m_resourcelump, other.m_resourcelump);
-      std::swap(context, other.context);
-
-      return *this;
-    }
-
-    bool begin(VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpasses);
-
-    Descriptor acquire(VkDescriptorSetLayout layout, VkDeviceSize size, Descriptor const &oldset = {});
-
-    void release(Descriptor const &descriptor);
-
-    void end();
-
-  public:
-
-    operator bool() const { return m_passcount != 0; }
-
-    VkCommandBuffer commandbuffer(size_t subpass) const { return m_commandbuffers[subpass]; }
+    Descriptor acquire_descriptor(VkDeviceSize required, Descriptor &&oldset = {});
+    Descriptor acquire_descriptor(VkDescriptorSetLayout layout, VkDeviceSize required, Descriptor &&oldset = {});
 
   private:
 
-    size_t m_passcount;
-    VkCommandBuffer m_commandbuffers[8];
+    RenderContext *context;
 
     ResourcePool::ResourceLump const *m_resourcelump;
-
-    struct RenderContext *context;
 };

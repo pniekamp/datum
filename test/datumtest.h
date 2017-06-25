@@ -25,7 +25,7 @@ struct GameState
   const float fov = 60.0f;
   const float aspect = 1920.0f/1080.0f;
 
-  enum { Startup, Load, Play } mode;
+  enum { Startup, Init, Load, Play } mode;
 
   float time = 0;
 

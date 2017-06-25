@@ -23,9 +23,9 @@ class ForwardList
 {
   public:
 
-    operator bool() const { return m_commandlist; }
+    Renderable::Forward::Command *forwardcommands;
 
-    CommandList const *commandlist() const { return m_commandlist; }
+    operator bool() const { return m_commandlist; }
 
   public:
 
@@ -34,9 +34,13 @@ class ForwardList
       RenderContext *context;
       ResourceManager *resources;
 
+      CommandList::Descriptor commandset;
+
       CommandList::Descriptor materialset;
 
       CommandList::Descriptor modelset;
+
+      Renderable::Forward::Command **command;
 
       CommandList *commandlist = nullptr;
     };
@@ -53,8 +57,6 @@ class ForwardList
     void push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, EnvMap const *envmap, lml::Vec2 const &flow, lml::Vec3 const &bumpscale = { 1.0f, 1.0f, 1.0f }, float alpha = 1.0f);
     void push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, lml::Transform const &envtransform, SkyBox const *skybox, lml::Vec2 const &flow, lml::Vec3 const &bumpscale = { 1.0f, 1.0f, 1.0f }, float alpha = 1.0f);
     void push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, lml::Transform const &envtransform, lml::Vec3 const &envdimension, EnvMap const *envmap, lml::Vec2 const &flow, lml::Vec3 const &bumpscale = { 1.0f, 1.0f, 1.0f }, float alpha = 1.0f);
-
-    void push_spotlight(BuildState &state, lml::Transform const &transform, Mesh const *mesh, lml::Vec3 const &scale, float cutoff, float range, lml::Color3 const &intensity, lml::Attenuation const &attenuation);
 
     void finalise(BuildState &state);
 

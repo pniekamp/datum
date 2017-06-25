@@ -3,7 +3,7 @@
 #include "transform.glsl"
 #include "lighting.glsl"
 
-layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
   mat4 invproj;
@@ -18,7 +18,9 @@ layout(std430, set=0, binding=0, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet 
+layout(set=0, binding=5) uniform sampler2D depthmap;
+
+layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
   float metalness;
@@ -27,13 +29,11 @@ layout(std430, set=1, binding=0, row_major) readonly buffer MaterialSet
   float emissive;
   float depthfade;
   
-} material;
+} params;
 
 layout(set=1, binding=1) uniform sampler2DArray albedomap;
-layout(set=1, binding=2) uniform sampler2DArray specularmap;
+layout(set=1, binding=2) uniform sampler2DArray surfacemap;
 layout(set=1, binding=3) uniform sampler2DArray normalmap;
-
-layout(set=0, binding=4) uniform sampler2D depthmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 texcoord;
@@ -53,32 +53,29 @@ void main()
   
   if (texture(depthmap, fbocoord).r < gl_FragCoord.z)
   {
-    depthfade = material.depthfade;
+    depthfade = params.depthfade;
  
     if (depthfade == 0.0)
       discard;
   }
+
+  vec4 albedo = texture(albedomap, vec3(texcoord, 0));
+  vec4 surface = texture(surfacemap, vec3(texcoord, 0));
+
+  Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness * surface.r, params.reflectivity * surface.g, params.roughness * surface.a);
   
   vec3 eyevec = normalize(scene.camera.position - position);
 
-  MainLight mainlight;
-  mainlight.direction = -eyevec;
-  mainlight.intensity = vec3(1.0f, 0.945f, 0.985f);
-
-  vec4 rt0 = texture(albedomap, vec3(texcoord, 0)) * material.color;
-  vec4 rt1 = texture(specularmap, vec3(texcoord, 0)) * vec4(0, material.reflectivity, 0, material.roughness);
- 
-  if (rt0.a < 0.003)
-    discard;
-
-  Material material = unpack_material(rt0, rt1);
-  
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
 
   env_light(diffuse, specular, material, vec3(1), vec3(0), vec2(0), 0.2);
 
+  MainLight mainlight;
+  mainlight.direction = -eyevec;
+  mainlight.intensity = vec3(1.0f, 0.945f, 0.985f);
+
   main_light(diffuse, specular, mainlight, normal, eyevec, material, 1);
 
-  fragcolor = vec4((diffuse * material.diffuse + specular) * depthfade, rt0.a);
+  fragcolor = vec4((diffuse * material.diffuse + specular) * depthfade, albedo.a);
 }

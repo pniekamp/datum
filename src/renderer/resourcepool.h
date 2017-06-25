@@ -51,16 +51,23 @@ class ResourcePool
       VkDeviceSize capacity;
 
       StorageSlot const *storagebuffer;
+
+      operator VkBuffer() { return buffer; }
     };
 
     struct CommandBuffer
     {
       VkCommandBuffer commandbuffer;
+
+      operator VkCommandBuffer() { return commandbuffer; }
+
     };
 
     struct DescriptorSet
     {
       VkDescriptorSet descriptorset;
+
+      operator VkDescriptorSet() { return descriptorset; }
     };
 
     struct ResourceLump
@@ -101,7 +108,7 @@ class ResourcePool
 
     // descriptor sets
 
-    DescriptorSet acquire_descriptorset(ResourceLump const *lumpref, VkDescriptorSetLayout layout, StorageBuffer const &buffer);
+    DescriptorSet acquire_descriptorset(ResourceLump const *lump, VkDescriptorSetLayout layout);
 
   private:
 

@@ -23,9 +23,9 @@ class CasterList
 {
   public:
 
-    operator bool() const { return m_commandlist; }
+    VkCommandBuffer castercommands;
 
-    CommandList const *commandlist() const { return m_commandlist; }
+    operator bool() const { return m_commandlist; }
 
   public:
 

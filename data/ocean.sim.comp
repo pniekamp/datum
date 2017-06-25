@@ -5,7 +5,7 @@ layout(local_size_x = 16, local_size_y = 16) in;
 
 const uint WaveResolution = 64;
 
-layout(std430, set=0, binding=0, row_major) readonly buffer OceanParams 
+layout(set=0, binding=0, std430, row_major) readonly buffer OceanParams 
 { 
   mat4 proj;
   mat4 invproj;
@@ -28,7 +28,7 @@ layout(std430, set=0, binding=0, row_major) readonly buffer OceanParams
 
 } params;
 
-layout(std430, set=0, binding=1, row_major) buffer Spectrum 
+layout(set=0, binding=1, std430, row_major) buffer Spectrum 
 {
   vec2 h[WaveResolution*WaveResolution];
   vec2 hx[WaveResolution*WaveResolution];

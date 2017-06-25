@@ -23,9 +23,10 @@ class GeometryList
 {
   public:
 
-    operator bool() const { return m_commandlist; }
+    VkCommandBuffer prepasscommands;
+    VkCommandBuffer geometrycommands;
 
-    CommandList const *commandlist() const { return m_commandlist; }
+    operator bool() const { return m_commandlist; }
 
   public:
 

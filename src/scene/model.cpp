@@ -169,7 +169,7 @@ bool Model::load(DatumPlatform::PlatformInterface &platform, ResourceManager *re
         textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::SRGBA);
         break;
 
-      case PackModelPayload::Texture::specularmap:
+      case PackModelPayload::Texture::surfacemap:
         textures[i] = resources->create<Texture>(assets->find(asset->id + texturetable[i].texture), Texture::Format::RGBA);
         break;
 
@@ -191,10 +191,10 @@ bool Model::load(DatumPlatform::PlatformInterface &platform, ResourceManager *re
     auto emissive = materialtable[i].emissive;
 
     auto albedomap = textures[materialtable[i].albedomap];
-    auto specularmap = textures[materialtable[i].specularmap];
+    auto surfacemap = textures[materialtable[i].surfacemap];
     auto normalmap = textures[materialtable[i].normalmap];
 
-    materials[i] = resources->create<Material>(color, metalness, roughness, reflectivity, emissive, albedomap, specularmap, normalmap);
+    materials[i] = resources->create<Material>(color, metalness, roughness, reflectivity, emissive, albedomap, surfacemap, normalmap);
   }
 
   meshes.resize(asset->meshcount);

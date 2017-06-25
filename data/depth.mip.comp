@@ -1,0 +1,20 @@
+#version 440 core
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(set=0, binding=5) uniform sampler2D depthmap;
+
+layout(set=3, binding=1) writeonly uniform image2D dest;
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+  
+  float depth0 = texelFetch(depthmap, 2*xy, 0).r;
+  float depth1 = texelFetch(depthmap, 2*xy + ivec2(1, 0), 0).r;
+  float depth2 = texelFetch(depthmap, 2*xy + ivec2(0, 1), 0).r;
+  float depth3 = texelFetch(depthmap, 2*xy + ivec2(1, 1), 0).r;
+
+  imageStore(dest, xy, vec4(min(min(depth0, depth1), min(depth2, depth3)), 0, 0, 0)); 
+}

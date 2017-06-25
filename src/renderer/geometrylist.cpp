@@ -14,17 +14,8 @@
 using namespace std;
 using namespace lml;
 using namespace Vulkan;
-using namespace DatumPlatform;
 using leap::alignto;
 using leap::extentof;
-
-enum RenderPasses
-{
-  prepasspass = 0,
-  geometrypass = 1,
-
-  passcount
-};
 
 enum ShaderLocation
 {
@@ -33,7 +24,7 @@ enum ShaderLocation
   modelset = 2,
 
   albedomap = 1,
-  specularmap = 2,
+  surfacemap = 2,
   normalmap = 3,
 };
 
@@ -77,13 +68,13 @@ struct ActorSet
 ///////////////////////// draw_prepass //////////////////////////////////////
 void draw_prepass(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Geometry const &geometry)
 {
-  execute(commandbuffer, geometry.commandlist->commandbuffer(RenderPasses::prepasspass));
+  execute(commandbuffer, geometry.prepasscommands);
 }
 
 ///////////////////////// draw_geometry /////////////////////////////////////
 void draw_geometry(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Geometry const &geometry)
 {
-  execute(commandbuffer, geometry.commandlist->commandbuffer(RenderPasses::geometrypass));
+  execute(commandbuffer, geometry.geometrycommands);
 }
 
 
@@ -99,7 +90,7 @@ bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceMana
   state.context = &context;
   state.resources = &resources;
 
-  if (!context.prepared)
+  if (!context.ready)
     return false;
 
   auto commandlist = resources.allocate<CommandList>(&context);
@@ -107,17 +98,22 @@ bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceMana
   if (!commandlist)
     return false;
 
-  if (!commandlist->begin(context.geometrybuffer, context.geometrypass, RenderPasses::passcount))
+  prepasscommands = commandlist->allocate_commandbuffer();
+  geometrycommands = commandlist->allocate_commandbuffer();
+
+  if (!prepasscommands || !geometrycommands)
   {
     resources.destroy(commandlist);
     return false;
   }
 
-  auto prepasspass = commandlist->commandbuffer(RenderPasses::prepasspass);
-  auto geometrypass = commandlist->commandbuffer(RenderPasses::geometrypass);
+  using Vulkan::begin;
 
-  bind_descriptor(prepasspass, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_descriptor(geometrypass, context.scenedescriptor, context.pipelinelayout, ShaderLocation::sceneset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  begin(context.vulkan, prepasscommands, context.preframebuffer, context.prepass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  begin(context.vulkan, geometrycommands, context.geometryframebuffer, context.geometrypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+
+  bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   m_commandlist = { resources, commandlist };
 
@@ -136,28 +132,26 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
-  auto prepasspass = commandlist.commandbuffer(RenderPasses::prepasspass);
-  auto geometrypass = commandlist.commandbuffer(RenderPasses::geometrypass);
 
   if (state.pipeline != context.modelgeometrypipeline)
   {
-    bind_pipeline(prepasspass, context.modelprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_pipeline(geometrypass, context.modelgeometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(prepasscommands, context.modelprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(geometrycommands, context.modelgeometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.pipeline = context.modelgeometrypipeline;
   }
 
   if (state.mesh != mesh)
   {
-    bind_vertexbuffer(prepasspass, 0, mesh->vertexbuffer);
-    bind_vertexbuffer(geometrypass, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(prepasscommands, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(geometrycommands, 0, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
+    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -172,19 +166,19 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
       materialset->emissive = material->emissive;
 
       bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
       bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-      bind_descriptor(prepasspass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-      bind_descriptor(geometrypass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
   }
 
-  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -195,11 +189,11 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
     modelset->modelworld = transform;
 
-    bind_descriptor(prepasspass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_descriptor(geometrypass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(prepasspass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
-    draw(geometrypass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(geometrycommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 
@@ -213,30 +207,28 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
-  auto prepasspass = commandlist.commandbuffer(RenderPasses::prepasspass);
-  auto geometrypass = commandlist.commandbuffer(RenderPasses::geometrypass);
 
   if (state.pipeline != context.actorgeometrypipeline)
   {
-    bind_pipeline(prepasspass, context.actorprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_pipeline(geometrypass, context.actorgeometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(prepasscommands, context.actorprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(geometrycommands, context.actorgeometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.pipeline = context.actorgeometrypipeline;
   }
 
   if (state.mesh != mesh)
   {
-    bind_vertexbuffer(prepasspass, 0, mesh->vertexbuffer);
-    bind_vertexbuffer(geometrypass, 0, mesh->vertexbuffer);
-    bind_vertexbuffer(prepasspass, 1, mesh->rigbuffer);
-    bind_vertexbuffer(geometrypass, 1, mesh->rigbuffer);
+    bind_vertexbuffer(prepasscommands, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(geometrycommands, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(prepasscommands, 1, mesh->rigbuffer);
+    bind_vertexbuffer(geometrycommands, 1, mesh->rigbuffer);
 
     state.mesh = mesh;
   }
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(GeometryMaterialSet), state.materialset);
+    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -251,19 +243,19 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
       materialset->emissive = material->emissive;
 
       bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
       bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-      bind_descriptor(prepasspass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-      bind_descriptor(geometrypass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
   }
 
-  if (state.modelset.capacity() < state.modelset.used() + sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
+  if (state.modelset.available() < sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
   {
-    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), state.modelset);
+    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -276,11 +268,11 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
     copy(pose.bones, pose.bones + pose.bonecount, modelset->bones);
 
-    bind_descriptor(prepasspass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_descriptor(geometrypass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(prepasspass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
-    draw(geometrypass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(geometrycommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 
@@ -294,25 +286,24 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   auto &context = *state.context;
   auto &commandlist = *state.commandlist;
-  auto geometrypass = commandlist.commandbuffer(RenderPasses::geometrypass);
 
   if (state.pipeline != context.oceanpipeline)
   {
-    bind_pipeline(geometrypass, context.oceanpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(geometrycommands, context.oceanpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.pipeline = context.oceanpipeline;
   }
 
   if (state.mesh != mesh)
   {
-    bind_vertexbuffer(geometrypass, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(geometrycommands, 0, mesh->vertexbuffer);
 
     state.mesh = mesh;
   }
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire(context.materialsetlayout, sizeof(OceanMaterialSet), state.materialset);
+    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(OceanMaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -334,18 +325,18 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
       materialset->flow = flow;
 
       bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::specularmap, material->specularmap ? material->specularmap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
       bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-      bind_descriptor(geometrypass, state.materialset, context.pipelinelayout, ShaderLocation::materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
       state.material = material;
     }
   }
 
-  if (state.modelset.capacity() < state.modelset.used() + sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire(context.modelsetlayout, sizeof(ModelSet), state.modelset);
+    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -356,9 +347,9 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
     modelset->modelworld = transform;
 
-    bind_descriptor(geometrypass, state.modelset, context.pipelinelayout, ShaderLocation::modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(geometrypass, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(geometrycommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }
 
@@ -368,10 +359,10 @@ void GeometryList::finalise(BuildState &state)
 {
   assert(state.commandlist);
 
-  state.commandlist->release(state.modelset);
-  state.commandlist->release(state.materialset);
+  auto &context = *state.context;
 
-  state.commandlist->end();
+  end(context.vulkan, prepasscommands);
+  end(context.vulkan, geometrycommands);
 
   state.commandlist = nullptr;
 }
