@@ -16,6 +16,7 @@
 #include "resourcepool.h"
 #include "skybox.h"
 #include "envmap.h"
+#include "spotmap.h"
 
 // Renderables
 namespace Renderable
@@ -155,6 +156,9 @@ namespace Renderable
         Vec4 attenuation;
         Vec3 direction;
         float cutoff;
+
+        Transform shadowview;
+        SpotMap const *shadowmap;
 
       } spotlights[16];
 
@@ -311,16 +315,19 @@ struct RenderContext
   Vulkan::Texture specularbuffer;
   Vulkan::Texture normalbuffer;
   Vulkan::Texture depthbuffer;
-  Vulkan::Texture depthmipbuffer;
   Vulkan::Texture ssaobuffers[2];
   Vulkan::Texture scratchbuffers[3];
   Vulkan::FrameBuffer preframebuffer;
   Vulkan::FrameBuffer geometryframebuffer;
   Vulkan::FrameBuffer forwardframebuffer;
 
+  Vulkan::Texture depthmipbuffer;
+  Vulkan::ImageView depthmipviews[6];
+
   Vulkan::Texture depthstencil;
-  Vulkan::ImageView frameimages[2];
-  Vulkan::FrameBuffer framebuffers[2];
+  VkImage frameimages[3];
+  Vulkan::ImageView frameviews[3];
+  Vulkan::FrameBuffer framebuffers[3];
 
   Vulkan::RenderPass shadowpass;
   Vulkan::RenderPass prepass;
@@ -348,7 +355,7 @@ struct RenderContext
   Vulkan::Pipeline actorshadowpipeline;
   Vulkan::Pipeline actorprepasspipeline;
   Vulkan::Pipeline actorgeometrypipeline;
-  Vulkan::Pipeline depthmippipeline;
+  Vulkan::Pipeline depthmippipeline[6];
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
   Vulkan::Pipeline translucentpipeline;

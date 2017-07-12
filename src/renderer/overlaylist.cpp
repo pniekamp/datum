@@ -90,7 +90,7 @@ void draw_overlays(RenderContext &context, VkCommandBuffer commandbuffer, Render
 ///////////////////////// OverlayList::begin ////////////////////////////////
 bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
-  m_commandlist = {};
+  m_commandlump = {};
 
   state = {};
   state.context = &context;
@@ -103,16 +103,16 @@ bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManag
   if (!context.ready)
     return false;
 
-  auto commandlist = resources.allocate<CommandList>(&context);
+  auto commandlump = resources.allocate<CommandLump>(&context);
 
-  if (!commandlist)
+  if (!commandlump)
     return false;
 
-  overlaycommands = commandlist->allocate_commandbuffer();
+  overlaycommands = commandlump->allocate_commandbuffer();
 
   if (!overlaycommands)
   {
-    resources.destroy(commandlist);
+    resources.destroy(commandlump);
     return false;
   }
 
@@ -122,9 +122,9 @@ bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManag
 
   bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  m_commandlist = { resources, commandlist };
+  m_commandlump = { resources, commandlump };
 
-  state.commandlist = commandlist;
+  state.commandlump = commandlump;
 
   return true;
 }
@@ -133,18 +133,18 @@ bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManag
 ///////////////////////// OverlayList::push_gizmo ///////////////////////////
 void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3f const &rotation, Mesh const *mesh, Material const *material, Color4 const &tint)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.gizmopipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(GizmoMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(GizmoMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -168,7 +168,7 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -190,17 +190,17 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 ///////////////////////// OverlayList::push_wireframe ///////////////////////
 void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Color4 const &color)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.wireframepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(WireframeMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(WireframeMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -216,7 +216,7 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -238,11 +238,11 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
 ///////////////////////// OverlayList::push_stencilmask /////////////////////
 void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, uint32_t reference)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -250,7 +250,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(MaskMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaskMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -263,7 +263,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -285,12 +285,12 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilmask /////////////////////
 void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, uint32_t reference)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.stencilmaskpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -298,7 +298,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(MaskMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaskMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -311,7 +311,7 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -333,11 +333,11 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilfill /////////////////////
 void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Color4 const &color, uint32_t reference)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -345,7 +345,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(FillMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(FillMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -364,7 +364,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -386,12 +386,12 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilfill /////////////////////
 void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &base, Vec2 const &tiling, uint32_t reference)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.stencilfillpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -399,7 +399,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(FillMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(FillMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -418,7 +418,7 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -440,11 +440,11 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilpath /////////////////////
 void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Color4 const &color, float thickness, uint32_t reference)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -452,7 +452,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -473,7 +473,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -495,12 +495,12 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_stencilpath /////////////////////
 void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &base, Vec2 const &tiling, float thickness, uint32_t reference)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.stencilpathpipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -508,7 +508,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -529,7 +529,7 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -551,16 +551,16 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 ///////////////////////// OverlayList::push_line ////////////////////////////
 void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 const &b, Color4 const &color, float thickness)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bind_vertexbuffer(overlaycommands, 0, context.unitquad);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -581,7 +581,7 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -603,17 +603,17 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 ///////////////////////// OverlayList::push_volume //////////////////////////
 void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3f const &rotation, Mesh const *mesh, Color4 const &color, float thickness)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.linepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -634,7 +634,7 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -663,18 +663,18 @@ void OverlayList::push_volume(BuildState &state, Bound3 const &bound, Mesh const
 ///////////////////////// OverlayList::push_outline /////////////////////////
 void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Color4 const &color)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   bind_pipeline(overlaycommands, context.outlinepipeline, 0, 0, context.width, context.height, state.clipx, state.clipy, state.clipwidth, state.clipheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(OutlineMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(OutlineMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -692,7 +692,7 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -724,11 +724,11 @@ void OverlayList::push_scissor(BuildState &state, Rect2 const &cliprect)
 ///////////////////////// OverlayList::finalise /////////////////////////////
 void OverlayList::finalise(BuildState &state)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
 
   end(context.vulkan, overlaycommands);
 
-  state.commandlist = nullptr;
+  state.commandlump = nullptr;
 }

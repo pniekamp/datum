@@ -73,8 +73,11 @@ void lerp_ocean_swell(OceanParams &params, float swelllength, float swellamplitu
 void lerp_ocean_waves(OceanParams &params, float wavescale, float waveamplitude, float windspeed, lml::Vec2 winddirection, float t);
 void update_ocean(OceanParams &params, float dt);
 
+// Initialise
+void initialise_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, uint32_t queueindex);
+
 // Prepare
-bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets, uint32_t queueindex);
+bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets);
 
 // Render
-void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params);
+void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params);

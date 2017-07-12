@@ -10,8 +10,8 @@
 
 #include "renderer.h"
 #include "resource.h"
-#include "commandlist.h"
-#include "mesh.h"
+#include "spotmap.h"
+#include "commandlump.h"
 #include <utility>
 
 //|---------------------- LightList -----------------------------------------
@@ -23,7 +23,7 @@ class LightList
 
     Renderable::Lights::LightList *lightlist;
 
-    operator bool() const { return m_commandlist; }
+    operator bool() const { return m_commandlump; }
 
   public:
 
@@ -32,14 +32,14 @@ class LightList
       RenderContext *context;
       ResourceManager *resources;
 
-      CommandList *commandlist = nullptr;
+      CommandLump *commandlump = nullptr;
     };
 
     bool begin(BuildState &state, RenderContext &context, ResourceManager &resources);
 
     void push_pointlight(BuildState &state, lml::Vec3 const &position, float range, lml::Color3 const &intensity, lml::Attenuation const &attenuation);
 
-    void push_spotlight(BuildState &state, lml::Vec3 const &position, lml::Vec3 const &direction, float cutoff, float range, lml::Color3 const &intensity, lml::Attenuation const &attenuation);
+    void push_spotlight(BuildState &state, lml::Vec3 const &position, lml::Vec3 const &direction, float cutoff, float range, lml::Color3 const &intensity, lml::Attenuation const &attenuation, lml::Transform const &shadowview, SpotMap const *shadowmap);
 
     void push_environment(BuildState &state, lml::Transform const &transform, lml::Vec3 const &dimension, EnvMap const *envmap);
 
@@ -47,5 +47,5 @@ class LightList
 
   private:
 
-    unique_resource<CommandList> m_commandlist;
+    unique_resource<CommandLump> m_commandlump;
 };

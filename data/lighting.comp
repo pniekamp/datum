@@ -45,12 +45,12 @@ layout(set=3, binding=3) uniform sampler2D ssaomap;
 layout(set=3, binding=4) uniform sampler2DArrayShadow shadowmap;
 layout(set=3, binding=5) uniform sampler2DArray envbrdfmap;
 layout(set=3, binding=6) uniform samplerCube envmaps[MaxEnvironments];
-//layout(set=3, binding=7) uniform sampler2D spotmaps[MaxSpotLights];
+layout(set=3, binding=7) uniform sampler2DShadow spotmaps[MaxSpotLights];
 
 layout(set=3, binding=0) writeonly uniform image2D dest;
 
 ///////////////////////// mainlight_shadow //////////////////////////////////
-float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
+float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2DArrayShadow shadowmap)
 {
   const float bias[ShadowSlices] = { 0.05, 0.06, 0.10, 0.25 };
   const float spread[ShadowSlices] = { 1.5, 1.2, 1.0, 0.2 };
@@ -67,19 +67,34 @@ float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
       float weight = max(4 * max(max(abs(shadowspace.x), abs(shadowspace.y)) - 0.75, 0), 500 * max(shadowspace.z - 0.998, 0));
 
       if (i+i < ShadowSlices && weight > 0)
-      {     
-        return mix(shadow_intensity(scene.mainlight.shadowview[i], shadowpos, i, shadowmap, spread[i]), shadow_intensity(scene.mainlight.shadowview[i+1], position + bias[i+1] * normal, i+1, shadowmap, spread[i+1]), weight);
+      {
+        vec3 shadowpos2 = position + bias[i+1] * normal;
+        vec4 shadowspace2 = scene.mainlight.shadowview[i+1] * vec4(shadowpos2, 1);
+        vec4 texel2 = vec4(0.5 * shadowspace2.xy + 0.5, i+1, shadowspace2.z);
+      
+        return mix(shadow_intensity(shadowmap, texel, spread[i]), shadow_intensity(shadowmap, texel2, spread[i+1]), weight);
       }
       else
       {
-        return shadow_intensity(scene.mainlight.shadowview[i], shadowpos, i, shadowmap, spread[i]);
+        return shadow_intensity(shadowmap, texel, spread[i]);
       }     
     }
   }
   
   return 1.0;
 }
-  
+
+///////////////////////// spotlight_shadow //////////////////////////////////
+float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2DShadow spotmap)
+{
+  vec3 shadowpos = position + 0.01 * normal;;
+  vec4 shadowspace = map_parabolic(vec4(transform_multiply(spotlight.shadowview, shadowpos), 1));
+
+  vec3 texel = vec3(0.5 * shadowspace.xy + 0.5, shadowspace.z);
+
+  return shadow_intensity(spotmap, texel, 1.0);
+}
+
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
@@ -152,7 +167,7 @@ void main()
     // Main Light
     //
 
-    float mainlightshadow = mainlight_shadow(mainlight, position, normal);
+    float mainlightshadow = mainlight_shadow(mainlight, position, normal, shadowmap);
     
     if (mainlightshadow != 0)
     {      
@@ -176,14 +191,19 @@ void main()
     //
     // Spot Lights
     //
-    
+
     for(uint jm = scene.cluster[tile].spotlightmask[tilez], j = findLSB(jm); jm != 0; jm ^= (1 << j), j = findLSB(jm))
     {
       for(uint im = scene.cluster[tile].spotlightmasks[tilez][j], i = findLSB(im); im != 0; im ^= (1 << i), i = findLSB(im))
       {
         SpotLight spotlight = scene.spotlights[(j << 5) + i];
         
-        spot_light(diffuse, specular, spotlight, position, normal, eyevec, material, 1.0);
+        float spotlightshadow = spotlight_shadow(spotlight, position, normal, spotmaps[(j << 5) + i]);
+        
+        if (spotlightshadow != 0)
+        {
+          spot_light(diffuse, specular, spotlight, position, normal, eyevec, material, spotlightshadow);
+        }
       }
     }    
 

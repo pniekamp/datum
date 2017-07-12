@@ -84,7 +84,7 @@ void draw_geometry(RenderContext &context, VkCommandBuffer commandbuffer, Render
 ///////////////////////// GeometryList::begin ///////////////////////////////
 bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
-  m_commandlist = {};
+  m_commandlump = {};
 
   state = {};
   state.context = &context;
@@ -93,17 +93,17 @@ bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceMana
   if (!context.ready)
     return false;
 
-  auto commandlist = resources.allocate<CommandList>(&context);
+  auto commandlump = resources.allocate<CommandLump>(&context);
 
-  if (!commandlist)
+  if (!commandlump)
     return false;
 
-  prepasscommands = commandlist->allocate_commandbuffer();
-  geometrycommands = commandlist->allocate_commandbuffer();
+  prepasscommands = commandlump->allocate_commandbuffer();
+  geometrycommands = commandlump->allocate_commandbuffer();
 
   if (!prepasscommands || !geometrycommands)
   {
-    resources.destroy(commandlist);
+    resources.destroy(commandlump);
     return false;
   }
 
@@ -115,9 +115,9 @@ bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceMana
   bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
   bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  m_commandlist = { resources, commandlist };
+  m_commandlump = { resources, commandlump };
 
-  state.commandlist = commandlist;
+  state.commandlump = commandlump;
 
   return true;
 }
@@ -126,12 +126,12 @@ bool GeometryList::begin(BuildState &state, RenderContext &context, ResourceMana
 ///////////////////////// GeometryList::push_mesh ///////////////////////////
 void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.pipeline != context.modelgeometrypipeline)
   {
@@ -151,7 +151,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -178,7 +178,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -201,12 +201,12 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 ///////////////////////// GeometryList::push_mesh ///////////////////////////
 void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose const &pose, Mesh const *mesh, Material const *material)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.pipeline != context.actorgeometrypipeline)
   {
@@ -228,7 +228,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -255,7 +255,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   if (state.modelset.available() < sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -280,12 +280,12 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 ///////////////////////// GeometryList::push_ocean //////////////////////////
 void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow, Vec3 const &bumpscale, const Plane &foamplane, float foamwaveheight, float foamwavescale, float foamshoreheight, float foamshorescale)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.pipeline != context.oceanpipeline)
   {
@@ -303,7 +303,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(OceanMaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(OceanMaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -336,7 +336,7 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -357,12 +357,12 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
 ///////////////////////// GeometryList::finalise ////////////////////////////
 void GeometryList::finalise(BuildState &state)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
 
   end(context.vulkan, prepasscommands);
   end(context.vulkan, geometrycommands);
 
-  state.commandlist = nullptr;
+  state.commandlump = nullptr;
 }

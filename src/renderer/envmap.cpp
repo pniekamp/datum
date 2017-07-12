@@ -118,23 +118,19 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
       break;
   }
 
-  {
-    leap::threadlib::SyncLock lock(m_mutex);
+  auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+  auto setupfence = create_fence(vulkan, 0);
 
-    auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-    auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    auto setupfence = create_fence(vulkan, 0);
+  begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  envmap->texture = create_texture(vulkan, setupbuffer, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    envmap->texture = create_texture(vulkan, setupbuffer, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  end(vulkan, setupbuffer);
 
-    end(vulkan, setupbuffer);
+  submit(setupbuffer, setupfence);
 
-    submit(vulkan, setupbuffer, setupfence);
-
-    wait_fence(vulkan, setupfence);
-  }
+  wait_fence(vulkan, setupfence);
 
   envmap->state = EnvMap::State::Ready;
 
@@ -166,7 +162,7 @@ void ResourceManager::update<EnvMap>(EnvMap const *envmap, ResourceManager::Tran
 
   end(vulkan, lump->commandbuffer);
 
-  submit_transfer(lump);
+  submit(lump);
 
   while (!test_fence(vulkan, lump->fence))
     ;
@@ -207,7 +203,7 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
 
           end(vulkan, lump->commandbuffer);
 
-          submit_transfer(lump);
+          submit(lump);
 
           slot->transferlump = lump;
         }

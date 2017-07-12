@@ -37,7 +37,7 @@ layout(set=0, binding=1) uniform sampler2D colormap;
 layout(set=3, binding=4) uniform sampler2DArrayShadow shadowmap;
 layout(set=3, binding=5) uniform sampler2DArray envbrdfmap;
 layout(set=3, binding=6) uniform samplerCube envmaps[MaxEnvironments];
-//layout(set=3, binding=7) uniform sampler2D spotmaps[MaxSpotLights];
+layout(set=3, binding=7) uniform sampler2DShadow spotmaps[MaxSpotLights];
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -59,7 +59,7 @@ layout(location=4) in vec2 texcoord;
 layout(location=0) out vec4 fragcolor;
 
 ///////////////////////// mainlight_shadow //////////////////////////////////
-float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
+float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2DArrayShadow shadowmap)
 {
   const float bias[ShadowSlices] = { 0.05, 0.06, 0.10, 0.25 };
   const float spread[ShadowSlices] = { 1.5, 1.2, 1.0, 0.2 };
@@ -73,11 +73,22 @@ float mainlight_shadow(MainLight light, vec3 position, vec3 normal)
 
     if (texel.x > 0.0 && texel.x < 1.0 && texel.y > 0.0 && texel.y < 1.0 && texel.w > 0.0 && texel.w < 1.0)
     { 
-      return shadow_intensity(scene.mainlight.shadowview[i], shadowpos, i, shadowmap, spread[i]);
+      return shadow_intensity(shadowmap, texel, spread[i]);
     }
   }
   
   return 1.0;
+}
+
+///////////////////////// spotlight_shadow //////////////////////////////////
+float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2DShadow spotmap)
+{
+  vec3 shadowpos = position + 0.01 * normal;;
+  vec4 shadowspace = map_parabolic(vec4(transform_multiply(spotlight.shadowview, shadowpos), 1));
+
+  vec3 texel = vec3(0.5 * shadowspace.xy + 0.5, shadowspace.z);
+
+  return shadow_intensity(spotmap, texel, 1.0);
 }
 
 ///////////////////////// main //////////////////////////////////////////////
@@ -144,7 +155,7 @@ void main()
   // Main Light
   //
 
-  float mainlightshadow = mainlight_shadow(mainlight, position, normal);
+  float mainlightshadow = mainlight_shadow(mainlight, position, normal, shadowmap);
   
   if (mainlightshadow != 0)
   {      
@@ -175,7 +186,12 @@ void main()
     {
       SpotLight spotlight = scene.spotlights[(j << 5) + i];
       
-      spot_light(diffuse, specular, spotlight, position, normal, eyevec, material, 1.0);
+      float spotlightshadow = spotlight_shadow(spotlight, position, normal, spotmaps[(j << 5) + i]);
+      
+      if (spotlightshadow != 0)
+      {
+        spot_light(diffuse, specular, spotlight, position, normal, eyevec, material, spotlightshadow);
+      }
     }
   }
 

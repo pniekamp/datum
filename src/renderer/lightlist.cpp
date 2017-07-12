@@ -22,7 +22,7 @@ using leap::extentof;
 ///////////////////////// LightList::begin //////////////////////////////////
 bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
-  m_commandlist = {};
+  m_commandlump = {};
 
   state = {};
   state.context = &context;
@@ -31,16 +31,16 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
   if (!context.ready)
     return false;
 
-  auto commandlist = resources.allocate<CommandList>(&context);
+  auto commandlump = resources.allocate<CommandLump>(&context);
 
-  if (!commandlist)
+  if (!commandlump)
     return false;
 
-  auto lightset = commandlist->acquire_descriptor(sizeof(Renderable::Lights::LightList));
+  auto lightset = commandlump->acquire_descriptor(sizeof(Renderable::Lights::LightList));
 
   if (lightset.capacity() == 0)
   {
-    resources.destroy(commandlist);
+    resources.destroy(commandlump);
     return false;
   }
 
@@ -50,9 +50,9 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
   lightlist->spotlightcount = 0;
   lightlist->environmentcount = 0;
 
-  m_commandlist = { resources, commandlist };
+  m_commandlump = { resources, commandlump };
 
-  state.commandlist = commandlist;
+  state.commandlump = commandlump;
 
   return true;
 }
@@ -78,7 +78,7 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
 
 
 ///////////////////////// LightList::push_spotlight /////////////////////////
-void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 const &direction, float cutoff, float range, Color3 const &intensity, Attenuation const &attenuation)
+void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 const &direction, float cutoff, float range, Color3 const &intensity, Attenuation const &attenuation, lml::Transform const &shadowview, SpotMap const *shadowmap)
 {
   if (lightlist && lightlist->spotlightcount < extentof(lightlist->spotlights))
   {
@@ -92,6 +92,8 @@ void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 con
     spotlight.attenuation.w = range;
     spotlight.direction = direction;
     spotlight.cutoff = 1 - cutoff;
+    spotlight.shadowview = shadowview;
+    spotlight.shadowmap = shadowmap;
 
     lightlist->spotlightcount += 1;
   }
@@ -119,7 +121,7 @@ void LightList::push_environment(BuildState &state, Transform const &transform, 
 ///////////////////////// LightList::finalise ///////////////////////////////
 void LightList::finalise(BuildState &state)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
-  state.commandlist = nullptr;
+  state.commandlump = nullptr;
 }

@@ -41,6 +41,7 @@ struct SpotLight
   vec4 attenuation;
   vec3 direction;
   float cutoff;
+  Transform shadowview;
 };
 
 
@@ -171,21 +172,33 @@ vec4 shadow_split(float splits[4], uint nslices, float depth)
 }
 
 ///////////////////////// shadow_intensity //////////////////////////////////
-float shadow_intensity(MainLight light, sampler2D shadowmap, ivec2 xy, ivec2 viewport)
+float shadow_intensity(sampler2D shadowmap, ivec2 xy, ivec2 viewport)
 {
   return texture(shadowmap, vec2(xy+0.5)/viewport).r;
 }
 
-///////////////////////// shadow_intensity //////////////////////////////////
-float shadow_intensity(mat4 shadowview, vec3 position, uint split, sampler2DArrayShadow shadowmap, float spread)
-{
-  vec4 shadowspace = shadowview * vec4(position, 1);
 
-  vec4 texel = vec4(0.5 * shadowspace.xy + 0.5, split, shadowspace.z);
+///////////////////////// shadow_intensity //////////////////////////////////
+float shadow_intensity(sampler2DShadow shadowmap, vec3 texel, float spread)
+{
+  float sum = 0;
 
   vec2 texelsize = spread / textureSize(shadowmap, 0).xy;
 
+  for(uint k = 0; k < 12; ++k)
+  {
+    sum += texture(shadowmap, vec3(texel.xy + PoissonDisk[k]*texelsize, texel.z));
+  }
+
+  return sum * (1.0/12.0);
+}
+
+///////////////////////// shadow_intensity //////////////////////////////////
+float shadow_intensity(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
+{
   float sum = 0;
+
+  vec2 texelsize = spread / textureSize(shadowmap, 0).xy;
 
   for(uint k = 0; k < 12; ++k)
   {

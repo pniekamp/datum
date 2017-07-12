@@ -59,7 +59,7 @@ void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 ///////////////////////// SpriteList::begin /////////////////////////////////
 bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
-  m_commandlist = {};
+  m_commandlump = {};
 
   state = {};
   state.context = &context;
@@ -68,16 +68,16 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
   if (!context.ready)
     return false;
 
-  auto commandlist = resources.allocate<CommandList>(&context);
+  auto commandlump = resources.allocate<CommandLump>(&context);
 
-  if (!commandlist)
+  if (!commandlump)
     return false;
 
-  spritecommands = commandlist->allocate_commandbuffer();
+  spritecommands = commandlump->allocate_commandbuffer();
 
   if (!spritecommands)
   {
-    resources.destroy(commandlist);
+    resources.destroy(commandlump);
     return false;
   }
 
@@ -89,9 +89,9 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
 
   bind_vertexbuffer(spritecommands, 0, context.unitquad);
 
-  m_commandlist = { resources, commandlist };
+  m_commandlump = { resources, commandlump };
 
-  state.commandlist = commandlist;
+  state.commandlump = commandlump;
 
   return true;
 }
@@ -100,7 +100,7 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
 ///////////////////////// SpriteList::viewport //////////////////////////////
 void SpriteList::viewport(BuildState &state, Rect2 const &viewport) const
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
 
@@ -113,7 +113,7 @@ void SpriteList::viewport(BuildState &state, Rect2 const &viewport) const
 ///////////////////////// SpriteList::viewport //////////////////////////////
 void SpriteList::viewport(BuildState &state, DatumPlatform::Viewport const &viewport) const
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
 
@@ -126,14 +126,14 @@ void SpriteList::viewport(BuildState &state, DatumPlatform::Viewport const &view
 ///////////////////////// SpriteList::push_material /////////////////////////
 void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture, Vec4 const &texcoords, Color4 const &tint)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.materialset.available() < sizeof(SpriteMaterialSet) || state.texture != texture)
   {
-    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(SpriteMaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(SpriteMaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -163,14 +163,14 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 ///////////////////////// SpriteList::push_model ////////////////////////////
 void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 ybasis, Vec2 position, float layer)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -380,7 +380,7 @@ void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 con
 ///////////////////////// SpriteList::push_scissor //////////////////////////
 void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   scissor(spritecommands, (int)cliprect.min.x, (int)cliprect.min.y, (int)(cliprect.max.x - cliprect.min.x), (int)(cliprect.max.y - cliprect.min.y));
 }
@@ -389,11 +389,11 @@ void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 ///////////////////////// SpriteList::finalise //////////////////////////////
 void SpriteList::finalise(BuildState &state)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
 
   end(context.vulkan, spritecommands);
 
-  state.commandlist = nullptr;
+  state.commandlump = nullptr;
 }

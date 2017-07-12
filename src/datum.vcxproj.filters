@@ -16,9 +16,6 @@
     <ClCompile Include="renderer\casterlist.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="renderer\commandlist.cpp">
-      <Filter>Source Files\renderer</Filter>
-    </ClCompile>
     <ClCompile Include="scene\entity.cpp">
       <Filter>Source Files\scene</Filter>
     </ClCompile>
@@ -109,6 +106,12 @@
     <ClCompile Include="scene\actorcomponent.cpp">
       <Filter>Source Files\scene</Filter>
     </ClCompile>
+    <ClCompile Include="renderer\commandlump.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer\spotmap.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asset.h">
@@ -169,9 +172,6 @@
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
     <ClInclude Include="renderer\casterlist.h">
-      <Filter>Source Files\renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="renderer\commandlist.h">
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
     <ClInclude Include="scene\entity.h">
@@ -266,6 +266,12 @@
     </ClInclude>
     <ClInclude Include="scene\actorcomponent.h">
       <Filter>Source Files\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\commandlump.h">
+      <Filter>Source Files\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\spotmap.h">
+      <Filter>Source Files\renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

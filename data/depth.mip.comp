@@ -1,20 +1,55 @@
 #version 440 core
+#include "gbuffer.glsl"
 
 layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x_id = 1, local_size_y_id = 2) in;
+
+layout(constant_id = 23) const int DepthMipLayer = 0;
+
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+
+} scene;
 
 layout(set=0, binding=5) uniform sampler2D depthmap;
+layout(set=0, binding=6) uniform sampler2D depthmipmap;
 
-layout(set=3, binding=1) writeonly uniform image2D dest;
+layout(set=3, binding=1) writeonly uniform image2D dest[6];
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 { 
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+ 
+  if (DepthMipLayer == 0)
+  {
+    ivec2 viewport = textureSize(depthmap, 0).xy;
   
-  float depth0 = texelFetch(depthmap, 2*xy, 0).r;
-  float depth1 = texelFetch(depthmap, 2*xy + ivec2(1, 0), 0).r;
-  float depth2 = texelFetch(depthmap, 2*xy + ivec2(0, 1), 0).r;
-  float depth3 = texelFetch(depthmap, 2*xy + ivec2(1, 1), 0).r;
+    float depth0 = texelFetch(depthmap, clamp(2*xy, ivec2(0), viewport-1), 0).r;
+    float depth1 = texelFetch(depthmap, clamp(2*xy + ivec2(1, 0), ivec2(0), viewport-1), 0).r;
+    float depth2 = texelFetch(depthmap, clamp(2*xy + ivec2(0, 1), ivec2(0), viewport-1), 0).r;
+    float depth3 = texelFetch(depthmap, clamp(2*xy + ivec2(1, 1), ivec2(0), viewport-1), 0).r;
+  
+    float mindepth = view_depth(scene.proj, min(min(depth0, depth1), min(depth2, depth3)));
+    float maxdepth = view_depth(scene.proj, max(max(depth0, depth1), max(depth2, depth3)));
 
-  imageStore(dest, xy, vec4(min(min(depth0, depth1), min(depth2, depth3)), 0, 0, 0)); 
+    imageStore(dest[0], xy, vec4(mindepth, maxdepth, 0, 0));     
+  }
+
+  if (DepthMipLayer > 0)
+  {
+    vec2 depth0 = texelFetch(depthmipmap, 2*xy, DepthMipLayer-1).rg;
+    vec2 depth1 = texelFetch(depthmipmap, 2*xy + ivec2(1, 0), DepthMipLayer-1).rg;
+    vec2 depth2 = texelFetch(depthmipmap, 2*xy + ivec2(0, 1), DepthMipLayer-1).rg;
+    vec2 depth3 = texelFetch(depthmipmap, 2*xy + ivec2(1, 1), DepthMipLayer-1).rg;
+  
+    float mindepth = min(min(depth0.r, depth1.r), min(depth2.r, depth3.r));
+    float maxdepth = max(max(depth0.g, depth1.g), max(depth2.g, depth3.g));
+
+    imageStore(dest[DepthMipLayer], xy, vec4(mindepth, maxdepth, 0, 0)); 
+  }
 }

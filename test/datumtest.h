@@ -51,12 +51,18 @@ struct GameState
   ResourceManager resources;
 
   RenderContext rendercontext;
+  SpotMapContext spotmapcontext;
 
   Scene scene;
 
   Mesh const *testplane;
   Mesh const *testsphere;
   Sprite const *testimage;
+
+  Transform testspotview;
+  SpotMap const *testspotcaster;
+
+  Material const *oceanmaterial;
 
   Mesh const *suzanne;
   unique_resource<Material> suzannematerial;

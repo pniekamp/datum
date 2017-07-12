@@ -368,7 +368,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 
   vkGetPhysicalDeviceMemoryProperties(physicaldevice, &physicaldevicememoryproperties);
 
-  const char* deviceextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME };
+  const char* deviceextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
   VkPhysicalDeviceFeatures devicefeatures = {};
   devicefeatures.shaderClipDistance = true;

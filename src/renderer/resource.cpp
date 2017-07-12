@@ -15,7 +15,6 @@
 #include "debug.h"
 
 using namespace std;
-using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
@@ -298,12 +297,21 @@ void ResourceManager::release_lump(TransferLump const *lump)
 }
 
 
-///////////////////////// ResourceManager::submit_transfer //////////////////
-void ResourceManager::submit_transfer(TransferLump const *lump)
+///////////////////////// ResourceManager::submit ///////////////////////////
+void ResourceManager::submit(TransferLump const *lump)
 {
   leap::threadlib::SyncLock lock(m_mutex);
 
-  submit(vulkan, lump->commandbuffer, lump->fence);
+  Vulkan::submit(vulkan, lump->commandbuffer, lump->fence);
+}
+
+
+///////////////////////// ResourceManager::submit ///////////////////////////
+void ResourceManager::submit(VkCommandBuffer setupbuffer, VkFence fence)
+{
+  leap::threadlib::SyncLock lock(m_mutex);
+
+  Vulkan::submit(vulkan, setupbuffer, fence);
 }
 
 

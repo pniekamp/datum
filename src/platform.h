@@ -164,6 +164,7 @@ namespace DatumPlatform
 
 typedef void (*game_init_t)(DatumPlatform::PlatformInterface &platform);
 typedef void (*game_reinit_t)(DatumPlatform::PlatformInterface &platform);
+typedef void (*game_resize_t)(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 typedef void (*game_update_t)(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt);
 typedef void (*game_render_t)(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 

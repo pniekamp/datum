@@ -137,7 +137,8 @@ class ResourceManager
     size_t m_bufferused;
 #endif
 
-    void submit_transfer(TransferLump const *lump);
+    void submit(TransferLump const *lump);
+    void submit(VkCommandBuffer setupbuffer, VkFence fence);
 
   private:
 

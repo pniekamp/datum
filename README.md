@@ -9,8 +9,9 @@
 - Single Main Directional Lighting
 - Clustered Deferred Based Lighting
 - Main Light Cascaded Shadow Map
+- Spot Light Parabolic Shadow Maps
 - Screen Space Ambient Occlusion (SSAO)
-- Screen Space Reflections (SSR)
+- Hi-Z Screen Space Reflections (SSR)
 - HDR Skybox & Bloom
 - Physically Based Rendering (PBR) & Image Based Lighting (IBL)
 - Particle System

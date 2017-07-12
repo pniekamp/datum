@@ -56,6 +56,10 @@ namespace Vulkan
       case VK_FORMAT_R32G32B32A32_SFLOAT:
         return width * height * 4*sizeof(uint32_t);
 
+      case VK_FORMAT_R32_SFLOAT:
+      case VK_FORMAT_D32_SFLOAT:
+        return width * height * sizeof(uint32_t);
+
       default:
         assert(false); return 0;
     }
@@ -594,11 +598,14 @@ namespace Vulkan
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewinfo.viewType = type;
     viewinfo.format = format;
-    viewinfo.subresourceRange = { (VkImageAspectFlags)((usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT), 0, levels, 0, layers };
+    viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
     viewinfo.image = texture.image;
 
+    if (format == VK_FORMAT_D16_UNORM || format == VK_FORMAT_D32_SFLOAT)
+      viewinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
     if (format == VK_FORMAT_D16_UNORM_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT)
-      viewinfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+      viewinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
     texture.imageview = create_imageview(vulkan, viewinfo);
 
