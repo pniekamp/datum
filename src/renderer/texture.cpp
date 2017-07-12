@@ -134,23 +134,19 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
       break;
   }
 
-  {
-    leap::threadlib::SyncLock lock(m_mutex);
+  auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+  auto setupfence = create_fence(vulkan, 0);
 
-    auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-    auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    auto setupfence = create_fence(vulkan, 0);
+  begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  texture->texture = create_texture(vulkan, setupbuffer, width, height, layers, levels, vkformat);
 
-    texture->texture = create_texture(vulkan, setupbuffer, width, height, layers, levels, vkformat);
+  end(vulkan, setupbuffer);
 
-    end(vulkan, setupbuffer);
+  submit(setupbuffer, setupfence);
 
-    submit(vulkan, setupbuffer, setupfence);
-
-    wait_fence(vulkan, setupfence);
-  }
+  wait_fence(vulkan, setupfence);
 
   texture->state = Texture::State::Ready;
 
@@ -182,7 +178,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 
   end(vulkan, lump->commandbuffer);
 
-  submit_transfer(lump);
+  submit(lump);
 
   while (!test_fence(vulkan, lump->fence))
     ;
@@ -260,7 +256,7 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
 
           end(vulkan, lump->commandbuffer);
 
-          submit_transfer(lump);
+          submit(lump);
 
           slot->transferlump = lump;
         }

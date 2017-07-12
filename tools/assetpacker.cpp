@@ -166,6 +166,10 @@ uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t h
       datasize += image_datasize_bc3(width, height, layers, levels);
       break;
 
+    case PackImageHeader::depth:
+      datasize += image_datasize(width, height, layers, levels);
+      break;
+
     default:
       assert(false);
   }

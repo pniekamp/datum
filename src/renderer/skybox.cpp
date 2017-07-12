@@ -119,28 +119,35 @@ void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 //|---------------------- SkyBoxRenderer ------------------------------------
 //|--------------------------------------------------------------------------
 
+///////////////////////// initialise_skybox_context //////////////////////////
+void initialise_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxContext &context, uint32_t queueindex)
+{
+  //
+  // Vulkan Device
+  //
+
+  auto renderdevice = platform.render_device();
+
+  initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
+
+  context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+  context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+  context.fence = create_fence(context.vulkan);
+
+}
+
 ///////////////////////// prepare_skybox_context ////////////////////////////
-bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager &assets, uint32_t queueindex)
+bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxContext &context, AssetManager &assets)
 {
   if (context.ready)
     return true;
 
-  if (context.vulkan == 0)
+  assert(context.vulkan);
+
+  if (context.descriptorpool == 0)
   {
-    //
-    // Vulkan Device
-    //
-
-    auto renderdevice = platform.render_device();
-
-    initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
-
-    context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-
-    context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-
-    context.fence = create_fence(context.vulkan);
-
     // DescriptorPool
 
     VkDescriptorPoolSize typecounts[2] = {};
@@ -157,7 +164,10 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxCo
     descriptorpoolinfo.pPoolSizes = typecounts;
 
     context.descriptorpool = create_descriptorpool(context.vulkan, descriptorpoolinfo);
+  }
 
+  if (context.pipelinecache == 0)
+  {
     // PipelineCache
 
     VkPipelineCacheCreateInfo pipelinecacheinfo = {};
@@ -286,11 +296,12 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxCo
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams const &params)
+void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams const &params)
 { 
   using namespace Vulkan;
 
   assert(context.ready);
+  assert(target->ready());
 
   SkyboxSet skyboxset;
   skyboxset.skycolor = params.skycolor;
@@ -314,7 +325,7 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   auto &commandbuffer = context.commandbuffer;
 
-  bind_image(context.vulkan, context.skyboxdescriptor, 1, skybox->texture);
+  bind_image(context.vulkan, context.skyboxdescriptor, 1, target->texture);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -324,9 +335,9 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(skyboxset), &skyboxset, VK_SHADER_STAGE_COMPUTE_BIT);
 
-  setimagelayout(commandbuffer, skybox->texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, skybox->texture.levels, 0, skybox->texture.layers });
+  setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, target->texture.levels, 0, target->texture.layers });
 
-  dispatch(commandbuffer, skybox->texture.width/16, skybox->texture.height/16, 1);
+  dispatch(commandbuffer, target->texture.width/16, target->texture.height/16, 1);
 
   bind_pipeline(commandbuffer, context.convolvepipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -344,13 +355,13 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
       VkImageViewCreateInfo viewinfo = {};
       viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       viewinfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-      viewinfo.format = skybox->texture.format;
+      viewinfo.format = target->texture.format;
       viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 };
-      viewinfo.image = skybox->texture.image;
+      viewinfo.image = target->texture.image;
 
       context.convolveimageviews[level] = create_imageview(context.vulkan, viewinfo);
 
-      bind_texture(context.vulkan, context.convolvedescriptors[level], 0, skybox->texture.imageview, skybox->texture.sampler, VK_IMAGE_LAYOUT_GENERAL);
+      bind_texture(context.vulkan, context.convolvedescriptors[level], 0, target->texture.imageview, target->texture.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
       bind_image(context.vulkan, context.convolvedescriptors[level], 1, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 
@@ -358,15 +369,15 @@ void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams co
 
       push(commandbuffer, context.pipelinelayout, 0, sizeof(convolveset), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
 
-      dispatch(commandbuffer, (skybox->texture.width + 15)/16, (skybox->texture.height + 15)/16, 1);
+      dispatch(commandbuffer, (target->texture.width + 15)/16, (target->texture.height + 15)/16, 1);
     }
   }
   else
   {
-    mip(commandbuffer, skybox->texture.image, skybox->texture.width, skybox->texture.height, skybox->texture.layers, skybox->texture.levels);
+    mip(commandbuffer, target->texture.image, target->texture.width, target->texture.height, target->texture.layers, target->texture.levels);
   }
 
-  setimagelayout(commandbuffer, skybox->texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, skybox->texture.levels, 0, skybox->texture.layers });
+  setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, target->texture.levels, 0, target->texture.layers });
 
   end(context.vulkan, commandbuffer);
 

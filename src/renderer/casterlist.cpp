@@ -55,7 +55,7 @@ void draw_casters(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 ///////////////////////// CasterList::begin /////////////////////////////////
 bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
-  m_commandlist = {};
+  m_commandlump = {};
 
   state = {};
   state.context = &context;
@@ -64,16 +64,16 @@ bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManage
   if (!context.ready)
     return false;
 
-  auto commandlist = resources.allocate<CommandList>(&context);
+  auto commandlump = resources.allocate<CommandLump>(&context);
 
-  if (!commandlist)
+  if (!commandlump)
     return false;
 
-  castercommands = commandlist->allocate_commandbuffer();
+  castercommands = commandlump->allocate_commandbuffer();
 
   if (!castercommands)
   {
-    resources.destroy(commandlist);
+    resources.destroy(commandlump);
     return false;
   }
 
@@ -83,9 +83,9 @@ bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManage
 
   bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  m_commandlist = { resources, commandlist };
+  m_commandlump = { resources, commandlump };
 
-  state.commandlist = commandlist;
+  state.commandlump = commandlump;
 
   return true;
 }
@@ -94,12 +94,12 @@ bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManage
 ///////////////////////// CasterList::push_mesh /////////////////////////////
 void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.pipeline != context.modelshadowpipeline)
   {
@@ -117,7 +117,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -133,7 +133,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -154,12 +154,12 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Mesh c
 ///////////////////////// CasterList::push_mesh /////////////////////////////
 void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose const &pose, Mesh const *mesh, Material const *material)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.pipeline != context.actorshadowpipeline)
   {
@@ -178,7 +178,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 
   if (state.material != material)
   {
-    state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -194,7 +194,7 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 
   if (state.modelset.available() < sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -217,11 +217,11 @@ void CasterList::push_mesh(BuildState &state, Transform const &transform, Pose c
 ///////////////////////// CasterList::finalise //////////////////////////////
 void CasterList::finalise(BuildState &state)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
 
   end(context.vulkan, castercommands);
 
-  state.commandlist = nullptr;
+  state.commandlump = nullptr;
 }

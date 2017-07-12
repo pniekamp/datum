@@ -10,9 +10,9 @@
 
 #include "renderer.h"
 #include "resource.h"
-#include "commandlist.h"
 #include "mesh.h"
 #include "material.h"
+#include "commandlump.h"
 #include <utility>
 
 //|---------------------- OverlayList ---------------------------------------
@@ -24,7 +24,7 @@ class OverlayList
 
     VkCommandBuffer overlaycommands;
 
-    operator bool() const { return m_commandlist; }
+    operator bool() const { return m_commandlump; }
 
   public:
 
@@ -37,11 +37,11 @@ class OverlayList
       RenderContext *context;
       ResourceManager *resources;
 
-      CommandList::Descriptor materialset;
+      CommandLump::Descriptor materialset;
 
-      CommandList::Descriptor modelset;
+      CommandLump::Descriptor modelset;
 
-      CommandList *commandlist = nullptr;
+      CommandLump *commandlump = nullptr;
     };
 
     bool begin(BuildState &state, RenderContext &context, ResourceManager &resources);
@@ -72,5 +72,5 @@ class OverlayList
 
   private:
 
-    unique_resource<CommandList> m_commandlist;
+    unique_resource<CommandLump> m_commandlump;
 };

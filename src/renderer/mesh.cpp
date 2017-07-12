@@ -107,23 +107,19 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
   mesh->transferlump = nullptr;
   mesh->state = Mesh::State::Empty;
 
-  {
-    leap::threadlib::SyncLock lock(m_mutex);
+  auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+  auto setupfence = create_fence(vulkan, 0);
 
-    auto setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-    auto setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    auto setupfence = create_fence(vulkan, 0);
+  begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  mesh->vertexbuffer = create_vertexbuffer(vulkan, setupbuffer, vertexcount, sizeof(Mesh::Vertex), indexcount, sizeof(uint32_t));
 
-    mesh->vertexbuffer = create_vertexbuffer(vulkan, setupbuffer, vertexcount, sizeof(Mesh::Vertex), indexcount, sizeof(uint32_t));
+  end(vulkan, setupbuffer);
 
-    end(vulkan, setupbuffer);
+  submit(setupbuffer, setupfence);
 
-    submit(vulkan, setupbuffer, setupfence);
-
-    wait_fence(vulkan, setupfence);
-  }
+  wait_fence(vulkan, setupfence);
 
   mesh->state = Mesh::State::Ready;
 
@@ -155,7 +151,7 @@ void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLu
 
   end(vulkan, lump->commandbuffer);
 
-  submit_transfer(lump);
+  submit(lump);
 
   while (!test_fence(vulkan, lump->fence))
     ;
@@ -227,7 +223,7 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
           end(vulkan, lump->commandbuffer);
 
-          submit_transfer(lump);
+          submit(lump);
 
           slot->transferlump = lump;
 

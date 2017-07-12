@@ -7,8 +7,6 @@
 //
 
 #include "renderer.h"
-#include "commandlist.h"
-#include "lightlist.h"
 #include "corepack.h"
 #include "assetpack.h"
 #include <leap.h>
@@ -99,6 +97,8 @@ enum ShaderLocation
   BloomBlurRadius = 84,
   BloomBlurSigma = 85,
 
+  DepthMipLayer = 23,
+
   SoftParticles = 28,
 };
 
@@ -125,6 +125,7 @@ struct SpotLight
   alignas(16) Vec4 attenuation;
   alignas(16) Vec3 direction;
   alignas( 4) float cutoff;
+  alignas(16) Transform shadowview;
 };
 
 struct Environment
@@ -228,6 +229,8 @@ static struct ComputeConstants
 
   uint32_t One = 1;
   uint32_t Two = 2;
+
+  uint32_t Layers[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
 } computeconstants;
 
@@ -342,7 +345,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     typecounts[1].descriptorCount = 128;
     typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    typecounts[2].descriptorCount = 16;
+    typecounts[2].descriptorCount = 24;
     typecounts[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
     typecounts[3].descriptorCount = 4;
 
@@ -505,7 +508,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[1].binding = ShaderLocation::depthmiptarget;
     bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[1].descriptorCount = 1;
+    bindings[1].descriptorCount = 6;
     bindings[2].binding = ShaderLocation::depthattachment;
     bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -1648,7 +1651,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.actorgeometrypipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
-  if (context.depthmippipeline == 0)
+  if (context.depthmippipeline[0] == 0)
   {
     //
     // Depth Mip Pipeline
@@ -1668,15 +1671,30 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
-    VkComputePipelineCreateInfo pipelineinfo = {};
-    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    pipelineinfo.layout = context.pipelinelayout;
-    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    pipelineinfo.stage.module = csmodule;
-    pipelineinfo.stage.pName = "main";
+    for(size_t i = 0; i < extentof(context.depthmippipeline); ++i)
+    {
+      VkSpecializationMapEntry specializationmap[3] = {};
+      specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, DepthMipDispatch[0]), sizeof(ComputeConstants::DepthMipDispatch[0]) };
+      specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, DepthMipDispatch[1]), sizeof(ComputeConstants::DepthMipDispatch[1]) };
+      specializationmap[2] = { ShaderLocation::DepthMipLayer, uint32_t(offsetof(ComputeConstants, Layers) + i*sizeof(uint32_t)), sizeof(uint32_t) };
 
-    context.depthmippipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+      VkSpecializationInfo specializationinfo = {};
+      specializationinfo.mapEntryCount = extentof(specializationmap);
+      specializationinfo.pMapEntries = specializationmap;
+      specializationinfo.dataSize = sizeof(computeconstants);
+      specializationinfo.pData = &computeconstants;
+
+      VkComputePipelineCreateInfo pipelineinfo = {};
+      pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+      pipelineinfo.layout = context.pipelinelayout;
+      pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+      pipelineinfo.stage.module = csmodule;
+      pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+      pipelineinfo.stage.pName = "main";
+
+      context.depthmippipeline[i] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+    }
   }
 
   if (context.lightingpipeline == 0)
@@ -1783,6 +1801,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkPipelineDepthStencilStateCreateInfo depthstate = {};
     depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_FALSE;
     depthstate.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
     VkPipelineViewportStateCreateInfo viewport = {};
@@ -3804,6 +3823,8 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     if (context.width != params.width || context.height != params.height || context.scale != params.scale || context.aspect != params.aspect)
     {
+      release_render_pipeline(context);
+
       context.width = params.width;
       context.height = params.height;
       context.scale = params.scale;
@@ -3858,8 +3879,6 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
       context.colorbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-      clear(setupbuffer, context.colorbuffer.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(0.0, 0.0, 0.0, 0.0));
-
       //
       // Geometry Attachment
       //
@@ -3885,7 +3904,25 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
       context.depthbuffer.sampler = create_sampler(context.vulkan, depthsamplerinfo);
 
-      context.depthmipbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      // Depth Hi-Z
+
+      uint32_t depthlayers = 6;
+
+      context.depthmipbuffer = create_texture(context.vulkan, setupbuffer, ((context.fbowidth >> depthlayers) + 1) << (depthlayers-1), ((context.fboheight >> depthlayers) + 1) << (depthlayers-1), 1, depthlayers, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_LAYOUT_GENERAL);
+
+      for(uint32_t i = 0; i < depthlayers; ++i)
+      {
+        assert(i < extentof(context.depthmipviews));
+
+        VkImageViewCreateInfo viewinfo = {};
+        viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewinfo.format = VK_FORMAT_R16G16_SFLOAT;
+        viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, i, 1, 0, 1};
+        viewinfo.image = context.depthmipbuffer.image;
+
+        context.depthmipviews[i] = create_imageview(context.vulkan, viewinfo);
+      }
 
       //
       // Prepass Frame Buffer
@@ -3990,7 +4027,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     bind_texture(context.vulkan, context.scenedescriptor, ShaderLocation::specularmap, context.specularbuffer);
     bind_texture(context.vulkan, context.scenedescriptor, ShaderLocation::normalmap, context.normalbuffer);
     bind_texture(context.vulkan, context.scenedescriptor, ShaderLocation::depthmap, context.depthbuffer);
-    bind_texture(context.vulkan, context.scenedescriptor, ShaderLocation::depthmipmap, context.depthmipbuffer);
+    bind_texture(context.vulkan, context.scenedescriptor, ShaderLocation::depthmipmap, context.depthmipbuffer.imageview, context.depthmipbuffer.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
     //
     // Frame Descriptor
@@ -4002,7 +4039,12 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       context.framedescriptors[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.framesetlayout);
 
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::colortarget, context.colorbuffer);
-      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipbuffer);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[0], VK_IMAGE_LAYOUT_GENERAL, 0);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[1], VK_IMAGE_LAYOUT_GENERAL, 1);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[2], VK_IMAGE_LAYOUT_GENERAL, 2);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[3], VK_IMAGE_LAYOUT_GENERAL, 3);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[4], VK_IMAGE_LAYOUT_GENERAL, 4);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[5], VK_IMAGE_LAYOUT_GENERAL, 5);
       bind_attachment(context.vulkan, context.framedescriptors[i], ShaderLocation::depthattachment, context.depthbuffer.imageview, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
       bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[i]);
@@ -4025,19 +4067,36 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     }
 
 #if 1 // Shut up the validation layer on unused maps
-    VkDescriptorImageInfo imageinfos[8] = {};
+    VkDescriptorImageInfo envmapinfos[8] = {};
 
     auto tmp = create_texture(context.vulkan, setupbuffer, 1, 1, 6, 1, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    for(size_t i = 0; i < extentof(imageinfos); ++i)
+    for(size_t i = 0; i < extentof(envmapinfos); ++i)
     {
-      imageinfos[i].sampler = tmp.sampler;
-      imageinfos[i].imageView = tmp.imageview;
-      imageinfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      envmapinfos[i].sampler = tmp.sampler;
+      envmapinfos[i].imageView = tmp.imageview;
+      envmapinfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
 
-    bind_texture(context.vulkan, context.framedescriptors[0], ShaderLocation::envmaps, imageinfos, extentof(imageinfos));
-    bind_texture(context.vulkan, context.framedescriptors[1], ShaderLocation::envmaps, imageinfos, extentof(imageinfos));
+    bind_texture(context.vulkan, context.framedescriptors[0], ShaderLocation::envmaps, envmapinfos, extentof(envmapinfos));
+    bind_texture(context.vulkan, context.framedescriptors[1], ShaderLocation::envmaps, envmapinfos, extentof(envmapinfos));
+
+    tmp.image.release();
+    tmp.sampler.release();
+    tmp.imageview.release();
+
+    tmp = create_texture(context.vulkan, setupbuffer, 1, 1, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    VkDescriptorImageInfo spotmapinfos[16] = {};
+    for(size_t i = 0; i < extentof(spotmapinfos); ++i)
+    {
+      spotmapinfos[i].sampler = tmp.sampler;
+      spotmapinfos[i].imageView = tmp.imageview;
+      spotmapinfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+
+    bind_texture(context.vulkan, context.framedescriptors[0], ShaderLocation::spotmaps, spotmapinfos, extentof(spotmapinfos));
+    bind_texture(context.vulkan, context.framedescriptors[1], ShaderLocation::spotmaps, spotmapinfos, extentof(spotmapinfos));
 
     tmp.image.release();
     tmp.sampler.release();
@@ -4081,8 +4140,17 @@ void release_render_pipeline(RenderContext &context)
   context.geometryframebuffer = {};
   context.forwardframebuffer = {};
 
+  context.frameimages[0] = {};
+  context.frameimages[1] = {};
+  context.frameimages[2] = {};
+
+  context.frameviews[0] = {};
+  context.frameviews[1] = {};
+  context.frameviews[2] = {};
+
   context.framebuffers[0] = {};
   context.framebuffers[1] = {};
+  context.framebuffers[2] = {};
 
   context.scratchbuffers[0] = {};
   context.scratchbuffers[1] = {};
@@ -4180,7 +4248,8 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   sceneset.pointlightcount = 0;
   sceneset.spotlightcount = 0;
 
-  VkDescriptorImageInfo imageinfos[8] = {};
+  VkDescriptorImageInfo envmapinfos[extentof(sceneset.environments)] = {};
+  VkDescriptorImageInfo spotmapinfos[extentof(sceneset.spotlights)] = {};
 
   for(auto &renderable : renderables)
   {
@@ -4206,6 +4275,11 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
         sceneset.spotlights[sceneset.spotlightcount].attenuation.w = params.lightfalloff * lights->spotlights[i].attenuation.w;
         sceneset.spotlights[sceneset.spotlightcount].direction = lights->spotlights[i].direction;
         sceneset.spotlights[sceneset.spotlightcount].cutoff = lights->spotlights[i].cutoff;
+        sceneset.spotlights[sceneset.spotlightcount].shadowview = inverse(lights->spotlights[i].shadowview);
+
+        spotmapinfos[sceneset.spotlightcount].sampler = lights->spotlights[i].shadowmap->texture.sampler;
+        spotmapinfos[sceneset.spotlightcount].imageView = lights->spotlights[i].shadowmap->texture.imageview;
+        spotmapinfos[sceneset.spotlightcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         ++sceneset.spotlightcount;
       }
@@ -4214,9 +4288,9 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
       {
         assert(lights->environments[i].envmap && lights->environments[i].envmap->ready());
 
-        imageinfos[sceneset.environmentcount].sampler = lights->environments[i].envmap->texture.sampler;
-        imageinfos[sceneset.environmentcount].imageView = lights->environments[i].envmap->texture.imageview;
-        imageinfos[sceneset.environmentcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        envmapinfos[sceneset.environmentcount].sampler = lights->environments[i].envmap->texture.sampler;
+        envmapinfos[sceneset.environmentcount].imageView = lights->environments[i].envmap->texture.imageview;
+        envmapinfos[sceneset.environmentcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         sceneset.environments[sceneset.environmentcount].halfdim = lights->environments[i].dimension/2;
         sceneset.environments[sceneset.environmentcount].invtransform = inverse(lights->environments[i].transform);
@@ -4230,9 +4304,9 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   {
     assert(params.skybox->ready());
 
-    imageinfos[sceneset.environmentcount].sampler = params.skybox->texture.sampler;
-    imageinfos[sceneset.environmentcount].imageView = params.skybox->texture.imageview;
-    imageinfos[sceneset.environmentcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    envmapinfos[sceneset.environmentcount].sampler = params.skybox->texture.sampler;
+    envmapinfos[sceneset.environmentcount].imageView = params.skybox->texture.imageview;
+    envmapinfos[sceneset.environmentcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     sceneset.environments[sceneset.environmentcount].halfdim = Vec3(1e5f, 1e5f, 1e5f);
     sceneset.environments[sceneset.environmentcount].invtransform = inverse(params.skyboxorientation);
@@ -4240,12 +4314,67 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
     sceneset.environmentcount += 1;
   }
 
+  if (sceneset.spotlightcount != 0)
+  {
+    bind_texture(context.vulkan, context.framedescriptors[context.frame & 1], ShaderLocation::spotmaps, spotmapinfos, sceneset.spotlightcount);
+  }
+
   if (sceneset.environmentcount != 0)
   {
-    bind_texture(context.vulkan, context.framedescriptors[context.frame & 1], ShaderLocation::envmaps, imageinfos, sceneset.environmentcount);
+    bind_texture(context.vulkan, context.framedescriptors[context.frame & 1], ShaderLocation::envmaps, envmapinfos, sceneset.environmentcount);
   }
 
   update(context.commandbuffers[context.frame & 1], context.sceneset, 0, sizeof(SceneSet), &sceneset);
+}
+
+
+///////////////////////// prepare_framebuffer ///////////////////////////////
+void prepare_framebuffer(RenderContext &context, DatumPlatform::Viewport const &viewport)
+{
+  auto &frameimage = context.frameimages[context.frame & 1];
+  auto &frameimageview = context.frameviews[context.frame & 1];
+  auto &framebuffer = context.framebuffers[context.frame & 1];
+
+  if (frameimage != viewport.image)
+  {
+    swap(frameimage, context.frameimages[2]);
+    swap(frameimageview, context.frameviews[2]);
+    swap(framebuffer, context.framebuffers[2]);
+
+    if (frameimage != viewport.image)
+    {
+      framebuffer = {};
+
+      if (viewport.image)
+      {
+        VkImageViewCreateInfo frameviewinfo = {};
+        frameviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        frameviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        frameviewinfo.format = VK_FORMAT_B8G8R8A8_SRGB;
+        frameviewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+        frameviewinfo.image = viewport.image;
+
+        frameimageview = create_imageview(context.vulkan, frameviewinfo);
+
+        VkImageView frameimages[2] = {};
+        frameimages[0] = frameimageview;
+        frameimages[1] = context.depthstencil.imageview;
+
+        VkFramebufferCreateInfo framebufferinfo = {};
+        framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferinfo.renderPass = context.overlaypass;
+        framebufferinfo.attachmentCount = extentof(frameimages);
+        framebufferinfo.pAttachments = frameimages;
+        framebufferinfo.width = context.width;
+        framebufferinfo.height = context.height;
+        framebufferinfo.layers = 1;
+
+        framebuffer = create_framebuffer(context.vulkan, framebufferinfo);
+      }
+
+      frameimage = viewport.image;
+    }
+  }
 }
 
 
@@ -4306,6 +4435,10 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   context.proj = camera.proj();
   context.view = camera.view();
 
+  prepare_framebuffer(context, viewport);
+
+  auto &framebuffer = context.framebuffers[context.frame & 1];
+
   auto &commandbuffer = context.commandbuffers[context.frame & 1];
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -4332,7 +4465,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   end(context.vulkan, skyboxcommands);
 
   auto &compositecommands = context.compositecommands[context.frame & 1];
-  begin(context.vulkan, compositecommands, 0, context.overlaypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  begin(context.vulkan, compositecommands, framebuffer, context.overlaypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
   bind_pipeline(compositecommands, context.compositepipeline, context.fbox, context.fboy, context.width-2*context.fbox, context.height-2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
   bind_descriptor(compositecommands, context.pipelinelayout, ShaderLocation::sceneset, scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
   bind_descriptor(compositecommands, context.pipelinelayout, ShaderLocation::frameset, framedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -4392,9 +4525,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.prepass);
 
-  bind_pipeline(commandbuffer, context.depthmippipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_pipeline(commandbuffer, context.depthmippipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  dispatch(commandbuffer, context.depthmipbuffer, computeconstants.DepthMipDispatch);
+  dispatch(commandbuffer, context.fbowidth/2, context.fboheight/2, 1, computeconstants.DepthMipDispatch);
 
   querytimestamp(commandbuffer, context.timingquerypool, 2);
 
@@ -4500,6 +4633,15 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   if (params.ssrstrength != 0)
   {
+    for(int i = 0; i < 6; ++i)
+    {
+      bind_pipeline(commandbuffer, context.depthmippipeline[i], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+      dispatch(commandbuffer, context.depthmipbuffer.width >> i, context.depthmipbuffer.height >> i, 1, computeconstants.DepthMipDispatch);
+
+      setimagelayout(commandbuffer, context.depthmipbuffer.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+    }
+
     bind_pipeline(commandbuffer, context.ssrpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
     dispatch(commandbuffer, context.scratchbuffers[2], computeconstants.SSRDispatch);
@@ -4544,33 +4686,6 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   if (viewport.image)
   {
-    auto &frameimage = context.frameimages[context.frame & 1];
-    auto &framebuffer = context.framebuffers[context.frame & 1];
-
-    VkImageViewCreateInfo frameviewinfo = {};
-    frameviewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    frameviewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    frameviewinfo.format = VK_FORMAT_B8G8R8A8_SRGB;
-    frameviewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-    frameviewinfo.image = viewport.image;
-
-    frameimage = create_imageview(context.vulkan, frameviewinfo);
-
-    VkImageView frameimages[2] = {};
-    frameimages[0] = frameimage;
-    frameimages[1] = context.depthstencil.imageview;
-
-    VkFramebufferCreateInfo framebufferinfo = {};
-    framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferinfo.renderPass = context.overlaypass;
-    framebufferinfo.attachmentCount = extentof(frameimages);
-    framebufferinfo.pAttachments = frameimages;
-    framebufferinfo.width = context.width;
-    framebufferinfo.height = context.height;
-    framebufferinfo.layers = 1;
-
-    framebuffer = create_framebuffer(context.vulkan, framebufferinfo);
-
     transition_acquire(commandbuffer, viewport.image);
 
     beginpass(commandbuffer, context.overlaypass, framebuffer, 0, 0, context.width, context.height, 2, &clearvalues[2]);
@@ -4630,10 +4745,10 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   GPU_TIMED_BLOCK(Cluster, Color3(0.5f, 0.5f, 0.1f), timings[3], timings[4])
   GPU_TIMED_BLOCK(SSAO, Color3(0.2f, 0.8f, 0.2f), timings[4], timings[5])
   GPU_TIMED_BLOCK(Lighting, Color3(0.0f, 0.6f, 0.4f), timings[5], timings[6])
-  GPU_TIMED_BLOCK(Forward, Color3(0.0f, 0.4f, 0.8f), timings[6], timings[7])
-  GPU_TIMED_BLOCK(SSR, Color3(0.2f, 0.4f, 0.8f), timings[7], timings[8])
+  GPU_TIMED_BLOCK(Forward, Color3(0.2f, 0.3f, 0.6f), timings[6], timings[7])
+  GPU_TIMED_BLOCK(SSR, Color3(0.0f, 0.4f, 0.8f), timings[7], timings[8])
   GPU_TIMED_BLOCK(Luminance, Color3(0.8f, 0.4f, 0.2f), timings[8], timings[9])
-  GPU_TIMED_BLOCK(Bloom, Color3(0.2f, 0.2f, 0.6f), timings[9], timings[10])
+  GPU_TIMED_BLOCK(Bloom, Color3(0.5f, 0.2f, 0.6f), timings[9], timings[10])
   GPU_TIMED_BLOCK(Overlay, Color3(0.4f, 0.4f, 0.0f), timings[10], timings[11])
 
   GPU_SUBMIT();

@@ -31,7 +31,7 @@ class SkyBox : public EnvMap
 //|---------------------- SkyBoxRenderer ------------------------------------
 //|--------------------------------------------------------------------------
 
-struct SkyboxContext
+struct SkyBoxContext
 {
   bool ready = false;
 
@@ -58,7 +58,7 @@ struct SkyboxContext
   Vulkan::Fence fence;
 };
 
-struct SkyboxParams
+struct SkyBoxParams
 {
   lml::Color3 skycolor = { 0.650f, 0.570f, 0.475f };
   lml::Color3 groundcolor = { 0.41f, 0.41f, 0.4f };
@@ -73,8 +73,11 @@ struct SkyboxParams
   float exposure = 1.0f;
 };
 
+// Initialise
+void initialise_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxContext &context, uint32_t queueindex);
+
 // Prepare
-bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyboxContext &context, AssetManager &assets, uint32_t queueindex);
+bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxContext &context, AssetManager &assets);
 
 // Render
-void render_skybox(SkyboxContext &context, SkyBox const *skybox, SkyboxParams const &params);
+void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams const &params);

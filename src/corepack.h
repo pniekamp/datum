@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 28;
+  const uint32_t version = 29;
 
   enum
   {
@@ -29,16 +29,18 @@ namespace CoreAsset
     line_cube,
     line_cone,
     cluster_comp,
-    shadow_geom,
-    shadow_frag,
     prepass_frag,
     geometry_frag,
+    shadow_geom,
+    shadow_frag,
     model_shadow_vert,
     model_prepass_vert,
     model_geometry_vert,
+    model_spotmap_vert,
     actor_shadow_vert,
     actor_prepass_vert,
     actor_geometry_vert,
+    actor_spotmap_vert,
     depth_mip_comp,
     ssao_comp,
     envbrdf_lut,
@@ -85,6 +87,9 @@ namespace CoreAsset
     outline_frag,
     convolve_comp,
     skybox_gen_comp,
+    spotmap_src_vert,
+    spotmap_src_frag,
+    spotmap_frag,
     ocean_sim_comp,
     ocean_fftx_comp,
     ocean_ffty_comp,

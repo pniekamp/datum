@@ -77,6 +77,7 @@ void datumtest_init(PlatformInterface &platform)
   initialise_resource_system(platform, state.resources, 2*1024*1024, 8*1024*1024, 64*1024*1024, 1);
 
   initialise_render_context(platform, state.rendercontext, 16*1024*1024, 0);
+  initialise_spotmap_context(platform, state.spotmapcontext, 0);
 
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 
@@ -85,6 +86,7 @@ void datumtest_init(PlatformInterface &platform)
   state.scene.initialise_component_storage<SpriteComponent>();
   state.scene.initialise_component_storage<MeshComponent>();
   state.scene.initialise_component_storage<ActorComponent>();
+  state.scene.initialise_component_storage<SpotLightComponent>();
   state.scene.initialise_component_storage<PointLightComponent>();
   state.scene.initialise_component_storage<ParticleSystemComponent>();
 
@@ -116,6 +118,12 @@ void datumtest_init(PlatformInterface &platform)
   state.suzanne = state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack"));
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
+
+  state.testspotcaster = state.resources.create<SpotMap>(&state.spotmapcontext, 256, 256);
+
+  auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
+  auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::noise_normal), Texture::Format::RGBA);
+  state.oceanmaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.22f, 0.5f, 0.0f, watercolor, (Texture const *)nullptr, waternormal);
 
   ParticleEmitter emitter;
   emitter.duration = 3.0f;
@@ -249,6 +257,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     request(platform, state.resources, state.testplane, &ready, &total);
     request(platform, state.resources, state.testsphere, &ready, &total);
     request(platform, state.resources, state.testimage, &ready, &total);
+    request(platform, state.resources, state.oceanmaterial, &ready, &total);
     request(platform, state.resources, state.testparticlesystem, &ready, &total);
     request(platform, state.resources, state.skybox, &ready, &total);
 
@@ -381,6 +390,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
         state.writeframe->geometry.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
         state.writeframe->geometry.push_mesh(buildstate, Transform::identity(), state.testplane, state.floormaterial);
+//        state.writeframe->geometry.push_ocean(buildstate, Transform::translation(0, 0, 0), state.testplane, state.oceanmaterial, Vec2(0.1), Vec3(1.0f, 1.0f, 0.2f), Plane({ 0, 1, 0 }, -0));
 
         for(auto &entity : state.scene.entities<MeshComponent>())
         {
@@ -403,8 +413,16 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     }
 #endif
 
-#if 1
+#if 0
     {
+      Vec3 location(-5, 5, -3);
+      DEBUG_MENU_VALUE("Spotlight/location", &location, Vec3(-15.0f), Vec3(15.0f));
+
+      Vec3 direction(1, -1, 0);
+      DEBUG_MENU_VALUE("Spotlight/direction", &direction, Vec3(-1.0f), Vec3(1.0f));
+
+      state.testspotview = Transform::lookat(location, location + direction, Vec3(0, 1, 0));
+
       LightList::BuildState buildstate;
 
       if (state.writeframe->lights.begin(buildstate, state.rendercontext, state.resources))
@@ -417,14 +435,13 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
           state.writeframe->lights.push_pointlight(buildstate, transform.world().translation(), light.range(), light.intensity(), light.attenuation());
         }
 
-//        state.writeframe->lights.push_pointlight(buildstate, Vec3(0, 1, 1), 2.0, Color3(8, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
+        state.writeframe->lights.push_pointlight(buildstate, Vec3(0, 1, 1), 2.0, Color3(8, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
 
-//        state.writeframe->lights.push_spotlight(buildstate, Vec3(-5, 5, -3), normalise(Vec3(1, -1, 0)), 0.25f, 12, Color3(0, 8, 0), Attenuation(0.1f, 0.0f, 1.0f));
+        state.writeframe->lights.push_spotlight(buildstate, state.testspotview.translation(), state.testspotview.rotation()*Vec3(0, 0, -1), 0.25f, 12, Color3(0, 8, 0), Attenuation(0.1f, 0.0f, 1.0f), state.testspotview, state.testspotcaster);
 
         state.writeframe->lights.finalise(buildstate);
       }
     }
-
 #endif
 
 #if 0
@@ -630,6 +647,28 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       }
 
       renderlist.push_sprites(sprites);
+    }
+#endif
+
+#if 0
+    {
+      if (prepare_spotmap_context(platform, state.spotmapcontext, state.rendercontext, state.assets))
+      {
+        SpotCasterList casters;
+        SpotCasterList::BuildState buildstate;
+
+        if (casters.begin(buildstate, state.spotmapcontext, state.resources))
+        {
+          casters.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
+
+          casters.finalise(buildstate);
+        }
+
+        SpotMapParams spotparams;
+        spotparams.shadowview = state.testspotview;
+
+        render_spotmap(state.spotmapcontext, state.testspotcaster, casters, spotparams);
+      }
     }
 #endif
 

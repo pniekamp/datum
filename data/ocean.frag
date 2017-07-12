@@ -52,6 +52,9 @@ layout(location=0) out vec4 fragcolor;
 layout(location=1) out vec4 fragspecular;
 layout(location=2) out vec4 fragnormal;
 
+const float FresnelBias = 0.328;
+const float FresnelPower = 5.0;
+
 vec2 dither(vec2 uv)
 {
   return uv + fract(vec2(dot(vec2(171.0, 231.0), gl_FragCoord.st)) / vec2(103.0, 71.0)) / 512.0;
@@ -63,26 +66,22 @@ void main()
   ivec2 xy = ivec2(gl_FragCoord.xy);
   ivec2 viewport = textureSize(colormap, 0).xy;
 
-  float floordepth = texture(depthmipmap, vec2(xy + 0.5)/viewport, 0).r;
-
-  if (floordepth < gl_FragCoord.z)
-    discard;
-
   float bumpscale = mix(1, 32, clamp(0.5*gl_FragCoord.w, 0, 1)) * params.bumpscale.z;
-  float roughness = mix(1, 0, clamp(1.0*gl_FragCoord.w, 0, 1)) * params.roughness;
 
   vec4 bump0 = texture(normalmap, vec3(texcoord*params.bumpscale.xy + params.flow, 0));
   vec4 bump1 = texture(normalmap, vec3(texcoord*params.bumpscale.xy*2.0 + 4.0*params.flow, 0));
   vec4 bump2 = texture(normalmap, vec3(texcoord*params.bumpscale.xy*4.0 + 8.0*params.flow, 0));
 
   vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, bumpscale)); 
-  
   vec3 eyevec = normalize(scene.camera.position - position);
 
-  float dist = view_depth(scene.proj, floordepth) - view_depth(scene.proj, gl_FragCoord.z);
+  float dist = texelFetch(depthmipmap, xy/2, 0).g - view_depth(scene.proj, gl_FragCoord.z);
 
   float scale = 0.05 * dist;
-  float facing = 1 - dot(eyevec, tbnworld[2]);
+  float facing = clamp(1 - dot(eyevec, tbnworld[2]), 0, 1);
+
+  float roughness = mix(1, 0.4, FresnelBias + pow(facing, FresnelPower)) * params.roughness;
+  float reflectivity = mix(1, 0.08, FresnelBias + pow(1 - facing, FresnelPower)) * params.reflectivity;
 
   vec4 color = params.color * textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
 
@@ -93,6 +92,6 @@ void main()
   vec3 shorefoam = (0.25 * texture(albedomap, vec3(texcoord + 2.0*params.flow, 1)).rgb + 0.02) * clamp(height - (dist - params.foamshoreheight) * params.foamshorescale, 0, 1);
 
   fragcolor = vec4(color.rgb + wavefoam + shorefoam, params.emissive);
-  fragspecular = vec4(vec3(0.16 * facing * params.reflectivity), roughness);
+  fragspecular = vec4(vec3(reflectivity), roughness);
   fragnormal = vec4(0.5 * normal + 0.5, 1);
 }

@@ -10,9 +10,9 @@
 
 #include "renderer.h"
 #include "resource.h"
-#include "commandlist.h"
 #include "sprite.h"
 #include "font.h"
+#include "commandlump.h"
 #include <utility>
 
 //|---------------------- SpriteList ----------------------------------------
@@ -24,7 +24,7 @@ class SpriteList
 
     VkCommandBuffer spritecommands;
 
-    operator bool() const { return m_commandlist; }
+    operator bool() const { return m_commandlump; }
 
   public:
 
@@ -33,11 +33,11 @@ class SpriteList
       RenderContext *context;
       ResourceManager *resources;
 
-      CommandList::Descriptor materialset;
+      CommandLump::Descriptor materialset;
 
-      CommandList::Descriptor modelset;
+      CommandLump::Descriptor modelset;
 
-      CommandList *commandlist = nullptr;
+      CommandLump *commandlump = nullptr;
 
       VkSampler texture;
       lml::Color4 color;
@@ -82,5 +82,5 @@ class SpriteList
 
   private:
 
-    unique_resource<CommandList> m_commandlist;
+    unique_resource<CommandLump> m_commandlump;
 };

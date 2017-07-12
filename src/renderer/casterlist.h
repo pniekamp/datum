@@ -10,10 +10,10 @@
 
 #include "renderer.h"
 #include "resource.h"
-#include "commandlist.h"
 #include "mesh.h"
 #include "material.h"
 #include "animation.h"
+#include "commandlump.h"
 #include <utility>
 
 //|---------------------- CasterList ----------------------------------------
@@ -25,7 +25,7 @@ class CasterList
 
     VkCommandBuffer castercommands;
 
-    operator bool() const { return m_commandlist; }
+    operator bool() const { return m_commandlump; }
 
   public:
 
@@ -36,11 +36,11 @@ class CasterList
 
       VkPipeline pipeline;
 
-      CommandList::Descriptor materialset;
+      CommandLump::Descriptor materialset;
 
-      CommandList::Descriptor modelset;
+      CommandLump::Descriptor modelset;
 
-      CommandList *commandlist = nullptr;
+      CommandLump *commandlump = nullptr;
 
       Mesh const *mesh;
       Material const *material;
@@ -56,5 +56,5 @@ class CasterList
 
   private:
 
-    unique_resource<CommandList> m_commandlist;
+    unique_resource<CommandLump> m_commandlump;
 };

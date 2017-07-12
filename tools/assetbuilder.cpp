@@ -142,6 +142,24 @@ uint32_t write_shader_asset(ostream &fout, uint32_t id, string const &path)
 }
 
 
+uint32_t write_image_asset(ostream &fout, uint32_t id, int width, int height, int layers, int levels, Color4 const &color)
+{
+  vector<uint32_t> payload(image_datasize(width, height, layers, levels)/sizeof(uint32_t), rgba(color));
+
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data());
+
+  return id + 1;
+}
+
+uint32_t write_image_asset(ostream &fout, uint32_t id, int width, int height, int layers, int levels, float depth)
+{
+  vector<float> payload(image_datasize(width, height, layers, levels)/sizeof(float), depth);
+
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::depth, payload.data());
+
+  return id + 1;
+}
+
 uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path)
 {
   QImage image(path.c_str());
@@ -166,7 +184,6 @@ uint32_t write_image_asset(ostream &fout, uint32_t id, string const &path)
 
   return id + 1;
 }
-
 
 uint32_t write_sprite_asset(ostream &fout, uint32_t id, vector<QImage> const &images)
 {
@@ -747,8 +764,8 @@ void write_core()
 
   write_catalog_asset(fout, CoreAsset::catalog, CoreAsset::magic, CoreAsset::version);
 
-  write_image_asset(fout, CoreAsset::white_diffuse, "../../data/white.png");
-  write_image_asset(fout, CoreAsset::nominal_normal, "../../data/normal.png");
+  write_image_asset(fout, CoreAsset::white_diffuse, 1, 1, 1, 1, Color4(1.0f, 1.0f, 1.0f, 1.0f));
+  write_image_asset(fout, CoreAsset::nominal_normal, 1, 1, 1, 1, Color4(0.5f, 0.5f, 1.0f, 1.0f));
 
   write_mesh_asset(fout, CoreAsset::unit_quad, { { -1.0, 1.0, 0.0, 0.0, 1.0 }, { -1.0, -1.0, 0.0, 0.0, 0.0 }, { 1.0, 1.0, 0.0, 1.0, 1.0 }, { 1.0, -1.0, 0.0, 1.0, 0.0 } }, { 0, 1, 2, 2, 1, 3 });
   write_mesh_asset(fout, CoreAsset::unit_cube, { { -1.0, -1.0, 1.0 }, { 1.0, -1.0, 1.0 }, { 1.0, 1.0, 1.0 }, { -1.0, 1.0, 1.0 }, { -1.0, -1.0, -1.0 }, { 1.0, -1.0, -1.0 }, { 1.0, 1.0, -1.0 }, { -1.0, 1.0, -1.0 } }, { 0, 1, 2, 2, 3, 0, 1, 5, 6, 6, 2, 1, 5, 4, 7, 7, 6, 5, 4, 0, 3, 3, 7, 4, 3, 2, 6, 6, 7, 3, 4, 5, 1, 1, 0, 4 });
@@ -771,10 +788,12 @@ void write_core()
   write_shader_asset(fout, CoreAsset::model_shadow_vert, "../../data/model.shadow.vert");
   write_shader_asset(fout, CoreAsset::model_prepass_vert, "../../data/model.prepass.vert");
   write_shader_asset(fout, CoreAsset::model_geometry_vert, "../../data/model.geometry.vert");
+  write_shader_asset(fout, CoreAsset::model_spotmap_vert, "../../data/model.spotmap.vert");
 
   write_shader_asset(fout, CoreAsset::actor_shadow_vert, "../../data/actor.shadow.vert");
   write_shader_asset(fout, CoreAsset::actor_prepass_vert, "../../data/actor.prepass.vert");
   write_shader_asset(fout, CoreAsset::actor_geometry_vert, "../../data/actor.geometry.vert");
+  write_shader_asset(fout, CoreAsset::actor_spotmap_vert, "../../data/actor.spotmap.vert");
 
   write_shader_asset(fout, CoreAsset::depth_mip_comp, "../../data/depth.mip.comp");
 
@@ -848,6 +867,10 @@ void write_core()
   write_shader_asset(fout, CoreAsset::convolve_comp, "../../data/convolve.comp");
 
   write_shader_asset(fout, CoreAsset::skybox_gen_comp, "../../data/skybox.gen.comp");
+
+  write_shader_asset(fout, CoreAsset::spotmap_src_vert, "../../data/spotmap.src.vert");
+  write_shader_asset(fout, CoreAsset::spotmap_src_frag, "../../data/spotmap.src.frag");
+  write_shader_asset(fout, CoreAsset::spotmap_frag, "../../data/spotmap.frag");
 
   write_shader_asset(fout, CoreAsset::ocean_sim_comp, "../../data/ocean.sim.comp");
   write_shader_asset(fout, CoreAsset::ocean_fftx_comp, "../../data/ocean.fftx.comp");

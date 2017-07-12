@@ -36,13 +36,13 @@ void main()
   
   vec3 ssr = scene.camera.ssrstrength * texture(ssrmap, texcoord).rgb;
   vec3 bloom = scene.camera.bloomstrength * texture(bloommap, texcoord).rgb;
-  
+
 //  fragcolor = texture(colormap, texcoord);
 //  fragcolor = texture(diffusemap, texcoord);
 //  fragcolor = texture(specularmap, texcoord);
 //  fragcolor = texture(normalmap, texcoord);
 //  fragcolor = texture(depthmap, texcoord);
-//  fragcolor = texture(depthmipmap, texcoord);
+//  fragcolor = textureLod(depthmipmap, texcoord, 5);
 //  fragcolor = texture(ssrmap, texcoord);
 //  fragcolor = texture(bloommap, texcoord);
   fragcolor = vec4(tonemap(color.rgb + ssr) + bloom, 1);

@@ -215,28 +215,35 @@ void update_ocean(OceanParams &params, float dt)
 }
 
 
+///////////////////////// initialise_skybox_context //////////////////////////
+void initialise_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, uint32_t queueindex)
+{
+  //
+  // Vulkan Device
+  //
+
+  auto renderdevice = platform.render_device();
+
+  initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
+
+  context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+  context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+  context.fence = create_fence(context.vulkan);
+}
+
+
 ///////////////////////// prepare_ocean_context /////////////////////////////
-bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets, uint32_t queueindex)
+bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets)
 {
   if (context.ready)
     return true;
 
-  if (context.vulkan == 0)
+  assert(context.vulkan);
+
+  if (context.descriptorpool == 0)
   {
-    //
-    // Vulkan Device
-    //
-
-    auto renderdevice = platform.render_device();
-
-    initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
-
-    context.commandpool = create_commandpool(context.vulkan, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-
-    context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-
-    context.fence = create_fence(context.vulkan);
-
     // DescriptorPool
 
     VkDescriptorPoolSize typecounts[3] = {};
@@ -255,14 +262,20 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     descriptorpoolinfo.pPoolSizes = typecounts;
 
     context.descriptorpool = create_descriptorpool(context.vulkan, descriptorpoolinfo);
+  }
 
+  if (context.pipelinecache == 0)
+  {
     // PipelineCache
 
     VkPipelineCacheCreateInfo pipelinecacheinfo = {};
     pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
     context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
+  }
 
+  if (context.transferbuffer == 0)
+  {
     // Transfer Buffer
 
     context.transferbuffer = create_transferbuffer(context.vulkan, sizeof(OceanSet));
@@ -551,12 +564,13 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params)
+void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params)
 {
   using namespace Vulkan;
 
   assert(context.ready);
-  assert(mesh->vertexbuffer.vertexcount == sizex*sizey);
+  assert(target->ready());
+  assert(target->vertexbuffer.vertexcount == sizex*sizey);
 
   auto &commandbuffer = context.commandbuffer;
 
@@ -594,8 +608,8 @@ void render_ocean_surface(OceanContext &context, Mesh const *mesh, uint32_t size
 
   bind_image(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap);
 
-  size_t verticessize = mesh->vertexbuffer.vertexcount * mesh->vertexbuffer.vertexsize;
-  auto verticesbuffer = create_storagebuffer(context.vulkan, mesh->vertexbuffer.memory, mesh->vertexbuffer.verticesoffset, verticessize);
+  size_t verticessize = target->vertexbuffer.vertexcount * target->vertexbuffer.vertexsize;
+  auto verticesbuffer = create_storagebuffer(context.vulkan, target->vertexbuffer.memory, target->vertexbuffer.verticesoffset, verticessize);
 
   bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 

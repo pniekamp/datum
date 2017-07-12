@@ -152,3 +152,11 @@ Transform transform_blend(vec4 weights, Transform t1, Transform t2, Transform t3
 
   return result;
 }
+
+///////////////////////// map_parabolic /////////////////////////////////////
+vec4 map_parabolic(vec4 position)
+{
+  vec3 P = normalize(position.xyz);
+
+  return vec4(P.xy / (1 - P.z), position.z / -1000, 1);
+}

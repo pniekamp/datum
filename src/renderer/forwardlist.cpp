@@ -145,11 +145,11 @@ auto draw_indexed_command(uint32_t indexcount, uint32_t instancecount)
 ///////////////////////// push_command //////////////////////////////////////
 void push_command(ForwardList::BuildState &state, Renderable::Forward::Command const &command)
 {
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   if (state.commandset.available() < sizeof(Renderable::Forward::Command))
   {
-    state.commandset = commandlist.acquire_descriptor(sizeof(Renderable::Forward::Command), std::move(state.commandset));
+    state.commandset = commandlump.acquire_descriptor(sizeof(Renderable::Forward::Command), std::move(state.commandset));
   }
 
   if (state.commandset.capacity() != 0)
@@ -205,7 +205,7 @@ void draw_forward(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
 ///////////////////////// ForwardList::begin ////////////////////////////////
 bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManager &resources)
 {
-  m_commandlist = {};
+  m_commandlump = {};
 
   state = {};
   state.context = &context;
@@ -214,18 +214,18 @@ bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManag
   if (!context.ready)
     return false;
 
-  auto commandlist = resources.allocate<CommandList>(&context);
+  auto commandlump = resources.allocate<CommandLump>(&context);
 
-  if (!commandlist)
+  if (!commandlump)
     return false;
 
   state.command = &forwardcommands;
 
   forwardcommands = nullptr;
 
-  m_commandlist = { resources, commandlist };
+  m_commandlump = { resources, commandlump };
 
-  state.commandlist = commandlist;
+  state.commandlump = commandlump;
 
   return true;
 }
@@ -234,16 +234,16 @@ bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManag
 ///////////////////////// ForwardList::push_fogplane ////////////////////////
 void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &color, Plane const &plane, float density, float startdistance, float falloff)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   push_command(state, bind_pipeline_command(context.fogpipeline));
 
   push_command(state, bind_vertexbuffer_command(0, context.unitquad));
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(ForPlaneMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ForPlaneMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -262,7 +262,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -283,18 +283,18 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 ///////////////////////// ForwardList::push_translucent /////////////////////
 void ForwardList::push_translucent(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, float alpha)
 { 
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   push_command(state, bind_pipeline_command(context.translucentpipeline));
 
   push_command(state, bind_vertexbuffer_command(0, mesh->vertexbuffer));
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(TranslucentMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(TranslucentMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -316,7 +316,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -337,7 +337,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 ///////////////////////// ForwardList::push_particlesystem //////////////////
 void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(particlesystem && particlesystem->ready());
   assert(particles);
 
@@ -345,13 +345,13 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
     return;
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   push_command(state, bind_pipeline_command(context.particlepipeline[0]));
 
   push_command(state, bind_vertexbuffer_command(0, context.unitquad));
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -364,7 +364,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
   if (state.modelset.available() < particles->count*sizeof(Particle))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -390,7 +390,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 ///////////////////////// ForwardList::push_particlesystem //////////////////
 void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
 { 
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(particlesystem && particlesystem->ready());
   assert(particles);
 
@@ -398,13 +398,13 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
     return;
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   push_command(state, bind_pipeline_command(context.particlepipeline[0]));
 
   push_command(state, bind_vertexbuffer_command(0, context.unitquad));
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -417,7 +417,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
   if (state.modelset.available() < particles->count*sizeof(Particle))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -464,19 +464,19 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 ///////////////////////// ForwardList::push_water ///////////////////////////
 void ForwardList::push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Transform const &envtransform, Vec3 const &envdimension, EnvMap const *envmap, Vec2 const &flow, Vec3 const &bumpscale, float alpha)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
   assert(envmap && envmap->ready());
 
   auto &context = *state.context;
-  auto &commandlist = *state.commandlist;
+  auto &commandlump = *state.commandlump;
 
   push_command(state, bind_pipeline_command(context.waterpipeline));
 
   push_command(state, bind_vertexbuffer_command(0, mesh->vertexbuffer));
 
-  state.materialset = commandlist.acquire_descriptor(context.materialsetlayout, sizeof(WaterMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(WaterMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
@@ -503,7 +503,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
   if (state.modelset.available() < sizeof(ModelSet))
   {
-    state.modelset = commandlist.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
@@ -524,7 +524,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 ///////////////////////// ForwardList::finalise /////////////////////////////
 void ForwardList::finalise(BuildState &state)
 {
-  assert(state.commandlist);
+  assert(state.commandlump);
 
-  state.commandlist = nullptr;
+  state.commandlump = nullptr;
 }
