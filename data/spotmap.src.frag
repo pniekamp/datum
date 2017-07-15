@@ -1,6 +1,6 @@
 #version 440 core
 
-layout(set=0, binding=1) uniform sampler2D sourcemap;
+layout(set=1, binding=1) uniform sampler2D sourcemap;
 
 out float gl_FragDepth;
 

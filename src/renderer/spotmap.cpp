@@ -47,7 +47,6 @@ enum ShaderLocation
 
   scenebuf = 0,
   sourcemap = 1,
-
   albedomap = 1,
 };
 
@@ -131,11 +130,11 @@ void SpotCasterList::push_mesh(BuildState &state, Transform const &transform, Me
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  if (state.pipeline != context.modelshadowpipeline)
+  if (state.pipeline != context.modelspotmappipeline)
   {
-    bind_pipeline(castercommands, context.modelshadowpipeline, 0, 0, state.width, state.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(castercommands, context.modelspotmappipeline, 0, 0, state.width, state.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    state.pipeline = context.modelshadowpipeline;
+    state.pipeline = context.modelspotmappipeline;
   }
 
   if (state.mesh != mesh)
@@ -191,11 +190,11 @@ void SpotCasterList::push_mesh(BuildState &state, Transform const &transform, Po
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  if (state.pipeline != context.actorshadowpipeline)
+  if (state.pipeline != context.actorspotmappipeline)
   {
-    bind_pipeline(castercommands, context.actorshadowpipeline, 0, 0, state.width, state.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(castercommands, context.actorspotmappipeline, 0, 0, state.width, state.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    state.pipeline = context.actorshadowpipeline;
+    state.pipeline = context.actorspotmappipeline;
   }
 
   if (state.mesh != mesh)
@@ -286,7 +285,7 @@ SpotMap const *ResourceManager::create<SpotMap>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-SpotMap const *ResourceManager::create<SpotMap>(SpotMapContext *context, int width, int height)
+SpotMap const *ResourceManager::create<SpotMap>(int width, int height)
 {
   auto slot = acquire_slot(sizeof(SpotMap));
 
@@ -301,23 +300,7 @@ SpotMap const *ResourceManager::create<SpotMap>(SpotMapContext *context, int wid
   spotmap->transferlump = nullptr;
   spotmap->state = SpotMap::State::Empty;
 
-  auto setuppool = create_commandpool(context->vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-  auto setupbuffer = allocate_commandbuffer(context->vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-  auto setupfence = create_fence(context->vulkan, 0);
-
-  begin(context->vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-  spotmap->texture = create_texture(context->vulkan, setupbuffer, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-  end(context->vulkan, setupbuffer);
-
-  {
-    leap::threadlib::SyncLock lock(context->m_mutex);
-
-    Vulkan::submit(context->vulkan, setupbuffer, setupfence);
-  }
-
-  wait_fence(context->vulkan, setupfence);
+  spotmap->texture = create_texture(vulkan, 0, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
 
   VkSamplerCreateInfo depthsamplerinfo = {};
   depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -329,18 +312,7 @@ SpotMap const *ResourceManager::create<SpotMap>(SpotMapContext *context, int wid
   depthsamplerinfo.compareEnable = VK_TRUE;
   depthsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
 
-  spotmap->texture.sampler = create_sampler(context->vulkan, depthsamplerinfo);
-
-  VkFramebufferCreateInfo framebufferinfo = {};
-  framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-  framebufferinfo.renderPass = context->renderpass;
-  framebufferinfo.attachmentCount = 1;
-  framebufferinfo.pAttachments = spotmap->texture.imageview.data();
-  framebufferinfo.width = width;
-  framebufferinfo.height = height;
-  framebufferinfo.layers = 1;
-
-  spotmap->framebuffer = create_framebuffer(context->vulkan, framebufferinfo);
+  spotmap->texture.sampler = create_sampler(vulkan, depthsamplerinfo);
 
   spotmap->state = SpotMap::State::Ready;
 
@@ -348,9 +320,9 @@ SpotMap const *ResourceManager::create<SpotMap>(SpotMapContext *context, int wid
 }
 
 template<>
-SpotMap const *ResourceManager::create<SpotMap>(SpotMapContext *context, uint32_t width, uint32_t height)
+SpotMap const *ResourceManager::create<SpotMap>(uint32_t width, uint32_t height)
 {
-  return create<SpotMap>(context, (int)width, (int)height);
+  return create<SpotMap>((int)width, (int)height);
 }
 
 
@@ -472,36 +444,9 @@ void initialise_spotmap_context(DatumPlatform::PlatformInterface &platform, Spot
 
   context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-  context.fence = create_fence(context.vulkan);
+  context.fence = create_fence(context.vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
 
-  //
-  // Render Pass
-  //
-
-  VkAttachmentDescription attachments[1] = {};
-  attachments[0].format = VK_FORMAT_D32_SFLOAT;
-  attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-  attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  attachments[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-  VkAttachmentReference depthreference = {};
-  depthreference.attachment = 0;
-  depthreference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-  VkSubpassDescription subpasses[1] = {};
-  subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpasses[0].pDepthStencilAttachment = &depthreference;
-
-  VkRenderPassCreateInfo renderpassinfo = {};
-  renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderpassinfo.attachmentCount = extentof(attachments);
-  renderpassinfo.pAttachments = attachments;
-  renderpassinfo.subpassCount = extentof(subpasses);
-  renderpassinfo.pSubpasses = subpasses;
-
-  context.renderpass = create_renderpass(context.vulkan, renderpassinfo);
+  context.rendercomplete = create_semaphore(context.vulkan);
 }
 
 
@@ -525,11 +470,13 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
   {
     // DescriptorPool
 
-    VkDescriptorPoolSize typecounts[2] = {};
+    VkDescriptorPoolSize typecounts[3] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    typecounts[0].descriptorCount = 2;
-    typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    typecounts[1].descriptorCount = 12;
+    typecounts[0].descriptorCount = 1;
+    typecounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    typecounts[1].descriptorCount = 16;
+    typecounts[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    typecounts[2].descriptorCount = 55;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -541,11 +488,44 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     context.descriptorpool = create_descriptorpool(context.vulkan, descriptorpoolinfo);
   }
 
+  if (context.renderpass == 0)
+  {
+    //
+    // Render Pass
+    //
+
+    VkAttachmentDescription attachments[1] = {};
+    attachments[0].format = VK_FORMAT_D32_SFLOAT;
+    attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkAttachmentReference depthreference = {};
+    depthreference.attachment = 0;
+    depthreference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpasses[1] = {};
+    subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpasses[0].pDepthStencilAttachment = &depthreference;
+
+    VkRenderPassCreateInfo renderpassinfo = {};
+    renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderpassinfo.attachmentCount = extentof(attachments);
+    renderpassinfo.pAttachments = attachments;
+    renderpassinfo.subpassCount = extentof(subpasses);
+    renderpassinfo.pSubpasses = subpasses;
+
+    context.renderpass = create_renderpass(context.vulkan, renderpassinfo);
+  }
+
   if (context.sceneset == 0)
   {
     context.sceneset = create_storagebuffer(context.vulkan, sizeof(SceneSet));
 
     context.scenedescriptor = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout);
+
     bind_buffer(context.vulkan, context.scenedescriptor, ShaderLocation::scenebuf, context.sceneset, 0, context.sceneset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   }
 
@@ -641,11 +621,15 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
 
     context.srcblitpipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
 
-    context.srcblitcommands = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+    for(size_t i = 0; i < extentof(context.srcblitcommands); ++i)
+    {
+      context.srcblitcommands[i] = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+    }
 
-    context.srcblitdescriptor = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout);
-
-    bind_buffer(context.vulkan, context.srcblitdescriptor, ShaderLocation::scenebuf, context.sceneset, 0, context.sceneset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    for(size_t i = 0; i < extentof(context.srcblitdescriptors); ++i)
+    {
+      context.srcblitdescriptors[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.materialsetlayout);
+    }
 
     VkSamplerCreateInfo samplerinfo = {};
     samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -658,7 +642,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     context.srcblitsampler = create_sampler(context.vulkan, samplerinfo);
   }
 
-  if (context.modelshadowpipeline == 0)
+  if (context.modelspotmappipeline == 0)
   {
     //
     // Model Shadow Pipeline
@@ -749,10 +733,10 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.modelshadowpipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
+    context.modelspotmappipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
   }
 
-  if (context.actorshadowpipeline == 0)
+  if (context.actorspotmappipeline == 0)
   {
     //
     // Actor Shadow Pipeline
@@ -861,7 +845,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.actorshadowpipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
+    context.actorspotmappipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
   }
 
   if (context.whitediffuse == 0)
@@ -906,54 +890,95 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
 }
 
 
+///////////////////////// prepare_sceneset //////////////////////////////////
+void prepare_sceneset(SpotMapContext &context, SpotMapInfo const &spotmap, SpotMapParams const &params)
+{
+  SceneSet sceneset;
+  sceneset.view = inverse(spotmap.shadowview).matrix();
+
+  update(context.commandbuffer, context.sceneset, 0, sizeof(SceneSet), &sceneset);
+}
+
+
+///////////////////////// prepare_framebuffer ///////////////////////////////
+void prepare_framebuffer(SpotMapContext &context, SpotMap const *target)
+{
+  if (target->framebuffer == 0)
+  {
+    VkFramebufferCreateInfo framebufferinfo = {};
+    framebufferinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferinfo.renderPass = context.renderpass;
+    framebufferinfo.attachmentCount = 1;
+    framebufferinfo.pAttachments = target->texture.imageview.data();
+    framebufferinfo.width = target->width;
+    framebufferinfo.height = target->height;
+    framebufferinfo.layers = 1;
+
+    target->framebuffer = create_framebuffer(context.vulkan, framebufferinfo);
+
+    setimagelayout(context.commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+  }
+}
+
+
 ///////////////////////// render ////////////////////////////////////////////
-void render_spotmap(SpotMapContext &context, SpotMap const *target, SpotCasterList const &casters, SpotMapParams const &params)
+void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params)
 {
   using namespace Vulkan;
 
   assert(context.ready);
-  assert(target->ready());
-  assert(target->framebuffer);
+  assert(spotmapcount < extentof(context.srcblitcommands));
+  assert(spotmapcount < extentof(context.srcblitdescriptors));
 
-  BEGIN_TIMED_BLOCK(SpotMap, Color3(0.1f, 0.4f, 0.1f))
-
-  auto &framebuffer = target->framebuffer;
-
-  auto &commandbuffer = context.commandbuffer;
+  wait_fence(context.vulkan, context.fence);
 
   VkClearValue clearvalues[1];
   clearvalues[0].depthStencil = { 1, 0 };
 
-  SceneSet sceneset;
-  sceneset.view = inverse(params.shadowview).matrix();
+  auto &commandbuffer = context.commandbuffer;
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  update(commandbuffer, context.sceneset, 0, sizeof(SceneSet), &sceneset);
-
-  beginpass(commandbuffer, context.renderpass, framebuffer, 0, 0, target->width, target->height, 1, &clearvalues[0]);
-
-  if (params.source)
+  for(size_t i = 0; i < spotmapcount; ++i)
   {
-    assert(params.source->ready());
+    auto &target = spotmaps[i].target;
+    auto &source = spotmaps[i].source;
+    auto &casters = spotmaps[i].casters;
 
-    begin(context.vulkan, context.srcblitcommands, framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-    bind_pipeline(context.srcblitcommands, context.srcblitpipeline, 0, 0, target->width, target->height, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_texture(context.vulkan, context.srcblitdescriptor, ShaderLocation::sourcemap, params.source->texture.imageview, context.srcblitsampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    bind_descriptor(context.srcblitcommands, context.pipelinelayout, ShaderLocation::sceneset, context.srcblitdescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_vertexbuffer(context.srcblitcommands, 0, context.unitquad);
-    draw(context.srcblitcommands, context.unitquad.vertexcount, 1, 0, 0);
-    end(context.vulkan, context.srcblitcommands);
+    assert(target->ready() && target->asset == nullptr);
 
-    execute(commandbuffer, context.srcblitcommands);
+    prepare_framebuffer(context, target);
+
+    prepare_sceneset(context, spotmaps[i], params);
+
+    beginpass(commandbuffer, context.renderpass, target->framebuffer, 0, 0, target->width, target->height, 1, &clearvalues[0]);
+
+    if (source)
+    {
+      assert(source->ready());
+
+      auto &srcblitcommands = context.srcblitcommands[i];
+      auto &srcblitdescriptor = context.srcblitdescriptors[i];
+
+      begin(context.vulkan, srcblitcommands, target->framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+      bind_pipeline(srcblitcommands, context.srcblitpipeline, 0, 0, target->width, target->height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_texture(context.vulkan, srcblitdescriptor, ShaderLocation::sourcemap, source->texture.imageview, context.srcblitsampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      bind_descriptor(srcblitcommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(srcblitcommands, context.pipelinelayout, ShaderLocation::materialset, srcblitdescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_vertexbuffer(srcblitcommands, 0, context.unitquad);
+      draw(srcblitcommands, context.unitquad.vertexcount, 1, 0, 0);
+      end(context.vulkan, srcblitcommands);
+
+      execute(commandbuffer, srcblitcommands);
+    }
+
+    if (casters->castercommands)
+    {
+      execute(commandbuffer, casters->castercommands);
+    }
+
+    endpass(commandbuffer, context.renderpass);
   }
-
-  if (casters.castercommands)
-  {
-    execute(commandbuffer, casters.castercommands);
-  }
-
-  endpass(commandbuffer, context.renderpass);
 
   end(context.vulkan, commandbuffer);
 
@@ -961,13 +986,11 @@ void render_spotmap(SpotMapContext &context, SpotMap const *target, SpotCasterLi
   // Submit
   //
 
+  submit(context.vulkan, context.commandbuffer, context.fence);
+
+  if (params.wait)
   {
-    leap::threadlib::SyncLock lock(context.m_mutex);
-
-    Vulkan::submit(context.vulkan, context.commandbuffer, context.fence);
+    while (!test_fence(context.vulkan, context.fence))
+      ;
   }
-
-  wait_fence(context.vulkan, context.fence);
-
-  END_TIMED_BLOCK(SpotMap)
 }

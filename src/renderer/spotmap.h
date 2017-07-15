@@ -24,8 +24,8 @@ class SpotMap
 {
 
   public:
-    friend SpotMap const *ResourceManager::create<SpotMap>(Asset const *asset);
-    friend SpotMap const *ResourceManager::create<SpotMap>(SpotMapContext *context, int width, int height);
+    friend SpotMap const *ResourceManager::create<SpotMap>(Asset const *asset);    
+    friend SpotMap const *ResourceManager::create<SpotMap>(int width, int height);
 
     bool ready() const { return (state == State::Ready); }
 
@@ -33,7 +33,8 @@ class SpotMap
     int height;
 
     Vulkan::Texture texture;
-    Vulkan::FrameBuffer framebuffer;
+
+    mutable Vulkan::FrameBuffer framebuffer;
 
   public:
 
@@ -128,29 +129,36 @@ struct SpotMapContext
   Vulkan::DescriptorSet scenedescriptor;
 
   Vulkan::Pipeline srcblitpipeline;
-  Vulkan::CommandBuffer srcblitcommands;
-  Vulkan::DescriptorSet srcblitdescriptor;
+  Vulkan::CommandBuffer srcblitcommands[16];
+  Vulkan::DescriptorSet srcblitdescriptors[16];
   Vulkan::Sampler srcblitsampler;
 
-  Vulkan::Pipeline modelshadowpipeline;
-  Vulkan::Pipeline actorshadowpipeline;
+  Vulkan::Pipeline modelspotmappipeline;
+  Vulkan::Pipeline actorspotmappipeline;
 
   Vulkan::Texture whitediffuse;
   Vulkan::VertexBuffer unitquad;
 
-
   Vulkan::Fence fence;
 
-  RenderContext *rendercontext;
+  Vulkan::Semaphore rendercomplete;
 
-  mutable leap::threadlib::SpinLock m_mutex;
+  RenderContext *rendercontext;
+};
+
+struct SpotMapInfo
+{
+  SpotMap const *target;
+
+  lml::Transform shadowview;
+
+  SpotMap const *source = nullptr;
+  SpotCasterList const *casters = nullptr;
 };
 
 struct SpotMapParams
 {
-  lml::Transform shadowview;
-
-  SpotMap const *source = nullptr;
+  bool wait = true;
 };
 
 // Initialise
@@ -160,4 +168,4 @@ void initialise_spotmap_context(DatumPlatform::PlatformInterface &platform, Spot
 bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMapContext &context, RenderContext &rendercontext, AssetManager &assets);
 
 // Render
-void render_spotmap(SpotMapContext &context, SpotMap const *target, SpotCasterList const &casters, SpotMapParams const &params);
+void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params);

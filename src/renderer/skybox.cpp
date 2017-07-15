@@ -134,8 +134,9 @@ void initialise_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBo
 
   context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-  context.fence = create_fence(context.vulkan);
+  context.fence = create_fence(context.vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
 
+  context.rendercomplete = create_semaphore(context.vulkan);
 }
 
 ///////////////////////// prepare_skybox_context ////////////////////////////
@@ -303,6 +304,8 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
   assert(context.ready);
   assert(target->ready());
 
+  wait_fence(context.vulkan, context.fence);
+
   SkyboxSet skyboxset;
   skyboxset.skycolor = params.skycolor;
   skyboxset.groundcolor = params.groundcolor;
@@ -385,7 +388,11 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
   // Submit
   //
 
-  submit(context.vulkan, commandbuffer, context.fence);
+  submit(context.vulkan, commandbuffer, context.rendercomplete, context.fence);
 
-  wait_fence(context.vulkan, context.fence);
+  if (params.wait)
+  {
+    while (!test_fence(context.vulkan, context.fence))
+      ;
+  }
 }

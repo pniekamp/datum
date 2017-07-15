@@ -433,8 +433,8 @@ namespace Vulkan
 
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFence fence);
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkFence fence);
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence);
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore signalsemaphore, VkFence fence);
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore const *waitsemaphores, int waitsemaphorescount, VkSemaphore signalsemaphore, VkFence fence);
 
   void transition_acquire(VkCommandBuffer commandbuffer, VkImage image);
   void transition_present(VkCommandBuffer commandbuffer, VkImage image);
