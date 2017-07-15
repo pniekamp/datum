@@ -56,6 +56,8 @@ struct SkyBoxContext
   Vulkan::ImageView convolveimageviews[8];
 
   Vulkan::Fence fence;
+
+  Vulkan::Semaphore rendercomplete;
 };
 
 struct SkyBoxParams
@@ -71,6 +73,8 @@ struct SkyBoxParams
   int convolesamples = 0;
 
   float exposure = 1.0f;
+
+  bool wait = true;
 };
 
 // Initialise

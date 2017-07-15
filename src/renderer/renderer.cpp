@@ -4391,9 +4391,9 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 {
   assert(context.vulkan);
 
-  CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
-
   wait_fence(context.vulkan, context.framefence);
+
+  CommandBuffer &commandbuffer = context.commandbuffers[context.frame & 1];
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -4416,7 +4416,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
   end(context.vulkan, commandbuffer);
 
-  submit(context.vulkan, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
+  submit(context.vulkan, commandbuffer, &viewport.acquirecomplete, 1, viewport.rendercomplete, context.framefence);
 
   vkQueueWaitIdle(context.vulkan.queue);
 
@@ -4427,7 +4427,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params)
+void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params, VkSemaphore const (&dependancies)[8])
 {
   assert(context.ready);
 
@@ -4753,7 +4753,20 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   GPU_SUBMIT();
 
-  submit(context.vulkan, commandbuffer, viewport.acquirecomplete, viewport.rendercomplete, context.framefence);
+  int waitsemaphorescount = 0;
+  VkSemaphore waitsemaphores[8 + 1];
+
+  for(auto &dependancy : dependancies)
+  {
+    if (dependancy)
+    {
+      waitsemaphores[waitsemaphorescount++] = dependancy;
+    }
+  }
+
+  waitsemaphores[waitsemaphorescount++] = viewport.acquirecomplete;
+
+  submit(context.vulkan, commandbuffer, waitsemaphores, waitsemaphorescount, viewport.rendercomplete, context.framefence);
 
   context.prevcamera = camera;
 

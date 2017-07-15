@@ -230,7 +230,9 @@ void initialise_ocean_context(DatumPlatform::PlatformInterface &platform, OceanC
 
   context.commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-  context.fence = create_fence(context.vulkan);
+  context.fence = create_fence(context.vulkan, VK_FENCE_CREATE_SIGNALED_BIT);
+
+  context.rendercomplete = create_semaphore(context.vulkan);
 }
 
 
@@ -552,9 +554,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
     end(context.vulkan, context.commandbuffer);
 
-    submit(context.vulkan, context.commandbuffer, context.fence);
-
-    wait_fence(context.vulkan, context.fence);
+    submit(context.vulkan, context.commandbuffer);
   }
 
   context.ready = true;
@@ -571,6 +571,8 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
   assert(context.ready);
   assert(target->ready());
   assert(target->vertexbuffer.vertexcount == sizex*sizey);
+
+  wait_fence(context.vulkan, context.fence);
 
   auto &commandbuffer = context.commandbuffer;
 
@@ -653,7 +655,11 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
   // Submit
   //
 
-  submit(context.vulkan, commandbuffer, context.fence);
+  submit(context.vulkan, commandbuffer, context.rendercomplete, context.fence);
 
-  wait_fence(context.vulkan, context.fence);
+  if (params.wait)
+  {
+    while (!test_fence(context.vulkan, context.fence))
+      ;
+  }
 }

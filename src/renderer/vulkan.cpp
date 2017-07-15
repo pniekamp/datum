@@ -1027,30 +1027,27 @@ namespace Vulkan
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
   }
 
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkFence fence)
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore signalsemaphore, VkFence fence)
   {
-    VkPipelineStageFlags waitdststagemask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitinfo.pWaitDstStageMask = &waitdststagemask;
-    submitinfo.waitSemaphoreCount = 1;
-    submitinfo.pWaitSemaphores = &waitsemaphore;
     submitinfo.commandBufferCount = 1;
     submitinfo.pCommandBuffers = &commandbuffer;
+    submitinfo.signalSemaphoreCount = 1;
+    submitinfo.pSignalSemaphores = &signalsemaphore;
 
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
   }
 
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore waitsemaphore, VkSemaphore signalsemaphore, VkFence fence)
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore const *waitsemaphores, int waitsemaphorescount, VkSemaphore signalsemaphore, VkFence fence)
   {
-    VkPipelineStageFlags waitdststagemask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    static const auto waitdststagemask = leap::fill(VkPipelineStageFlags(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT), leap::make_index_sequence<0, 32>());
 
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitinfo.pWaitDstStageMask = &waitdststagemask;
-    submitinfo.waitSemaphoreCount = 1;
-    submitinfo.pWaitSemaphores = &waitsemaphore;
+    submitinfo.pWaitDstStageMask = waitdststagemask.data();
+    submitinfo.waitSemaphoreCount = waitsemaphorescount;
+    submitinfo.pWaitSemaphores = waitsemaphores;
     submitinfo.commandBufferCount = 1;
     submitinfo.pCommandBuffers = &commandbuffer;
     submitinfo.signalSemaphoreCount = 1;

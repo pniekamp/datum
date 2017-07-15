@@ -39,6 +39,8 @@ struct OceanContext
   Vulkan::Texture displacementmap;
 
   Vulkan::Fence fence;
+
+  Vulkan::Semaphore rendercomplete;
 };
 
 struct OceanParams
@@ -66,6 +68,8 @@ struct OceanParams
   float height[OceanContext::WaveResolution][OceanContext::WaveResolution][2];
   float phase[OceanContext::WaveResolution][OceanContext::WaveResolution];
   lml::Vec2 flow;
+
+  bool wait = true;
 };
 
 void seed_ocean(OceanParams &params);

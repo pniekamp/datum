@@ -119,7 +119,7 @@ void datumtest_init(PlatformInterface &platform)
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
 
-  state.testspotcaster = state.resources.create<SpotMap>(&state.spotmapcontext, 256, 256);
+  state.testspotcaster = state.resources.create<SpotMap>(256, 256);
 
   auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
   auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::noise_normal), Texture::Format::RGBA);
@@ -654,6 +654,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     {
       if (prepare_spotmap_context(platform, state.spotmapcontext, state.rendercontext, state.assets))
       {
+        BEGIN_TIMED_BLOCK(SpotMap, Color3(0.1f, 0.4f, 0.1f))
+
         SpotCasterList casters;
         SpotCasterList::BuildState buildstate;
 
@@ -664,10 +666,16 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
           casters.finalise(buildstate);
         }
 
-        SpotMapParams spotparams;
-        spotparams.shadowview = state.testspotview;
+        SpotMapInfo spotmaps[1];
+        spotmaps[0].target = state.testspotcaster;
+        spotmaps[0].shadowview = state.testspotview;
+        spotmaps[0].casters = &casters;
 
-        render_spotmap(state.spotmapcontext, state.testspotcaster, casters, spotparams);
+        SpotMapParams spotparams;
+
+        render_spotmaps(state.spotmapcontext, spotmaps, 1, spotparams);
+
+        END_TIMED_BLOCK(SpotMap)
       }
     }
 #endif
