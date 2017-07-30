@@ -15,6 +15,7 @@
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
+#include <functional>
 #include <fstream>
 
 namespace DatumPlatform
