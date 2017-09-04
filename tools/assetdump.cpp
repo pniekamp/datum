@@ -122,11 +122,11 @@ void dump(const char *path)
         break;
 
       case "DATA"_packchunktype:
-        cout << indent << "DATA\n";
+        cout << indent << "DATA " << chunk.length << " bytes" << '\n';
         break;
 
       case "CDAT"_packchunktype:
-        cout << indent << "CDAT\n";
+        cout << indent << "CDAT " << chunk.length << " bytes" << '\n';
         break;
 
       case "HEND"_packchunktype:

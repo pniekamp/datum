@@ -115,9 +115,11 @@ class Animator
 
     void play(Animation const *animation, lml::Vec3 const &scale = lml::Vec3(1.0f), float rate = 1.0f, bool looping = true);
 
-    void set_time(size_t entry, float time);
-    void set_rate(size_t entry, float rate);
-    void set_weight(size_t entry, float weight, float maxdelta = 1.0f);
+    void set_time(size_t channel, float time);
+    void set_rate(size_t channel, float rate);
+    void set_weight(size_t channel, float weight, float maxdelta = 1.0f);
+
+    bool prepare();
 
     void update(float dt);
 
@@ -145,7 +147,7 @@ class Animator
 
     std::vector<size_t, StackAllocatorWithFreelist<size_t>> m_jointmap;
 
-    struct Entry
+    struct Channel
     {
       Animation const *animation;
 
@@ -162,5 +164,5 @@ class Animator
       int jointmapcount;
     };
 
-    std::vector<Entry, StackAllocatorWithFreelist<Entry>> m_entries;
+    std::vector<Channel, StackAllocatorWithFreelist<Channel>> m_channels;
 };

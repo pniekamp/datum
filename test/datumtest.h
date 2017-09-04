@@ -71,6 +71,9 @@ struct GameState
   ParticleSystem const *testparticlesystem;
   ParticleSystem::Instance *testparticles;
 
+  Mesh const *testactor;
+  Animation const *testanimation;
+
   SkyBox const *skybox;
   Vec3 sundirection = normalise(Vec3(0.4f, -1.0f, -0.1f));
   Color3 sunintensity = Color3(8.0f, 7.56f, 7.88f);

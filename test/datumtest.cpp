@@ -119,7 +119,7 @@ void datumtest_init(PlatformInterface &platform)
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
 
-  state.testspotcaster = state.resources.create<SpotMap>(256, 256);
+  state.testspotcaster = state.resources.create<SpotMap>(1024, 1024);
 
   auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
   auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::noise_normal), Texture::Format::RGBA);
@@ -154,6 +154,17 @@ void datumtest_init(PlatformInterface &platform)
   state.testparticles = state.testparticlesystem->create(platform.gamememory);
 
   state.camera.set_position(Vec3(0.0f, 1.0f, 3.0f));
+
+#if 0
+  auto test = state.assets.load(platform, "test.pack");
+  state.testactor = state.resources.create<Mesh>(state.assets.find(test->id + 5));
+  state.testanimation = state.resources.create<Animation>(state.assets.find(test->id + 6));
+
+  auto actor = state.scene.create<Entity>();
+  state.scene.add_component<TransformComponent>(actor, Transform::translation(Vec3(0, 0, 0)));
+  state.scene.add_component<ActorComponent>(actor, state.testactor, state.defaultmaterial, ActorComponent::Static | ActorComponent::Visible);
+  state.scene.get_component<ActorComponent>(actor).animator()->play(state.testanimation, Vec3(0.01f));
+#endif
 
 #if 0
   state.scene.load<Model>(platform, &state.resources, state.assets.load(platform, "sponza.pack"));
@@ -259,12 +270,26 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     request(platform, state.resources, state.testimage, &ready, &total);
     request(platform, state.resources, state.oceanmaterial, &ready, &total);
     request(platform, state.resources, state.testparticlesystem, &ready, &total);
+//    request(platform, state.resources, state.testactor, &ready, &total);
+//    request(platform, state.resources, state.testanimation, &ready, &total);
     request(platform, state.resources, state.skybox, &ready, &total);
 
     for(auto &entity : state.scene.entities<MeshComponent>())
     {
-      request(platform, state.resources, state.scene.get_component<MeshComponent>(entity).mesh(), &ready, &total);
-      request(platform, state.resources, state.scene.get_component<MeshComponent>(entity).material(), &ready, &total);
+      auto meshcomponent = state.scene.get_component<MeshComponent>(entity);
+
+      request(platform, state.resources, meshcomponent.mesh(), &ready, &total);
+      request(platform, state.resources, meshcomponent.material(), &ready, &total);
+    }
+
+    for(auto &entity : state.scene.entities<ActorComponent>())
+    {
+      auto actorcomponent = state.scene.get_component<ActorComponent>(entity);
+
+      request(platform, state.resources, actorcomponent.mesh(), &ready, &total);
+      request(platform, state.resources, actorcomponent.material(), &ready, &total);
+
+      actorcomponent.animator()->prepare();
     }
 
     if (ready == total)
@@ -413,7 +438,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     }
 #endif
 
-#if 0
+#if 1
     {
       Vec3 location(-5, 5, -3);
       DEBUG_MENU_VALUE("Spotlight/location", &location, Vec3(-15.0f), Vec3(15.0f));
@@ -650,7 +675,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     }
 #endif
 
-#if 0
+#if 1
     {
       if (prepare_spotmap_context(platform, state.spotmapcontext, state.rendercontext, state.assets))
       {
@@ -661,7 +686,26 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
         if (casters.begin(buildstate, state.spotmapcontext, state.resources))
         {
+          buildstate.width = state.testspotcaster->width;
+          buildstate.height = state.testspotcaster->height;
+
           casters.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
+
+          for(auto &entity : state.scene.entities<MeshComponent>())
+          {
+            auto instance = state.scene.get_component<MeshComponent>(entity);
+            auto transform = state.scene.get_component<TransformComponent>(entity);
+
+            casters.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
+          }
+
+          for(auto &entity : state.scene.entities<ActorComponent>())
+          {
+            auto instance = state.scene.get_component<ActorComponent>(entity);
+            auto transform = state.scene.get_component<TransformComponent>(entity);
+
+            casters.push_mesh(buildstate, transform.world(), instance.pose(), instance.mesh(), instance.material());
+          }
 
           casters.finalise(buildstate);
         }
