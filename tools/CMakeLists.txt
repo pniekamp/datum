@@ -13,10 +13,13 @@ endif(UNIX OR MINGW)
 add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX)
 
 find_package(Qt5Gui REQUIRED)
+find_package(Qt5Widgets REQUIRED)
 
+set(CMAKE_AUTOMOC ON)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-set(SRCS ${SRCS} atlaspacker.h assetpacker.h assetpacker.cpp bc3.h bc3.cpp hdr.h hdr.cpp ibl.h ibl.cpp glslang.h glslang.cpp)
 
 #
 # embed
@@ -62,6 +65,14 @@ add_executable(objparser objparser.cpp assetpacker.cpp bc3.cpp)
 
 target_link_libraries(objparser leap Qt5::Gui)
 
+
+#
+# debugviewer
+#
+
+add_executable(debugviewer debugviewer.cpp assetpacker.cpp bc3.cpp)
+
+target_link_libraries(debugviewer leap Qt5::Gui Qt5::Widgets)
 
 
 if(WIN32)

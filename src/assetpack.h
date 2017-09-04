@@ -45,6 +45,25 @@ struct PackCalalogHeader
   uint64_t dataoffset;
 };
 
+struct PackCatalogPayload
+{
+  uint32_t entrycount;
+  uint32_t stringslength;
+
+  struct Entry
+  {
+    uint32_t id;
+    uint32_t pathindex;
+    uint32_t pathlength;
+  };
+
+// Entry entries[entrycount];
+// char strings[stringslength];
+
+  static auto entrytable(void const *bits, int entrycount) { return reinterpret_cast<Entry const *>((size_t)bits + sizeof(PackCatalogPayload)); }
+  static auto stringstable(void const *bits, int entrycount) { return reinterpret_cast<char const *>((size_t)bits + sizeof(PackCatalogPayload) + entrycount*sizeof(Entry)); }
+};
+
 constexpr size_t pack_payload_size(PackCalalogHeader const &catl)
 {
   return catl.length;
@@ -109,18 +128,18 @@ struct PackFontPayload
 // int16_t offsety[glyphcount];
 // uint8_t advance[glyphcount][glyphcount];
 
-  static auto xtable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t)); }
-  static auto ytable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + glyphcount*sizeof(uint16_t)); }
-  static auto widthtable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + 2*glyphcount*sizeof(uint16_t)); }
-  static auto heighttable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(uint32_t) + 3*glyphcount*sizeof(uint16_t)); }
-  static auto offsetxtable(void const *bits, int glyphcount) { return reinterpret_cast<int16_t const *>((size_t)bits + sizeof(uint32_t) + 4*glyphcount*sizeof(uint16_t)); }
-  static auto offsetytable(void const *bits, int glyphcount) { return reinterpret_cast<int16_t const *>((size_t)bits + sizeof(uint32_t) + 5*glyphcount*sizeof(uint16_t)); }
-  static auto advancetable(void const *bits, int glyphcount) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t) + 6*glyphcount*sizeof(uint16_t)); }
+  static auto xtable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(PackFontPayload)); }
+  static auto ytable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(PackFontPayload) + glyphcount*sizeof(uint16_t)); }
+  static auto widthtable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(PackFontPayload) + 2*glyphcount*sizeof(uint16_t)); }
+  static auto heighttable(void const *bits, int glyphcount) { return reinterpret_cast<uint16_t const *>((size_t)bits + sizeof(PackFontPayload) + 3*glyphcount*sizeof(uint16_t)); }
+  static auto offsetxtable(void const *bits, int glyphcount) { return reinterpret_cast<int16_t const *>((size_t)bits + sizeof(PackFontPayload) + 4*glyphcount*sizeof(uint16_t)); }
+  static auto offsetytable(void const *bits, int glyphcount) { return reinterpret_cast<int16_t const *>((size_t)bits + sizeof(PackFontPayload) + 5*glyphcount*sizeof(uint16_t)); }
+  static auto advancetable(void const *bits, int glyphcount) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(PackFontPayload) + 6*glyphcount*sizeof(uint16_t)); }
 };
 
 constexpr size_t pack_payload_size(PackFontHeader const &font)
 {
-  return sizeof(uint32_t) + 6*font.glyphcount*sizeof(uint16_t) + font.glyphcount*font.glyphcount*sizeof(uint8_t);
+  return sizeof(PackFontPayload) + 6*font.glyphcount*sizeof(uint16_t) + font.glyphcount*font.glyphcount*sizeof(uint8_t);
 }
 
 struct PackVertex
@@ -146,8 +165,8 @@ struct PackMeshPayload
 // PackVertex verticies[vertexcount];
 // uint32_t indicies[indexcount];
 
-  static auto vertextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<PackVertex const *>(bits); }
-  static auto indextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<uint32_t const *>((size_t)bits + vertexcount*sizeof(PackVertex)); }
+  static auto vertextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<PackVertex const *>((size_t)bits + sizeof(PackMeshPayload)); }
+  static auto indextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<uint32_t const *>((size_t)bits + sizeof(PackMeshPayload) + vertexcount*sizeof(PackVertex)); }
 
   struct Rig
   {
@@ -165,13 +184,13 @@ struct PackMeshPayload
   //   Rig rig[vertexcount];
   //   Bone bones[bonecount];
 
-  static auto rigtable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Rig const *>((size_t)bits + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t)); }
-  static auto bonetable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Bone const *>((size_t)bits + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t) + vertexcount*sizeof(Rig)); }
+  static auto rigtable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Rig const *>((size_t)bits + sizeof(PackMeshPayload) + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t)); }
+  static auto bonetable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Bone const *>((size_t)bits + sizeof(PackMeshPayload) + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t) + vertexcount*sizeof(Rig)); }
 };
 
 constexpr size_t pack_payload_size(PackMeshHeader const &mesh)
 {
-  size_t size = mesh.vertexcount*sizeof(PackVertex) + mesh.indexcount*sizeof(uint32_t);
+  size_t size = sizeof(PackMeshPayload) + mesh.vertexcount*sizeof(PackVertex) + mesh.indexcount*sizeof(uint32_t);
 
   if (mesh.bonecount != 0)
   {
@@ -256,7 +275,7 @@ struct PackParticleSystemPayload
   uint32_t spritesheet;
   // PackEmitter emitters[emittercount];
 
-  static auto emitters(void const *bits) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(uint32_t)); }
+  static auto emitters(void const *bits) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(PackParticleSystemPayload)); }
 };
 
 void pack(std::vector<uint8_t> &bits, class ParticleEmitter const &emitter);
@@ -318,15 +337,15 @@ struct PackModelPayload
 //  Mesh meshes[meshcount];
 //  Instance instances[instancecount];
 
-  static auto texturetable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Texture const *>(bits); }
-  static auto materialtable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Material const *>((size_t)bits + texturecount*sizeof(Texture)); }
-  static auto meshtable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Mesh const *>((size_t)bits + texturecount*sizeof(Texture) + materialcount*sizeof(Material)); }
-  static auto instancetable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Instance const *>((size_t)bits + texturecount*sizeof(Texture) + materialcount*sizeof(Material) + meshcount*sizeof(Mesh)); }
+  static auto texturetable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Texture const *>((size_t)bits + sizeof(PackModelPayload)); }
+  static auto materialtable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Material const *>((size_t)bits + sizeof(PackModelPayload) + texturecount*sizeof(Texture)); }
+  static auto meshtable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Mesh const *>((size_t)bits + sizeof(PackModelPayload) + texturecount*sizeof(Texture) + materialcount*sizeof(Material)); }
+  static auto instancetable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Instance const *>((size_t)bits + sizeof(PackModelPayload) + texturecount*sizeof(Texture) + materialcount*sizeof(Material) + meshcount*sizeof(Mesh)); }
 };
 
 constexpr size_t pack_payload_size(PackModelHeader const &modl)
 {
-  return modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
+  return sizeof(PackModelPayload) + modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
 }
 
 #pragma pack(pop)

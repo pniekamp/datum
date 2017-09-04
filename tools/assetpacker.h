@@ -21,7 +21,7 @@ void write_header(std::ostream &fout);
 void write_chunk(std::ostream &fout, const char type[4], uint32_t length, void const *data);
 void write_compressed_chunk(std::ostream &fout, const char type[4], uint32_t length, void const *data);
 
-uint32_t write_catl_asset(std::ostream &fout, uint32_t id, uint32_t magic, uint32_t version);
+uint32_t write_catl_asset(std::ostream &fout, uint32_t id, uint32_t magic, uint32_t version, std::vector<std::tuple<uint32_t, std::string>> const &entries = {});
 uint32_t write_text_asset(std::ostream &fout, uint32_t id, uint32_t length, void const *data);
 uint32_t write_imag_asset(std::ostream &fout, uint32_t id, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, uint32_t format, void const *bits);
 uint32_t write_font_asset(std::ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, void const *bits);

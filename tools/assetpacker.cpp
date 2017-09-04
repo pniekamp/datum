@@ -106,17 +106,44 @@ void write_compressed_chunk(ostream &fout, const char type[4], uint32_t length, 
 
 
 ///////////////////////// write_catl_asset //////////////////////////////////
-uint32_t write_catl_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_t version)
+uint32_t write_catl_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_t version, std::vector<std::tuple<uint32_t, std::string>> const &entries)
 {
+  size_t stringslength = 0;
+
+  for(auto &entry : entries)
+    stringslength += get<1>(entry).size() + 1;
+
+  vector<char> payload(sizeof(PackCatalogPayload) + entries.size()*sizeof(PackCatalogPayload::Entry) + stringslength);
+
+  reinterpret_cast<PackCatalogPayload*>(payload.data())->entrycount = entries.size();
+  reinterpret_cast<PackCatalogPayload*>(payload.data())->stringslength = stringslength;
+
+  auto entrytable = const_cast<PackCatalogPayload::Entry*>(PackCatalogPayload::entrytable(payload.data(), entries.size()));
+  auto stringstable = const_cast<char*>(PackCatalogPayload::stringstable(payload.data(), entries.size()));
+
+  int i = 0, j = 0;
+
+  for(auto &entry : entries)
+  {
+    entrytable[i].id = get<0>(entry);
+    entrytable[i].pathindex = j;
+    entrytable[i].pathlength = get<1>(entry).size();
+
+    memcpy(stringstable + j, get<1>(entry).c_str(), get<1>(entry).size() + 1);
+
+    i += 1;
+    j += get<1>(entry).size() + 1;
+  }
+
   PackAssetHeader aset = { id };
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackCalalogHeader catl = { magic, version, 0, (size_t)fout.tellp() + sizeof(catl) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackCalalogHeader catl = { magic, version, (uint32_t)payload.size(), (size_t)fout.tellp() + sizeof(catl) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "CATL", sizeof(catl), &catl);
 
-//  write_chunk(fout, "DATA", pack_payload_size(catl), bits);
+  write_chunk(fout, "DATA", pack_payload_size(catl), payload.data());
 
   write_chunk(fout, "AEND", 0, nullptr);
 
@@ -208,7 +235,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t 
 ///////////////////////// write_font_asset //////////////////////////////////
 uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, uint32_t glyphatlas, vector<uint16_t> const &x, vector<uint16_t> const &y, vector<uint16_t> const &width, vector<uint16_t> const &height, vector<int16_t> const &offsetx, vector<int16_t> const &offsety, vector<uint8_t> const &advance)
 {
-  vector<char> payload(sizeof(uint32_t) + 6*glyphcount*sizeof(uint16_t) + glyphcount*glyphcount*sizeof(uint8_t));
+  vector<char> payload(sizeof(PackFontPayload) + 6*glyphcount*sizeof(uint16_t) + glyphcount*glyphcount*sizeof(uint8_t));
 
   reinterpret_cast<PackFontPayload*>(payload.data())->glyphatlas = glyphatlas;
 
@@ -263,7 +290,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
     bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
   }
 
-  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t));
+  vector<char> payload(sizeof(PackMeshPayload) + vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t));
 
   auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
   auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
@@ -287,7 +314,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
     bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
   }
 
-  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t) + rig.size()*sizeof(PackMeshPayload::Rig) + bones.size()*sizeof(PackMeshPayload::Bone));
+  vector<char> payload(sizeof(PackMeshPayload) + vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t) + rig.size()*sizeof(PackMeshPayload::Rig) + bones.size()*sizeof(PackMeshPayload::Bone));
 
   auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
   auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
@@ -439,7 +466,7 @@ uint32_t write_modl_asset(ostream &fout, uint32_t id, uint32_t texturecount, uin
 ///////////////////////// write_modl_asset //////////////////////////////////
 uint32_t write_modl_asset(ostream &fout, uint32_t id, vector<PackModelPayload::Texture> const &textures, vector<PackModelPayload::Material> const &materials, vector<PackModelPayload::Mesh> const &meshes, vector<PackModelPayload::Instance> const &instances)
 {
-  vector<char> payload(textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material) + meshes.size()*sizeof(PackModelPayload::Mesh) + instances.size()*sizeof(PackModelPayload::Instance));
+  vector<char> payload(sizeof(PackModelPayload) + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material) + meshes.size()*sizeof(PackModelPayload::Mesh) + instances.size()*sizeof(PackModelPayload::Instance));
 
   auto texturetable = const_cast<PackModelPayload::Texture*>(PackModelPayload::texturetable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
   auto materialtable = const_cast<PackModelPayload::Material*>(PackModelPayload::materialtable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));

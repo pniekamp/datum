@@ -879,7 +879,9 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     if (!bits)
       return false;
 
-    context.unitquad = create_vertexbuffer(context.vulkan, rendercontext.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
+    auto vertextable = PackMeshPayload::vertextable(bits, mesh->vertexcount, mesh->indexcount);
+
+    context.unitquad = create_vertexbuffer(context.vulkan, rendercontext.transferbuffer, vertextable, mesh->vertexcount, sizeof(PackVertex));
   }
 
   context.rendercontext = &rendercontext;

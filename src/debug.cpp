@@ -1030,6 +1030,7 @@ void stream_debuglog(const char *filename)
     assert(fout.is_open());
 
     DebugLogHeader header;
+    header.clockfrequency = clock_frequency();
 
     fout.write((const char *)&header, sizeof(header));
 
@@ -1056,18 +1057,20 @@ void stream_debuglog(const char *filename)
     fout.write(buffer, sizeof(DebugLogChunk) + chunk->length);
   }
 
-  for(size_t end = g_debuglogtail; lastentry < end; )
+  size_t tail = max(g_debuglogtail.load(), size_t(32)) - 32;
+
+  for(size_t end = tail; lastentry < end; )
   {
     constexpr size_t MaxEntries = (sizeof(buffer) - sizeof(DebugLogChunk) - sizeof(DebugLogEntryChunk)) / sizeof(DebugLogEntry);
 
     DebugLogChunk *chunk = (DebugLogChunk *)buffer;
     chunk->type = 2;
-    chunk->length = sizeof(DebugLogEntryChunk);
+    chunk->length = sizeof(DebugLogEntryChunk) - sizeof(DebugLogEntry);
 
     DebugLogEntryChunk *entrychunk = (DebugLogEntryChunk *)(buffer + sizeof(DebugLogChunk));
     entrychunk->entrycount = 0;
 
-    for(size_t i = 0, end = min(g_debuglogtail - lastentry, MaxEntries); i < end; ++i, ++lastentry)
+    for(size_t i = 0, end = min(tail - lastentry, MaxEntries); i < end; ++i, ++lastentry)
     {
       entrychunk->entrycount += 1;
       entrychunk->entries[i] = g_debuglog[lastentry % extentof(g_debuglog)];

@@ -210,7 +210,7 @@ Animator::Animator(allocator_type const &allocator)
   : m_allocator(allocator),
     m_joints(allocator),
     m_jointmap(allocator),
-    m_entries(allocator)
+    m_channels(allocator)
 {
   m_mesh = nullptr;
 }
@@ -219,15 +219,17 @@ Animator::Animator(allocator_type const &allocator)
 ///////////////////////// Animator::set_mesh ////////////////////////////////
 void Animator::set_mesh(Mesh const *mesh)
 {
+  assert(mesh);
+
   pose = Pose(mesh->bonecount, m_allocator);
 
   for(int i = 0; i < pose.bonecount; ++i)
     pose.bones[i] = Transform::identity();
 
-  for(auto &entry : m_entries)
+  for(auto &channel : m_channels)
   {
-    entry.jointmapbase = 0;
-    entry.jointmapcount = 0;
+    channel.jointmapbase = 0;
+    channel.jointmapcount = 0;
   }
 
   m_joints.clear();
@@ -240,60 +242,65 @@ void Animator::set_mesh(Mesh const *mesh)
 ///////////////////////// Animator::play ////////////////////////////////////
 void Animator::play(Animation const *animation, Vec3 const &scale, float rate, bool looping)
 {
-  Entry entry = {};
-  entry.animation = animation;
-  entry.scale = scale;
-  entry.time = 0.0f;
-  entry.rate = rate;
-  entry.weight = 1.0f;
-  entry.looping = looping;
+  assert(animation);
 
-  m_entries.push_back(entry);
+  Channel channel = {};
+  channel.animation = animation;
+  channel.scale = scale;
+  channel.time = 0.0f;
+  channel.rate = rate;
+  channel.weight = 1.0f;
+  channel.looping = looping;
+
+  m_channels.push_back(channel);
 }
 
 
 ///////////////////////// Animator::set_time ////////////////////////////////
-void Animator::set_time(size_t entry, float time)
+void Animator::set_time(size_t channel, float time)
 {
-  assert(entry < m_entries.size());
+  assert(channel < m_channels.size());
 
-  m_entries[entry].time = time;
+  m_channels[channel].time = time;
 }
 
 
 ///////////////////////// Animator::set_rate ////////////////////////////////
-void Animator::set_rate(size_t entry, float rate)
+void Animator::set_rate(size_t channel, float rate)
 {
-  assert(entry < m_entries.size());
+  assert(channel < m_channels.size());
 
-  m_entries[entry].rate = rate;
+  m_channels[channel].rate = rate;
 }
 
 
 ///////////////////////// Animator::set_weight //////////////////////////////
-void Animator::set_weight(size_t entry, float weight, float maxdelta)
+void Animator::set_weight(size_t channel, float weight, float maxdelta)
 {
-  assert(entry < m_entries.size());
+  assert(channel < m_channels.size());
 
-  m_entries[entry].weight += clamp(-maxdelta, weight - m_entries[entry].weight, maxdelta);
+  m_channels[channel].weight += clamp(-maxdelta, weight - m_channels[channel].weight, maxdelta);
 }
 
 
-///////////////////////// Animator::update //////////////////////////////////
-void Animator::update(float dt)
+///////////////////////// Animator::prepare /////////////////////////////////
+bool Animator::prepare()
 {
-  bool active = false;
+  assert(m_mesh);
 
-  for(auto &entry : m_entries)
+  if (!m_mesh->ready())
+    return false;
+
+  for(auto &channel : m_channels)
   {
-    auto &animation = entry.animation;
+    auto &animation = channel.animation;
 
-    if (entry.jointmapcount != animation->jointcount)
+    if (!animation->ready())
+      return false;
+
+    if (channel.jointmapcount == 0)
     {
-      assert(m_mesh && m_mesh->ready());
-      assert(animation && animation->ready());
-
-      entry.jointmapbase = m_jointmap.size();
+      channel.jointmapbase = m_jointmap.size();
 
       m_jointmap.resize(m_jointmap.size() + animation->jointcount);
 
@@ -315,26 +322,38 @@ void Animator::update(float dt)
           j = m_joints.insert(m_joints.end(), joint);
         }
 
-        m_jointmap[entry.jointmapbase + i] = indexof(m_joints, j);
+        m_jointmap[channel.jointmapbase + i] = indexof(m_joints, j);
       }
 
-      entry.jointmapcount = animation->jointcount;
+      channel.jointmapcount = animation->jointcount;
     }
+  }
 
-    if (entry.rate != 0.0f)
+  return true;
+}
+
+
+///////////////////////// Animator::update //////////////////////////////////
+void Animator::update(float dt)
+{
+  bool active = false;
+
+  for(auto &channel : m_channels)
+  {
+    if (channel.rate != 0.0f)
     {
-      entry.time += entry.rate * dt;
+      channel.time += channel.rate * dt;
 
-      if (entry.looping)
+      if (channel.looping)
       {
-        entry.time = fmod2(entry.time, animation->duration);
+        channel.time = fmod2(channel.time, channel.animation->duration);
       }
       else
       {
-        if (entry.time <= 0.0f || entry.time >= animation->duration)
+        if (channel.time <= 0.0f || channel.time >= channel.animation->duration)
         {
-          entry.rate = 0.0f;
-          entry.time = clamp(entry.time, 0.0f, animation->duration);
+          channel.rate = 0.0f;
+          channel.time = clamp(channel.time, 0.0f, channel.animation->duration);
         }
       }
 
@@ -349,26 +368,26 @@ void Animator::update(float dt)
       joint.transform = {};
     }
 
-    for(auto &entry : m_entries)
+    for(auto &channel : m_channels)
     {
-      auto &animation = entry.animation;
+      auto &animation = channel.animation;
 
-      if (entry.weight != 0)
+      if (channel.weight != 0)
       {
-        for(int i = 0; i < animation->jointcount; ++i)
+        for(int i = 0; i < channel.jointmapcount; ++i)
         {
-          auto &joint = m_joints[m_jointmap[entry.jointmapbase + i]];
+          auto &joint = m_joints[m_jointmap[channel.jointmapbase + i]];
 
           size_t index = animation->joints[i].index;
 
-          while (index+2 < animation->joints[i].index + animation->joints[i].count && animation->transforms[index+1].time < entry.time)
+          while (index+2 < animation->joints[i].index + animation->joints[i].count && animation->transforms[index+1].time < channel.time)
             ++index;
 
-          auto alpha = remap(entry.time, animation->transforms[index].time, animation->transforms[index+1].time, 0.0f, 1.0f);
+          auto alpha = remap(channel.time, animation->transforms[index].time, animation->transforms[index+1].time, 0.0f, 1.0f);
 
           auto transform = lerp(animation->transforms[index].transform, animation->transforms[index+1].transform, alpha);
 
-          joint.transform = blend(joint.transform, Transform::translation(hada(entry.scale, transform.translation())) * Transform::rotation(transform.rotation()), entry.weight);
+          joint.transform = blend(joint.transform, Transform::translation(hada(channel.scale, transform.translation())) * Transform::rotation(transform.rotation()), channel.weight);
         }
       }
     }

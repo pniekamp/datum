@@ -248,6 +248,8 @@ void render_debug_overlay(struct RenderContext &context, class ResourceManager &
 struct DebugLogHeader
 {
   uint32_t magic = 0x44544d44;
+
+  double clockfrequency;
 };
 
 struct DebugLogChunk

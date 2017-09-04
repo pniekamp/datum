@@ -3790,7 +3790,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    context.unitquad = create_vertexbuffer(context.vulkan, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
+    auto vertextable = PackMeshPayload::vertextable(bits, mesh->vertexcount, mesh->indexcount);
+
+    context.unitquad = create_vertexbuffer(context.vulkan, context.transferbuffer, vertextable, mesh->vertexcount, sizeof(PackVertex));
   }
 
   context.width = 0;
