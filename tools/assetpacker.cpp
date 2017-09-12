@@ -268,7 +268,16 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, uint32_t vertexcount, uint
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackMeshHeader mesh = { vertexcount, indexcount, bonecount, bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
+  uint32_t datasize = 0;
+
+  datasize += vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t);
+
+  if (bonecount != 0)
+  {
+    datasize += vertexcount*sizeof(PackMeshPayload::Rig) + bonecount*sizeof(PackMeshPayload::Bone);
+  }
+
+  PackMeshHeader mesh = { vertexcount, indexcount, bonecount, bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, datasize, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "MESH", sizeof(mesh), &mesh);
 
@@ -290,7 +299,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
     bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
   }
 
-  vector<char> payload(sizeof(PackMeshPayload) + vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t));
+  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t));
 
   auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
   auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
@@ -314,7 +323,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
     bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
   }
 
-  vector<char> payload(sizeof(PackMeshPayload) + vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t) + rig.size()*sizeof(PackMeshPayload::Rig) + bones.size()*sizeof(PackMeshPayload::Bone));
+  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t) + rig.size()*sizeof(PackMeshPayload::Rig) + bones.size()*sizeof(PackMeshPayload::Bone));
 
   auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
   auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));

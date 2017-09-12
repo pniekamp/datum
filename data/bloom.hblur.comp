@@ -8,9 +8,9 @@ layout(constant_id = 84) const uint Radius = 16;
 
 const uint SizeX = gl_WorkGroupSize.x - Radius - Radius;
 
-layout(set=3, binding=11) uniform sampler2D src;
+layout(set=0, binding=18) uniform sampler2D src;
 
-layout(set=3, binding=15) writeonly uniform image2D dest;
+layout(set=0, binding=22) writeonly uniform image2D dest;
 
 shared vec3 texels[SizeX + Radius + Radius];
 

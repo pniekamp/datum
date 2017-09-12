@@ -304,7 +304,7 @@ struct RenderContext
   Vulkan::DescriptorSetLayout scenesetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;
-  Vulkan::DescriptorSetLayout framesetlayout;
+  Vulkan::DescriptorSetLayout extendedsetlayout;
 
   Vulkan::PipelineLayout pipelinelayout;
 

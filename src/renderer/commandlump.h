@@ -105,6 +105,7 @@ class CommandLump
     VkDescriptorSet allocate_descriptorset(VkDescriptorSetLayout layout);
 
     Descriptor acquire_descriptor(VkDeviceSize required, Descriptor &&oldset = {});
+    Descriptor acquire_descriptor(VkDescriptorSetLayout layout, Descriptor &&oldset = {});
     Descriptor acquire_descriptor(VkDescriptorSetLayout layout, VkDeviceSize required, Descriptor &&oldset = {});
 
   private:

@@ -44,6 +44,7 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
+  extendedset = 3,
 
   scenebuf = 0,
   sourcemap = 1,
@@ -110,8 +111,6 @@ bool SpotCasterList::begin(BuildState &state, SpotMapContext &context, ResourceM
 
   begin(context.vulkan, castercommands, 0, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
-  bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
   m_commandlump = { resources, commandlump };
 
   state.commandlump = commandlump;
@@ -152,7 +151,7 @@ void SpotCasterList::push_mesh(BuildState &state, Transform const &transform, Me
     {
       auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.rendercontext->whitediffuse);
 
       bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -213,7 +212,7 @@ void SpotCasterList::push_mesh(BuildState &state, Transform const &transform, Po
     {
       auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.rendercontext->whitediffuse);
 
       bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -462,7 +461,6 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     return false;
 
   context.pipelinelayout = rendercontext.pipelinelayout;
-  context.scenesetlayout = rendercontext.scenesetlayout;
   context.materialsetlayout = rendercontext.materialsetlayout;
   context.modelsetlayout = rendercontext.modelsetlayout;
 
@@ -470,13 +468,11 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
   {
     // DescriptorPool
 
-    VkDescriptorPoolSize typecounts[3] = {};
-    typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    typecounts[0].descriptorCount = 1;
-    typecounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-    typecounts[1].descriptorCount = 16;
-    typecounts[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    typecounts[2].descriptorCount = 55;
+    VkDescriptorPoolSize typecounts[2] = {};
+    typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    typecounts[0].descriptorCount = 16;
+    typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    typecounts[1].descriptorCount = 48;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -486,6 +482,16 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     descriptorpoolinfo.pPoolSizes = typecounts;
 
     context.descriptorpool = create_descriptorpool(context.vulkan, descriptorpoolinfo);
+  }
+
+  if (context.pipelinecache == 0)
+  {
+    // PipelineCache
+
+    VkPipelineCacheCreateInfo pipelinecacheinfo = {};
+    pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+
+    context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
   }
 
   if (context.renderpass == 0)
@@ -518,15 +524,6 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     renderpassinfo.pSubpasses = subpasses;
 
     context.renderpass = create_renderpass(context.vulkan, renderpassinfo);
-  }
-
-  if (context.sceneset == 0)
-  {
-    context.sceneset = create_storagebuffer(context.vulkan, sizeof(SceneSet));
-
-    context.scenedescriptor = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout);
-
-    bind_buffer(context.vulkan, context.scenedescriptor, ShaderLocation::scenebuf, context.sceneset, 0, context.sceneset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   }
 
   if (context.srcblitpipeline == 0)
@@ -619,7 +616,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.srcblitpipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
+    context.srcblitpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
 
     for(size_t i = 0; i < extentof(context.srcblitcommands); ++i)
     {
@@ -733,7 +730,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.modelspotmappipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
+    context.modelspotmappipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.actorspotmappipeline == 0)
@@ -845,43 +842,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.actorspotmappipeline = create_pipeline(context.vulkan, rendercontext.pipelinecache, pipelineinfo);
-  }
-
-  if (context.whitediffuse == 0)
-  {
-    auto image = assets.find(CoreAsset::white_diffuse);
-
-    if (!image)
-      return false;
-
-    asset_guard lock(assets);
-
-    auto bits = assets.request(platform, image);
-
-    if (!bits)
-      return false;
-
-    context.whitediffuse = create_texture(context.vulkan, rendercontext.transferbuffer, image->width, image->height, image->layers, image->levels, VK_FORMAT_B8G8R8A8_UNORM, bits);
-  }
-
-  if (context.unitquad == 0)
-  {
-    auto mesh = assets.find(CoreAsset::unit_quad);
-
-    if (!mesh)
-      return false;
-
-    asset_guard lock(assets);
-
-    auto bits = assets.request(platform, mesh);
-
-    if (!bits)
-      return false;
-
-    auto vertextable = PackMeshPayload::vertextable(bits, mesh->vertexcount, mesh->indexcount);
-
-    context.unitquad = create_vertexbuffer(context.vulkan, rendercontext.transferbuffer, vertextable, mesh->vertexcount, sizeof(PackVertex));
+    context.actorspotmappipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   context.rendercontext = &rendercontext;
@@ -889,16 +850,6 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
   context.ready = true;
 
   return true;
-}
-
-
-///////////////////////// prepare_sceneset //////////////////////////////////
-void prepare_sceneset(SpotMapContext &context, SpotMapInfo const &spotmap, SpotMapParams const &params)
-{
-  SceneSet sceneset;
-  sceneset.view = inverse(spotmap.shadowview).matrix();
-
-  update(context.commandbuffer, context.sceneset, 0, sizeof(SceneSet), &sceneset);
 }
 
 
@@ -949,9 +900,12 @@ void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_
 
     assert(target->ready() && target->asset == nullptr);
 
+    SceneSet sceneset;
+    sceneset.view = inverse(spotmaps[i].shadowview).matrix();
+
     prepare_framebuffer(context, target);
 
-    prepare_sceneset(context, spotmaps[i], params);
+    push(context.commandbuffer, context.pipelinelayout, 0, sizeof(SceneSet), &sceneset, VK_SHADER_STAGE_VERTEX_BIT);
 
     beginpass(commandbuffer, context.renderpass, target->framebuffer, 0, 0, target->width, target->height, 1, &clearvalues[0]);
 
@@ -965,10 +919,9 @@ void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_
       begin(context.vulkan, srcblitcommands, target->framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
       bind_pipeline(srcblitcommands, context.srcblitpipeline, 0, 0, target->width, target->height, VK_PIPELINE_BIND_POINT_GRAPHICS);
       bind_texture(context.vulkan, srcblitdescriptor, ShaderLocation::sourcemap, source->texture.imageview, context.srcblitsampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-      bind_descriptor(srcblitcommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
       bind_descriptor(srcblitcommands, context.pipelinelayout, ShaderLocation::materialset, srcblitdescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
-      bind_vertexbuffer(srcblitcommands, 0, context.unitquad);
-      draw(srcblitcommands, context.unitquad.vertexcount, 1, 0, 0);
+      bind_vertexbuffer(srcblitcommands, 0, context.rendercontext->unitquad);
+      draw(srcblitcommands, context.rendercontext->unitquad.vertexcount, 1, 0, 0);
       end(context.vulkan, srcblitcommands);
 
       execute(commandbuffer, srcblitcommands);

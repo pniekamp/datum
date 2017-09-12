@@ -139,6 +139,7 @@ void initialise_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBo
   context.rendercomplete = create_semaphore(context.vulkan);
 }
 
+
 ///////////////////////// prepare_skybox_context ////////////////////////////
 bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxContext &context, AssetManager &assets)
 {

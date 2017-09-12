@@ -22,6 +22,7 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
+  extendedset = 3,
 
   albedomap = 1,
   surfacemap = 2,
@@ -54,8 +55,13 @@ struct PathMaterialSet
   alignas(16) Color4 color;
   alignas(16) Vec4 texcoords;
   alignas( 4) float depthfade;
-  alignas( 4) float halfwidth;
-  alignas( 4) float overhang;
+};
+
+struct LineMaterialSet
+{
+  alignas(16) Color4 color;
+  alignas(16) Vec4 texcoords;
+  alignas( 4) float depthfade;
 };
 
 struct OutlineMaterialSet
@@ -70,12 +76,46 @@ struct WireframeMaterialSet
   alignas( 4) float depthfade;
 };
 
-struct ModelSet
+struct GizmoModelSet
 {
   alignas(16) Transform modelworld;
-  alignas(16) Vec4 size;
+  alignas(16) Vec3 size;
 };
 
+struct MaskModelSet
+{
+  alignas(16) Transform modelworld;
+};
+
+struct FillModelSet
+{
+  alignas(16) Transform modelworld;
+};
+
+struct PathModelSet
+{
+  alignas(16) Transform modelworld;
+  alignas( 4) float halfwidth;
+  alignas( 4) float overhang;
+};
+
+struct LineModelSet
+{
+  alignas(16) Transform modelworld;
+  alignas(16) Vec3 size;
+  alignas( 4) float halfwidth;
+  alignas( 4) float overhang;
+};
+
+struct OutlineModelSet
+{
+  alignas(16) Transform modelworld;
+};
+
+struct WireframeModelSet
+{
+  alignas(16) Transform modelworld;
+};
 
 ///////////////////////// draw_overlays /////////////////////////////////////
 void draw_overlays(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Overlays const &overlays)
@@ -166,19 +206,19 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(GizmoModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(GizmoModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(GizmoModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<GizmoModelSet>(offset);
 
     modelset->modelworld = Transform::translation(position) * Transform::rotation(rotation);
-    modelset->size = Vec4(size, 1);
+    modelset->size = size;
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -214,19 +254,18 @@ void OverlayList::push_wireframe(OverlayList::BuildState &state, Transform const
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(WireframeModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(WireframeModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(WireframeModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<WireframeModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -261,19 +300,18 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(MaskModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(MaskModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(MaskModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<MaskModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -309,19 +347,18 @@ void OverlayList::push_stencilmask(OverlayList::BuildState &state, Transform con
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(MaskModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(MaskModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(MaskModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<MaskModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -362,19 +399,18 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(FillModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(FillModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(FillModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<FillModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -416,19 +452,18 @@ void OverlayList::push_stencilfill(OverlayList::BuildState &state, Transform con
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(FillModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(FillModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(FillModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<FillModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -462,8 +497,6 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
     materialset->color = color;
     materialset->texcoords = Vec4(0, 0, 1, 1);
-    materialset->halfwidth = 2*thickness;
-    materialset->overhang = thickness;
     materialset->depthfade = state.depthfade;
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
@@ -471,19 +504,20 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(PathModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(PathModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(PathModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<PathModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
+    modelset->halfwidth = 2*thickness;
+    modelset->overhang = thickness;
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -518,8 +552,6 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
 
     materialset->color = material->color;
     materialset->texcoords = Vec4(base.x, base.y, tiling.x, tiling.y);
-    materialset->halfwidth = 2*thickness;
-    materialset->overhang = thickness;
     materialset->depthfade = state.depthfade;
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
@@ -527,19 +559,20 @@ void OverlayList::push_stencilpath(OverlayList::BuildState &state, Transform con
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(PathModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(PathModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(PathModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<PathModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
+    modelset->halfwidth = 2*thickness;
+    modelset->overhang = thickness;
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -560,18 +593,16 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 
   bind_vertexbuffer(overlaycommands, 0, context.unitquad);
 
-  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(LineMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(PathMaterialSet));
+    auto offset = state.materialset.reserve(sizeof(LineMaterialSet));
 
-    auto materialset = state.materialset.memory<PathMaterialSet>(offset);
+    auto materialset = state.materialset.memory<LineMaterialSet>(offset);
 
     materialset->color = color;
     materialset->texcoords = Vec4(0, 0, 1, 1);
-    materialset->halfwidth = thickness + 2.0f;
-    materialset->overhang = 0.0f;
     materialset->depthfade = state.depthfade;
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
@@ -579,19 +610,21 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(LineModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(LineModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(LineModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<LineModelSet>(offset);
 
     modelset->modelworld = Transform::translation((a + b)/2) * Transform::rotation(Vec3(0, 0, 1), theta(b - a)) * Transform::rotation(Vec3(0, 1, 0), phi(b - a) - pi<float>()/2) * Transform::rotation(Vec3(0, 0, 1), -pi<float>()/2);
-    modelset->size = Vec4(Vec3(0, norm(b - a)/2, 0), 0);
+    modelset->size = Vec3(0, norm(b - a)/2, 0);
+    modelset->halfwidth = thickness + 2.0f;
+    modelset->overhang = 0.0f;
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -613,18 +646,16 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
 
   bind_vertexbuffer(overlaycommands, 0, mesh->vertexbuffer);
 
-  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(PathMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(LineMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(PathMaterialSet));
+    auto offset = state.materialset.reserve(sizeof(LineMaterialSet));
 
-    auto materialset = state.materialset.memory<PathMaterialSet>(offset);
+    auto materialset = state.materialset.memory<LineMaterialSet>(offset);
 
     materialset->color = color;
     materialset->texcoords = Vec4(0, 0, 1, 1);
-    materialset->halfwidth = thickness + 2.0f;
-    materialset->overhang = 0.0f;
     materialset->depthfade = state.depthfade;
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, context.whitediffuse);
@@ -632,19 +663,21 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(LineModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(LineModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(LineModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<LineModelSet>(offset);
 
     modelset->modelworld = Transform::translation(position) * Transform::rotation(rotation);
-    modelset->size = Vec4(size, 1);
+    modelset->size = size;
+    modelset->halfwidth = thickness + 2.0f;
+    modelset->overhang = 0.0f;
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -690,19 +723,18 @@ void OverlayList::push_outline(OverlayList::BuildState &state, Transform const &
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
 
-  if (state.modelset.available() < sizeof(ModelSet))
+  if (state.modelset.available() < sizeof(OutlineModelSet))
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(OutlineModelSet), std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ModelSet));
+    auto offset = state.modelset.reserve(sizeof(OutlineModelSet));
 
-    auto modelset = state.modelset.memory<ModelSet>(offset);
+    auto modelset = state.modelset.memory<OutlineModelSet>(offset);
 
     modelset->modelworld = transform;
-    modelset->size = Vec4(1);
 
     bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

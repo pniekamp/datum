@@ -23,7 +23,9 @@ layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet
 {
   Transform modelworld;
   vec3 size;
-  
+  float halfwidth;
+  float overhang;
+
 } model;
 
 ///////////////////////// main //////////////////////////////////////////////
@@ -32,6 +34,7 @@ void main()
   Transform modelworld = model.modelworld;
 
   vec3 position = transform_multiply(modelworld, model.size * vertex_position);
-  
+
   gl_Position = (scene.worldview * vec4(position, 1)) * vec4(scene.viewport.z / (scene.viewport.z + 2*scene.viewport.x), scene.viewport.w / (scene.viewport.w + 2*scene.viewport.y), 1, 1);  
+
 }

@@ -39,5 +39,5 @@ void main()
   if (texture(depthmap, fbocoord.st).r < gl_FragCoord.z)
     discard;
 
-  fragcolor = params.color * texture(albedomap, vec3(texcoord, 0)).a;
+  fragcolor = texture(albedomap, vec3(texcoord, 0)).a * params.color;
 }

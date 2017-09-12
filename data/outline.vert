@@ -22,7 +22,6 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet 
 {
   Transform modelworld;
-  vec3 size;
   
 } model;
 
@@ -33,12 +32,12 @@ void main()
 {
   Transform modelworld = model.modelworld;
 
-  vec3 position = transform_multiply(modelworld, model.size * vertex_position);
+  vec3 position = transform_multiply(modelworld, vertex_position);
   vec3 normal = quaternion_multiply(modelworld.real, vertex_normal);
 
   float bias = 0.01 * pow(-(scene.view * vec4(position, 1)).z, 0.6);
 
-  position = transform_multiply(modelworld, model.size * vertex_position + bias*normal);
+  position = transform_multiply(modelworld, vertex_position + bias*normal);
 
   texcoords = vertex_texcoord; 
 

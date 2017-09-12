@@ -48,7 +48,7 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
-  frameset = 3,
+  extendedset = 3,
 
   scenebuf = 0,
   colormap = 1,
@@ -58,24 +58,24 @@ enum ShaderLocation
   depthmap = 5,
   depthmipmap = 6,
 
-  colortarget = 0,
-  depthmiptarget = 1,
-  depthattachment = 2,
-  ssaomap = 3,
-  shadowmap = 4,
-  envbrdf = 5,
-  envmaps = 6,
-  spotmaps = 7,
-  ssaobuf = 8,
-  ssaoprevmap = 9,
-  ssaotarget = 10,
-  scratchmap0 = 11,
-  scratchmap1 = 12,
-  scratchmap2 = 13,
-  scratchtarget0 = 14,
-  scratchtarget1 = 15,
-  scratchtarget2 = 16,
-  lumabuf = 17,
+  colortarget = 7,
+  depthmiptarget = 8,
+  depthattachment = 9,
+  ssaomap = 10,
+  shadowmap = 11,
+  envbrdf = 12,
+  envmaps = 13,
+  spotmaps = 14,
+  ssaobuf = 15,
+  ssaoprevmap = 16,
+  ssaotarget = 17,
+  scratchmap0 = 18,
+  scratchmap1 = 19,
+  scratchmap2 = 20,
+  scratchtarget0 = 21,
+  scratchtarget1 = 22,
+  scratchtarget2 = 23,
+  lumabuf = 24,
 
   // Constant Ids
 
@@ -341,13 +341,13 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkDescriptorPoolSize typecounts[4] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    typecounts[0].descriptorCount = 24;
+    typecounts[0].descriptorCount = 9;
     typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     typecounts[1].descriptorCount = 128;
     typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    typecounts[2].descriptorCount = 24;
+    typecounts[2].descriptorCount = 33;
     typecounts[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    typecounts[3].descriptorCount = 4;
+    typecounts[3].descriptorCount = 3;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -410,7 +410,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Scene Set
 
-    VkDescriptorSetLayoutBinding bindings[7] = {};
+    VkDescriptorSetLayoutBinding bindings[25] = {};
     bindings[0].binding = ShaderLocation::scenebuf;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -439,6 +439,78 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[6].descriptorCount = 1;
+    bindings[7].binding = ShaderLocation::colortarget;
+    bindings[7].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[7].descriptorCount = 1;
+    bindings[8].binding = ShaderLocation::depthmiptarget;
+    bindings[8].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[8].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[8].descriptorCount = 6;
+    bindings[9].binding = ShaderLocation::depthattachment;
+    bindings[9].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[9].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    bindings[9].descriptorCount = 1;
+    bindings[10].binding = ShaderLocation::ssaomap;
+    bindings[10].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[10].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[10].descriptorCount = 1;
+    bindings[11].binding = ShaderLocation::shadowmap;
+    bindings[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[11].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[11].descriptorCount = 1;
+    bindings[12].binding = ShaderLocation::envbrdf;
+    bindings[12].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[12].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[12].descriptorCount = 1;
+    bindings[13].binding = ShaderLocation::envmaps;
+    bindings[13].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[13].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[13].descriptorCount = extent<decltype(SceneSet::environments)>::value;
+    bindings[14].binding = ShaderLocation::spotmaps;
+    bindings[14].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[14].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[14].descriptorCount = extent<decltype(SceneSet::spotlights)>::value;
+    bindings[15].binding = ShaderLocation::ssaobuf;
+    bindings[15].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[15].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[15].descriptorCount = 1;
+    bindings[16].binding = ShaderLocation::ssaoprevmap;
+    bindings[16].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[16].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[16].descriptorCount = 1;
+    bindings[17].binding = ShaderLocation::ssaotarget;
+    bindings[17].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[17].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[17].descriptorCount = 1;
+    bindings[18].binding = ShaderLocation::scratchmap0;
+    bindings[18].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[18].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[18].descriptorCount = 1;
+    bindings[19].binding = ShaderLocation::scratchmap1;
+    bindings[19].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[19].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[19].descriptorCount = 1;
+    bindings[20].binding = ShaderLocation::scratchmap2;
+    bindings[20].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[20].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[20].descriptorCount = 1;
+    bindings[21].binding = ShaderLocation::scratchtarget0;
+    bindings[21].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[21].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[21].descriptorCount = 1;
+    bindings[22].binding = ShaderLocation::scratchtarget1;
+    bindings[22].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[22].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[22].descriptorCount = 1;
+    bindings[23].binding = ShaderLocation::scratchtarget2;
+    bindings[23].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[23].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[23].descriptorCount = 1;
+    bindings[24].binding = ShaderLocation::lumabuf;
+    bindings[24].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[24].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[24].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -454,7 +526,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkDescriptorSetLayoutBinding bindings[4] = {};
     bindings[0].binding = 0;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
     bindings[1].binding = 1;
@@ -484,7 +556,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     VkDescriptorSetLayoutBinding bindings[1] = {};
     bindings[0].binding = 0;
-    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
 
@@ -496,90 +568,30 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.modelsetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
   }
 
-  if (context.framesetlayout == 0)
+  if (context.extendedsetlayout == 0)
   {
-    // Frame Set
+    // Extended Model Set
 
-    VkDescriptorSetLayoutBinding bindings[18] = {};
-    bindings[0].binding = ShaderLocation::colortarget;
-    bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    VkDescriptorSetLayoutBinding bindings[3] = {};
+    bindings[0].binding = 0;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     bindings[0].descriptorCount = 1;
-    bindings[1].binding = ShaderLocation::depthmiptarget;
-    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[1].descriptorCount = 6;
-    bindings[2].binding = ShaderLocation::depthattachment;
-    bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    bindings[1].binding = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[1].descriptorCount = 1;
+    bindings[2].binding = 2;
+    bindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[2].descriptorCount = 1;
-    bindings[3].binding = ShaderLocation::ssaomap;
-    bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[3].descriptorCount = 1;
-    bindings[4].binding = ShaderLocation::shadowmap;
-    bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[4].descriptorCount = 1;
-    bindings[5].binding = ShaderLocation::envbrdf;
-    bindings[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[5].descriptorCount = 1;
-    bindings[6].binding = ShaderLocation::envmaps;
-    bindings[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[6].descriptorCount = extent<decltype(SceneSet::environments)>::value;
-    bindings[7].binding = ShaderLocation::spotmaps;
-    bindings[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[7].descriptorCount = extent<decltype(SceneSet::spotlights)>::value;
-    bindings[8].binding = ShaderLocation::ssaobuf;
-    bindings[8].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[8].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    bindings[8].descriptorCount = 1;
-    bindings[9].binding = ShaderLocation::ssaoprevmap;
-    bindings[9].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[9].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[9].descriptorCount = 1;
-    bindings[10].binding = ShaderLocation::ssaotarget;
-    bindings[10].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[10].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[10].descriptorCount = 1;
-    bindings[11].binding = ShaderLocation::scratchmap0;
-    bindings[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[11].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[11].descriptorCount = 1;
-    bindings[12].binding = ShaderLocation::scratchmap1;
-    bindings[12].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[12].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[12].descriptorCount = 1;
-    bindings[13].binding = ShaderLocation::scratchmap2;
-    bindings[13].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[13].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[13].descriptorCount = 1;
-    bindings[14].binding = ShaderLocation::scratchtarget0;
-    bindings[14].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[14].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[14].descriptorCount = 1;
-    bindings[15].binding = ShaderLocation::scratchtarget1;
-    bindings[15].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[15].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[15].descriptorCount = 1;
-    bindings[16].binding = ShaderLocation::scratchtarget2;
-    bindings[16].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[16].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    bindings[16].descriptorCount = 1;
-    bindings[17].binding = ShaderLocation::lumabuf;
-    bindings[17].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[17].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    bindings[17].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     createinfo.bindingCount = extentof(bindings);
     createinfo.pBindings = bindings;
 
-    context.framesetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
+    context.extendedsetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
   }
 
   if (context.pipelinelayout == 0)
@@ -595,7 +607,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     layouts[0] = context.scenesetlayout;
     layouts[1] = context.materialsetlayout;
     layouts[2] = context.modelsetlayout;
-    layouts[3] = context.framesetlayout;
+    layouts[3] = context.extendedsetlayout;
 
     VkPipelineLayoutCreateInfo pipelinelayoutinfo = {};
     pipelinelayoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -3099,7 +3111,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthstate.depthTestEnable = VK_TRUE;
     depthstate.depthWriteEnable = VK_FALSE;
-    depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
     VkPipelineViewportStateCreateInfo viewport = {};
     viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -3790,9 +3802,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     if (!bits)
       return false;
 
-    auto vertextable = PackMeshPayload::vertextable(bits, mesh->vertexcount, mesh->indexcount);
-
-    context.unitquad = create_vertexbuffer(context.vulkan, context.transferbuffer, vertextable, mesh->vertexcount, sizeof(PackVertex));
+    context.unitquad = create_vertexbuffer(context.vulkan, context.transferbuffer, bits, mesh->vertexcount, sizeof(PackVertex));
   }
 
   context.width = 0;
@@ -4032,13 +4042,21 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     bind_texture(context.vulkan, context.scenedescriptor, ShaderLocation::depthmipmap, context.depthmipbuffer.imageview, context.depthmipbuffer.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
     //
-    // Frame Descriptor
+    // Frame Descriptors
     //
 
     for(size_t i = 0; i < extentof(context.framedescriptors); ++i)
     {
       context.framedescriptors[i] = {};
-      context.framedescriptors[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.framesetlayout);
+      context.framedescriptors[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout);
+
+      bind_buffer(context.vulkan, context.framedescriptors[i], ShaderLocation::scenebuf, context.sceneset, 0, context.sceneset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::colormap, context.colorbuffer);
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::diffusemap, context.diffusebuffer);
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::specularmap, context.specularbuffer);
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::normalmap, context.normalbuffer);
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmap, context.depthbuffer);
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmipmap, context.depthmipbuffer.imageview, context.depthmipbuffer.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::colortarget, context.colorbuffer);
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[0], VK_IMAGE_LAYOUT_GENERAL, 0);
@@ -4451,17 +4469,13 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   prepare_sceneset(context, renderables, params);
 
-  auto &scenedescriptor = context.scenedescriptor;
-  bind_descriptor(commandbuffer, context.pipelinelayout, ShaderLocation::sceneset, scenedescriptor, VK_PIPELINE_BIND_POINT_COMPUTE);
-
   auto &framedescriptor = context.framedescriptors[context.frame & 1];
-  bind_descriptor(commandbuffer, context.pipelinelayout, ShaderLocation::frameset, framedescriptor, VK_PIPELINE_BIND_POINT_COMPUTE);
+  bind_descriptor(commandbuffer, context.pipelinelayout, ShaderLocation::sceneset, framedescriptor, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   auto &skyboxcommands = context.skyboxcommands[context.frame & 1];
   begin(context.vulkan, skyboxcommands, context.forwardframebuffer, context.forwardpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
   bind_pipeline(skyboxcommands, context.skyboxpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_descriptor(skyboxcommands, context.pipelinelayout, ShaderLocation::sceneset, scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_descriptor(skyboxcommands, context.pipelinelayout, ShaderLocation::frameset, framedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(skyboxcommands, context.pipelinelayout, ShaderLocation::sceneset, framedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
   bind_vertexbuffer(skyboxcommands, 0, context.unitquad);
   draw(skyboxcommands, context.unitquad.vertexcount, 1, 0, 0);
   end(context.vulkan, skyboxcommands);
@@ -4469,8 +4483,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   auto &compositecommands = context.compositecommands[context.frame & 1];
   begin(context.vulkan, compositecommands, framebuffer, context.overlaypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
   bind_pipeline(compositecommands, context.compositepipeline, context.fbox, context.fboy, context.width-2*context.fbox, context.height-2*context.fboy, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_descriptor(compositecommands, context.pipelinelayout, ShaderLocation::sceneset, scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_descriptor(compositecommands, context.pipelinelayout, ShaderLocation::frameset, framedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(compositecommands, context.pipelinelayout, ShaderLocation::sceneset, framedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
   bind_vertexbuffer(compositecommands, 0, context.unitquad);
   draw(compositecommands, context.unitquad.vertexcount, 1, 0, 0);
   end(context.vulkan, compositecommands);
@@ -4596,8 +4609,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   auto &forwardcommands = context.forwardcommands[context.frame & 1];
 
   begin(context.vulkan, forwardcommands, context.forwardframebuffer, context.forwardpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
-  bind_descriptor(forwardcommands, context.pipelinelayout, ShaderLocation::sceneset, scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  bind_descriptor(forwardcommands, context.pipelinelayout, ShaderLocation::frameset, framedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  bind_descriptor(forwardcommands, context.pipelinelayout, ShaderLocation::sceneset, framedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   for(auto &renderable : renderables)
   {

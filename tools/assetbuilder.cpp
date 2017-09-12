@@ -508,34 +508,16 @@ uint32_t write_envbrdf_asset(ostream &fout, uint32_t id)
 }
 
 
-uint32_t write_watermap_asset(ostream &fout, uint32_t id, Color3 const &deepcolor, Color3 const &shallowcolor, float depthscale = 1.0f, Color3 const &fresnelcolor = { 0.0f, 0.0f, 0.0f }, float fresnelbias = 0.328f, float fresnelpower = 5.0f, string const &foampath = "")
+uint32_t write_watermap_asset(ostream &fout, uint32_t id, Color3 const &deepcolor, Color3 const &shallowcolor, float depthscale = 1.0f, Color3 const &fresnelcolor = { 0.0f, 0.0f, 0.0f }, float fresnelbias = 0.328f, float fresnelpower = 5.0f)
 {
   int width = 256;
   int height = 256;
-  int layers = (foampath != "") ? 2 : 1;
+  int layers = 1;
   int levels = 1;
 
   vector<char> payload(image_datasize(width, height, layers, levels));
 
   image_pack_watercolor(deepcolor, shallowcolor, depthscale, fresnelcolor, fresnelbias, fresnelpower, width, height, payload.data());
-
-  if (foampath != "")
-  {
-    QImage foam = QImage(foampath.c_str()).convertToFormat(QImage::Format_ARGB32);
-
-    if (foam.width() != width || foam.height() != height)
-      throw runtime_error("Foam dimensions mismatch");
-
-    for(int y = 0; y < foam.height(); ++y)
-    {
-      for(int x = 0; x < foam.width(); ++x)
-      {
-        foam.setPixel(x, y, rgbe(srgba(foam.pixel(x, y))));
-      }
-    }
-
-    memcpy(payload.data() + width*height*sizeof(uint32_t), foam.bits(), foam.byteCount());
-  }
 
   write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgbe, payload.data());
 
@@ -878,8 +860,9 @@ void write_core()
   write_shader_asset(fout, CoreAsset::ocean_map_comp, "../../data/ocean.map.comp");
   write_shader_asset(fout, CoreAsset::ocean_gen_comp, "../../data/ocean.gen.comp");
 
-  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0f, 0.007f, 0.005f), Color3(0.1, 0.6, 0.7), 1.0, Color3(0.01f, 0.05f, 0.15f), 0.015f, 5.0f, "../../data/foam.png");
+  write_watermap_asset(fout, CoreAsset::wave_color, Color3(0.0f, 0.007f, 0.005f), Color3(0.1, 0.6, 0.7), 1.0, Color3(0.01f, 0.05f, 0.15f), 0.015f, 5.0f);
   write_normalmap_asset(fout, CoreAsset::wave_normal, "../../data/wavenormal.png");
+  write_image_asset(fout, CoreAsset::wave_foam, "../../data/foam.png");
 
   write_image_asset(fout, CoreAsset::cloud_density, "../../data/clouds.png");
   write_normalmap_asset(fout, CoreAsset::cloud_normal, "../../data/cloudsnormal.png");

@@ -108,6 +108,58 @@ constexpr size_t pack_payload_size(PackImageHeader const &imag)
   return imag.datasize;
 }
 
+struct PackVertex
+{
+  float position[3];
+  float texcoord[2];
+  float normal[3];
+  float tangent[4];
+};
+
+struct PackMeshHeader
+{
+  uint32_t vertexcount;
+  uint32_t indexcount;
+  uint32_t bonecount;
+  float mincorner[3];
+  float maxcorner[3];
+  uint32_t datasize;
+  uint64_t dataoffset;
+};
+
+struct PackMeshPayload
+{
+// PackVertex verticies[vertexcount];
+// uint32_t indicies[indexcount];
+
+  static auto vertextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<PackVertex const *>((size_t)bits); }
+  static auto indextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<uint32_t const *>((size_t)bits + vertexcount*sizeof(PackVertex)); }
+
+  struct Rig
+  {
+    uint32_t bone[4];
+    float weight[4];
+  };
+
+  struct Bone
+  {
+    char name[32];
+    float transform[8];
+  };
+
+  // if bonecount != 0
+  //   Rig rig[vertexcount];
+  //   Bone bones[bonecount];
+
+  static auto rigtable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Rig const *>((size_t)bits + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t)); }
+  static auto bonetable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Bone const *>((size_t)bits + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t) + vertexcount*sizeof(Rig)); }
+};
+
+inline size_t pack_payload_size(PackMeshHeader const &mesh)
+{
+  return mesh.datasize;
+}
+
 struct PackFontHeader
 {
   uint32_t ascent;
@@ -140,64 +192,6 @@ struct PackFontPayload
 constexpr size_t pack_payload_size(PackFontHeader const &font)
 {
   return sizeof(PackFontPayload) + 6*font.glyphcount*sizeof(uint16_t) + font.glyphcount*font.glyphcount*sizeof(uint8_t);
-}
-
-struct PackVertex
-{
-  float position[3];
-  float texcoord[2];
-  float normal[3];
-  float tangent[4];
-};
-
-struct PackMeshHeader
-{
-  uint32_t vertexcount;
-  uint32_t indexcount;
-  uint32_t bonecount;
-  float mincorner[3];
-  float maxcorner[3];
-  uint64_t dataoffset;
-};
-
-struct PackMeshPayload
-{   
-// PackVertex verticies[vertexcount];
-// uint32_t indicies[indexcount];
-
-  static auto vertextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<PackVertex const *>((size_t)bits + sizeof(PackMeshPayload)); }
-  static auto indextable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<uint32_t const *>((size_t)bits + sizeof(PackMeshPayload) + vertexcount*sizeof(PackVertex)); }
-
-  struct Rig
-  {
-    uint32_t bone[4];
-    float weight[4];
-  };
-
-  struct Bone
-  {
-    char name[32];
-    float transform[8];
-  };
-
-  // if bonecount != 0
-  //   Rig rig[vertexcount];
-  //   Bone bones[bonecount];
-
-  static auto rigtable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Rig const *>((size_t)bits + sizeof(PackMeshPayload) + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t)); }
-  static auto bonetable(void const *bits, int vertexcount, int indexcount) { return reinterpret_cast<Bone const *>((size_t)bits + sizeof(PackMeshPayload) + vertexcount*sizeof(PackVertex) + indexcount*sizeof(uint32_t) + vertexcount*sizeof(Rig)); }
-};
-
-inline size_t pack_payload_size(PackMeshHeader const &mesh)
-{
-  size_t size = sizeof(PackMeshPayload) + mesh.vertexcount*sizeof(PackVertex) + mesh.indexcount*sizeof(uint32_t);
-
-  if (mesh.bonecount != 0)
-  {
-    size += mesh.vertexcount*sizeof(PackMeshPayload::Rig) + mesh.bonecount*sizeof(PackMeshPayload::Bone);
-  }
-
-  return size;
 }
 
 struct PackMaterialHeader

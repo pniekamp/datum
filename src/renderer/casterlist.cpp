@@ -22,6 +22,7 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
+  extendedset = 3,
 
   albedomap = 1,
 };

@@ -34,14 +34,15 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 } scene;
 
 layout(set=0, binding=1) uniform sampler2D colormap;
-layout(set=3, binding=4) uniform sampler2DArrayShadow shadowmap;
-layout(set=3, binding=5) uniform sampler2DArray envbrdfmap;
-layout(set=3, binding=6) uniform samplerCube envmaps[MaxEnvironments];
-layout(set=3, binding=7) uniform sampler2DShadow spotmaps[MaxSpotLights];
+layout(set=0, binding=11) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=12) uniform sampler2DArray envbrdfmap;
+layout(set=0, binding=13) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=14) uniform sampler2DShadow spotmaps[MaxSpotLights];
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
+  float metalness;
   float roughness;
   float reflectivity;
   float emissive;
@@ -83,7 +84,7 @@ float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2
 ///////////////////////// spotlight_shadow //////////////////////////////////
 float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2DShadow spotmap)
 {
-  vec3 shadowpos = position + 0.01 * normal;;
+  vec3 shadowpos = position + 0.01 * normal;
   vec4 shadowspace = map_parabolic(vec4(transform_multiply(spotlight.shadowview, shadowpos), 1));
 
   vec3 texel = vec3(0.5 * shadowspace.xy + 0.5, shadowspace.z);
@@ -103,7 +104,7 @@ void main()
   vec4 albedo = texture(albedomap, vec3(texcoord, 0));
   vec4 surface = texture(surfacemap, vec3(texcoord, 0));
 
-  Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, 0, params.reflectivity * surface.g, params.roughness * surface.a);
+  Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness * surface.r, params.reflectivity * surface.g, params.roughness * surface.a);
 
   vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
   vec3 eyevec = normalize(scene.camera.position - position);
