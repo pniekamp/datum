@@ -41,7 +41,6 @@ class SpriteList
 
       VkSampler texture;
       lml::Color4 color;
-      lml::Vec4 texcoords;
     };
 
     bool begin(BuildState &state, RenderContext &context, ResourceManager &resources);
@@ -49,9 +48,9 @@ class SpriteList
     void viewport(BuildState &state, lml::Rect2 const &viewport) const;
     void viewport(BuildState &state, DatumPlatform::Viewport const &viewport) const;
 
-    void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Vec4 const &texcoords, lml::Color4 const &tint);
+    void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Color4 const &tint);
 
-    void push_model(BuildState &state, lml::Vec2 xbasis, lml::Vec2 ybasis, lml::Vec2 position, float layer);
+    void push_model(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, lml::Vec4 const &texcoords, float layer);
 
     void push_line(BuildState &state, lml::Vec2 const &a, lml::Vec2 const &b, lml::Color4 const &color, float thickness = 1.0f);
 

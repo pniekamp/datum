@@ -20,8 +20,6 @@ layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet
 { 
   Transform modelworld;
 
-  float time;
-
 } model;
 
 layout(location=0) out vec3 position;

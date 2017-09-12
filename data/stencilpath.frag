@@ -20,8 +20,6 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
   vec4 color;
   vec4 texcoords;
   float depthfade;
-  float halfwidth;
-  float overhang;
   
 } params;
 

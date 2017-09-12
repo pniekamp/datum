@@ -23,19 +23,14 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
+  extendedset = 3,
 
   albedomap = 1,
 };
 
-struct SceneSet
-{
-  alignas(16) Matrix4f worldview;
-};
-
-struct SpriteMaterialSet
+struct MaterialSet
 {
   alignas(16) Color4 color;
-  alignas(16) Vec4 texcoords;
 };
 
 struct ModelSet
@@ -43,6 +38,7 @@ struct ModelSet
   alignas( 8) Vec2 xbasis;
   alignas( 8) Vec2 ybasis;
   alignas(16) Vec4 position;
+  alignas(16) Vec4 texcoords;
 };
 
 
@@ -124,16 +120,16 @@ void SpriteList::viewport(BuildState &state, DatumPlatform::Viewport const &view
 
 
 ///////////////////////// SpriteList::push_material /////////////////////////
-void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture, Vec4 const &texcoords, Color4 const &tint)
+void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture, Color4 const &tint)
 {
   assert(state.commandlump);
 
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  if (state.materialset.available() < sizeof(SpriteMaterialSet) || state.texture != texture)
+  if (state.materialset.available() < sizeof(MaterialSet) || state.texture != texture)
   {
-    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(SpriteMaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
@@ -145,23 +141,21 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(SpriteMaterialSet));
+    auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-    auto materialset = state.materialset.memory<SpriteMaterialSet>(offset);
+    auto materialset = state.materialset.memory<MaterialSet>(offset);
 
     materialset->color = premultiply(tint);
-    materialset->texcoords = texcoords;
 
     bind_descriptor(spritecommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.color = tint;
-    state.texcoords = texcoords;
   }
 }
 
 
 ///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 ybasis, Vec2 position, float layer)
+void SpriteList::push_model(SpriteList::BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, Vec4 const &texcoords, float layer)
 {
   assert(state.commandlump);
 
@@ -182,6 +176,7 @@ void SpriteList::push_model(SpriteList::BuildState &state, Vec2 xbasis, Vec2 yba
     modelset->xbasis = xbasis;
     modelset->ybasis = ybasis;
     modelset->position = Vec4(position, layer - 0.5f + 1e-3f, 1);
+    modelset->texcoords = texcoords;
 
     bind_descriptor(spritecommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -202,13 +197,13 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
 {
   if (state.texture != state.context->whitediffuse || state.color != color)
   {
-    push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
+    push_material(state, state.context->whitediffuse, color);
   }
 
   auto xbasis = Vec2(1, 0);
   auto ybasis = Vec2(0, 1);
 
-  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, 0);
+  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, Vec4(0, 0, 1, 1), 0);
 }
 
 
@@ -217,13 +212,13 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
 {
   if (state.texture != state.context->whitediffuse || state.color != color)
   {
-    push_material(state, state.context->whitediffuse, Vec4(0, 0, 1, 1), color);
+    push_material(state, state.context->whitediffuse, color);
   }
 
   auto xbasis = rotate(Vec2(1, 0), rotation);
   auto ybasis = rotate(Vec2(0, 1), rotation);
 
-  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, 0);
+  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, Vec4(0, 0, 1, 1), 0);
 }
 
 
@@ -264,15 +259,15 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &
 {
   assert(sprite && sprite->ready());
 
-  if (state.texture != sprite->atlas->texture || state.texcoords != sprite->extent || state.color != tint)
+  if (state.texture != sprite->atlas->texture || state.color != tint)
   {
-    push_material(state, sprite->atlas->texture, sprite->extent, tint);
+    push_material(state, sprite->atlas->texture, tint);
   }
 
   auto dim = Vec2(size * sprite->aspect, size);
   auto align = Vec2(sprite->align.x * dim.x, sprite->align.y * dim.y);
 
-  push_model(state, dim.x * xbasis, dim.y * ybasis, position - align.x*xbasis - align.y*ybasis, layer);
+  push_model(state, dim.x * xbasis, dim.y * ybasis, position - align.x*xbasis - align.y*ybasis, sprite->extent, layer);
 }
 
 
@@ -321,6 +316,11 @@ void SpriteList::push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2
 {
   assert(font && font->ready());
 
+  if (state.texture != font->glyphs->texture || state.color != tint)
+  {
+    push_material(state, font->glyphs->texture, tint);
+  }
+
   auto scale = size / font->height();
 
   auto cursor = position;
@@ -336,9 +336,7 @@ void SpriteList::push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2
 
     cursor += scale * font->width(othercodepoint, codepoint) * xbasis;
 
-    push_material(state, font->glyphs->texture, font->texcoords[codepoint], tint);
-
-    push_model(state, scale * font->dimension[codepoint].x * xbasis, scale * font->dimension[codepoint].y * ybasis, cursor - scale * font->alignment[codepoint].x*xbasis - scale * font->alignment[codepoint].y*ybasis, 0);
+    push_model(state, scale * font->dimension[codepoint].x * xbasis, scale * font->dimension[codepoint].y * ybasis, cursor - scale * font->alignment[codepoint].x*xbasis - scale * font->alignment[codepoint].y*ybasis, font->texcoords[codepoint], 0);
 
     othercodepoint = codepoint;
   }
@@ -371,9 +369,9 @@ void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 con
   auto xbasis = Vec2(1, 0);
   auto ybasis = Vec2(0, 1);
 
-  push_material(state, texture, Vec4(0, 0, 1, 1), tint);
+  push_material(state, texture, tint);
 
-  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, layer);
+  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, Vec4(0, 0, 1, 1), layer);
 }
 
 

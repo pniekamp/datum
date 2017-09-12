@@ -22,10 +22,20 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
+  extendedset = 3,
 
   albedomap = 1,
   surfacemap = 2,
   normalmap = 3,
+};
+
+struct MaterialSet
+{
+  alignas(16) Color4 color;
+  alignas( 4) float metalness;
+  alignas( 4) float roughness;
+  alignas( 4) float reflectivity;
+  alignas( 4) float emissive;
 };
 
 struct OceanMaterialSet
@@ -42,15 +52,6 @@ struct OceanMaterialSet
   alignas( 4) float foamshoreheight;
   alignas( 4) float foamshorescale;
   alignas(16) Vec2 flow;
-};
-
-struct GeometryMaterialSet
-{
-  alignas(16) Color4 color;
-  alignas( 4) float metalness;
-  alignas( 4) float roughness;
-  alignas( 4) float reflectivity;
-  alignas( 4) float emissive;
 };
 
 struct ModelSet
@@ -151,13 +152,13 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Mesh
 
   if (state.material != material)
   {
-    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
-      auto offset = state.materialset.reserve(sizeof(GeometryMaterialSet));
+      auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-      auto materialset = state.materialset.memory<GeometryMaterialSet>(offset);
+      auto materialset = state.materialset.memory<MaterialSet>(offset);
 
       materialset->color = material->color;
       materialset->metalness = material->metalness;
@@ -228,13 +229,13 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   if (state.material != material)
   {
-    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(GeometryMaterialSet), std::move(state.materialset));
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
     if (state.materialset)
     {
-      auto offset = state.materialset.reserve(sizeof(GeometryMaterialSet));
+      auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-      auto materialset = state.materialset.memory<GeometryMaterialSet>(offset);
+      auto materialset = state.materialset.memory<MaterialSet>(offset);
 
       materialset->color = material->color;
       materialset->metalness = material->metalness;
@@ -278,7 +279,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
 
 ///////////////////////// GeometryList::push_ocean //////////////////////////
-void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow, Vec3 const &bumpscale, const Plane &foamplane, float foamwaveheight, float foamwavescale, float foamshoreheight, float foamshorescale)
+void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, Vec2 const &flow, Vec3 const &bumpscale, Plane const &foamplane, float foamwaveheight, float foamwavescale, float foamshoreheight, float foamshorescale)
 {
   assert(state.commandlump);
   assert(mesh && mesh->ready());
@@ -301,38 +302,35 @@ void GeometryList::push_ocean(GeometryList::BuildState &state, Transform const &
     state.mesh = mesh;
   }
 
-  if (state.material != material)
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(OceanMaterialSet), std::move(state.materialset));
+
+  if (state.materialset)
   {
-    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(OceanMaterialSet), std::move(state.materialset));
+    auto offset = state.materialset.reserve(sizeof(OceanMaterialSet));
 
-    if (state.materialset)
-    {
-      auto offset = state.materialset.reserve(sizeof(OceanMaterialSet));
+    auto materialset = state.materialset.memory<OceanMaterialSet>(offset);
 
-      auto materialset = state.materialset.memory<OceanMaterialSet>(offset);
+    materialset->color = material->color;
+    materialset->metalness = material->metalness;
+    materialset->roughness = material->roughness;
+    materialset->reflectivity = material->reflectivity;
+    materialset->emissive = material->emissive;
+    materialset->bumpscale = Vec3(bumpscale.xy, 1.0f / (0.01f + bumpscale.z));
+    materialset->foamplane = Vec4(foamplane.normal, foamplane.distance);
+    materialset->foamwaveheight = foamwaveheight;
+    materialset->foamwavescale = foamwavescale;
+    materialset->foamshoreheight = foamshoreheight;
+    materialset->foamshorescale = foamshorescale;
+    materialset->flow = flow;
 
-      materialset->color = material->color;
-      materialset->metalness = material->metalness;
-      materialset->roughness = material->roughness;
-      materialset->reflectivity = material->reflectivity;
-      materialset->emissive = material->emissive;
-      materialset->bumpscale = Vec3(bumpscale.xy, 1.0f / (0.01f + bumpscale.z));
-      materialset->foamplane = Vec4(foamplane.normal, foamplane.distance);
-      materialset->foamwaveheight = foamwaveheight;
-      materialset->foamwavescale = foamwavescale;
-      materialset->foamshoreheight = foamshoreheight;
-      materialset->foamshorescale = foamshorescale;
-      materialset->flow = flow;
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
-      bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
-
-      bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-      state.material = material;
-    }
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
   }
+
+  state.material = nullptr;
 
   if (state.modelset.available() < sizeof(ModelSet))
   {

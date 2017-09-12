@@ -9,18 +9,12 @@ layout(push_constant, std140, row_major) uniform SceneSet
 
 } scene;
 
-layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
-{
-  vec4 tint;
-  vec4 texcoords;
-
-} params;
-
 layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet 
 { 
   vec2 xbasis;
   vec2 ybasis;
   vec4 position;
+  vec4 texcoords;
 
 } model;
 
@@ -31,7 +25,7 @@ void main()
 {
   mat4 modelworld = { vec4(model.xbasis, 0, 0), vec4(model.ybasis, 0, 0), vec4(0), vec4(model.position.xy, 0, 1) };
 
-  texcoord = vec3(params.texcoords.xy + params.texcoords.zw * vertex_texcoord, model.position.z);
+  texcoord = vec3(model.texcoords.xy + model.texcoords.zw * vertex_texcoord, model.position.z);
   
   gl_Position = scene.worldview * modelworld * vec4(0.5 * vertex_position + 0.5, 1);
 }

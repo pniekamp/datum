@@ -188,10 +188,8 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
       if (auto bits = m_assets->request(platform, asset))
       {
-        auto payload = reinterpret_cast<PackMeshPayload const *>(bits);
-
-        auto vertextable = PackMeshPayload::vertextable(payload, asset->vertexcount, asset->indexcount);
-        auto indextable = PackMeshPayload::indextable(payload, asset->vertexcount, asset->indexcount);
+        auto vertextable = PackMeshPayload::vertextable(bits, asset->vertexcount, asset->indexcount);
+        auto indextable = PackMeshPayload::indextable(bits, asset->vertexcount, asset->indexcount);
 
         if (auto lump = acquire_lump(vertexbuffer_datasize(asset->vertexcount, asset->indexcount, asset->bonecount)))
         {
@@ -212,7 +210,7 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
           if (asset->bonecount != 0)
           {
-            auto rigtable = PackMeshPayload::rigtable(payload, asset->vertexcount, asset->indexcount);
+            auto rigtable = PackMeshPayload::rigtable(bits, asset->vertexcount, asset->indexcount);
 
             slot->rigbuffer = create_vertexbuffer(vulkan, lump->commandbuffer, asset->vertexcount, sizeof(Mesh::Rig));
 
@@ -229,7 +227,7 @@ void ResourceManager::request<Mesh>(DatumPlatform::PlatformInterface &platform, 
 
           if (asset->bonecount != 0)
           {
-            auto bonetable = PackMeshPayload::bonetable(payload, asset->vertexcount, asset->indexcount);
+            auto bonetable = PackMeshPayload::bonetable(bits, asset->vertexcount, asset->indexcount);
 
             auto bonedata = reinterpret_cast<Mesh::Bone*>(slot->data);
 
@@ -289,7 +287,7 @@ void ResourceManager::destroy<Mesh>(Mesh const *mesh)
 
 
 ///////////////////////// make_plane ////////////////////////////////////////
-Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float tilex, float tiley)
+Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float scale, float tilex, float tiley)
 {
   auto mesh = resources.create<Mesh>(sizex*sizey, 6*(sizex-1)*(sizey-1));
 
@@ -301,10 +299,10 @@ Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float t
     {
       for(int x = 0; x < sizex; ++x)
       {
-        vertices->position = Vec3(x, y, 0);
+        vertices->position = Vec3(2 * x/(sizex-1.0f) - 1, 2 * y/(sizey-1.0f) - 1, 0) * scale;
         vertices->normal = Vec3(0, 0, 1);
         vertices->tangent = Vec4(1, 0, 0, 1);
-        vertices->texcoord = Vec2((x * tilex)/(sizex-1), (y * tiley)/(sizey-1));
+        vertices->texcoord = Vec2(tilex * x/(sizex-1.0f), tiley * y/(sizey-1.0f));
 
         ++vertices;
       }

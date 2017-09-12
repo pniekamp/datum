@@ -8,7 +8,7 @@ layout(constant_id = 81) const float Cutoff = 11.2;
 
 layout(set=0, binding=1) uniform sampler2D src;
 
-layout(set=3, binding=14) writeonly uniform image2D dest;
+layout(set=0, binding=21) writeonly uniform image2D dest;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

@@ -22,6 +22,7 @@ enum ShaderLocation
   sceneset = 0,
   materialset = 1,
   modelset = 2,
+  extendedset = 3,
 
   albedomap = 1,
   surfacemap = 2,
@@ -34,9 +35,10 @@ struct Environment
   alignas(16) Transform invtransform;
 };
 
-struct TranslucentMaterialSet
+struct MaterialSet
 {
   alignas(16) Color4 color;
+  alignas( 4) float metalness;
   alignas( 4) float roughness;
   alignas( 4) float reflectivity;
   alignas( 4) float emissive;
@@ -74,20 +76,12 @@ struct WaterMaterialSet
   alignas(16) Environment specular;
 };
 
-struct SpotlightMaterialSet
-{
-  alignas(16) Vec3 position;
-  alignas(16) Color3 intensity;
-  alignas(16) Vec4 attenuation;
-  alignas(16) Vec3 direction;
-  alignas( 4) float cutoff;
-};
-
 struct ModelSet
 {
   alignas(16) Transform modelworld;
   alignas(16) Vec3 scale;
 };
+
 
 ///////////////////////// commands //////////////////////////////////////////
 
@@ -294,15 +288,16 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
   push_command(state, bind_vertexbuffer_command(0, mesh->vertexbuffer));
 
-  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(TranslucentMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(TranslucentMaterialSet));
+    auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-    auto materialset = state.materialset.memory<TranslucentMaterialSet>(offset);
+    auto materialset = state.materialset.memory<MaterialSet>(offset);
 
     materialset->color = Color4(material->color.rgb, material->color.a * alpha);
+    materialset->metalness = material->metalness;
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
     materialset->emissive = material->emissive;

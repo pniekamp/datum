@@ -103,6 +103,12 @@ Material const *ResourceManager::create<Material>(Color4 color, float metalness,
   return create<Material>(color, metalness, roughness, reflectivity, emissive, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
 }
 
+template<>
+Material const *ResourceManager::create<Material>(Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *normalmap)
+{
+  return create<Material>(color, metalness, roughness, reflectivity, emissive, albedomap, (Texture const *)nullptr, normalmap);
+}
+
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>

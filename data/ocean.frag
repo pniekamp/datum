@@ -89,9 +89,9 @@ void main()
 
   float height = dot(params.foamplane.xyz, position) + params.foamplane.w; 
 
-  vec3 wavefoam = texture(albedomap, vec3(texcoord + 0.2*bump0.xy, 1)).rgb * clamp(pow(height - params.foamwaveheight, 3) * params.foamwavescale, 0, 1);
+  vec3 wavefoam = texture(surfacemap, vec3(texcoord + 0.2*bump0.xy, 0)).rgb * clamp(pow(height - params.foamwaveheight, 3) * params.foamwavescale, 0, 1);
   
-  vec3 shorefoam = (0.25 * texture(albedomap, vec3(texcoord + 2.0*params.flow, 1)).rgb + 0.02) * clamp(height - (dist - params.foamshoreheight) * params.foamshorescale, 0, 1);
+  vec3 shorefoam = (0.25 * texture(surfacemap, vec3(texcoord + 2.0*params.flow, 0)).rgb + 0.02) * clamp(height - (dist - params.foamshoreheight) * params.foamshorescale, 0, 1);
 
   fragcolor = vec4(color.rgb + wavefoam + shorefoam, params.emissive);
   fragspecular = vec4(vec3(reflectivity), roughness);

@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 30;
+  const uint32_t version = 31;
 
   enum
   {
@@ -97,6 +97,7 @@ namespace CoreAsset
     ocean_gen_comp,
     wave_color,
     wave_normal,
+    wave_foam,
     cloud_density,
     cloud_normal,
     noise_normal,

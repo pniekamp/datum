@@ -99,8 +99,17 @@ CommandLump::Descriptor CommandLump::acquire_descriptor(VkDeviceSize required, D
   return descriptor;
 }
 
+CommandLump::Descriptor CommandLump::acquire_descriptor(VkDescriptorSetLayout layout, Descriptor &&oldset)
+{
+  assert(context);
 
-///////////////////////// CommandLump::acquire_descriptor ///////////////////
+  Descriptor descriptor = std::move(oldset);
+
+  descriptor.m_descriptor = context->resourcepool.acquire_descriptorset(m_resourcelump, layout);
+
+  return descriptor;
+}
+
 CommandLump::Descriptor CommandLump::acquire_descriptor(VkDescriptorSetLayout layout, VkDeviceSize required, Descriptor &&oldset)
 {
   assert(context);

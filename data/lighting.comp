@@ -41,13 +41,13 @@ layout(set=0, binding=2) uniform sampler2D diffusemap;
 layout(set=0, binding=3) uniform sampler2D specularmap;
 layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
-layout(set=3, binding=3) uniform sampler2D ssaomap;
-layout(set=3, binding=4) uniform sampler2DArrayShadow shadowmap;
-layout(set=3, binding=5) uniform sampler2DArray envbrdfmap;
-layout(set=3, binding=6) uniform samplerCube envmaps[MaxEnvironments];
-layout(set=3, binding=7) uniform sampler2DShadow spotmaps[MaxSpotLights];
+layout(set=0, binding=10) uniform sampler2D ssaomap;
+layout(set=0, binding=11) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=12) uniform sampler2DArray envbrdfmap;
+layout(set=0, binding=13) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=14) uniform sampler2DShadow spotmaps[MaxSpotLights];
 
-layout(set=3, binding=0) writeonly uniform image2D dest;
+layout(set=0, binding=7) writeonly uniform image2D dest;
 
 ///////////////////////// mainlight_shadow //////////////////////////////////
 float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2DArrayShadow shadowmap)
@@ -87,7 +87,7 @@ float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2
 ///////////////////////// spotlight_shadow //////////////////////////////////
 float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2DShadow spotmap)
 {
-  vec3 shadowpos = position + 0.01 * normal;;
+  vec3 shadowpos = position + 0.01 * normal;
   vec4 shadowspace = map_parabolic(vec4(transform_multiply(spotlight.shadowview, shadowpos), 1));
 
   vec3 texel = vec3(0.5 * shadowspace.xy + 0.5, shadowspace.z);

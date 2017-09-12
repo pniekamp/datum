@@ -119,14 +119,12 @@ struct SpotMapContext
   Vulkan::DescriptorPool descriptorpool;
 
   VkPipelineLayout pipelinelayout;
-  VkDescriptorSetLayout scenesetlayout;
   VkDescriptorSetLayout materialsetlayout;
   VkDescriptorSetLayout modelsetlayout;
 
-  Vulkan::RenderPass renderpass;
+  Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::StorageBuffer sceneset;
-  Vulkan::DescriptorSet scenedescriptor;
+  Vulkan::RenderPass renderpass;
 
   Vulkan::Pipeline srcblitpipeline;
   Vulkan::CommandBuffer srcblitcommands[16];
@@ -135,9 +133,6 @@ struct SpotMapContext
 
   Vulkan::Pipeline modelspotmappipeline;
   Vulkan::Pipeline actorspotmappipeline;
-
-  Vulkan::Texture whitediffuse;
-  Vulkan::VertexBuffer unitquad;
 
   Vulkan::Fence fence;
 
