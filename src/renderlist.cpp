@@ -84,6 +84,21 @@ void RenderList::push_lights(LightList const &lightlist)
 }
 
 
+///////////////////////// RenderList::push_decals ///////////////////////////
+void RenderList::push_decals(DecalList const &decallist)
+{
+  if (decallist)
+  {
+    auto entry = m_buffer.push<Renderable::Decals>();
+
+    if (entry)
+    {
+      entry->decallist = decallist.decallist;
+    }
+  }
+}
+
+
 ///////////////////////// RenderList::push_overlays /////////////////////////
 void RenderList::push_overlays(OverlayList const &overlaylist)
 {

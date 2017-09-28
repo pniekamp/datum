@@ -32,14 +32,14 @@ class OverlayList
     {
       float depthfade = 0.0f;
 
-      int clipx, clipy, clipwidth, clipheight;
-
       RenderContext *context;
       ResourceManager *resources;
 
       CommandLump::Descriptor materialset;
 
       CommandLump::Descriptor modelset;
+
+      int clipx, clipy, clipwidth, clipheight;
 
       CommandLump *commandlump = nullptr;
     };

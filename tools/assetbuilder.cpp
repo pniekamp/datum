@@ -556,17 +556,17 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
 
     if (fields[0] == "v")
     {
-      points.push_back({ ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]) });
+      points.emplace_back(ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]));
     }
 
     if (fields[0] == "vn")
     {
-      normals.push_back({ ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]) });
+      normals.emplace_back(ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]));
     }
 
     if (fields[0] == "vt")
     {
-      texcoords.push_back({ ato<float>(fields[1]), ato<float>(fields[2]) });
+      texcoords.emplace_back(ato<float>(fields[1]), ato<float>(fields[2]));
     }
 
     if (fields[0] == "f")
@@ -766,6 +766,7 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::prepass_frag, "../../data/prepass.frag");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
+  write_shader_asset(fout, CoreAsset::terrain_frag, "../../data/terrain.frag");
 
   write_shader_asset(fout, CoreAsset::model_shadow_vert, "../../data/model.shadow.vert");
   write_shader_asset(fout, CoreAsset::model_prepass_vert, "../../data/model.prepass.vert");

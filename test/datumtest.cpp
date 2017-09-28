@@ -122,8 +122,9 @@ void datumtest_init(PlatformInterface &platform)
   state.testspotcaster = state.resources.create<SpotMap>(1024, 1024);
 
   auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
+  auto watersurface = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_foam), Texture::Format::RGBA);
   auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::noise_normal), Texture::Format::RGBA);
-  state.oceanmaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.22f, 0.5f, 0.0f, watercolor, (Texture const *)nullptr, waternormal);
+  state.oceanmaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.4f, 0.5f, 0.0f, watercolor, watersurface, waternormal);
 
   ParticleEmitter emitter;
   emitter.duration = 3.0f;
@@ -131,6 +132,7 @@ void datumtest_init(PlatformInterface &platform)
   emitter.bursts = 1;
   emitter.bursttime[0] = 0.0f;
   emitter.burstcount[0] = 80;
+  emitter.transform = Transform::rotation(Vec3(0, 0, 1), 1.57f);
   emitter.life = make_uniform_distribution(1.0f, 2.0f);
   emitter.looping = true;
   emitter.velocity = make_uniform_distribution(Vec3(5.0f, 0.0f, 0.0f), Vec3(20.0f, 0.0f, 0.0f));
@@ -535,7 +537,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   BEGIN_TIMED_BLOCK(Render, Color3(0.0f, 0.2f, 1.0f))
 
   if (state.readframe->mode == GameState::Startup)
-  {   
+  {
     if (prepare_render_context(platform, state.rendercontext, state.assets))
     {
       RenderParams renderparams;
@@ -604,7 +606,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       Vec3 location(16.0f, 1.0f, -4.0f);
       DEBUG_MENU_VALUE("Particles/location", &location, Vec3(-15.0f), Vec3(15.0f));
 
-      Vec3 rotation(0.0f, 0.0f, pi<float>()/2);
+      Vec3 rotation(0.0f, 0.0f, 0.0f);
       DEBUG_MENU_VALUE("Particles/rotation", &rotation, Vec3(0.0f), Vec3(6.28f));
 
       auto transform = Transform::translation(location) * Transform::rotation(Vec3(1, 0, 0), rotation.x) * Transform::rotation(Vec3(0, 1, 0), rotation.y) * Transform::rotation(Vec3(0, 0, 1), rotation.z);
@@ -634,7 +636,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
       if (overlays.begin(buildstate, state.rendercontext, state.resources))
       {
-        buildstate.depthfade = 0.1f;
+        overlays.set_depthfade(buildstate, 0.1f);
 
         overlays.push_gizmo(buildstate, Vec3(0, 1, 0), Vec3(0.5f), Transform::identity().rotation(), state.suzanne, state.suzannematerial);
 
@@ -712,7 +714,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
         SpotMapInfo spotmaps[1];
         spotmaps[0].target = state.testspotcaster;
-        spotmaps[0].shadowview = state.testspotview;
+        spotmaps[0].spotview = state.testspotview;
         spotmaps[0].casters = &casters;
 
         SpotMapParams spotparams;

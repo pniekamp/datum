@@ -83,7 +83,7 @@ void main()
   float facing = clamp(1 - dot(eyevec, tbnworld[2]), 0, 1);
 
   float roughness = mix(1, 0.4, FresnelBias + pow(facing, FresnelPower)) * params.roughness;
-  float reflectivity = mix(1, 0.08, FresnelBias + pow(1 - facing, FresnelPower)) * params.reflectivity;
+  float reflectivity = mix(1, 0.32, FresnelBias + pow(1 - facing, FresnelPower)) * params.reflectivity;
 
   vec4 color = params.color * textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
 
@@ -95,5 +95,5 @@ void main()
 
   fragcolor = vec4(color.rgb + wavefoam + shorefoam, params.emissive);
   fragspecular = vec4(vec3(reflectivity), roughness);
-  fragnormal = vec4(0.5 * normal + 0.5, 1);
+  fragnormal = vec4(0.5 * normal + 0.5, 0);
 }

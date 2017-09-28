@@ -31,6 +31,9 @@ layout(set=0, binding=0, std430, row_major) buffer SceneSet
   uint spotlightcount;
   SpotLight spotlights[MaxSpotLights];
 
+  uint decalcount;
+  Decal decals[MaxDecals];
+  
   Cluster cluster[];
   
 } scene;
@@ -55,6 +58,11 @@ void main()
 
     for(uint i = 0; i < (scene.spotlightcount + 31)/32; ++i)
       scene.cluster[tile].spotlightmasks[tilez][i] = 0;
+
+    scene.cluster[tile].decalmask[tilez] = 0;
+
+    for(uint i = 0; i < (scene.decalcount + 31)/32; ++i)
+      scene.cluster[tile].decalmasks[tilez][i] = 0;
   }
   
   barrier(); 
@@ -158,4 +166,30 @@ void main()
       }
     }
   }
+  
+  //
+  // Decals
+  //
+
+  for(uint tilez = gl_LocalInvocationIndex, end = ClusterSizeZ; tilez < end; tilez += gl_WorkGroupSize.z)
+  {
+    float nz = view_depth(scene.proj, cluster_depth(tilez));
+    float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+    
+    Bound3 aabb = make_bound(tilebound, nz, fz);
+  
+    for(uint i = 0, end = scene.decalcount; i < end; i += 1)
+    {
+      Bound3 decalbound = { vec3(0), scene.decals[i].halfdim };
+
+      vec3 localcentre = transform_multiply(scene.decals[i].invtransform, (scene.invview * vec4(aabb.centre, 1)).xyz);
+      float localradius = length(aabb.halfdim);
+
+      if (intersects(decalbound, localcentre, localradius))
+      {
+        atomicOr(scene.cluster[tile].decalmask[tilez], 1 << (i >> 5));
+        atomicOr(scene.cluster[tile].decalmasks[tilez][i >> 5], 1 << (i & 0x1F));       
+      }
+    }
+  } 
 }

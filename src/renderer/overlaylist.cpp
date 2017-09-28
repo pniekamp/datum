@@ -119,7 +119,7 @@ struct WireframeModelSet
 
 ///////////////////////// draw_overlays /////////////////////////////////////
 void draw_overlays(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Overlays const &overlays)
-{ 
+{
   execute(commandbuffer, overlays.overlaycommands);
 }
 
@@ -158,7 +158,7 @@ bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManag
 
   using Vulkan::begin;
 
-  begin(context.vulkan, overlaycommands, 0, context.overlaypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  begin(context.vulkan, overlaycommands, context.framebuffer, context.overlaypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
   bind_descriptor(overlaycommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

@@ -41,6 +41,11 @@ struct ModelSet
   alignas(16) Vec4 texcoords;
 };
 
+struct ParamSet
+{
+  alignas(16) Matrix4f orthoview;
+};
+
 
 ///////////////////////// draw_sprites //////////////////////////////////////
 void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
@@ -79,7 +84,9 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
 
   using Vulkan::begin;
 
-  begin(context.vulkan, spritecommands, 0, context.overlaypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  begin(context.vulkan, spritecommands, context.framebuffer, context.overlaypass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+
+  bind_descriptor(spritecommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   bind_pipeline(spritecommands, context.spritepipeline, 0, 0, context.width, context.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -100,9 +107,9 @@ void SpriteList::viewport(BuildState &state, Rect2 const &viewport) const
 
   auto &context = *state.context;
 
-  auto worldview = OrthographicProjection(viewport.min.x, viewport.min.y, viewport.max.x, viewport.max.y, 0.0f, 1000.0f);
+  auto orthoview = OrthographicProjection(viewport.min.x, viewport.min.y, viewport.max.x, viewport.max.y, 0.0f, 1000.0f);
 
-  push(spritecommands, context.pipelinelayout, 0, sizeof(worldview), &worldview, VK_SHADER_STAGE_VERTEX_BIT);
+  push(spritecommands, context.pipelinelayout, offsetof(ParamSet, orthoview), sizeof(orthoview), &orthoview, VK_SHADER_STAGE_VERTEX_BIT);
 }
 
 
@@ -113,9 +120,9 @@ void SpriteList::viewport(BuildState &state, DatumPlatform::Viewport const &view
 
   auto &context = *state.context;
 
-  auto worldview = OrthographicProjection(0.0f, 0.0f, (float)viewport.width, (float)viewport.height, 0.0f, 1000.0f);
+  auto orthoview = OrthographicProjection(0.0f, 0.0f, (float)viewport.width, (float)viewport.height, 0.0f, 1000.0f);
 
-  push(spritecommands, context.pipelinelayout, 0, sizeof(worldview), &worldview, VK_SHADER_STAGE_VERTEX_BIT);
+  push(spritecommands, context.pipelinelayout, offsetof(ParamSet, orthoview), sizeof(orthoview), &orthoview, VK_SHADER_STAGE_VERTEX_BIT);
 }
 
 
@@ -145,7 +152,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
     auto materialset = state.materialset.memory<MaterialSet>(offset);
 
-    materialset->color = premultiply(tint);
+    materialset->color = tint;
 
     bind_descriptor(spritecommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

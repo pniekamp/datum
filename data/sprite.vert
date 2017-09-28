@@ -3,10 +3,14 @@
 layout(location=0) in vec3 vertex_position;
 layout(location=1) in vec2 vertex_texcoord;
 
-layout(push_constant, std140, row_major) uniform SceneSet 
-{ 
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
   mat4 worldview;
-
+  
 } scene;
 
 layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet 
@@ -18,6 +22,12 @@ layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet
 
 } model;
 
+layout(push_constant, std140, row_major) uniform ParamSet
+{ 
+  mat4 orthoview;
+
+} params;
+
 layout(location=0) out vec3 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
@@ -27,5 +37,5 @@ void main()
 
   texcoord = vec3(model.texcoords.xy + model.texcoords.zw * vertex_texcoord, model.position.z);
   
-  gl_Position = scene.worldview * modelworld * vec4(0.5 * vertex_position + 0.5, 1);
+  gl_Position = params.orthoview * modelworld * vec4(0.5 * vertex_position + 0.5, 1);
 }

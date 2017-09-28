@@ -62,14 +62,14 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
 {
   if (lightlist && lightlist->pointlightcount < extentof(lightlist->pointlights))
   {
-    auto &pointlight = lightlist->pointlights[lightlist->pointlightcount];
+    auto &entry = lightlist->pointlights[lightlist->pointlightcount];
 
-    pointlight.position = position;
-    pointlight.intensity = intensity;
-    pointlight.attenuation.x = attenuation.quadratic;
-    pointlight.attenuation.y = attenuation.linear;
-    pointlight.attenuation.z = attenuation.constant;
-    pointlight.attenuation.w = range;
+    entry.position = position;
+    entry.intensity = intensity;
+    entry.attenuation.x = attenuation.quadratic;
+    entry.attenuation.y = attenuation.linear;
+    entry.attenuation.z = attenuation.constant;
+    entry.attenuation.w = range;
 
     lightlist->pointlightcount += 1;
   }
@@ -77,22 +77,22 @@ void LightList::push_pointlight(BuildState &state, Vec3 const &position, float r
 
 
 ///////////////////////// LightList::push_spotlight /////////////////////////
-void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 const &direction, float cutoff, float range, Color3 const &intensity, Attenuation const &attenuation, lml::Transform const &shadowview, SpotMap const *shadowmap)
+void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 const &direction, float cutoff, float range, Color3 const &intensity, Attenuation const &attenuation, lml::Transform const &spotview, SpotMap const *spotmap)
 {
   if (lightlist && lightlist->spotlightcount < extentof(lightlist->spotlights))
   {
-    auto &spotlight = lightlist->spotlights[lightlist->spotlightcount];
+    auto &entry = lightlist->spotlights[lightlist->spotlightcount];
 
-    spotlight.position = position;
-    spotlight.intensity = intensity;
-    spotlight.attenuation.x = attenuation.quadratic;
-    spotlight.attenuation.y = attenuation.linear;
-    spotlight.attenuation.z = attenuation.constant;
-    spotlight.attenuation.w = range;
-    spotlight.direction = direction;
-    spotlight.cutoff = 1 - cutoff;
-    spotlight.shadowview = shadowview;
-    spotlight.shadowmap = shadowmap;
+    entry.position = position;
+    entry.intensity = intensity;
+    entry.attenuation.x = attenuation.quadratic;
+    entry.attenuation.y = attenuation.linear;
+    entry.attenuation.z = attenuation.constant;
+    entry.attenuation.w = range;
+    entry.direction = direction;
+    entry.cutoff = 1 - cutoff;
+    entry.spotview = spotview;
+    entry.spotmap = spotmap;
 
     lightlist->spotlightcount += 1;
   }
@@ -100,17 +100,17 @@ void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 con
 
 
 ///////////////////////// LightList::push_environment ///////////////////////
-void LightList::push_environment(BuildState &state, Transform const &transform, Vec3 const &dimension, EnvMap const *envmap)
+void LightList::push_environment(BuildState &state, Transform const &transform, Vec3 const &size, EnvMap const *envmap)
 {
   assert(envmap && envmap->ready());
 
   if (lightlist && lightlist->environmentcount < extentof(lightlist->environments))
   {
-    auto &environment = lightlist->environments[lightlist->environmentcount];
+    auto &entry = lightlist->environments[lightlist->environmentcount];
 
-    environment.dimension = dimension;
-    environment.transform = transform;
-    environment.envmap = envmap;
+    entry.size = size;
+    entry.transform = transform;
+    entry.envmap = envmap;
 
     lightlist->environmentcount += 1;
   }

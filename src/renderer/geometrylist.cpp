@@ -27,6 +27,8 @@ enum ShaderLocation
   albedomap = 1,
   surfacemap = 2,
   normalmap = 3,
+
+  blendmap = 0,
 };
 
 struct MaterialSet
@@ -36,6 +38,13 @@ struct MaterialSet
   alignas( 4) float roughness;
   alignas( 4) float reflectivity;
   alignas( 4) float emissive;
+};
+
+struct TerrainMaterialSet
+{
+  alignas(16) Color4 color;
+  alignas(16) Vec2 uvscale;
+  alignas( 4) uint32_t layers;
 };
 
 struct OceanMaterialSet
@@ -271,6 +280,89 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
     bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+    draw(geometrycommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+  }
+}
+
+
+///////////////////////// GeometryList::push_terrain ////////////////////////
+void GeometryList::push_terrain(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, ::Texture const *blendmap, Vec2 const &uvscale)
+{
+  assert(state.commandlump);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready() && material->albedomap && material->surfacemap && material->normalmap);
+  assert(blendmap && blendmap->ready());
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  if (state.pipeline != context.terrainpipeline)
+  {
+    bind_pipeline(prepasscommands, context.modelprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(geometrycommands, context.terrainpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    state.pipeline = context.terrainpipeline;
+  }
+
+  if (state.mesh != mesh)
+  {
+    bind_vertexbuffer(prepasscommands, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(geometrycommands, 0, mesh->vertexbuffer);
+
+    state.mesh = mesh;
+  }
+
+  if (state.materialset.available() < sizeof(TerrainMaterialSet) || state.material != material)
+  {
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(TerrainMaterialSet), std::move(state.materialset));
+
+    if (state.materialset)
+    {
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap->texture);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap->texture);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap->texture);
+
+      state.material = material;
+    }
+  }
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(TerrainMaterialSet));
+
+    auto materialset = state.materialset.memory<TerrainMaterialSet>(offset);
+
+    materialset->color = material->color;
+    materialset->uvscale = uvscale;
+    materialset->layers = material->albedomap->layers;
+
+    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+  }
+
+  if (state.modelset.available() < sizeof(ModelSet))
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
+
+    modelset->modelworld = transform;
+
+    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    auto extendedset = commandlump.acquire_descriptor(context.extendedsetlayout);
+
+    bind_texture(context.vulkan, extendedset, ShaderLocation::blendmap, blendmap->texture);
+
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::extendedset, extendedset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
     draw(geometrycommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);

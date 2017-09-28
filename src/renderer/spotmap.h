@@ -145,7 +145,7 @@ struct SpotMapInfo
 {
   SpotMap const *target;
 
-  lml::Transform shadowview;
+  lml::Transform spotview;
 
   SpotMap const *source = nullptr;
   SpotCasterList const *casters = nullptr;

@@ -498,7 +498,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   //
 
   bool vsync = true;
-  uint32_t desiredimages = 3;
+  uint32_t desiredimages = 2;
 
   VkSurfaceCapabilitiesKHR surfacecapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);

@@ -91,6 +91,7 @@ class ParticleEmitter
     using Vec3 = lml::Vec3;
     using Color3 = lml::Color3;
     using Color4 = lml::Color4;
+    using Transform = lml::Transform;
 
     enum Modules
     {
@@ -108,6 +109,8 @@ class ParticleEmitter
     float duration = 2.0f;
 
     bool looping = true;
+
+    Transform transform = Transform::identity();
 
     float rate = 10.0f;
 

@@ -17,6 +17,7 @@
 #include "skybox.h"
 #include "envmap.h"
 #include "spotmap.h"
+#include "material.h"
 
 // Renderables
 namespace Renderable
@@ -30,6 +31,7 @@ namespace Renderable
     Forward,
     Casters,
     Lights,
+    Decals,
   };
 
   using Vec2 = lml::Vec2;
@@ -157,8 +159,8 @@ namespace Renderable
         Vec3 direction;
         float cutoff;
 
-        Transform shadowview;
-        SpotMap const *shadowmap;
+        Transform spotview;
+        SpotMap const *spotmap;
 
       } spotlights[16];
 
@@ -166,7 +168,7 @@ namespace Renderable
 
       struct Environment
       {
-        Vec3 dimension;
+        Vec3 size;
         Transform transform;
         EnvMap const *envmap;
 
@@ -174,6 +176,30 @@ namespace Renderable
     };
 
     LightList const *lightlist;
+  };
+
+  struct Decals
+  {
+    static constexpr Type type = Type::Decals;
+
+    struct DecalList
+    {
+      size_t decalcount;
+
+      struct Decal
+      {
+        Vec3 size;
+        Transform transform;
+        Material const *material;
+        Vec4 extent;
+        float layer;
+        Color4 tint;
+        uint32_t mask;
+
+      } decals[256];
+    };
+
+    DecalList const *decallist;
   };
 }
 
@@ -324,10 +350,9 @@ struct RenderContext
   Vulkan::Texture depthmipbuffer;
   Vulkan::ImageView depthmipviews[6];
 
+  Vulkan::Texture rendertarget;
   Vulkan::Texture depthstencil;
-  VkImage frameimages[3];
-  Vulkan::ImageView frameviews[3];
-  Vulkan::FrameBuffer framebuffers[3];
+  Vulkan::FrameBuffer framebuffer;
 
   Vulkan::RenderPass shadowpass;
   Vulkan::RenderPass prepass;
@@ -355,6 +380,7 @@ struct RenderContext
   Vulkan::Pipeline actorshadowpipeline;
   Vulkan::Pipeline actorprepasspipeline;
   Vulkan::Pipeline actorgeometrypipeline;
+  Vulkan::Pipeline terrainpipeline;
   Vulkan::Pipeline depthmippipeline[6];
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
@@ -386,6 +412,8 @@ struct RenderContext
 
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
+
+  std::tuple<size_t, VkSampler> decalmaps[2][16];
 
   int width, height;
   float scale, aspect;

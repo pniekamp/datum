@@ -53,6 +53,8 @@ class GeometryList
 
     void push_mesh(BuildState &state, lml::Transform const &transform, Pose const &pose, Mesh const *mesh, Material const *material);
 
+    void push_terrain(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, Texture const *blendmap, lml::Vec2 const &uvscale = { 1.0f, 1.0f });
+
     void push_ocean(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, lml::Vec2 const &flow, lml::Vec3 const &bumpscale = { 1.0f, 1.0f, 1.0f }, lml::Plane const &foamplane = { { 0, 1, 0 }, 0 }, float foamwaveheight = 1.0f, float foamwavescale = 0.0f, float foamshoreheight = 0.1f, float foamshorescale = 0.1f);
 
     void finalise(BuildState &state);

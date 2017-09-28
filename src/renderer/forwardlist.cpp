@@ -29,12 +29,6 @@ enum ShaderLocation
   normalmap = 3,
 };
 
-struct Environment
-{
-  alignas(16) Vec3 halfdim;
-  alignas(16) Transform invtransform;
-};
-
 struct MaterialSet
 {
   alignas(16) Color4 color;
@@ -44,7 +38,7 @@ struct MaterialSet
   alignas( 4) float emissive;
 };
 
-struct ForPlaneMaterialSet
+struct FogPlaneMaterialSet
 {
   alignas(16) Vec4 plane;
   alignas(16) Color4 color;
@@ -53,15 +47,21 @@ struct ForPlaneMaterialSet
   alignas( 4) float startdistance;
 };
 
-struct ParticleMaterialSet
-{
-};
-
 struct Particle
 {
   alignas(16) Vec4 position;
   alignas(16) Matrix2f transform;
   alignas(16) Color4 color;
+};
+
+struct ParticleMaterialSet
+{
+};
+
+struct Environment
+{
+  alignas(16) Vec3 halfdim;
+  alignas(16) Transform invtransform;
 };
 
 struct WaterMaterialSet
@@ -79,7 +79,6 @@ struct WaterMaterialSet
 struct ModelSet
 {
   alignas(16) Transform modelworld;
-  alignas(16) Vec3 scale;
 };
 
 
@@ -237,13 +236,13 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
   push_command(state, bind_vertexbuffer_command(0, context.unitquad));
 
-  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ForPlaneMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(FogPlaneMaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(ForPlaneMaterialSet));
+    auto offset = state.materialset.reserve(sizeof(FogPlaneMaterialSet));
 
-    auto materialset = state.materialset.memory<ForPlaneMaterialSet>(offset);
+    auto materialset = state.materialset.memory<FogPlaneMaterialSet>(offset);
 
     materialset->plane = Vec4(plane.normal, plane.distance);
     materialset->color = color;

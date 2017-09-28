@@ -65,11 +65,12 @@ namespace
 void pack(vector<uint8_t> &bits, ParticleEmitter const &emitter)
 {
   pack<float>(bits, emitter.duration);
+  pack<uint32_t>(bits, emitter.looping);
+  pack<Transform>(bits, emitter.transform);
   pack<float>(bits, emitter.rate);
   pack<uint32_t>(bits, emitter.bursts);
   pack<float>(bits, emitter.bursttime);
   pack<uint32_t>(bits, emitter.burstcount);
-  pack<uint32_t>(bits, emitter.looping);
   pack<Distribution<float>>(bits, emitter.life);
   pack<Vec2>(bits, emitter.size);
   pack<Distribution<float>>(bits, emitter.scale);
@@ -121,11 +122,12 @@ void pack(vector<uint8_t> &bits, ParticleEmitter const &emitter)
 void unpack(ParticleEmitter &emitter, void const *bits, size_t &cursor)
 {
   unpack<float>(emitter.duration, bits, cursor);
+  unpack<uint32_t>(emitter.looping, bits, cursor);
+  unpack<Transform>(emitter.transform, bits, cursor);
   unpack<float>(emitter.rate, bits, cursor);
   unpack<uint32_t>(emitter.bursts, bits, cursor);
   unpack<float>(emitter.bursttime, bits, cursor);
   unpack<uint32_t>(emitter.burstcount, bits, cursor);
-  unpack<uint32_t>(emitter.looping, bits, cursor);
   unpack<Distribution<float>>(emitter.life, bits, cursor);
   unpack<Vec2>(emitter.size, bits, cursor);
   unpack<Distribution<float>>(emitter.scale, bits, cursor);
