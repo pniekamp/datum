@@ -29,6 +29,9 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   uint spotlightcount;
   SpotLight spotlights[MaxSpotLights];
 
+  uint decalcount;
+  Decal decals[MaxDecals];
+
   Cluster cluster[];
 
 } scene;
@@ -38,6 +41,7 @@ layout(set=0, binding=11) uniform sampler2DArrayShadow shadowmap;
 layout(set=0, binding=12) uniform sampler2DArray envbrdfmap;
 layout(set=0, binding=13) uniform samplerCube envmaps[MaxEnvironments];
 layout(set=0, binding=14) uniform sampler2DShadow spotmaps[MaxSpotLights];
+layout(set=0, binding=15) uniform sampler2DArray decalmaps[MaxDecalMaps];
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -101,19 +105,59 @@ void main()
   uint tile = cluster_tile(xy, viewport);
   uint tilez = cluster_tilez(gl_FragCoord.z);
 
+  vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
+  vec3 eyevec = normalize(scene.camera.position - position);
+
+  MainLight mainlight = scene.mainlight;
+
   vec4 albedo = texture(albedomap, vec3(texcoord, 0));
   vec4 surface = texture(surfacemap, vec3(texcoord, 0));
 
   Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness * surface.r, params.reflectivity * surface.g, params.roughness * surface.a);
+  
+  //
+  // Decals
+  //
+  
+  uint decalmask = 0x4;
 
-  vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
-  vec3 eyevec = normalize(scene.camera.position - position);
+  for(uint jm = scene.cluster[tile].decalmask[tilez], j = findLSB(jm); jm != 0; jm ^= (1 << j), j = findLSB(jm))
+  {
+    for(uint im = scene.cluster[tile].decalmasks[tilez][j], i = findLSB(im); im != 0; im ^= (1 << i), i = findLSB(im))
+    {
+      Decal decal = scene.decals[(j << 5) + i];
+      
+      if ((decalmask & decal.mask) != 0)
+      {
+        vec3 localpos = transform_multiply(decal.invtransform, position) / decal.halfdim;
+        vec3 localdir = quaternion_multiply(decal.invtransform.real, normal);
+          
+        if (localpos.x > -1.0 && localpos.x < 1.0 && localpos.y > -1.0 && localpos.y < 1.0 && localpos.z > -1.0 && localpos.z < 1.0 && localdir.z > 0.5)
+        { 
+          vec3 texcoord = vec3(decal.texcoords.xy + decal.texcoords.zw * (0.5 * localpos.xy + 0.5), decal.layer);
+          
+          float lod = 0.25 * (decal.texcoords.z * textureSize(decalmaps[decal.albedomap], 0).x) / (decal.halfdim.x * viewport.x) * view_depth(scene.proj, gl_FragCoord.z) - 0.5;
+
+          vec4 decalalbedo = textureLod(decalmaps[decal.albedomap], texcoord, lod);
+          vec4 decalnormal = textureLod(decalmaps[decal.normalmap], texcoord, lod);
+
+          material = mix_material(material, make_material(decalalbedo.rgb * decal.color.rgb, decal.emissive, decal.metalness, decal.reflectivity, decal.roughness), decalalbedo.a*decal.color.a);
+
+          normal = normalize(mix(normal, quaternion_multiply(quaternion_conjugate(decal.invtransform.real), 2 * decalnormal.xyz - 1)*decal.color.a, decalnormal.a*decal.color.a));
+
+          albedo.a = mix(albedo.a, decalalbedo.a*decal.color.a, decalalbedo.a*decal.color.a);
+        }
+      }
+    }
+  }
+  
+  //
+  // Lighting
+  //
 
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
-
-  MainLight mainlight = scene.mainlight;
-
+  
   //
   // Environment Lighting
   //

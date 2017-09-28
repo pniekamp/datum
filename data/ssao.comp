@@ -25,16 +25,16 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
 
-layout(set=0, binding=15, std430, row_major) readonly buffer SSAOParams
+layout(set=0, binding=16, std430, row_major) readonly buffer SSAOParams
 {
   vec3 noise[NoiseSize];
   vec3 kernel[KernelSize];
 
 } params;
 
-layout(set=0, binding=16) uniform sampler2D prevmap;
+layout(set=0, binding=17) uniform sampler2D prevmap;
 
-layout(set=0, binding=17) writeonly uniform image2D dest;
+layout(set=0, binding=18) writeonly uniform image2D dest;
 
 const float OcclusionRadius = 0.35;
 const float OcclusionPower = 1.5;

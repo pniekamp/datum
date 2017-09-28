@@ -3,6 +3,8 @@ const uint MaxShadowSplits = 4;
 const uint MaxEnvironments = 8;
 const uint MaxPointLights = 512;
 const uint MaxSpotLights = 16;
+const uint MaxDecals = 128;
+const uint MaxDecalMaps = 16;
 const uint ClusterSizeZ = 24;
 
 layout(constant_id = 4) const uint ClusterTileX = 64;
@@ -55,6 +57,26 @@ struct Environment
 };
 
 
+//----------------------- Decal ---------------------------------------------
+//---------------------------------------------------------------------------
+
+struct Decal
+{
+  vec3 halfdim;
+  Transform invtransform;
+  vec4 color;
+  float metalness;
+  float roughness;
+  float reflectivity;
+  float emissive;
+  vec4 texcoords;
+  float layer;
+  uint albedomap;
+  uint normalmap;
+  uint mask;
+};
+
+
 //----------------------- Cluster -------------------------------------------
 //---------------------------------------------------------------------------
 
@@ -67,6 +89,9 @@ struct Cluster
 
   uint spotlightmask[ClusterSizeZ];
   uint spotlightmasks[ClusterSizeZ][(MaxSpotLights + 31)/32];
+
+  uint decalmask[ClusterSizeZ];
+  uint decalmasks[ClusterSizeZ][(MaxDecals + 31)/32];
 };
 
 uint cluster_tile(ivec2 xy, ivec2 viewport)
@@ -151,6 +176,20 @@ Material make_material(vec4 diffusemap, vec4 specularmap)
   material.specular = specularmap.rgb;
 
   material.roughness = specularmap.a;
+  material.alpha = material.roughness * material.roughness;
+
+  return material;
+}
+
+///////////////////////// mix_material //////////////////////////////////////
+Material mix_material(Material first, Material second, float factor)
+{ 
+  Material material;
+
+  material.emissive = mix(first.emissive, second.emissive, factor);
+  material.diffuse = mix(first.diffuse, second.diffuse, factor);
+  material.specular = mix(first.specular, second.specular, factor);
+  material.roughness = mix(first.roughness, second.roughness, factor);
   material.alpha = material.roughness * material.roughness;
 
   return material;
@@ -332,7 +371,7 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
   float NdotV = max(dot(normal, eyevec), 0);
   float NdotL = max(dot(normal, lightvec), 0);
   float NdotH = max(dot(normal, halfvec), 0);
-  float LdotH = max(dot(lightvec, halfvec), 0);
+  float LdotH = clamp(dot(lightvec, halfvec), 0, 1);
 
   float Fd = diffuse_disney(NdotV, NdotL, LdotH, material.alpha) * (1/PI);
 
@@ -350,7 +389,7 @@ void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3
 }
 
 
-///////////////////////// spot_light  ///////////////////////////////////////
+///////////////////////// spot_light ////////////////////////////////////////
 void spot_light(inout vec3 diffuse, inout vec3 specular, SpotLight light, vec3 position, vec3 normal, vec3 eyevec, Material material, float shadowfactor)
 {
   vec3 lightvec = normalize(light.position - position);

@@ -29,6 +29,9 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   uint spotlightcount;
   SpotLight spotlights[MaxSpotLights];
 
+  uint decalcount;
+  Decal decals[MaxDecals];
+
   Cluster cluster[];
 
 } scene;
@@ -38,6 +41,7 @@ layout(set=0, binding=11) uniform sampler2DArrayShadow shadowmap;
 layout(set=0, binding=12) uniform sampler2DArray envbrdfmap;
 layout(set=0, binding=13) uniform samplerCube envmaps[MaxEnvironments];
 layout(set=0, binding=14) uniform sampler2DShadow spotmaps[MaxSpotLights];
+layout(set=0, binding=15) uniform sampler2DArray decalmaps[MaxDecalMaps];
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {

@@ -36,6 +36,8 @@ class RenderList
 
     void push_lights(LightList const &lightlist);
 
+    void push_decals(DecalList const &decallist);
+
     void push_overlays(OverlayList const &overlaylist);
 
     void push_sprites(SpriteList const &spritelist);

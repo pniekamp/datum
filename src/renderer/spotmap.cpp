@@ -681,7 +681,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization.polygonMode = VK_POLYGON_MODE_FILL;
     rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterization.lineWidth = 1.0;
 
     VkPipelineMultisampleStateCreateInfo multisample = {};
@@ -793,7 +793,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization.polygonMode = VK_POLYGON_MODE_FILL;
     rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterization.lineWidth = 1.0;
 
     VkPipelineMultisampleStateCreateInfo multisample = {};
@@ -901,7 +901,7 @@ void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_
     assert(target->ready() && target->asset == nullptr);
 
     SceneSet sceneset;
-    sceneset.view = inverse(spotmaps[i].shadowview).matrix();
+    sceneset.view = inverse(spotmaps[i].spotview).matrix();
 
     prepare_framebuffer(context, target);
 

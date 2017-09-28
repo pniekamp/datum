@@ -5,6 +5,8 @@
 #include "transform.glsl"
 #include "lighting.glsl"
 
+layout(constant_id = 52) const uint DecalMask = 0;
+
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
@@ -32,16 +34,16 @@ void main()
 {
   vec4 albedo = texture(albedomap, vec3(texcoord, 0));
 
-  if (albedo.a < 0.5)
-    discard;
-
   vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
 
   vec4 surface = texture(surfacemap, vec3(texcoord, 0));
 
   Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness * surface.r, params.reflectivity * surface.g, params.roughness * surface.a);
 
+  if (albedo.a < 0.5)
+    discard;
+
   fragcolor = vec4(material.diffuse, params.emissive);
   fragspecular = vec4(material.specular, material.roughness);
-  fragnormal = vec4(0.5 * normal + 0.5, 1);
+  fragnormal = vec4(0.5 * normal + 0.5, DecalMask/3.0+0.01);
 }

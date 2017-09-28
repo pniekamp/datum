@@ -380,7 +380,7 @@ void write_model(string const &filename)
 
     if (fields[0] == "usemtl")
     {
-      meshes.push_back(Mesh());
+      meshes.push_back({});
 
       mesh = &meshes.back();
 
@@ -397,17 +397,17 @@ void write_model(string const &filename)
 
     if (fields[0] == "v")
     {
-      points.push_back({ ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]) });
+      points.emplace_back(ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]));
     }
 
     if (fields[0] == "vn")
     {
-      normals.push_back({ ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]) });
+      normals.emplace_back(ato<float>(fields[1]), ato<float>(fields[2]), ato<float>(fields[3]));
     }
 
     if (fields[0] == "vt")
     {
-      texcoords.push_back({ ato<float>(fields[1]), ato<float>(fields[2]) });
+      texcoords.emplace_back(ato<float>(fields[1]), ato<float>(fields[2]));
     }
 
     if (fields[0] == "f")
@@ -469,14 +469,16 @@ void write_model(string const &filename)
 
       if (fields[0] == "newmtl")
       {
-        materials.push_back({ fields[1] });
+        materials.push_back({});
 
         material = &materials.back();
 
+        material->name = fields[1];
+
         for(auto &mesh : meshes)
         {
-          if (mesh.usemtl == fields[1])
-            mesh.material = materials.size() - 1;
+          if (mesh.usemtl == material->name)
+            mesh.material = indexof(materials, material);
         }
       }
 

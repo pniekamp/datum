@@ -10,6 +10,8 @@
 #include "../../src/renderer/casterlist.h"
 #include "../../src/renderer/geometrylist.h"
 #include "../../src/renderer/lightlist.h"
+#include "../../src/renderer/decal.h"
+#include "../../src/renderer/decallist.h"
 #include "../../src/renderer/forwardlist.h"
 #include "../../src/renderer/overlaylist.h"
 #include "../../src/renderer/skybox.h"

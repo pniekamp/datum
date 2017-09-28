@@ -181,8 +181,11 @@
     <ClInclude Include="asset.h" />
     <ClInclude Include="renderer\animation.h" />
     <ClInclude Include="renderer\commandlump.h" />
+    <ClInclude Include="renderer\decal.h" />
+    <ClInclude Include="renderer\decallist.h" />
     <ClInclude Include="renderer\forwardlist.h" />
     <ClInclude Include="renderer\geometrylist.h" />
+    <ClInclude Include="renderer\ocean.h" />
     <ClInclude Include="renderer\overlaylist.h" />
     <ClInclude Include="renderer\particlesystem.h" />
     <ClInclude Include="renderer\spotmap.h" />
@@ -221,8 +224,11 @@
     <ClCompile Include="assetpack.cpp" />
     <ClCompile Include="renderer\animation.cpp" />
     <ClCompile Include="renderer\commandlump.cpp" />
+    <ClCompile Include="renderer\decal.cpp" />
+    <ClCompile Include="renderer\decallist.cpp" />
     <ClCompile Include="renderer\forwardlist.cpp" />
     <ClCompile Include="renderer\geometrylist.cpp" />
+    <ClCompile Include="renderer\ocean.cpp" />
     <ClCompile Include="renderer\overlaylist.cpp" />
     <ClCompile Include="renderer\particlesystem.cpp" />
     <ClCompile Include="renderer\spotmap.cpp" />

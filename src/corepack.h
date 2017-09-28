@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 31;
+  const uint32_t version = 33;
 
   enum
   {
@@ -31,6 +31,7 @@ namespace CoreAsset
     cluster_comp,
     prepass_frag,
     geometry_frag,
+    terrain_frag,
     shadow_geom,
     shadow_frag,
     model_shadow_vert,

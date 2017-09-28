@@ -408,8 +408,8 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
           }
         }
 
-        instance->position[instance->count] = transform * position;
-        instance->velocity[instance->count] = transform.rotation() * direction * emitter.velocity.get(entropy, t);
+        instance->position[instance->count] = transform * emitter.transform * position;
+        instance->velocity[instance->count] = transform.rotation() * emitter.transform.rotation() * direction * emitter.velocity.get(entropy, t);
 
         instanceex->count += 1;
       }

@@ -31,7 +31,7 @@ layout(set=0, binding=5) uniform sampler2D depthmap;
 layout(set=0, binding=6) uniform sampler2D depthmipmap;
 layout(set=0, binding=12) uniform sampler2DArray envbrdfmap;
 
-layout(set=0, binding=23) writeonly uniform image2D dest;
+layout(set=0, binding=24) writeonly uniform image2D dest;
 
 const float Jitter = 1.0;
 const float Thickness = 0.05f;
