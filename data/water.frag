@@ -29,6 +29,9 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   uint spotlightcount;
   SpotLight spotlights[MaxSpotLights];
 
+  uint probecount;
+  Probe probes[MaxProbes];
+  
   uint decalcount;
   Decal decals[MaxDecals];
 

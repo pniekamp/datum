@@ -98,6 +98,10 @@ class SpotCasterList
 
     void finalise(BuildState &state);
 
+  public:
+
+    CommandLump const *release() { return m_commandlump.release(); }
+
   private:
 
     unique_resource<CommandLump> m_commandlump;
@@ -153,7 +157,6 @@ struct SpotMapInfo
 
 struct SpotMapParams
 {
-  bool wait = true;
 };
 
 // Initialise
@@ -163,4 +166,4 @@ void initialise_spotmap_context(DatumPlatform::PlatformInterface &platform, Spot
 bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMapContext &context, RenderContext &rendercontext, AssetManager &assets);
 
 // Render
-void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params);
+void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params, VkSemaphore const (&dependancies)[8] = {});

@@ -22,6 +22,7 @@ layout(set=0, binding=3) uniform sampler2D specularmap;
 layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
 layout(set=0, binding=6) uniform sampler2D depthmipmap;
+layout(set=0, binding=10) uniform sampler2D ssaomap;
 layout(set=0, binding=19) uniform sampler2D bloommap;
 layout(set=0, binding=21) uniform sampler2D ssrmap;
 
@@ -43,6 +44,7 @@ void main()
 //  fragcolor = texture(normalmap, texcoord);
 //  fragcolor = texture(depthmap, texcoord);
 //  fragcolor = textureLod(depthmipmap, texcoord, 5);
+//  fragcolor = texture(ssaomap, texcoord).rrrr;
 //  fragcolor = texture(ssrmap, texcoord);
 //  fragcolor = texture(bloommap, texcoord);
   fragcolor = vec4(tonemap(color.rgb + ssr) + bloom, 1);

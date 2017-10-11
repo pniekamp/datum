@@ -849,6 +849,8 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::convolve_comp, "../../data/convolve.comp");
 
+  write_shader_asset(fout, CoreAsset::project_comp, "../../data/project.comp");
+
   write_shader_asset(fout, CoreAsset::skybox_gen_comp, "../../data/skybox.gen.comp");
 
   write_shader_asset(fout, CoreAsset::spotmap_src_vert, "../../data/spotmap.src.vert");

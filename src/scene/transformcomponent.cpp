@@ -92,7 +92,7 @@ void TransformComponentStorage::update(size_t index)
 template<>
 void Scene::initialise_component_storage<TransformComponent>()
 {
-  m_systems[typeid(TransformComponentStorage)] = new(allocator<TransformComponentStorage>().allocate(1)) TransformComponentStorage(this, m_allocator);
+  m_systems[typeid(TransformComponentStorage)] = new(allocate<TransformComponentStorage>(m_allocator)) TransformComponentStorage(this, m_allocator);
 }
 
 

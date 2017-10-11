@@ -740,7 +740,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
     DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
 
-    render(state.rendercontext, viewport, camera, renderlist, renderparams);
+    render(state.rendercontext, viewport, camera, renderlist, renderparams, { state.spotmapcontext.rendercomplete });
   }
 
   state.resources.release(state.readframe->resourcetoken);

@@ -3,6 +3,7 @@ const uint MaxShadowSplits = 4;
 const uint MaxEnvironments = 8;
 const uint MaxPointLights = 512;
 const uint MaxSpotLights = 16;
+const uint MaxProbes = 128;
 const uint MaxDecals = 128;
 const uint MaxDecalMaps = 16;
 const uint ClusterSizeZ = 24;
@@ -44,6 +45,16 @@ struct SpotLight
   vec3 direction;
   float cutoff;
   Transform shadowview;
+};
+
+
+//----------------------- Probe ---------------------------------------------
+//---------------------------------------------------------------------------
+
+struct Probe
+{
+  vec4 position;
+  float irradiance[9][3];
 };
 
 
@@ -89,6 +100,9 @@ struct Cluster
 
   uint spotlightmask[ClusterSizeZ];
   uint spotlightmasks[ClusterSizeZ][(MaxSpotLights + 31)/32];
+
+  uint probemask[ClusterSizeZ];
+  uint probemasks[ClusterSizeZ][(MaxDecals + 31)/32];
 
   uint decalmask[ClusterSizeZ];
   uint decalmasks[ClusterSizeZ][(MaxDecals + 31)/32];
@@ -216,7 +230,6 @@ float shadow_intensity(sampler2D shadowmap, ivec2 xy, ivec2 viewport)
   return texture(shadowmap, vec2(xy+0.5)/viewport).r;
 }
 
-
 ///////////////////////// shadow_intensity //////////////////////////////////
 float shadow_intensity(sampler2DShadow shadowmap, vec3 texel, float spread)
 {
@@ -247,7 +260,6 @@ float shadow_intensity(sampler2DArrayShadow shadowmap, vec4 texel, float spread)
   return sum * (1.0/12.0);
 }
 
-
 ///////////////////////// diffuse_intensity /////////////////////////////////
 float diffuse_intensity(vec3 N, vec3 L)
 {
@@ -260,7 +272,6 @@ float specular_intensity(vec3 N, vec3 V, vec3 L)
   //return max(dot(reflect(-L, N), V), 0);
   return max(dot(normalize(L + V), N), 0);
 }
-
 
 ///////////////////////// specular_dominantdirection ////////////////////////
 vec3 specular_dominantdirection(vec3 N, vec3 R, float roughness)
@@ -278,7 +289,6 @@ vec3 dffuse_dominantdirection(vec3 N, vec3 V, float roughness)
 
   return mix(N, V, clamp((dot(N, V) * a + b) * roughness, 0, 1));
 }
-
 
 ///////////////////////// fresnel_schlick ///////////////////////////////////
 vec3 fresnel_schlick(vec3 f0, float f90, float u)
@@ -329,7 +339,36 @@ vec3 specular_ggx(vec3 f0, float f90, float NdotV, float NdotL, float LdotH, flo
 }
 
 
-///////////////////////// env_light  ////////////////////////////////////////
+///////////////////////// probe_irradiance //////////////////////////////////
+float probe_irradiance(inout vec3 irradiance, Probe probe, vec3 position, vec3 normal)
+{
+  float L0 = 3.141593 * 0.282095;
+
+  float L1 = 2.094395 * 0.488603 * normal.y;
+  float L2 = 2.094395 * 0.488603 * normal.z;
+  float L3 = 2.094395 * 0.488603 * normal.x;
+
+  float L4 = 0.785398 * 1.092548 * normal.x * normal.y;
+  float L5 = 0.785398 * 1.092548 * normal.y * normal.z;
+  float L6 = 0.785398 * 0.315392 * (3 * normal.z*normal.z - 1);
+  float L7 = 0.785398 * 1.092548 * normal.z * normal.x;
+  float L8 = 0.785398 * 0.546274 * (normal.x*normal.x - normal.y*normal.y);
+
+  float r = L0 * probe.irradiance[0][0] + L1 * probe.irradiance[1][0] + L2 * probe.irradiance[2][0] + L3 * probe.irradiance[3][0] + L4 * probe.irradiance[4][0] + L5 * probe.irradiance[5][0] + L6 * probe.irradiance[6][0] + L7 * probe.irradiance[7][0] + L8 * probe.irradiance[8][0];
+  float g = L0 * probe.irradiance[0][1] + L1 * probe.irradiance[1][1] + L2 * probe.irradiance[2][1] + L3 * probe.irradiance[3][1] + L4 * probe.irradiance[4][1] + L5 * probe.irradiance[5][1] + L6 * probe.irradiance[6][1] + L7 * probe.irradiance[7][1] + L8 * probe.irradiance[8][1];
+  float b = L0 * probe.irradiance[0][2] + L1 * probe.irradiance[1][2] + L2 * probe.irradiance[2][2] + L3 * probe.irradiance[3][2] + L4 * probe.irradiance[4][2] + L5 * probe.irradiance[5][2] + L6 * probe.irradiance[6][2] + L7 * probe.irradiance[7][2] + L8 * probe.irradiance[8][2];
+
+  float probedistance = length(probe.position.xyz - position);
+
+  float attenuation = pow(clamp(1 - pow(probedistance/probe.position.w, 4.0), 0, 1), 2);
+
+  irradiance += max(vec3(r, g, b), 0) * (1/PI) * attenuation;
+  
+  return attenuation;
+}
+
+
+///////////////////////// env_light /////////////////////////////////////////
 void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 envdiffuse, vec3 envspecular, vec2 envbrdf, float ambientintensity)
 {
   float f90 = 0.8f;
@@ -339,7 +378,7 @@ void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 
 }
 
 
-///////////////////////// main_light  ///////////////////////////////////////
+///////////////////////// main_light ////////////////////////////////////////
 void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 normal, vec3 eyevec, Material material, float shadowfactor)
 {
   vec3 lightvec = -light.direction;
@@ -361,7 +400,7 @@ void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 n
 }
 
 
-///////////////////////// point_light  //////////////////////////////////////
+///////////////////////// point_light ///////////////////////////////////////
 void point_light(inout vec3 diffuse, inout vec3 specular, PointLight light, vec3 position, vec3 normal, vec3 eyevec, Material material)
 {
   vec3 lightvec = normalize(light.position - position);

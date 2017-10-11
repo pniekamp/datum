@@ -379,7 +379,7 @@ namespace Vulkan
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
 
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageUsageFlags usage, VkImageLayout layout);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageLayout layout, VkImageUsageFlags usage, VkImageCreateFlags flags = 0);
 
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
@@ -405,6 +405,7 @@ namespace Vulkan
 
   Semaphore create_semaphore(VulkanDevice const &vulkan, VkSemaphoreCreateFlags flags = 0);
 
+  void wait_semaphore(VulkanDevice const &vulkan, VkSemaphore semaphore);
   void signal_semaphore(VulkanDevice const &vulkan, VkSemaphore semaphore);
 
   DescriptorSet allocate_descriptorset(VulkanDevice const &vulkan, VkDescriptorPool pool, VkDescriptorSetLayout layout);
@@ -431,13 +432,9 @@ namespace Vulkan
   void begin(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFramebuffer framebuffer, VkRenderPass renderpass, uint32_t subpass, VkCommandBufferUsageFlags flags);
   void end(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);
 
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer);
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFence fence);
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore signalsemaphore, VkFence fence);
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore const *waitsemaphores, int waitsemaphorescount, VkSemaphore signalsemaphore, VkFence fence);
-
-  void transition_acquire(VkCommandBuffer commandbuffer, VkImage image);
-  void transition_present(VkCommandBuffer commandbuffer, VkImage image);
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore const (&dependancies)[8] = {});
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFence fence, VkSemaphore const (&dependancies)[8] = {});
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore signalsemaphore, VkFence fence, VkSemaphore const (&dependancies)[8] = {});
 
   void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor, VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
   void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor, VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
@@ -449,18 +446,19 @@ namespace Vulkan
 
   void mip(VkCommandBuffer commandbuffer, VkImage image, int width, int height, uint32_t layers, uint32_t levels);
 
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy);
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter);
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkImage dst, int dx, int dy, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers, VkFilter filter);
 
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkBuffer dst, VkDeviceSize offset, int dw, int dh, VkImageSubresourceLayers subresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkBuffer dst, VkDeviceSize offset);
 
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkBuffer dst, VkDeviceSize dstoffset, VkDeviceSize size);
 
   void fill(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t data);
 
   void setimagelayout(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
-  void setimagelayout(VulkanDevice const &vulkan, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
+  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
+  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout);
 
   void reset_querypool(VkCommandBuffer commandbuffer, VkQueryPool querypool, uint32_t first, uint32_t count);
 

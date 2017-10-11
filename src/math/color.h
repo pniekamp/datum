@@ -218,5 +218,40 @@ namespace lml
     return (color.a == 0.0f || color.a == 1.0f) ? color : Color4(color.r / color.a, color.g / color.a, color.b / color.a, color.a);
   }
 
+
+  //|///////////////////// kelvin_rgb ///////////////////////////////////////
+  inline Color3 kelvin_rgb(float kelvin)
+  {
+    static const float lut[][4] = {
+      {  1000.0f, 1.000f, 0.007f, 0.000f },
+      {  1500.0f, 1.000f, 0.126f, 0.000f },
+      {  2000.0f, 1.000f, 0.234f, 0.010f },
+      {  2500.0f, 1.000f, 0.349f, 0.067f },
+      {  3000.0f, 1.000f, 0.454f, 0.151f },
+      {  3500.0f, 1.000f, 0.549f, 0.254f },
+      {  4000.0f, 1.000f, 0.635f, 0.370f },
+      {  4500.0f, 1.000f, 0.710f, 0.493f },
+      {  5000.0f, 1.000f, 0.778f, 0.620f },
+      {  5500.0f, 1.000f, 0.837f, 0.746f },
+      {  6000.0f, 1.000f, 0.890f, 0.869f },
+      {  6500.0f, 1.000f, 0.937f, 0.988f },
+      {  7000.0f, 0.907f, 0.888f, 1.000f },
+      {  7500.0f, 0.827f, 0.839f, 1.000f },
+      {  8000.0f, 0.762f, 0.800f, 1.000f },
+      {  8500.0f, 0.711f, 0.766f, 1.000f },
+      {  9000.0f, 0.668f, 0.738f, 1.000f },
+      {  9500.0f, 0.632f, 0.714f, 1.000f },
+      { 10000.0f, 0.602f, 0.693f, 1.000f },
+    };
+
+    size_t i = 0;
+    while (i + 1 < std::extent<decltype(lut)>::value && lut[i + 1][0] < kelvin)
+     ++i;
+
+    auto mu = (kelvin - lut[i][0])/(lut[i+1][0] - lut[i][0]);
+
+    return lerp(Color3(lut[i][1], lut[i][2], lut[i][3]), Color3(lut[i+1][1], lut[i+1][2], lut[i+1][3]), mu);
+  }
+
 } // namespace
 

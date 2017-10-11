@@ -41,7 +41,7 @@ void SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float si
 template<>
 void Scene::initialise_component_storage<SpriteComponent>()
 {
-  m_systems[typeid(SpriteComponentStorage)] = new(allocator<SpriteComponentStorage>().allocate(1)) SpriteComponentStorage(this, m_allocator);
+  m_systems[typeid(SpriteComponentStorage)] = new(allocate<SpriteComponentStorage>(m_allocator)) SpriteComponentStorage(this, m_allocator);
 }
 
 

@@ -299,7 +299,7 @@ SpotMap const *ResourceManager::create<SpotMap>(int width, int height)
   spotmap->transferlump = nullptr;
   spotmap->state = SpotMap::State::Empty;
 
-  spotmap->texture = create_texture(vulkan, 0, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
+  spotmap->texture = create_texture(vulkan, 0, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
   VkSamplerCreateInfo depthsamplerinfo = {};
   depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -351,7 +351,7 @@ void ResourceManager::request<SpotMap>(DatumPlatform::PlatformInterface &platfor
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
           memcpy(lump->memory(), bits, lump->transferbuffer.size);
 
@@ -869,13 +869,13 @@ void prepare_framebuffer(SpotMapContext &context, SpotMap const *target)
 
     target->framebuffer = create_framebuffer(context.vulkan, framebufferinfo);
 
-    setimagelayout(context.commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+    setimagelayout(context.commandbuffer, target->texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   }
 }
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params)
+void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params, VkSemaphore const (&dependancies)[8])
 {
   using namespace Vulkan;
 
@@ -941,11 +941,5 @@ void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_
   // Submit
   //
 
-  submit(context.vulkan, context.commandbuffer, context.fence);
-
-  if (params.wait)
-  {
-    while (!test_fence(context.vulkan, context.fence))
-      ;
-  }
+  submit(context.vulkan, context.commandbuffer, context.rendercomplete, context.fence, dependancies);
 }

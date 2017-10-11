@@ -114,20 +114,20 @@ namespace
     return NdotV / (NdotV * (1.0f - k) + k);
   }
 
-  Vec3 importancesample_ggx(Vec2 u, float alpha, Vec3 normal)
+  Vec3 importancesample_ggx(Vec2 const &u, float alpha, Vec3 normal)
   {
     float phi = 2*pi<float>() * u.x;
     float costheta = sqrt((1 - u.y) / (1 + (alpha*alpha - 1) * u.y));
     float sintheta = sqrt(1 - costheta*costheta);
 
-    Vec3 up = abs(normal.z) < 0.999 ? Vec3(0,0,1) : Vec3(1,0,0);
+    Vec3 up = abs(normal.z) < 0.999 ? Vec3(0, 0, 1) : Vec3(1, 0, 0);
     Vec3 tangent = normalise(cross(up, normal));
     Vec3 bitangent = cross(normal, tangent);
 
     return sintheta * cos(phi) * tangent + sintheta * sin(phi) * bitangent + costheta * normal;
   }
 
-  Color3 convolve(float roughness, Vec3 ray, Sampler const &envmap)
+  Color3 convolve(float roughness, Vec3 const &ray, Sampler const &envmap)
   {
     constexpr int kSamples = 1024;
 
@@ -191,7 +191,7 @@ namespace
 }
 
 
-///////////////////////// image_pack_cubemap_ibl ////////////////////////////
+///////////////////////// image_buildmips_cube_ibl //////////////////////////
 void image_buildmips_cube_ibl(int width, int height, int levels, void *bits)
 {
   uint32_t *src = (uint32_t*)bits;

@@ -108,7 +108,7 @@ class ExampleComponentStorage : public BasicComponentStorage<ExampleComponent, E
 template<>
 void Scene::initialise_component_storage<ExampleComponent>()
 {
-  m_systems[typeid(ExampleComponentStorage)] = new(allocator<ExampleComponentStorage>().allocate(1)) ExampleComponentStorage(this, m_allocator);
+  m_systems[typeid(ExampleComponentStorage)] = new(allocate<ExampleComponentStorage>(m_allocator)) ExampleComponentStorage(this, m_allocator);
 }
 
 

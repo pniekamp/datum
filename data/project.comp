@@ -1,0 +1,106 @@
+#version 440 core
+#include "transform.glsl"
+
+layout(local_size_x = 1, local_size_y = 1) in;
+
+layout(push_constant, std140, row_major) uniform ProjectParams 
+{ 
+  float a;
+  
+} params;
+
+layout(set=0, binding=0) uniform samplerCube envmap;
+
+layout(set=0, binding=1, std430, row_major) writeonly buffer ProbeSet
+{
+  float sh[9][3];
+
+} probe;
+
+#define PI 3.1415926535897932384626433832795
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{
+  const Transform transforms[] =
+  {
+    { vec4(0.707107, 0, -0.707107, 0), vec4(0) }, // right
+    { vec4(0.707107, 0, 0.707107, 0), vec4(0) },  // left
+    { vec4(0.707107, -0.707107, 0, 0), vec4(0) }, // bottom
+    { vec4(0.707107, 0.707107, 0, 0), vec4(0) },  // top
+    { vec4(1, 0, 0, 0), vec4(0) },                // front
+    { vec4(0, 0, 1, 0), vec4(0) },                // back
+  };
+ 
+  ivec2 dim = textureSize(envmap, 0).xy;
+
+  for(int i = 0; i < 9; ++i)
+  {  
+    for(int j = 0; j < 3; ++j)
+    {
+      probe.sh[i][j] = 0;
+    }
+  }
+  
+  float totalweight = 0;
+
+  for(int i = 0; i < 6; ++i)
+  {
+    for(int y = 0, end = dim.y; y < end; ++y)
+    {
+      for(int x = 0, end = dim.x; x < end; ++x)
+      {
+        vec2 uv = vec2(2 * (x + 0.5)/dim.x - 1, 2 * (y + 0.5)/dim.y - 1);
+        vec3 ray = normalize(transform_multiply(transforms[i], vec3(uv.xy, -1.0)));
+        
+        float x0 = uv.x - 1.0/dim.x;
+        float y0 = uv.y - 1.0/dim.y;
+        float x1 = uv.x + 1.0/dim.x;
+        float y1 = uv.y + 1.0/dim.y;
+        float weight = atan(x0*y0, sqrt(x0*x0 + y0*y0 + 1)) - atan(x0*y1, sqrt(x0*x0 + y1*y1 + 1)) - atan(x1*y0, sqrt(x1*x1 + y0*y0 + 1)) + atan(x1*y1, sqrt(x1*x1 + y1*y1 + 1));      
+
+        vec3 color = texture(envmap, ray * vec3(1, -1, -1)).rgb;
+
+        probe.sh[0][0] += weight * color.r * 0.282095;
+        probe.sh[0][1] += weight * color.g * 0.282095;
+        probe.sh[0][2] += weight * color.b * 0.282095;
+
+        probe.sh[1][0] += weight * color.r * 0.488603 * ray.y;
+        probe.sh[1][1] += weight * color.g * 0.488603 * ray.y;
+        probe.sh[1][2] += weight * color.b * 0.488603 * ray.y;
+        probe.sh[2][0] += weight * color.r * 0.488603 * ray.z;
+        probe.sh[2][1] += weight * color.g * 0.488603 * ray.z;
+        probe.sh[2][2] += weight * color.b * 0.488603 * ray.z;
+        probe.sh[3][0] += weight * color.r * 0.488603 * ray.x;
+        probe.sh[3][1] += weight * color.g * 0.488603 * ray.x;
+        probe.sh[3][2] += weight * color.b * 0.488603 * ray.x;
+
+        probe.sh[4][0] += weight * color.r * 1.092548 * ray.x * ray.y;
+        probe.sh[4][1] += weight * color.g * 1.092548 * ray.x * ray.y;
+        probe.sh[4][2] += weight * color.b * 1.092548 * ray.x * ray.y;
+        probe.sh[5][0] += weight * color.r * 1.092548 * ray.y * ray.z;
+        probe.sh[5][1] += weight * color.g * 1.092548 * ray.y * ray.z;
+        probe.sh[5][2] += weight * color.b * 1.092548 * ray.y * ray.z;
+        probe.sh[6][0] += weight * color.r * 0.315392 * (3 * ray.z*ray.z - 1);
+        probe.sh[6][1] += weight * color.g * 0.315392 * (3 * ray.z*ray.z - 1);
+        probe.sh[6][2] += weight * color.b * 0.315392 * (3 * ray.z*ray.z - 1);
+        probe.sh[7][0] += weight * color.r * 1.092548 * ray.z * ray.x;
+        probe.sh[7][1] += weight * color.g * 1.092548 * ray.z * ray.x;
+        probe.sh[7][2] += weight * color.b * 1.092548 * ray.z * ray.x;
+        probe.sh[8][0] += weight * color.r * 0.546274 * (ray.x*ray.x - ray.y*ray.y);
+        probe.sh[8][1] += weight * color.g * 0.546274 * (ray.x*ray.x - ray.y*ray.y);
+        probe.sh[8][2] += weight * color.b * 0.546274 * (ray.x*ray.x - ray.y*ray.y);
+        
+        totalweight += weight;
+      }
+    }
+  }
+  
+  for(int i = 0; i < 9; ++i)
+  {  
+    for(int j = 0; j < 3; ++j)
+    {
+      probe.sh[i][j] *= 4*PI/totalweight;
+    }
+  }  
+}

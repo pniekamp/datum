@@ -58,3 +58,94 @@ class EnvMap
   protected:
     EnvMap() = default;
 };
+
+
+//|---------------------- Convolve ------------------------------------------
+//|--------------------------------------------------------------------------
+
+struct ConvolveContext
+{
+  bool ready = false;
+
+  Vulkan::VulkanDevice vulkan;
+
+  Vulkan::CommandPool commandpool;
+  Vulkan::CommandBuffer commandbuffer;
+
+  Vulkan::DescriptorPool descriptorpool;
+
+  Vulkan::PipelineLayout pipelinelayout;
+
+  Vulkan::PipelineCache pipelinecache;
+
+  Vulkan::Pipeline convolvepipeline;
+
+  Vulkan::DescriptorSetLayout descriptorsetlayout;
+
+  Vulkan::DescriptorSet convolvedescriptors[8];
+  Vulkan::ImageView convolveimageviews[8];
+
+  Vulkan::Fence fence;
+};
+
+struct ConvolveParams
+{
+  int samples = 1024;
+};
+
+// Initialise
+void initialise_convolve_context(DatumPlatform::PlatformInterface &platform, ConvolveContext &context, uint32_t queueindex);
+
+// Prepare
+bool prepare_convolve_context(DatumPlatform::PlatformInterface &platform, ConvolveContext &context, AssetManager &assets);
+
+// Convolve
+void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams const &params, VkSemaphore const (&dependancies)[8] = {});
+
+
+//|---------------------- Project -------------------------------------------
+//|--------------------------------------------------------------------------
+
+struct Irradiance
+{
+  float L[9][3];
+};
+
+struct ProjectContext
+{
+  bool ready = false;
+
+  Vulkan::VulkanDevice vulkan;
+
+  Vulkan::CommandPool commandpool;
+  Vulkan::CommandBuffer commandbuffer;
+
+  Vulkan::DescriptorPool descriptorpool;
+
+  Vulkan::PipelineLayout pipelinelayout;
+
+  Vulkan::PipelineCache pipelinecache;
+
+  Vulkan::Pipeline projectpipeline;
+
+  Vulkan::DescriptorSetLayout descriptorsetlayout;
+
+  Vulkan::DescriptorSet projectdescriptor;
+
+  Vulkan::StorageBuffer probebuffer;
+
+  Vulkan::Fence fence;
+};
+
+struct ProjectParams
+{
+};
+
+// Initialise
+void initialise_project_context(DatumPlatform::PlatformInterface &platform, ProjectContext &context, uint32_t queueindex);
+
+// Prepare
+bool prepare_project_context(DatumPlatform::PlatformInterface &platform, ProjectContext &context, AssetManager &assets);
+
+// Project
+void project(ProjectContext &context, EnvMap const *source, Irradiance &target, ProjectParams const &params, VkSemaphore const (&dependancies)[8] = {});

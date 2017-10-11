@@ -313,7 +313,8 @@ namespace Vulkan
     return { size, offset, { storagebuffer, { vulkan.device } } };
   }
 
-  ///////////////////////// create_storagebuffer ////////////////////////////
+
+  ///////////////////////// create_storagebuffer /////////////////////////////
   StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size)
   {
     VkBufferCreateInfo createinfo = {};
@@ -321,21 +322,22 @@ namespace Vulkan
     createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     createinfo.size = size;
 
-    VkBuffer constantbuffer;
-    vkCreateBuffer(vulkan.device, &createinfo, nullptr, &constantbuffer);
+    VkBuffer storagebuffer;
+    vkCreateBuffer(vulkan.device, &createinfo, nullptr, &storagebuffer);
 
     VkMemoryRequirements memoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, constantbuffer, &memoryrequirements);
+    vkGetBufferMemoryRequirements(vulkan.device, storagebuffer, &memoryrequirements);
 
     VkDeviceMemory memory;
     allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory);
 
-    vkBindBufferMemory(vulkan.device, constantbuffer, memory, 0);
+    vkBindBufferMemory(vulkan.device, storagebuffer, memory, 0);
 
-    return { size, 0, { constantbuffer, { vulkan.device } }, { memory, { vulkan.device } } };
+    return { size, 0, { storagebuffer, { vulkan.device } }, { memory, { vulkan.device } } };
   }
 
-  ///////////////////////// create_storagebuffer ////////////////////////////
+
+  ///////////////////////// create_storagebuffer /////////////////////////////
   StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size, const void *data)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
@@ -547,7 +549,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageUsageFlags usage, VkImageLayout layout)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageLayout layout, VkImageUsageFlags usage, VkImageCreateFlags flags)
   {
     Texture texture = {};
 
@@ -569,7 +571,7 @@ namespace Vulkan
     imageinfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageinfo.usage = usage;
-    imageinfo.flags = 0;
+    imageinfo.flags = flags;
 
     if (type == VK_IMAGE_VIEW_TYPE_CUBE)
       imageinfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
@@ -621,7 +623,7 @@ namespace Vulkan
   ///////////////////////// create_texture //////////////////////////////////
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter, VkSamplerAddressMode addressmode)
   {
-    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, filter, addressmode, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, filter, addressmode, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     return texture;
   }
@@ -662,7 +664,7 @@ namespace Vulkan
   ///////////////////////// update_texture //////////////////////////////////
   void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, Texture &texture)
   {
-    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     for(uint32_t level = 0; level < texture.levels; ++level)
     {
@@ -670,12 +672,12 @@ namespace Vulkan
       uint32_t height = texture.height >> level;
       uint32_t layers = texture.layers;
 
-      blit(commandbuffer, transferbuffer, offset, width, height, texture.image, 0, 0, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, layers });
+      blit(commandbuffer, transferbuffer, offset, texture.image, 0, 0, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, layers });
 
       offset += format_datasize(width, height, texture.format) * layers;
     }
 
-    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   }
 
 
@@ -796,6 +798,25 @@ namespace Vulkan
   }
 
 
+  ///////////////////////// wait ////////////////////////////////////////////
+  void wait_semaphore(VulkanDevice const &vulkan, VkSemaphore semaphore)
+  {
+    static const auto waitdststagemask = VkPipelineStageFlags(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+    auto fence = create_fence(vulkan);
+
+    VkSubmitInfo submitinfo = {};
+    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.waitSemaphoreCount = 1;
+    submitinfo.pWaitSemaphores = &semaphore;
+    submitinfo.pWaitDstStageMask = &waitdststagemask;
+
+    vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
+
+    wait_fence(vulkan, fence);
+  }
+
+
   ///////////////////////// signal //////////////////////////////////////////
   void signal_semaphore(VulkanDevice const &vulkan, VkSemaphore semaphore)
   {
@@ -874,7 +895,8 @@ namespace Vulkan
     writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     writeset.pImageInfo = &imageinfo;
 
-    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);  }
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
 
   void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index)
   {
@@ -1007,89 +1029,66 @@ namespace Vulkan
 
 
   ///////////////////////// submit //////////////////////////////////////////
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer)
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore const (&dependancies)[8])
   {
+    static const auto waitdststagemask = leap::fill(VkPipelineStageFlags(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT), leap::make_index_sequence<0, 8>());
+
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitinfo.commandBufferCount = 1;
     submitinfo.pCommandBuffers = &commandbuffer;
+
+    submitinfo.waitSemaphoreCount = 0;
+    submitinfo.pWaitSemaphores = dependancies;
+    submitinfo.pWaitDstStageMask = waitdststagemask.data();
+
+    assert(dependancies[7] == 0);
+    while (dependancies[submitinfo.waitSemaphoreCount])
+      ++submitinfo.waitSemaphoreCount;
 
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, VK_NULL_HANDLE);
   }
 
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFence fence)
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkFence fence, VkSemaphore const (&dependancies)[8])
   {
+    static const auto waitdststagemask = leap::fill(VkPipelineStageFlags(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT), leap::make_index_sequence<0, 8>());
+
     VkSubmitInfo submitinfo = {};
     submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitinfo.commandBufferCount = 1;
     submitinfo.pCommandBuffers = &commandbuffer;
 
-    vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
-  }
-
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore signalsemaphore, VkFence fence)
-  {
-    VkSubmitInfo submitinfo = {};
-    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitinfo.commandBufferCount = 1;
-    submitinfo.pCommandBuffers = &commandbuffer;
-    submitinfo.signalSemaphoreCount = 1;
-    submitinfo.pSignalSemaphores = &signalsemaphore;
-
-    vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
-  }
-
-  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore const *waitsemaphores, int waitsemaphorescount, VkSemaphore signalsemaphore, VkFence fence)
-  {
-    static const auto waitdststagemask = leap::fill(VkPipelineStageFlags(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT), leap::make_index_sequence<0, 32>());
-
-    VkSubmitInfo submitinfo = {};
-    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitinfo.waitSemaphoreCount = 0;
+    submitinfo.pWaitSemaphores = dependancies;
     submitinfo.pWaitDstStageMask = waitdststagemask.data();
-    submitinfo.waitSemaphoreCount = waitsemaphorescount;
-    submitinfo.pWaitSemaphores = waitsemaphores;
+
+    assert(dependancies[7] == 0);
+    while (dependancies[submitinfo.waitSemaphoreCount])
+      ++submitinfo.waitSemaphoreCount;
+
+    vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
+  }
+
+  void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore signalsemaphore, VkFence fence, VkSemaphore const (&dependancies)[8])
+  {
+    static const auto waitdststagemask = leap::fill(VkPipelineStageFlags(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT), leap::make_index_sequence<0, 8>());
+
+    VkSubmitInfo submitinfo = {};
+    submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitinfo.commandBufferCount = 1;
     submitinfo.pCommandBuffers = &commandbuffer;
     submitinfo.signalSemaphoreCount = 1;
     submitinfo.pSignalSemaphores = &signalsemaphore;
 
+    submitinfo.waitSemaphoreCount = 0;
+    submitinfo.pWaitSemaphores = dependancies;
+    submitinfo.pWaitDstStageMask = waitdststagemask.data();
+
+    assert(dependancies[7] == 0);
+    while (dependancies[submitinfo.waitSemaphoreCount])
+      ++submitinfo.waitSemaphoreCount;
+
     vkQueueSubmit(vulkan.queue, 1, &submitinfo, fence);
-  }
-
-
-  ///////////////////////// transition_acquire //////////////////////////////
-  void transition_acquire(VkCommandBuffer commandbuffer, VkImage image)
-  {
-    VkImageMemoryBarrier imagebarrier = {};
-    imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imagebarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    imagebarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    imagebarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    imagebarrier.image = image;
-    imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
-  }
-
-
-  ///////////////////////// transition_present //////////////////////////////
-  void transition_present(VkCommandBuffer commandbuffer, VkImage image)
-  {
-    VkImageMemoryBarrier imagebarrier = {};
-    imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imagebarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    imagebarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imagebarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    imagebarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    imagebarrier.image = image;
-    imagebarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
   }
 
 
@@ -1188,19 +1187,19 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy)
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkImage dst, int dx, int dy, VkImageSubresourceLayers dstlayers)
   {
     VkImageCopy imagecopy = {};
 
     imagecopy.srcOffset.x = sx;
     imagecopy.srcOffset.y = sy;
     imagecopy.srcOffset.z = 0;
-    imagecopy.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+    imagecopy.srcSubresource = srclayers;
 
     imagecopy.dstOffset.x = dx;
     imagecopy.dstOffset.y = dy;
     imagecopy.dstOffset.z = 0;
-    imagecopy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+    imagecopy.dstSubresource = dstlayers;
 
     imagecopy.extent.width = sw;
     imagecopy.extent.height = sh;
@@ -1211,32 +1210,32 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkFilter filter)
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers, VkFilter filter)
   {
     VkImageBlit imageblit = {};
 
     imageblit.srcOffsets[0].x = sx;
     imageblit.srcOffsets[0].y = sy;
     imageblit.srcOffsets[0].z = 0;
-    imageblit.srcOffsets[1].x = sw + sx;
-    imageblit.srcOffsets[1].y = sh + sy;
+    imageblit.srcOffsets[1].x = sx + sw;
+    imageblit.srcOffsets[1].y = sy + sh;
     imageblit.srcOffsets[1].z = 1;
-    imageblit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+    imageblit.srcSubresource = srclayers;
 
     imageblit.dstOffsets[0].x = dx;
     imageblit.dstOffsets[0].y = dy;
     imageblit.dstOffsets[0].z = 0;
-    imageblit.dstOffsets[1].x = dw + dx;
-    imageblit.dstOffsets[1].y = dh + dy;
+    imageblit.dstOffsets[1].x = dx + dw;
+    imageblit.dstOffsets[1].y = dy + dh;
     imageblit.dstOffsets[1].z = 1;
-    imageblit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+    imageblit.dstSubresource = dstlayers;
 
     vkCmdBlitImage(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageblit, filter);
   }
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, int sw, int sh, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers subresource)
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers)
   {
     VkBufferImageCopy buffercopy = {};
 
@@ -1245,7 +1244,7 @@ namespace Vulkan
     buffercopy.imageOffset.x = dx;
     buffercopy.imageOffset.y = dy;
     buffercopy.imageOffset.z = 0;
-    buffercopy.imageSubresource = subresource;
+    buffercopy.imageSubresource = dstlayers;
 
     buffercopy.imageExtent.width = dw;
     buffercopy.imageExtent.height = dh;
@@ -1256,7 +1255,7 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkBuffer dst, VkDeviceSize offset, int dw, int dh, VkImageSubresourceLayers subresource)
+  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkBuffer dst, VkDeviceSize offset)
   {
     VkBufferImageCopy buffercopy = {};
 
@@ -1265,7 +1264,7 @@ namespace Vulkan
     buffercopy.imageOffset.x = sx;
     buffercopy.imageOffset.y = sy;
     buffercopy.imageOffset.z = 0;
-    buffercopy.imageSubresource = subresource;
+    buffercopy.imageSubresource = srclayers;
 
     buffercopy.imageExtent.width = sw;
     buffercopy.imageExtent.height = sh;
@@ -1349,23 +1348,22 @@ namespace Vulkan
     vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
   }
 
-
-  ///////////////////////// setimagelayout //////////////////////////////////
-  void setimagelayout(VulkanDevice const &vulkan, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
+  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
   {
-    CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    setimagelayout(commandbuffer, texture.image, oldlayout, newlayout, subresourcerange);
+  }
 
-    CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout)
+  {
+    VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers };
 
-    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    if (texture.format == VK_FORMAT_D16_UNORM || texture.format == VK_FORMAT_D32_SFLOAT)
+      subresourcerange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-    setimagelayout(setupbuffer, image, oldlayout, newlayout, subresourcerange);
+    if (texture.format == VK_FORMAT_D16_UNORM_S8_UINT || texture.format == VK_FORMAT_D24_UNORM_S8_UINT || texture.format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+      subresourcerange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
-    end(vulkan, setupbuffer);
-
-    submit(vulkan, setupbuffer);
-
-    vkQueueWaitIdle(vulkan.queue);
+    setimagelayout(commandbuffer, texture, oldlayout, newlayout, subresourcerange);
   }
 
 
@@ -1566,11 +1564,11 @@ namespace Vulkan
 
   void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3])
   {
-    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
     dispatch(commandbuffer, texture.width, texture.height, texture.layers, dim);
 
-    setimagelayout(commandbuffer, texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   }
 
 

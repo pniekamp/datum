@@ -141,7 +141,7 @@ void update_meshes(Scene &scene)
 template<>
 void Scene::initialise_component_storage<MeshComponent>()
 {
-  m_systems[typeid(MeshComponentStorage)] = new(allocator<MeshComponentStorage>().allocate(1)) MeshComponentStorage(this, m_allocator);
+  m_systems[typeid(MeshComponentStorage)] = new(allocate<MeshComponentStorage>(m_allocator)) MeshComponentStorage(this, m_allocator);
 }
 
 
