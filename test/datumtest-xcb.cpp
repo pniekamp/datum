@@ -532,7 +532,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   swapchaininfo.surface = surface;
   swapchaininfo.minImageCount = desiredimages;
   swapchaininfo.imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
-  swapchaininfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+  swapchaininfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
   swapchaininfo.imageExtent = surfacecapabilities.currentExtent;
   swapchaininfo.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
   swapchaininfo.preTransform = pretransform;

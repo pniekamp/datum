@@ -33,8 +33,8 @@ layout(location=2) out vec4 fragnormal;
 void main()
 {
   vec4 albedo = vec4(0);
-  vec3 normal = vec3(0);
   vec4 surface = vec4(0);
+  vec3 normal = vec3(0);
 
   vec3 uv = vec3(texcoord * params.uvscale, 0);
   
@@ -43,23 +43,23 @@ void main()
     vec4 blend = texture(blendmap, vec3(texcoord, i));
     
     albedo += texture(albedomap, uv) * blend.r;
-    normal += texture(normalmap, uv).xyz * blend.r;
     surface += texture(surfacemap, uv) * blend.r;
+    normal += texture(normalmap, uv).xyz * blend.r;
     uv.z += 1;
 
     albedo += texture(albedomap, uv) * blend.g;
-    normal += texture(normalmap, uv).xyz * blend.g;
     surface += texture(surfacemap, uv) * blend.g;
+    normal += texture(normalmap, uv).xyz * blend.g;
     uv.z += 1;
 
     albedo += texture(albedomap, uv) * blend.b;
-    normal += texture(normalmap, uv).xyz * blend.b;
     surface += texture(surfacemap, uv) * blend.b;
+    normal += texture(normalmap, uv).xyz * blend.b;
     uv.z += 1;
 
     albedo += texture(albedomap, uv) * blend.a;
-    normal += texture(normalmap, uv).xyz * blend.a;
     surface += texture(surfacemap, uv) * blend.a;
+    normal += texture(normalmap, uv).xyz * blend.a;
     uv.z += 1;
   }
   
@@ -68,22 +68,22 @@ void main()
     vec4 blend = texture(blendmap, vec3(texcoord, params.layers/4));
 
     albedo += texture(albedomap, uv) * blend.r;
-    normal += texture(normalmap, uv).xyz * blend.r;
     surface += texture(surfacemap, uv) * blend.r;
+    normal += texture(normalmap, uv).xyz * blend.r;
     uv.z += 1;
 
     if ((params.layers & 0x3) > 1)
     {
       albedo += texture(albedomap, uv) * blend.g;
-      normal += texture(normalmap, uv).xyz * blend.g;
       surface += texture(surfacemap, uv) * blend.g;
+      normal += texture(normalmap, uv).xyz * blend.g;
       uv.z += 1;
     
       if ((params.layers & 0x3) > 2)
       {
         albedo += texture(albedomap, uv) * blend.b;
-        normal += texture(normalmap, uv).xyz * blend.b;
         surface += texture(surfacemap, uv) * blend.b;
+        normal += texture(normalmap, uv).xyz * blend.b;
         uv.z += 1;
       }
     }    

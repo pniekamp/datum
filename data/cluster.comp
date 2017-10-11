@@ -31,6 +31,9 @@ layout(set=0, binding=0, std430, row_major) buffer SceneSet
   uint spotlightcount;
   SpotLight spotlights[MaxSpotLights];
 
+  uint probecount;
+  Probe probes[MaxProbes];
+  
   uint decalcount;
   Decal decals[MaxDecals];
   
@@ -58,6 +61,11 @@ void main()
 
     for(uint i = 0; i < (scene.spotlightcount + 31)/32; ++i)
       scene.cluster[tile].spotlightmasks[tilez][i] = 0;
+
+    scene.cluster[tile].probemask[tilez] = 0;
+
+    for(uint i = 0; i < (scene.probecount + 31)/32; ++i)
+      scene.cluster[tile].probemasks[tilez][i] = 0;
 
     scene.cluster[tile].decalmask[tilez] = 0;
 
@@ -109,13 +117,13 @@ void main()
 
   for(uint i = gl_LocalInvocationIndex, end = scene.pointlightcount; i < end; i += gl_WorkGroupSize.z)
   {
-    vec3 lightcentre = view_position(scene.view, scene.pointlights[i].position);
-    float lightradius = scene.pointlights[i].attenuation.w;
+    vec3 centre = view_position(scene.view, scene.pointlights[i].position);
+    float radius = scene.pointlights[i].attenuation.w;
 
-    if (dot(frustum[0], lightcentre) >= -lightradius && dot(frustum[1], lightcentre) >= -lightradius && dot(frustum[2], lightcentre) >= -lightradius && dot(frustum[3], lightcentre) >= -lightradius)
+    if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {    
-      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z + lightradius, -0.1)));
-      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z - lightradius, -0.1)));
+      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(centre.z + radius, -0.1)));
+      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(centre.z - radius, -0.1)));
 
       float nz = view_depth(scene.proj, cluster_depth(tilezmin));
       
@@ -123,7 +131,7 @@ void main()
       {
         float fz = view_depth(scene.proj, cluster_depth(tilez+1));
 
-        if (intersects(make_bound(tilebound, nz, fz), lightcentre, lightradius))
+        if (intersects(make_bound(tilebound, nz, fz), centre, radius))
         {
           atomicOr(scene.cluster[tile].pointlightmask[tilez], 1 << (i >> 5));
           atomicOr(scene.cluster[tile].pointlightmasks[tilez][i >> 5], 1 << (i & 0x1F));
@@ -142,13 +150,13 @@ void main()
   {
     Bound3 sphere = spotlight_bound(scene.spotlights[i].position, scene.spotlights[i].direction, scene.spotlights[i].attenuation.w, scene.spotlights[i].cutoff);
 
-    vec3 lightcentre = view_position(scene.view, sphere.centre);
-    float lightradius = sphere.halfdim.z;
+    vec3 centre = view_position(scene.view, sphere.centre);
+    float radius = sphere.halfdim.z;
 
-    if (dot(frustum[0], lightcentre) >= -lightradius && dot(frustum[1], lightcentre) >= -lightradius && dot(frustum[2], lightcentre) >= -lightradius && dot(frustum[3], lightcentre) >= -lightradius)
+    if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {  
-      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z + lightradius, -0.1)));
-      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(lightcentre.z - lightradius, -0.1)));
+      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(centre.z + radius, -0.1)));
+      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(centre.z - radius, -0.1)));
 
       float nz = view_depth(scene.proj, cluster_depth(tilezmin));
       
@@ -156,7 +164,7 @@ void main()
       {
         float fz = view_depth(scene.proj, cluster_depth(tilez+1));
 
-        if (intersects(make_bound(tilebound, nz, fz), lightcentre, lightradius))
+        if (intersects(make_bound(tilebound, nz, fz), centre, radius))
         {
           atomicOr(scene.cluster[tile].spotlightmask[tilez], 1 << (i >> 5));
           atomicOr(scene.cluster[tile].spotlightmasks[tilez][i >> 5], 1 << (i & 0x1F));
@@ -167,6 +175,37 @@ void main()
     }
   }
   
+  //
+  // Probes
+  //
+
+  for(uint i = gl_LocalInvocationIndex, end = scene.probecount; i < end; i += gl_WorkGroupSize.z)
+  {
+    vec3 centre = view_position(scene.view, scene.probes[i].position.xyz);
+    float radius = scene.probes[i].position.w;
+
+    if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
+    {    
+      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(centre.z + radius, -0.1)));
+      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(centre.z - radius, -0.1)));
+
+      float nz = view_depth(scene.proj, cluster_depth(tilezmin));
+      
+      for(uint tilez = tilezmin; tilez <= tilezmax; ++tilez)
+      {
+        float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+
+        if (intersects(make_bound(tilebound, nz, fz), centre, radius))
+        {
+          atomicOr(scene.cluster[tile].probemask[tilez], 1 << (i >> 5));
+          atomicOr(scene.cluster[tile].probemasks[tilez][i >> 5], 1 << (i & 0x1F));
+        }
+        
+        nz = fz;
+      }
+    }
+  }
+
   //
   // Decals
   //

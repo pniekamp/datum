@@ -276,13 +276,6 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
   }
 
-  if (context.transferbuffer == 0)
-  {
-    // Transfer Buffer
-
-    context.transferbuffer = create_transferbuffer(context.vulkan, sizeof(OceanSet));
-  }
-
   if (context.descriptorsetlayout == 0)
   {
     // Ocean Set
@@ -317,6 +310,8 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     context.descriptorsetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
 
     context.descriptorset = allocate_descriptorset(context.vulkan, context.descriptorpool, context.descriptorsetlayout);
+
+    context.oceanset = create_transferbuffer(context.vulkan, sizeof(OceanSet));
   }
 
   if (context.pipelinelayout == 0)
@@ -550,7 +545,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
   {
     begin(context.vulkan, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     end(context.vulkan, context.commandbuffer);
 
@@ -564,7 +559,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params)
+void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params, VkSemaphore const (&dependancies)[8])
 {
   using namespace Vulkan;
 
@@ -576,7 +571,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
 
   auto &commandbuffer = context.commandbuffer;
 
-  auto oceanset = map_memory<OceanSet>(context.vulkan, context.transferbuffer, 0, context.transferbuffer.size);
+  auto oceanset = map_memory<OceanSet>(context.vulkan, context.oceanset, 0, context.oceanset.size);
 
   oceanset->proj = camera.proj();
   oceanset->invproj = inverse(oceanset->proj);
@@ -602,7 +597,11 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
   mshset.sizex = sizex;
   mshset.sizey = sizey;
 
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.transferbuffer, 0, context.transferbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  VkDeviceSize verticessize = target->vertexbuffer.vertexcount * target->vertexbuffer.vertexsize;
+
+  context.vertexbuffer = create_storagebuffer(context.vulkan, target->vertexbuffer.memory, target->vertexbuffer.verticesoffset, verticessize);
+
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.oceanset, 0, context.oceanset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
@@ -610,10 +609,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
 
   bind_image(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap);
 
-  size_t verticessize = target->vertexbuffer.vertexcount * target->vertexbuffer.vertexsize;
-  auto verticesbuffer = create_storagebuffer(context.vulkan, target->vertexbuffer.memory, target->vertexbuffer.verticesoffset, verticessize);
-
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, verticesbuffer, 0, verticesbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, context.vertexbuffer, 0, context.vertexbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -647,7 +643,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
 
   dispatch(commandbuffer, sizex/16, sizey/16, 1);
 
-  barrier(commandbuffer, verticesbuffer, 0, verticesbuffer.size);
+  barrier(commandbuffer, context.vertexbuffer, 0, context.vertexbuffer.size);
 
   end(context.vulkan, commandbuffer);
 
@@ -655,11 +651,5 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
   // Submit
   //
 
-  submit(context.vulkan, commandbuffer, context.rendercomplete, context.fence);
-
-  if (params.wait)
-  {
-    while (!test_fence(context.vulkan, context.fence))
-      ;
-  }
+  submit(context.vulkan, commandbuffer, context.rendercomplete, context.fence, dependancies);
 }

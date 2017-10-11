@@ -38,7 +38,7 @@ void PointLightComponentStorage::add(Scene::EntityId entity, Color3 const &inten
 template<>
 void Scene::initialise_component_storage<PointLightComponent>()
 {
-  m_systems[typeid(PointLightComponentStorage)] = new(allocator<PointLightComponentStorage>().allocate(1)) PointLightComponentStorage(this, m_allocator);
+  m_systems[typeid(PointLightComponentStorage)] = new(allocate<PointLightComponentStorage>(m_allocator)) PointLightComponentStorage(this, m_allocator);
 }
 
 
@@ -145,7 +145,7 @@ void SpotLightComponentStorage::add(Scene::EntityId entity, float cutoff, float 
 template<>
 void Scene::initialise_component_storage<SpotLightComponent>()
 {
-  m_systems[typeid(SpotLightComponentStorage)] = new(allocator<SpotLightComponentStorage>().allocate(1)) SpotLightComponentStorage(this, m_allocator);
+  m_systems[typeid(SpotLightComponentStorage)] = new(allocate<SpotLightComponentStorage>(m_allocator)) SpotLightComponentStorage(this, m_allocator);
 }
 
 

@@ -28,7 +28,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer OceanParams
 
 } params;
 
-layout(set=0, binding=1, std430, row_major) buffer Spectrum 
+layout(set=0, binding=1, std430, row_major) writeonly buffer Spectrum 
 {
   vec2 h[WaveResolution*WaveResolution];
   vec2 hx[WaveResolution*WaveResolution];

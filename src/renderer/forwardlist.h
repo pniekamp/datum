@@ -60,6 +60,10 @@ class ForwardList
 
     void finalise(BuildState &state);
 
+  public:
+
+    CommandLump const *release() { return m_commandlump.release(); }
+
   private:
 
     unique_resource<CommandLump> m_commandlump;

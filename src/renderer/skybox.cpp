@@ -29,9 +29,12 @@ enum RenderPasses
 
 enum ShaderLocation
 {
-  sceneset = 0,
+  skyboxtarget = 1,
+  clouddensitymap = 2,
+  cloudnormalmap = 3,
 
-  skyboxmap = 1,
+  convolvesrc = 0,
+  convolvedst = 1
 };
 
 struct SkyboxSet
@@ -298,7 +301,7 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxCo
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams const &params)
+void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams const &params, VkSemaphore const (&dependancies)[8])
 { 
   using namespace Vulkan;
 
@@ -319,8 +322,8 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
   {
     assert(params.clouds->ready());
 
-    bind_texture(context.vulkan, context.skyboxdescriptor, 2, params.clouds->albedomap->texture);
-    bind_texture(context.vulkan, context.skyboxdescriptor, 3, params.clouds->normalmap->texture);
+    bind_texture(context.vulkan, context.skyboxdescriptor, ShaderLocation::clouddensitymap, params.clouds->albedomap->texture);
+    bind_texture(context.vulkan, context.skyboxdescriptor, ShaderLocation::cloudnormalmap, params.clouds->normalmap->texture);
 
     skyboxset.cloudlayers = 1;
     skyboxset.cloudheight = params.cloudheight;
@@ -329,25 +332,25 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
 
   auto &commandbuffer = context.commandbuffer;
 
-  bind_image(context.vulkan, context.skyboxdescriptor, 1, target->texture);
-
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   bind_pipeline(commandbuffer, context.skyboxpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+  bind_image(context.vulkan, context.skyboxdescriptor, ShaderLocation::skyboxtarget, target->texture);
 
   bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.skyboxdescriptor, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   push(commandbuffer, context.pipelinelayout, 0, sizeof(skyboxset), &skyboxset, VK_SHADER_STAGE_COMPUTE_BIT);
 
-  setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, target->texture.levels, 0, target->texture.layers });
+  setimagelayout(commandbuffer, target->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
   dispatch(commandbuffer, target->texture.width/16, target->texture.height/16, 1);
-
-  bind_pipeline(commandbuffer, context.convolvepipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
   if (params.convolesamples != 0)
   {
     uint32_t levels = 8;
+
+    bind_pipeline(commandbuffer, context.convolvepipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
     for(uint32_t level = 1; level < levels; ++level)
     {
@@ -365,15 +368,17 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
 
       context.convolveimageviews[level] = create_imageview(context.vulkan, viewinfo);
 
-      bind_texture(context.vulkan, context.convolvedescriptors[level], 0, target->texture.imageview, target->texture.sampler, VK_IMAGE_LAYOUT_GENERAL);
+      bind_texture(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvesrc, target->texture.imageview, target->texture.sampler, VK_IMAGE_LAYOUT_GENERAL);
 
-      bind_image(context.vulkan, context.convolvedescriptors[level], 1, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
+      bind_image(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvedst, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 
       bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.convolvedescriptors[level], VK_PIPELINE_BIND_POINT_COMPUTE);
 
       push(commandbuffer, context.pipelinelayout, 0, sizeof(convolveset), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
 
       dispatch(commandbuffer, (target->texture.width + 15)/16, (target->texture.height + 15)/16, 1);
+
+      setimagelayout(commandbuffer, viewinfo.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, viewinfo.subresourceRange);
     }
   }
   else
@@ -381,7 +386,7 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
     mip(commandbuffer, target->texture.image, target->texture.width, target->texture.height, target->texture.layers, target->texture.levels);
   }
 
-  setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, target->texture.levels, 0, target->texture.layers });
+  setimagelayout(commandbuffer, target->texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
   end(context.vulkan, commandbuffer);
 
@@ -389,11 +394,5 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
   // Submit
   //
 
-  submit(context.vulkan, commandbuffer, context.rendercomplete, context.fence);
-
-  if (params.wait)
-  {
-    while (!test_fence(context.vulkan, context.fence))
-      ;
-  }
+  submit(context.vulkan, commandbuffer, context.rendercomplete, context.fence, dependancies);
 }

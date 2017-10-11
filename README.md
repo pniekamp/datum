@@ -14,10 +14,12 @@
 - Hi-Z Screen Space Reflections (SSR)
 - HDR Skybox & Bloom
 - Physically Based Rendering (PBR) & Image Based Lighting (IBL)
+- Spherical Harmonic Irradiance Probes
 - Particle System
 - Exponential Height Fog
 - Water and FFT Ocean
 - Skeletal Animation
+- Deferred Decals
 - Entity-Component Scene Management
 
 ![Datum](/bin/datumtest.png?raw=true "Datum")

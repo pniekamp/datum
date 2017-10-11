@@ -164,6 +164,15 @@ namespace Renderable
 
       } spotlights[16];
 
+      size_t probecount;
+
+      struct Probe
+      {
+        Vec4 position;
+        Irradiance irradiance;
+
+      } probes[64];
+
       size_t environmentcount;
 
       struct Environment
@@ -465,8 +474,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 void prepare_render_pipeline(RenderContext &context, RenderParams const &params);
 void release_render_pipeline(RenderContext &context);
 
+// Blit
+void blit(RenderContext &context, Vulkan::Texture const &src, VkBuffer dst, VkDeviceSize offset, VkSemaphore const (&dependancies)[8] = {});
+void blit(RenderContext &context, Vulkan::Texture const &src, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers, VkFilter filter, VkSemaphore const (&dependancies)[8] = {});
+
 // Fallback
 void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap = nullptr, int width = 0, int height = 0);
 
 // Render
-void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params, VkSemaphore const (&dependancies)[8] = {});
+void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params, VkSemaphore const (&dependancies)[7] = {});

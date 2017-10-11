@@ -47,6 +47,7 @@ bool LightList::begin(BuildState &state, RenderContext &context, ResourceManager
 
   lightlist->pointlightcount = 0;
   lightlist->spotlightcount = 0;
+  lightlist->probecount = 0;
   lightlist->environmentcount = 0;
 
   m_commandlump = { resources, commandlump };
@@ -95,6 +96,21 @@ void LightList::push_spotlight(BuildState &state, Vec3 const &position, Vec3 con
     entry.spotmap = spotmap;
 
     lightlist->spotlightcount += 1;
+  }
+}
+
+
+///////////////////////// LightList::push_probe /////////////////////////////
+void LightList::push_probe(BuildState &state, Vec3 const &position, float radius, Irradiance const &irradiance)
+{
+  if (lightlist && lightlist->probecount < extentof(lightlist->probes))
+  {
+    auto &entry = lightlist->probes[lightlist->probecount];
+
+    entry.position = Vec4(position, radius);
+    entry.irradiance = irradiance;
+
+    lightlist->probecount += 1;
   }
 }
 

@@ -32,7 +32,9 @@ struct OceanContext
 
   Vulkan::DescriptorSet descriptorset;
 
-  Vulkan::StorageBuffer transferbuffer;
+  Vulkan::StorageBuffer oceanset;
+
+  Vulkan::StorageBuffer vertexbuffer;
 
   Vulkan::StorageBuffer spectrum;
 
@@ -68,8 +70,6 @@ struct OceanParams
   float height[OceanContext::WaveResolution][OceanContext::WaveResolution][2];
   float phase[OceanContext::WaveResolution][OceanContext::WaveResolution];
   lml::Vec2 flow;
-
-  bool wait = true;
 };
 
 void seed_ocean(OceanParams &params);
@@ -84,4 +84,4 @@ void initialise_ocean_context(DatumPlatform::PlatformInterface &platform, OceanC
 bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets);
 
 // Render
-void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params);
+void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params, VkSemaphore const (&dependancies)[8] = {});

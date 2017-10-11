@@ -87,6 +87,7 @@ namespace CoreAsset
     outline_geom,
     outline_frag,
     convolve_comp,
+    project_comp,
     skybox_gen_comp,
     spotmap_src_vert,
     spotmap_src_frag,

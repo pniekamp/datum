@@ -159,7 +159,7 @@ void update_actors(Scene &scene, Camera const &camera, float dt)
 template<>
 void Scene::initialise_component_storage<ActorComponent>()
 {
-  m_systems[typeid(ActorComponentStorage)] = new(allocator<ActorComponentStorage>().allocate(1)) ActorComponentStorage(this, m_allocator);
+  m_systems[typeid(ActorComponentStorage)] = new(allocate<ActorComponentStorage>(m_allocator)) ActorComponentStorage(this, m_allocator);
 }
 
 

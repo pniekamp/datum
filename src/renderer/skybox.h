@@ -73,8 +73,6 @@ struct SkyBoxParams
   int convolesamples = 0;
 
   float exposure = 1.0f;
-
-  bool wait = true;
 };
 
 // Initialise
@@ -84,4 +82,4 @@ void initialise_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBo
 bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxContext &context, AssetManager &assets);
 
 // Render
-void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams const &params);
+void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams const &params, VkSemaphore const (&dependancies)[8] = {});

@@ -131,6 +131,12 @@ struct SpotLight
   alignas(16) Transform shadowview;
 };
 
+struct Probe
+{
+  alignas(16) Vec4 position;
+  alignas( 4) Irradiance irradiance;
+};
+
 struct Environment
 {
   alignas(16) Vec3 halfdim;
@@ -186,6 +192,9 @@ struct SceneSet
 
   alignas( 4) uint32_t spotlightcount;
   alignas(16) SpotLight spotlights[16];
+
+  alignas( 4) uint32_t probecount;
+  alignas(16) Probe probes[128];
 
   alignas( 4) uint32_t decalcount;
   alignas(16) Decal decals[128];
@@ -725,7 +734,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     //
 
     VkAttachmentDescription attachments[4] = {};
-    attachments[0].format = VK_FORMAT_B8G8R8A8_UNORM;
+    attachments[0].format = VK_FORMAT_B8G8R8A8_SRGB;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -3993,14 +4002,16 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
       assert(context.fbowidth != 0 && context.fboheight != 0);
 
-      const int ClusterSize = (24 + 24 + 24*512/32 + 24 + 24*512/32 + 24 + 24*128/32) * sizeof(uint32_t);
+#ifndef NDEBUG
+      const int ClusterSize = (24 + 24 + 24*512/32 + 24 + 24*512/32 + 24 + 24*128/32 + 24 + 24*128/32) * sizeof(uint32_t);
       assert(sizeof(SceneSet) + (context.fbowidth/computeconstants.ClusterTileX+1)*(context.fboheight/computeconstants.ClusterTileY+1)*ClusterSize < SceneBufferSize);
+#endif
 
       //
       // Shadow Map
       //
 
-      context.shadows.shadowmap = create_texture(context.vulkan, setupbuffer, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      context.shadows.shadowmap = create_texture(context.vulkan, setupbuffer, context.shadows.width, context.shadows.height, context.shadows.nslices, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
       VkSamplerCreateInfo shadowsamplerinfo = {};
       shadowsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -4036,21 +4047,21 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       // Color Attachment
       //
 
-      context.colorbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      context.colorbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
       //
       // Geometry Attachment
       //
 
-      context.diffusebuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-      context.specularbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-      context.normalbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      context.diffusebuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+      context.specularbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+      context.normalbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
       //
       // Depth Attachment
       //
 
-      context.depthbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      context.depthbuffer = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
 
       VkSamplerCreateInfo depthsamplerinfo = {};
       depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -4065,11 +4076,11 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
       // Depth Hi-Z
 
-      uint32_t depthlayers = 6;
+      uint32_t depthlevels = 6;
 
-      context.depthmipbuffer = create_texture(context.vulkan, setupbuffer, ((context.fbowidth >> depthlayers) + 1) << (depthlayers-1), ((context.fboheight >> depthlayers) + 1) << (depthlayers-1), 1, depthlayers, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_IMAGE_LAYOUT_GENERAL);
+      context.depthmipbuffer = create_texture(context.vulkan, setupbuffer, ((context.fbowidth >> depthlevels) + 1) << (depthlevels-1), ((context.fboheight >> depthlevels) + 1) << (depthlevels-1), 1, depthlevels, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
 
-      for(uint32_t i = 0; i < depthlayers; ++i)
+      for(uint32_t i = 0; i < depthlevels; ++i)
       {
         assert(i < extentof(context.depthmipviews));
 
@@ -4147,8 +4158,8 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       // Render Target
       //
 
-      context.rendertarget = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-      context.depthstencil = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+      context.rendertarget = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+      context.depthstencil = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
       //
       // Frame Buffer
@@ -4173,9 +4184,9 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       // Scratch Buffers
       //
 
-      context.scratchbuffers[0] = create_texture(context.vulkan, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-      context.scratchbuffers[1] = create_texture(context.vulkan, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-      context.scratchbuffers[2] = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      context.scratchbuffers[0] = create_texture(context.vulkan, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT);
+      context.scratchbuffers[1] = create_texture(context.vulkan, setupbuffer, context.fbowidth/2, context.fboheight/2, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT);
+      context.scratchbuffers[2] = create_texture(context.vulkan, setupbuffer, context.fbowidth, context.fboheight, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
       for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
       {
@@ -4189,7 +4200,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     for(size_t i = 0; i < extentof(context.ssaobuffers); ++i)
     {
-      context.ssaobuffers[i] = create_texture(context.vulkan, setupbuffer, max(int(context.fbowidth*params.ssaoscale), 1), max(int(context.fboheight*params.ssaoscale), 1), 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      context.ssaobuffers[i] = create_texture(context.vulkan, setupbuffer, max(int(context.fbowidth*params.ssaoscale), 1), max(int(context.fboheight*params.ssaoscale), 1), 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
       clear(setupbuffer, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(1.0, 1.0, 1.0, 1.0));
     }
@@ -4254,7 +4265,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     }
 
 #if 1 // Shut up the validation layer on unused maps
-    auto tmp = create_texture(context.vulkan, setupbuffer, 1, 1, 6, 1, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    auto tmp = create_texture(context.vulkan, setupbuffer, 1, 1, 6, 1, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     VkDescriptorImageInfo envmapinfos[8] = {};
     for(size_t i = 0; i < extentof(envmapinfos); ++i)
@@ -4271,7 +4282,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     tmp.sampler.release();
     tmp.imageview.release();
 
-    tmp = create_texture(context.vulkan, setupbuffer, 1, 1, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    tmp = create_texture(context.vulkan, setupbuffer, 1, 1, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     VkDescriptorImageInfo spotmapinfos[16] = {};
     for(size_t i = 0; i < extentof(spotmapinfos); ++i)
@@ -4349,6 +4360,74 @@ void release_render_pipeline(RenderContext &context)
 
   context.width = 0;
   context.height = 0;
+}
+
+
+///////////////////////// blit //////////////////////////////////////////////
+void blit(RenderContext &context, Vulkan::Texture const &src, VkBuffer dst, VkDeviceSize offset, VkSemaphore const (&dependancies)[8])
+{
+  VkImageSubresourceLayers srclayers = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, src.layers };
+
+  if (src.format == VK_FORMAT_D16_UNORM || src.format == VK_FORMAT_D32_SFLOAT)
+    srclayers.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+  if (src.format == VK_FORMAT_D16_UNORM_S8_UINT || src.format == VK_FORMAT_D24_UNORM_S8_UINT || src.format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+    srclayers.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+  auto commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+  begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+  blit(commandbuffer, src.image, 0, 0, src.width, src.height, srclayers, dst, offset);
+
+  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  barrier(commandbuffer);
+
+  end(context.vulkan, commandbuffer);
+
+  auto fence = create_fence(context.vulkan);
+
+  submit(context.vulkan, commandbuffer, fence, dependancies);
+
+  wait_fence(context.vulkan, fence);
+}
+
+
+///////////////////////// blit //////////////////////////////////////////////
+void blit(RenderContext &context, Vulkan::Texture const &src, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers, VkFilter filter, VkSemaphore const (&dependancies)[8])
+{
+  VkImageSubresourceLayers srclayers = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, src.layers };
+
+  if (src.format == VK_FORMAT_D16_UNORM || src.format == VK_FORMAT_D32_SFLOAT)
+    srclayers.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+  if (src.format == VK_FORMAT_D16_UNORM_S8_UINT || src.format == VK_FORMAT_D24_UNORM_S8_UINT || src.format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+    srclayers.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+  auto commandbuffer = allocate_commandbuffer(context.vulkan, context.commandpool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
+  begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+  setimagelayout(commandbuffer, dst, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { dstlayers.aspectMask, dstlayers.mipLevel, 1, dstlayers.baseArrayLayer, dstlayers.layerCount });
+
+  blit(commandbuffer, src.image, 0, 0, src.width, src.height, srclayers, dst, dx, dy, dw, dh, dstlayers, filter);
+
+  setimagelayout(commandbuffer, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { dstlayers.aspectMask, dstlayers.mipLevel, 1, dstlayers.baseArrayLayer, dstlayers.layerCount });
+
+  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  end(context.vulkan, commandbuffer);
+
+  auto fence = create_fence(context.vulkan);
+
+  submit(context.vulkan, commandbuffer, fence, dependancies);
+
+  wait_fence(context.vulkan, fence);
 }
 
 
@@ -4462,6 +4541,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   sceneset.environmentcount = 0;
   sceneset.pointlightcount = 0;
   sceneset.spotlightcount = 0;
+  sceneset.probecount = 0;
   sceneset.decalcount = 0;
 
   VkDescriptorImageInfo envmapinfos[8] = {};
@@ -4498,6 +4578,14 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
         spotmapinfos[sceneset.spotlightcount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         ++sceneset.spotlightcount;
+      }
+
+      for(size_t i = 0; lights && i < lights->probecount && sceneset.probecount + 1 < extentof(sceneset.probes); ++i)
+      {
+        sceneset.probes[sceneset.probecount].position = lights->probes[i].position;
+        sceneset.probes[sceneset.probecount].irradiance = lights->probes[i].irradiance;
+
+        ++sceneset.probecount;
       }
 
       for(size_t i = 0; lights && i < lights->environmentcount && sceneset.environmentcount + 1 < extentof(sceneset.environments); ++i)
@@ -4603,14 +4691,14 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
     memcpy(map_memory<uint8_t>(context.vulkan, context.transferbuffer, 0, size), bitmap, size);
 
-    blit(commandbuffer, context.transferbuffer, 0, width, height, viewport.image, max(viewport.width - width, 0)/2, max(viewport.height - height, 0)/2, width, height);
+    blit(commandbuffer, context.transferbuffer, 0, viewport.image, max(viewport.width - width, 0)/2, max(viewport.height - height, 0)/2, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
   }
 
   setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
   end(context.vulkan, commandbuffer);
 
-  submit(context.vulkan, commandbuffer, &viewport.acquirecomplete, 1, viewport.rendercomplete, context.framefence);
+  submit(context.vulkan, commandbuffer, viewport.rendercomplete, context.framefence, { viewport.acquirecomplete });
 
   vkQueueWaitIdle(context.vulkan.queue);
 
@@ -4621,7 +4709,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params, VkSemaphore const (&dependancies)[8])
+void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params, VkSemaphore const (&dependancies)[7])
 {
   assert(context.ready);
 
@@ -4817,13 +4905,13 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   if (params.ssrstrength != 0)
   {
-    for(int i = 0; i < 6; ++i)
+    for(size_t i = 0; i < extentof(context.depthmippipeline); ++i)
     {
       bind_pipeline(commandbuffer, context.depthmippipeline[i], VK_PIPELINE_BIND_POINT_COMPUTE);
 
       dispatch(commandbuffer, context.depthmipbuffer.width >> i, context.depthmipbuffer.height >> i, 1, computeconstants.DepthMipDispatch);
 
-      setimagelayout(commandbuffer, context.depthmipbuffer.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+      setimagelayout(commandbuffer, context.depthmipbuffer, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
     }
 
     bind_pipeline(commandbuffer, context.ssrpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
@@ -4899,11 +4987,11 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   if (viewport.image)
   {
-    transition_acquire(commandbuffer, viewport.image);
+    setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
-    blit(commandbuffer, context.rendertarget.image, 0, 0, context.rendertarget.width, context.rendertarget.height, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, VK_FILTER_LINEAR);
+    blit(commandbuffer, context.rendertarget.image, 0, 0, context.rendertarget.width, context.rendertarget.height, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, VK_FILTER_LINEAR);
 
-    transition_present(commandbuffer, viewport.image);
+    setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
   }
 
   querytimestamp(commandbuffer, context.timingquerypool, 12);
@@ -4946,20 +5034,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   GPU_SUBMIT();
 
-  int waitsemaphorescount = 0;
-  VkSemaphore waitsemaphores[8 + 1];
-
-  for(auto &dependancy : dependancies)
-  {
-    if (dependancy)
-    {
-      waitsemaphores[waitsemaphorescount++] = dependancy;
-    }
-  }
-
-  waitsemaphores[waitsemaphorescount++] = viewport.acquirecomplete;
-
-  submit(context.vulkan, commandbuffer, waitsemaphores, waitsemaphorescount, viewport.rendercomplete, context.framefence);
+  submit(context.vulkan, commandbuffer, viewport.rendercomplete, context.framefence, { viewport.acquirecomplete, dependancies[0], dependancies[1], dependancies[2], dependancies[3], dependancies[4], dependancies[5], dependancies[6]});
 
   context.prevcamera = camera;
 

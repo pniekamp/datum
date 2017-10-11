@@ -29,6 +29,9 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   uint spotlightcount;
   SpotLight spotlights[MaxSpotLights];
 
+  uint probecount;
+  Probe probes[MaxProbes]; 
+
   uint decalcount;
   Decal decals[MaxDecals];
 
@@ -66,7 +69,7 @@ layout(location=0) out vec4 fragcolor;
 ///////////////////////// mainlight_shadow //////////////////////////////////
 float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2DArrayShadow shadowmap)
 {
-  const float bias[ShadowSlices] = { 0.05, 0.06, 0.10, 0.25 };
+  const float bias[ShadowSlices] = { 0.02, 0.04, 0.08, 0.16 };
   const float spread[ShadowSlices] = { 1.5, 1.2, 1.0, 0.2 };
 
   for(uint i = 0; i < ShadowSlices; ++i)
