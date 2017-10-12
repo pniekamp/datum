@@ -443,10 +443,10 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 #if 1
     {
       Vec3 location(-5, 5, -3);
-      DEBUG_MENU_VALUE("Spotlight/location", &location, Vec3(-15.0f), Vec3(15.0f));
+      DEBUG_MENU_VALUE("Spotlight/location", &location, Vec3(-15.0f), Vec3(15.0f))
 
       Vec3 direction(1, -1, 0);
-      DEBUG_MENU_VALUE("Spotlight/direction", &direction, Vec3(-1.0f), Vec3(1.0f));
+      DEBUG_MENU_VALUE("Spotlight/direction", &direction, Vec3(-1.0f), Vec3(1.0f))
 
       state.testspotview = Transform::lookat(location, location + direction, Vec3(0, 1, 0));
 
@@ -494,8 +494,8 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     }
 #endif
 
-    DEBUG_MENU_VALUE("Lighting/Sun Intensity", &state.sunintensity, Color3(0, 0, 0), Color3(10, 10, 10));
-    DEBUG_MENU_ENTRY("Lighting/Sun Direction", state.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", state.sundirection, Vec3(-1), Vec3(1))));
+    DEBUG_MENU_VALUE("Lighting/Sun Intensity", &state.sunintensity, Color3(0, 0, 0), Color3(10, 10, 10))
+    DEBUG_MENU_ENTRY("Lighting/Sun Direction", state.sundirection = normalise(debug_menu_value("Lighting/Sun Direction", state.sundirection, Vec3(-1), Vec3(1))))
 
     state.writeframe->skybox = state.skybox;
     state.writeframe->sundirection = state.sundirection;
@@ -577,16 +577,16 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       if (objects.begin(buildstate, state.rendercontext, state.resources))
       {
         float density = 0.01f;
-        DEBUG_MENU_VALUE("Fog/Density", &density, 0.0f, 1.0f);
+        DEBUG_MENU_VALUE("Fog/Density", &density, 0.0f, 1.0f)
 
         float falloff = 0.5f;
-        DEBUG_MENU_VALUE("Fog/Falloff", &falloff, 0.1f, 4.0f);
+        DEBUG_MENU_VALUE("Fog/Falloff", &falloff, 0.1f, 4.0f)
 
         float startdistance = 2.0f;
-        DEBUG_MENU_VALUE("Fog/StartDistance", &startdistance, -4.0f, 100.0f);
+        DEBUG_MENU_VALUE("Fog/StartDistance", &startdistance, -4.0f, 100.0f)
 
         float height = 2.0f;
-        DEBUG_MENU_VALUE("Fog/Height", &height, -20.0f, 100.0f);
+        DEBUG_MENU_VALUE("Fog/Height", &height, -20.0f, 100.0f)
 
         //objects.push_water(buildstate, Transform::translation(0, 0.7f, 0), state.testplane, state.defaultmaterial, state.skybox, Vec2(0.1f));
 
@@ -604,10 +604,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 #if 1
     {
       Vec3 location(16.0f, 1.0f, -4.0f);
-      DEBUG_MENU_VALUE("Particles/location", &location, Vec3(-15.0f), Vec3(15.0f));
+      DEBUG_MENU_VALUE("Particles/location", &location, Vec3(-15.0f), Vec3(15.0f))
 
       Vec3 rotation(0.0f, 0.0f, 0.0f);
-      DEBUG_MENU_VALUE("Particles/rotation", &rotation, Vec3(0.0f), Vec3(6.28f));
+      DEBUG_MENU_VALUE("Particles/rotation", &rotation, Vec3(0.0f), Vec3(6.28f))
 
       auto transform = Transform::translation(location) * Transform::rotation(Vec3(1, 0, 0), rotation.x) * Transform::rotation(Vec3(0, 1, 0), rotation.y) * Transform::rotation(Vec3(0, 0, 1), rotation.z);
 
@@ -737,8 +737,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 //    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
     renderparams.ssrstrength = 1.0f;
 
-    DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f);
-    DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f);
+    DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f)
+    DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f)
 
     render(state.rendercontext, viewport, camera, renderlist, renderparams, { state.spotmapcontext.rendercomplete });
   }

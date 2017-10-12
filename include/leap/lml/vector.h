@@ -368,6 +368,28 @@ namespace leap { namespace lml
   }
 
 
+  //|///////////////////// trunc ////////////////////////////////////////////
+  /// elementwise ceil
+  template<typename Vector, typename T, size_t... Indices>
+  constexpr Vector trunc(VectorView<Vector, T, Indices...> const &v)
+  {
+    using std::trunc;
+
+    return { trunc(v[Indices])... };
+  }
+
+
+  //|///////////////////// frac /////////////////////////////////////////////
+  /// elementwise frac
+  template<typename Vector, typename T, size_t... Indices>
+  constexpr Vector frac(VectorView<Vector, T, Indices...> const &v)
+  {
+    using std::trunc;
+
+    return { (v[Indices] - trunc(v[Indices]))... };
+  }
+
+
   //|///////////////////// clamp ////////////////////////////////////////////
   /// elementwise clamp
   template<typename Vector, typename T, size_t... Indices>

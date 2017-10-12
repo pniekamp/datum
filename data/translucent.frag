@@ -195,7 +195,7 @@ void main()
     }
   }
 
-  vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0)).rg;
+  vec3 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0)).xyz;
 
   env_light(diffuse, specular, material, envdiffuse, envspecular, envbrdf, ambientintensity);
   

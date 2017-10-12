@@ -114,17 +114,47 @@ namespace
     return NdotV / (NdotV * (1.0f - k) + k);
   }
 
-  Vec3 importancesample_ggx(Vec2 const &u, float alpha, Vec3 normal)
+  Vec3 importancesample_ggx(Vec2 const &u, float alpha, Vec3 const &normal)
   {
     float phi = 2*pi<float>() * u.x;
     float costheta = sqrt((1 - u.y) / (1 + (alpha*alpha - 1) * u.y));
     float sintheta = sqrt(1 - costheta*costheta);
 
-    Vec3 up = abs(normal.z) < 0.999 ? Vec3(0, 0, 1) : Vec3(1, 0, 0);
+    Vec3 up = abs(normal.z) < 0.999f ? Vec3(0, 0, 1) : Vec3(1, 0, 0);
     Vec3 tangent = normalise(cross(up, normal));
     Vec3 bitangent = cross(normal, tangent);
 
     return sintheta * cos(phi) * tangent + sintheta * sin(phi) * bitangent + costheta * normal;
+  }
+
+  Vec3 importancesample_cosdir(Vec2 const &u, Vec3 const &normal)
+  {
+    float phi = 2*pi<float>() * u.x;
+    float costheta = sqrt(max(0.0f, 1 - u.y));
+    float sintheta = sqrt(u.y);
+
+    Vec3 up = abs(normal.z) < 0.999f ? Vec3(0, 0, 1) : Vec3(1, 0, 0);
+    Vec3 tangent = normalise(cross(up, normal));
+    Vec3 bitangent = cross(normal, tangent);
+
+    return sintheta * cos(phi) * tangent + sintheta * sin(phi) * bitangent + costheta * normal;
+  }
+
+  float fresnel_schlick(float f0, float f90, float u)
+  {
+    return f0 + (f90 - f0) * pow(1 - u, 5.0f);
+  }
+
+  float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
+  {
+    float energybias = lerp(0.0f, 0.5f, alpha);
+    float energyfactor = lerp(1.0f, 1.0f / 1.51f, alpha);
+    float f90 = energybias + 2 * LdotH*LdotH * alpha;
+
+    float lightscatter = fresnel_schlick(1, f90, NdotL);
+    float viewscatter = fresnel_schlick(1, f90, NdotV);
+
+    return lightscatter * viewscatter * energyfactor;
   }
 
   Color3 convolve(float roughness, Vec3 const &ray, Sampler const &envmap)
@@ -156,7 +186,7 @@ namespace
     return sum / totalweight;
   }
 
-  Vec2 integrate(float roughness, float NdotV)
+  Vec3 integrate(float roughness, float NdotV)
   {
     constexpr int kSamples = 1024;
 
@@ -186,7 +216,24 @@ namespace
       }
     }
 
-    return Vec2(a, b) / kSamples;
+    float c = 0;
+
+    for(int i = 0; i < kSamples; ++i)
+    {
+      Vec2 u = frac(hammersley(i, kSamples) + Vec2(0.5f));
+      Vec3 L = importancesample_cosdir(u, Vec3(0, 0, 1));
+
+      float NdotL = clamp(L.z, 0.0f, 1.0f);
+
+      if (NdotL > 0)
+      {
+        float LdotH = clamp(dot(L, normalise(V + L)), 0.0f, 1.0f);
+
+        c += diffuse_disney(NdotV, NdotL, LdotH, roughness * roughness);
+      }
+    }
+
+    return Vec3(a, b, c) / kSamples;
   }
 }
 
@@ -255,7 +302,7 @@ void image_pack_envbrdf(int width, int height, void *bits)
 
       auto lut = integrate(roughness, NdotV);
 
-      *dst++ = rgbe(Color4(lut.x, lut.y, 0.0f, 1.0f));
+      *dst++ = rgbe(Color4(lut.x, lut.y, lut.z, 1.0f));
     }
   }
 }
