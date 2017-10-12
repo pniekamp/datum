@@ -362,18 +362,18 @@ float probe_irradiance(inout vec3 irradiance, Probe probe, vec3 position, vec3 n
 
   float attenuation = pow(clamp(1 - pow(probedistance/probe.position.w, 4.0), 0, 1), 2);
 
-  irradiance += max(vec3(r, g, b), 0) * (1/PI) * attenuation;
+  irradiance += max(vec3(r, g, b), 0) * attenuation;
   
   return attenuation;
 }
 
 
 ///////////////////////// env_light /////////////////////////////////////////
-void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 envdiffuse, vec3 envspecular, vec2 envbrdf, float ambientintensity)
+void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 envdiffuse, vec3 envspecular, vec3 envbrdf, float ambientintensity)
 {
   float f90 = 0.8f;
 
-  diffuse += envdiffuse * ambientintensity;
+  diffuse += envdiffuse * envbrdf.z * ambientintensity;
   specular += envspecular * (material.specular * envbrdf.x + f90 * envbrdf.y) * ambientintensity;
 }
 

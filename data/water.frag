@@ -160,7 +160,7 @@ void main()
   envdiffuse = textureLod(specularmap, localdiffuse * vec3(1, -1, -1), 6.3).rgb;
   envspecular = textureLod(specularmap, localray * vec3(1, -1, -1), material.roughness * 8.0).rgb;
 
-  vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0)).rg;
+  vec3 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0)).xyz;
 
   env_light(diffuse, specular, material, envdiffuse, envspecular, envbrdf, ambientintensity);
 

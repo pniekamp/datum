@@ -35,6 +35,7 @@ struct ConvolveSet
 
 struct ProjectSet
 {
+  alignas( 4) float a;
 };
 
 namespace
@@ -461,7 +462,7 @@ void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams con
 
     bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.convolvedescriptors[level], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    push(commandbuffer, context.pipelinelayout, 0, sizeof(convolveset), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
+    push(commandbuffer, context.pipelinelayout, 0, sizeof(ConvolveSet), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
 
     dispatch(commandbuffer, (target->texture.width + 15)/16, (target->texture.height + 15)/16, 1);
 
@@ -646,7 +647,7 @@ void project(ProjectContext &context, EnvMap const *source, Irradiance &target, 
 
   bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.projectdescriptor, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  //push(commandbuffer, context.pipelinelayout, 0, sizeof(convolveset), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
+  //push(commandbuffer, context.pipelinelayout, 0, sizeof(ProjectSet), &projectset, VK_SHADER_STAGE_COMPUTE_BIT);
 
   dispatch(commandbuffer, 1, 1, 1);
 

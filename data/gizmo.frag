@@ -69,7 +69,7 @@ void main()
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
 
-  env_light(diffuse, specular, material, vec3(1), vec3(0), vec2(0), 0.2);
+  env_light(diffuse, specular, material, vec3(1), vec3(0), vec3(0), 0.2);
 
   MainLight mainlight;
   mainlight.direction = -eyevec;
