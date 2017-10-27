@@ -153,6 +153,36 @@ Transform transform_blend(vec4 weights, Transform t1, Transform t2, Transform t3
   return result;
 }
 
+
+///////////////////////// transform_bend ////////////////////////////////////
+vec3 transform_bend(vec3 v, vec3 wind, vec3 scale)
+{
+  float bf = dot(v, scale);
+
+  bf += 1.0;
+  bf *= bf;
+  bf = bf * bf - bf;
+  
+  return normalize(v + wind * bf) * length(v);
+}
+
+
+///////////////////////// transform_detailbend //////////////////////////////
+vec3 transform_detailbend(vec3 v, vec3 pos, float time, vec3 wind, vec3 scale)
+{
+  float phase = dot(v, vec3(pos.x + pos.y + pos.z));
+
+  vec2 waves = (fract((time + phase) * vec2(1.975, 0.793)) * 2.0 - 1.0);
+
+  waves = abs(fract(waves + 0.5) * 2.0 - 1.0);
+  waves = waves * waves * (3.0 - 2.0 * waves);
+
+  float wavesum = waves.x + waves.y;
+
+  return v + wind * wavesum * dot(v, scale);
+}
+
+
 ///////////////////////// map_parabolic /////////////////////////////////////
 vec4 map_parabolic(vec4 position)
 {

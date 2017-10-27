@@ -24,6 +24,8 @@ Camera::Camera()
   m_znear = 0.1f;
   m_zfar = 1000.0f;
   m_exposure = 1.0f;
+  m_focalwidth = 100000.0f;
+  m_focaldistance = 0.0f;
   m_transform = Transform::identity();
 }
 
@@ -52,6 +54,14 @@ void Camera::set_exposure(float aperture, float shutterspeed, float iso)
   float l_avg = (1.0f / q) * sqrt(aperture) / (iso * shutterspeed);
 
   set_exposure(0.18f / l_avg);
+}
+
+
+///////////////////////// Camera::set_depthoffield //////////////////////////
+void Camera::set_depthoffield(float focalwidth, float focaldistance)
+{
+  m_focalwidth = focalwidth;
+  m_focaldistance = focaldistance;
 }
 
 

@@ -1557,18 +1557,29 @@ namespace Vulkan
     vkCmdDispatch(commandbuffer, x, y, z);
   }
 
+
+  ///////////////////////// dispatch ////////////////////////////////////////
   void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3])
   {
     dispatch(commandbuffer, (width + dim[0] - 1)/dim[0], (height + dim[1] - 1)/dim[1], (depth + dim[2] - 1)/dim[2]);
   }
 
-  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3])
+
+  ///////////////////////// dispatch ////////////////////////////////////////
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3])
   {
     setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
-    dispatch(commandbuffer, texture.width, texture.height, texture.layers, dim);
+    dispatch(commandbuffer, width, height, depth, dim);
 
     setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  }
+
+
+  ///////////////////////// dispatch ////////////////////////////////////////
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3])
+  {
+    dispatch(commandbuffer, texture, texture.width, texture.height, texture.layers, dim);
   }
 
 

@@ -16,9 +16,9 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 } scene;
 
 layout(set=0, binding=5) uniform sampler2D depthmap;
-layout(set=0, binding=6) uniform sampler2D depthmipmap;
+layout(set=0, binding=9) uniform sampler2D depthmipsrc;
 
-layout(set=0, binding=8) writeonly uniform image2D dest[6];
+layout(set=0, binding=10) writeonly uniform image2D dest[6];
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
@@ -42,10 +42,10 @@ void main()
 
   if (DepthMipLayer > 0)
   {
-    vec2 depth0 = texelFetch(depthmipmap, 2*xy, DepthMipLayer-1).rg;
-    vec2 depth1 = texelFetch(depthmipmap, 2*xy + ivec2(1, 0), DepthMipLayer-1).rg;
-    vec2 depth2 = texelFetch(depthmipmap, 2*xy + ivec2(0, 1), DepthMipLayer-1).rg;
-    vec2 depth3 = texelFetch(depthmipmap, 2*xy + ivec2(1, 1), DepthMipLayer-1).rg;
+    vec2 depth0 = texelFetch(depthmipsrc, 2*xy, DepthMipLayer-1).rg;
+    vec2 depth1 = texelFetch(depthmipsrc, 2*xy + ivec2(1, 0), DepthMipLayer-1).rg;
+    vec2 depth2 = texelFetch(depthmipsrc, 2*xy + ivec2(0, 1), DepthMipLayer-1).rg;
+    vec2 depth3 = texelFetch(depthmipsrc, 2*xy + ivec2(1, 1), DepthMipLayer-1).rg;
   
     float mindepth = min(min(depth0.r, depth1.r), min(depth2.r, depth3.r));
     float maxdepth = max(max(depth0.g, depth1.g), max(depth2.g, depth3.g));

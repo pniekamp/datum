@@ -71,6 +71,14 @@ struct ActorSet
   alignas(16) Transform bones[1];
 };
 
+struct FoilageSet
+{
+  alignas(16) Vec4 wind;
+  alignas(16) Vec3 bendscale;
+  alignas(16) Vec3 detailbendscale;
+  alignas(16) Transform modelworlds[1];
+};
+
 namespace
 {
   size_t spotmap_datasize(int width, int height)
@@ -220,14 +228,16 @@ void SpotCasterList::push_mesh(BuildState &state, Transform const &transform, Po
     }
   }
 
-  if (state.modelset.available() < sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
+  size_t actorsetsize = sizeof(ActorSet) + (pose.bonecount-1)*sizeof(Transform);
+
+  if (state.modelset.available() < actorsetsize)
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, actorsetsize, std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ActorSet) + pose.bonecount*sizeof(Transform));
+    auto offset = state.modelset.reserve(actorsetsize);
 
     auto modelset = state.modelset.memory<ActorSet>(offset);
 
@@ -238,6 +248,75 @@ void SpotCasterList::push_mesh(BuildState &state, Transform const &transform, Po
     bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(castercommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+  }
+}
+
+
+///////////////////////// SpotCasterList::push_foilage //////////////////////
+void SpotCasterList::push_foilage(BuildState &state, Transform const *transforms, size_t count, Mesh const *mesh, Material const *material, Vec4 const &wind, Vec3 const &bendscale, Vec3 const &detailbendscale)
+{
+  assert(state.commandlump);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  if (state.pipeline != context.foilagespotmappipeline)
+  {
+    bind_pipeline(castercommands, context.foilagespotmappipeline, 0, 0, state.width, state.height, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    state.pipeline = context.foilagespotmappipeline;
+  }
+
+  if (state.mesh != mesh)
+  {
+    bind_vertexbuffer(castercommands, 0, mesh->vertexbuffer);
+
+    state.mesh = mesh;
+  }
+
+  if (state.material != material)
+  {
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
+
+    if (state.materialset)
+    {
+      auto offset = state.materialset.reserve(sizeof(MaterialSet));
+
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.rendercontext->whitediffuse);
+
+      bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      state.material = material;
+    }
+  }
+
+  size_t foilagesetsize = sizeof(FoilageSet) + (count-1)*sizeof(Transform);
+
+  if (state.modelset.available() < foilagesetsize)
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, foilagesetsize, std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(foilagesetsize);
+
+    auto modelset = state.modelset.memory<FoilageSet>(offset);
+
+    modelset->wind = wind;
+    modelset->bendscale = bendscale;
+    modelset->detailbendscale = detailbendscale;
+
+    for(size_t i = 0; i < count; ++i)
+    {
+      modelset->modelworlds[i] = transforms[i];
+    }
+
+    bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(castercommands, mesh->vertexbuffer.indexcount, count, 0, 0, 0);
   }
 }
 
@@ -843,6 +922,100 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     pipelineinfo.pStages = shaders;
 
     context.actorspotmappipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.foilagespotmappipeline == 0)
+  {
+    //
+    // Foilage Shadow Pipeline
+    //
+
+    auto vs = assets.find(CoreAsset::foilage_spotmap_vert);
+    auto fs = assets.find(CoreAsset::spotmap_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets.request(platform, vs);
+    auto fssrc = assets.request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(rendercontext.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = rendercontext.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_NONE;
+    rasterization.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.renderpass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.foilagespotmappipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   context.rendercontext = &rendercontext;

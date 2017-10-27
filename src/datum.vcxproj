@@ -164,6 +164,7 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="math\perlin.h" />
     <ClInclude Include="platform.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="math\vec.h" />

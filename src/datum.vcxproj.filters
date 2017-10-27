@@ -291,6 +291,7 @@
     <ClInclude Include="renderer\ocean.h">
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
+    <ClInclude Include="math\perlin.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">

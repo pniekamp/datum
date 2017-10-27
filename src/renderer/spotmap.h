@@ -96,6 +96,8 @@ class SpotCasterList
 
     void push_mesh(BuildState &state, lml::Transform const &transform, Pose const &pose, Mesh const *mesh, Material const *material);
 
+    void push_foilage(BuildState &state, lml::Transform const *transforms, size_t count, Mesh const *mesh, Material const *material, lml::Vec4 const &wind = { 0.0f, 0.0f, 0.0f, 0.0f }, lml::Vec3 const &bendscale = { 0.0f, 0.025f, 0.0f }, lml::Vec3 const &detailbendscale = { 0.0f, 0.025f, 0.0f });
+
     void finalise(BuildState &state);
 
   public:
@@ -137,6 +139,7 @@ struct SpotMapContext
 
   Vulkan::Pipeline modelspotmappipeline;
   Vulkan::Pipeline actorspotmappipeline;
+  Vulkan::Pipeline foilagespotmappipeline;
 
   Vulkan::Fence fence;
 

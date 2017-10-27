@@ -74,6 +74,13 @@ struct ActorSet
   alignas(16) Transform bones[1];
 };
 
+struct FoilageSet
+{
+  alignas(16) Vec4 wind;
+  alignas(16) Vec3 bendscale;
+  alignas(16) Vec3 detailbendscale;
+  alignas(16) Transform modelworlds[1];
+};
 
 ///////////////////////// draw_prepass //////////////////////////////////////
 void draw_prepass(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Geometry const &geometry)
@@ -263,14 +270,16 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
     }
   }
 
-  if (state.modelset.available() < sizeof(ActorSet) + pose.bonecount*sizeof(Transform))
+  size_t actorsetsize = sizeof(ActorSet) + (pose.bonecount-1)*sizeof(Transform);
+
+  if (state.modelset.available() < actorsetsize)
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ActorSet) + pose.bonecount*sizeof(Transform), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, actorsetsize, std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(sizeof(ActorSet) + pose.bonecount*sizeof(Transform));
+    auto offset = state.modelset.reserve(actorsetsize);
 
     auto modelset = state.modelset.memory<ActorSet>(offset);
 
@@ -283,6 +292,90 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
     draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
     draw(geometrycommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+  }
+}
+
+
+///////////////////////// GeometryList::push_foilage ////////////////////////
+void GeometryList::push_foilage(BuildState &state, Transform const *transforms, size_t count, Mesh const *mesh, Material const *material, Vec4 const &wind, Vec3 const &bendscale, Vec3 const &detailbendscale)
+{
+  assert(state.commandlump);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  if (state.pipeline != context.foilagegeometrypipeline)
+  {
+    bind_pipeline(prepasscommands, context.foilageprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(geometrycommands, context.foilagegeometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    state.pipeline = context.foilagegeometrypipeline;
+  }
+
+  if (state.mesh != mesh)
+  {
+    bind_vertexbuffer(prepasscommands, 0, mesh->vertexbuffer);
+    bind_vertexbuffer(geometrycommands, 0, mesh->vertexbuffer);
+
+    state.mesh = mesh;
+  }
+
+  if (state.material != material)
+  {
+    state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
+
+    if (state.materialset)
+    {
+      auto offset = state.materialset.reserve(sizeof(MaterialSet));
+
+      auto materialset = state.materialset.memory<MaterialSet>(offset);
+
+      materialset->color = material->color;
+      materialset->metalness = material->metalness;
+      materialset->roughness = material->roughness;
+      materialset->reflectivity = material->reflectivity;
+      materialset->emissive = material->emissive;
+
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
+      bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+
+      bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::materialset, state.materialset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+      state.material = material;
+    }
+  }
+
+  size_t foilagesetsize = sizeof(FoilageSet) + (count-1)*sizeof(Transform);
+
+  if (state.modelset.available() < foilagesetsize)
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, foilagesetsize, std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(foilagesetsize);
+
+    auto modelset = state.modelset.memory<FoilageSet>(offset);
+
+    modelset->wind = wind;
+    modelset->bendscale = bendscale;
+    modelset->detailbendscale = detailbendscale;
+
+    for(size_t i = 0; i < count; ++i)
+    {
+      modelset->modelworlds[i] = transforms[i];
+    }
+
+    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    draw(prepasscommands, mesh->vertexbuffer.indexcount, count, 0, 0, 0);
+    draw(geometrycommands, mesh->vertexbuffer.indexcount, count, 0, 0, 0);
   }
 }
 

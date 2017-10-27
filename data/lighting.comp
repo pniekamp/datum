@@ -47,12 +47,12 @@ layout(set=0, binding=2) uniform sampler2D diffusemap;
 layout(set=0, binding=3) uniform sampler2D specularmap;
 layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
-layout(set=0, binding=10) uniform sampler2D ssaomap;
-layout(set=0, binding=11) uniform sampler2DArrayShadow shadowmap;
-layout(set=0, binding=12) uniform sampler2DArray envbrdfmap;
-layout(set=0, binding=13) uniform samplerCube envmaps[MaxEnvironments];
-layout(set=0, binding=14) uniform sampler2DShadow spotmaps[MaxSpotLights];
-layout(set=0, binding=15) uniform sampler2DArray decalmaps[MaxDecalMaps];
+layout(set=0, binding=12) uniform sampler2D ssaomap;
+layout(set=0, binding=13) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=14) uniform sampler2DArray envbrdfmap;
+layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=16) uniform sampler2DShadow spotmaps[MaxSpotLights];
+layout(set=0, binding=17) uniform sampler2DArray decalmaps[MaxDecalMaps];
 
 layout(set=0, binding=7) writeonly uniform image2D dest;
 

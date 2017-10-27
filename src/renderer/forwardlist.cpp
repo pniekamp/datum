@@ -81,6 +81,10 @@ struct ModelSet
   alignas(16) Transform modelworld;
 };
 
+struct ParticleSet
+{
+  alignas(16) Particle particles[1];
+};
 
 ///////////////////////// commands //////////////////////////////////////////
 
@@ -356,14 +360,16 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
     push_command(state, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
   }
 
-  if (state.modelset.available() < particles->count*sizeof(Particle))
+  size_t particlesetsize = particles->count * sizeof(Particle);
+
+  if (state.modelset.available() < particlesetsize)
   {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particlesetsize, std::move(state.modelset));
   }
 
   if (state.modelset && state.materialset)
   {
-    auto offset = state.modelset.reserve(particles->count*sizeof(Particle));
+    auto offset = state.modelset.reserve(particlesetsize);
 
     auto modelset = state.modelset.memory<Particle>(offset);
 

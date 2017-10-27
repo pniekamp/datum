@@ -35,6 +35,8 @@ class Camera
     float znear() const { return m_znear; }
 
     float exposure() const { return m_exposure; }
+    float focalwidth() const { return m_focalwidth; }
+    float focaldistance() const { return m_focaldistance; }
 
     lml::Matrix4f proj() const;
     lml::Matrix4f view() const;
@@ -51,6 +53,8 @@ class Camera
 
     void set_exposure(float exposure);
     void set_exposure(float aperture, float shutterspeed, float iso);
+
+    void set_depthoffield(float focalwidth, float focaldistance);
 
   public:
 
@@ -90,6 +94,8 @@ class Camera
     float m_znear, m_zfar;
 
     float m_exposure;
+    float m_focalwidth;
+    float m_focaldistance;
 
     lml::Transform m_transform;
 };

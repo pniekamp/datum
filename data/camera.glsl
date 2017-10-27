@@ -6,6 +6,8 @@ struct Camera
 {
   vec3 position;
   float exposure;
+  float focalwidth;
+  float focaldistance;
   float skyboxlod;
   float ssrstrength;
   float bloomstrength;

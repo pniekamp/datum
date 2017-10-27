@@ -61,7 +61,7 @@ vec3 convolve(vec3 ray)
 
     if (NdotL > 0)
     {
-      sum += textureLod(envmap, L * vec3(1, -1, -1), params.level - 1).rgb * NdotL;
+      sum += texture(envmap, L * vec3(1, -1, -1)).rgb * NdotL;
 
       totalweight += NdotL;
     }

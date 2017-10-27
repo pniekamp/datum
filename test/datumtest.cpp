@@ -9,6 +9,7 @@
 using namespace std;
 using namespace lml;
 using namespace DatumPlatform;
+using leap::extentof;
 
 namespace
 {

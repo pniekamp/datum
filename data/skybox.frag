@@ -29,7 +29,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=13) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
 
 layout(location=0) in vec3 texcoord;
 
