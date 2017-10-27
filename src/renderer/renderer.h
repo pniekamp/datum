@@ -346,6 +346,8 @@ struct RenderContext
   Vulkan::PipelineCache pipelinecache;
 
   Vulkan::Texture colorbuffer;
+  Vulkan::ImageView colormipviews[2];
+
   Vulkan::Texture diffusebuffer;
   Vulkan::Texture specularbuffer;
   Vulkan::Texture normalbuffer;
@@ -389,6 +391,9 @@ struct RenderContext
   Vulkan::Pipeline actorshadowpipeline;
   Vulkan::Pipeline actorprepasspipeline;
   Vulkan::Pipeline actorgeometrypipeline;
+  Vulkan::Pipeline foilageshadowpipeline;
+  Vulkan::Pipeline foilageprepasspipeline;
+  Vulkan::Pipeline foilagegeometrypipeline;
   Vulkan::Pipeline terrainpipeline;
   Vulkan::Pipeline depthmippipeline[6];
   Vulkan::Pipeline lightingpipeline;
@@ -402,6 +407,7 @@ struct RenderContext
   Vulkan::Pipeline ssrpipeline;
   Vulkan::Pipeline luminancepipeline;
   Vulkan::Pipeline bloompipeline[3];
+  Vulkan::Pipeline colorblurpipeline[2];
   Vulkan::Pipeline compositepipeline;
   Vulkan::Pipeline spritepipeline;
   Vulkan::Pipeline gizmopipeline;

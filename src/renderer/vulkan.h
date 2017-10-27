@@ -493,6 +493,7 @@ namespace Vulkan
 
   void dispatch(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t z);
   void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3]);
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3]);
   void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3]);
 
 } // namespace

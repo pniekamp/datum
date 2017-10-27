@@ -29,9 +29,9 @@ layout(set=0, binding=3) uniform sampler2D specularmap;
 layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
 layout(set=0, binding=6) uniform sampler2D depthmipmap;
-layout(set=0, binding=12) uniform sampler2DArray envbrdfmap;
+layout(set=0, binding=14) uniform sampler2DArray envbrdfmap;
 
-layout(set=0, binding=24) writeonly uniform image2D dest;
+layout(set=0, binding=26) writeonly uniform image2D dest;
 
 const float Jitter = 1.0;
 const float Thickness = 0.05f;
@@ -196,6 +196,7 @@ void main()
       float roughnessfade = 1 - min(2.5 * specular.w, 1);
 
       vec4 hitcolor = texelFetch(colormap, ivec2(hitpixel), 0);
+      //vec4 hitcolor = textureLod(colormap, hitpixel / textureSize(colormap, 0).xy, specular.w * (2/0.4)); // requires blured colorbuffer
 
       vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), specular.w, 0)).rg;
 

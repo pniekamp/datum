@@ -23,7 +23,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 layout(set=1, binding=1) uniform sampler2DArray albedomap;
 
-layout(set=0, binding=9, input_attachment_index=3) uniform subpassInput depthmap;
+layout(set=0, binding=11, input_attachment_index=3) uniform subpassInput depthmap;
 
 layout(location=0) in vec3 texcoord;
 layout(location=1) flat in vec4 tint;

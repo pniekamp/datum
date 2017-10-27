@@ -1,0 +1,66 @@
+#version 440 core
+
+layout(local_size_y = 64) in;
+layout(local_size_y_id = 2) in;
+
+layout(constant_id = 85) const uint Sigma = 3;
+layout(constant_id = 84) const uint Radius = 16;
+
+const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
+
+layout(set=0, binding=5) uniform sampler2D depthmap;
+layout(set=0, binding=21) uniform sampler2D colormap;
+
+layout(set=0, binding=8) writeonly uniform image2D dest[1];
+
+shared vec4 texels[SizeY + Radius + Radius];
+shared float depths[SizeY + Radius + Radius];
+
+///////////////////////// blur //////////////////////////////////////////////
+vec4 blur(uint k, vec3 coefficients)
+{
+  vec4 avg = vec4(0);
+  float weight = 0;
+
+  avg += texels[k] * coefficients.x;    
+  weight += coefficients.x;
+  coefficients.xy *= coefficients.yz;
+
+  vec4 centercolor = texels[k];
+  float centerdepth = depths[k];
+
+  for(uint i = 1; i <= Radius; ++i)
+  {
+    avg += mix(texels[k + i], centercolor, min(250*abs(depths[k + i] - centerdepth), 1)) * coefficients.x;
+    avg += mix(texels[k - i], centercolor, min(250*abs(depths[k - i] - centerdepth), 1)) * coefficients.x;
+    weight += 2 * coefficients.x;
+    coefficients.xy *= coefficients.yz;
+  }
+  
+  return avg / weight;
+}
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  gl_WorkGroupSize;
+  ivec2 ij = ivec2(gl_LocalInvocationID.xy);
+  ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * SizeY);
+  
+  vec2 texcoord = vec2(tile.x + ij.x, tile.y + ij.y - int(Radius)) / textureSize(colormap, 0).xy;
+  
+  texels[ij.y] = texture(colormap, texcoord);
+  depths[ij.y] = texture(depthmap, texcoord).r;
+
+  barrier();
+  
+  if (ij.y < SizeY)
+  {  
+    vec3 coefficients;
+    coefficients.x = 1.0 / (sqrt(2.0 * 3.14159265) * Sigma);
+    coefficients.y = exp(-0.5 / (Sigma * Sigma));
+    coefficients.z = coefficients.y * coefficients.y;   
+
+    imageStore(dest[0], tile + ij, blur(ij.y + Radius, coefficients));
+  }
+}

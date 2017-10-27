@@ -8,7 +8,7 @@ layout(constant_id = 81) const float Cutoff = 11.2;
 
 layout(set=0, binding=1) uniform sampler2D src;
 
-layout(set=0, binding=22) writeonly uniform image2D dest;
+layout(set=0, binding=24) writeonly uniform image2D dest;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
@@ -17,7 +17,7 @@ void main()
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   
   vec2 texelsize = 1.0 / textureSize(src, 0).xy;
-  
+
   vec3 texel = texture(src, (2 * vec2(xy) + 0.5) * texelsize).rgb;
 
   float luma = dot(texel, vec3(0.299, 0.587, 0.114));

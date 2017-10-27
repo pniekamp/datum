@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 33;
+  const uint32_t version = 35;
 
   enum
   {
@@ -42,6 +42,10 @@ namespace CoreAsset
     actor_prepass_vert,
     actor_geometry_vert,
     actor_spotmap_vert,
+    foilage_shadow_vert,
+    foilage_prepass_vert,
+    foilage_geometry_vert,
+    foilage_spotmap_vert,
     depth_mip_comp,
     ssao_comp,
     envbrdf_lut,
@@ -64,6 +68,8 @@ namespace CoreAsset
     bloom_hblur_comp,
     bloom_vblur_comp,
     luminance_comp,
+    color_hblur_comp,
+    color_vblur_comp,
     composite_vert,
     composite_frag,
     sprite_vert,

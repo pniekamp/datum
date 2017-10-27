@@ -5,3 +5,4 @@
 #include "../../src/math/frustum.h"
 #include "../../src/math/transform.h"
 #include "../../src/math/attenuation.h"
+#include "../../src/math/perlin.h"

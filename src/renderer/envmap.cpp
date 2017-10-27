@@ -438,15 +438,8 @@ void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams con
 
   bind_pipeline(commandbuffer, context.convolvepipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  setimagelayout(commandbuffer, target->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-
-  for(uint32_t level = 1; level < levels; ++level)
+  for(uint32_t level = 0; level < levels; ++level)
   {
-    ConvolveSet convolveset;
-    convolveset.level = level;
-    convolveset.samples = params.samples;
-    convolveset.roughness = (float)level / (float)(levels - 1);
-
     VkImageViewCreateInfo viewinfo = {};
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewinfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
@@ -455,8 +448,16 @@ void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams con
     viewinfo.image = target->texture.image;
 
     context.convolveimageviews[level] = create_imageview(context.vulkan, viewinfo);
+  }
 
-    bind_texture(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvesrc, target->texture.imageview, target->texture.sampler, VK_IMAGE_LAYOUT_GENERAL);
+  for(uint32_t level = 1; level < levels; ++level)
+  {
+    ConvolveSet convolveset;
+    convolveset.level = level;
+    convolveset.samples = params.samples;
+    convolveset.roughness = (float)level / (float)(levels - 1);
+
+    bind_texture(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvesrc, context.convolveimageviews[level-1], target->texture.sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     bind_image(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvedst, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 
@@ -464,12 +465,12 @@ void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams con
 
     push(commandbuffer, context.pipelinelayout, 0, sizeof(ConvolveSet), &convolveset, VK_SHADER_STAGE_COMPUTE_BIT);
 
+    setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 });
+
     dispatch(commandbuffer, (target->texture.width + 15)/16, (target->texture.height + 15)/16, 1);
 
-    setimagelayout(commandbuffer, viewinfo.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, viewinfo.subresourceRange);
+    setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 });
   }
-
-  setimagelayout(commandbuffer, target->texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
   end(context.vulkan, commandbuffer);
 

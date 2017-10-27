@@ -778,6 +778,11 @@ void write_core()
   write_shader_asset(fout, CoreAsset::actor_geometry_vert, "../../data/actor.geometry.vert");
   write_shader_asset(fout, CoreAsset::actor_spotmap_vert, "../../data/actor.spotmap.vert");
 
+  write_shader_asset(fout, CoreAsset::foilage_shadow_vert, "../../data/foilage.shadow.vert");
+  write_shader_asset(fout, CoreAsset::foilage_prepass_vert, "../../data/foilage.prepass.vert");
+  write_shader_asset(fout, CoreAsset::foilage_geometry_vert, "../../data/foilage.geometry.vert");
+  write_shader_asset(fout, CoreAsset::foilage_spotmap_vert, "../../data/foilage.spotmap.vert");
+
   write_shader_asset(fout, CoreAsset::depth_mip_comp, "../../data/depth.mip.comp");
 
   write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/hbao.comp");
@@ -815,6 +820,9 @@ void write_core()
   write_shader_asset(fout, CoreAsset::bloom_vblur_comp, "../../data/bloom.vblur.comp");
 
   write_shader_asset(fout, CoreAsset::luminance_comp, "../../data/luminance.comp");
+
+  write_shader_asset(fout, CoreAsset::color_hblur_comp, "../../data/color.hblur.comp");
+  write_shader_asset(fout, CoreAsset::color_vblur_comp, "../../data/color.vblur.comp");
 
   write_shader_asset(fout, CoreAsset::composite_vert, "../../data/composite.vert");
   write_shader_asset(fout, CoreAsset::composite_frag, "../../data/composite.frag");

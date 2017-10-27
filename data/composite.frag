@@ -1,5 +1,8 @@
 #version 440 core
 #include "camera.glsl"
+#include "gbuffer.glsl"
+
+layout(constant_id = 26) const bool DepthOfField = false;
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
@@ -22,9 +25,9 @@ layout(set=0, binding=3) uniform sampler2D specularmap;
 layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
 layout(set=0, binding=6) uniform sampler2D depthmipmap;
-layout(set=0, binding=10) uniform sampler2D ssaomap;
-layout(set=0, binding=19) uniform sampler2D bloommap;
-layout(set=0, binding=21) uniform sampler2D ssrmap;
+layout(set=0, binding=12) uniform sampler2D ssaomap;
+layout(set=0, binding=21) uniform sampler2D bloommap;
+layout(set=0, binding=23) uniform sampler2D ssrmap;
 
 layout(location=0) in vec2 texcoord;
 
@@ -33,9 +36,16 @@ layout(location=0) out vec4 fragcolor;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  vec3 color = texture(colormap, texcoord).rgb;
+  float dof = 0;
   
-  vec3 ssr = scene.camera.ssrstrength * texture(ssrmap, texcoord).rgb;
+  if (DepthOfField)
+  {
+    dof = smoothstep(0, scene.camera.focalwidth, abs(scene.camera.focaldistance - view_depth(scene.proj, texture(depthmap, texcoord).r)));
+  }
+
+  vec3 color = textureLod(colormap, texcoord, dof).rgb;
+  
+  vec3 ssr = scene.camera.ssrstrength * texture(ssrmap, texcoord).rgb * (1 - dof);
   vec3 bloom = scene.camera.bloomstrength * texture(bloommap, texcoord).rgb;
 
 //  fragcolor = texture(colormap, texcoord);
