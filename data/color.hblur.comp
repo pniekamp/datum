@@ -11,7 +11,7 @@ const uint SizeX = gl_WorkGroupSize.x - Radius - Radius;
 layout(set=0, binding=1) uniform sampler2D colormap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
 
-layout(set=0, binding=24) writeonly uniform image2D dest;
+layout(set=0, binding=25) writeonly uniform image2D dest;
 
 shared vec4 texels[SizeX + Radius + Radius];
 shared float depths[SizeX + Radius + Radius];

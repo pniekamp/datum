@@ -115,9 +115,9 @@ uint32_t write_catalog_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_
 }
 
 
-uint32_t write_shader_asset(ostream &fout, uint32_t id, string const &path)
+uint32_t write_shader_asset(ostream &fout, uint32_t id, string const &path, string const &defines = "")
 {
-  auto text = load_shader(path);
+  auto text = load_shader(path, defines);
 
   ShaderStage stage;
 
@@ -797,17 +797,29 @@ void write_core()
   write_shader_asset(fout, CoreAsset::ocean_vert, "../../data/ocean.vert");
   write_shader_asset(fout, CoreAsset::ocean_frag, "../../data/ocean.frag");
 
-  write_shader_asset(fout, CoreAsset::fogplane_vert, "../../data/fogplane.vert");
-  write_shader_asset(fout, CoreAsset::fogplane_frag, "../../data/fogplane.frag");
+  write_shader_asset(fout, CoreAsset::opaque_vert, "../../data/opaque.vert");
+  write_shader_asset(fout, CoreAsset::opaque_frag, "../../data/opaque.frag");
 
   write_shader_asset(fout, CoreAsset::translucent_vert, "../../data/translucent.vert");
   write_shader_asset(fout, CoreAsset::translucent_frag, "../../data/translucent.frag");
+
+  write_shader_asset(fout, CoreAsset::translucent_blend_vert, "../../data/translucent.vert", "#define WEIGHTEDBLEND");
+  write_shader_asset(fout, CoreAsset::translucent_blend_frag, "../../data/translucent.frag", "#define WEIGHTEDBLEND");
+
+  write_shader_asset(fout, CoreAsset::fogplane_vert, "../../data/fogplane.vert");
+  write_shader_asset(fout, CoreAsset::fogplane_frag, "../../data/fogplane.frag");
 
   write_shader_asset(fout, CoreAsset::water_vert, "../../data/water.vert");
   write_shader_asset(fout, CoreAsset::water_frag, "../../data/water.frag");
 
   write_shader_asset(fout, CoreAsset::particle_vert, "../../data/particle.vert");
   write_shader_asset(fout, CoreAsset::particle_frag, "../../data/particle.frag");
+
+  write_shader_asset(fout, CoreAsset::particle_blend_vert, "../../data/particle.vert", "#define WEIGHTEDBLEND");
+  write_shader_asset(fout, CoreAsset::particle_blend_frag, "../../data/particle.frag", "#define WEIGHTEDBLEND");
+
+  write_shader_asset(fout, CoreAsset::weightblend_vert, "../../data/weightblend.vert");
+  write_shader_asset(fout, CoreAsset::weightblend_frag, "../../data/weightblend.frag");
 
   write_shader_asset(fout, CoreAsset::ssr_comp, "../../data/ssr.comp");
 

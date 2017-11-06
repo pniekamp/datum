@@ -85,7 +85,7 @@ void main()
   float roughness = mix(1, 0.4, FresnelBias + pow(facing, FresnelPower)) * params.roughness;
   float reflectivity = mix(1, 0.32, FresnelBias + pow(1 - facing, FresnelPower)) * params.reflectivity;
 
-  vec4 color = params.color * textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
+  vec4 albedo = textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
 
   float height = dot(params.foamplane.xyz, position) + params.foamplane.w; 
 
@@ -93,7 +93,7 @@ void main()
   
   vec3 shorefoam = (0.25 * texture(surfacemap, vec3(texcoord + 2.0*params.flow, 0)).rgb + 0.02) * clamp(height - (dist - params.foamshoreheight) * params.foamshorescale, 0, 1);
 
-  fragcolor = vec4(color.rgb + wavefoam + shorefoam, params.emissive);
+  fragcolor = vec4(albedo.rgb * params.color.rgb + wavefoam + shorefoam, params.emissive);
   fragspecular = vec4(vec3(reflectivity), roughness);
   fragnormal = vec4(0.5 * normal + 0.5, 0);
 }

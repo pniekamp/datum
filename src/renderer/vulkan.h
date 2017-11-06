@@ -437,7 +437,6 @@ namespace Vulkan
   void submit(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, VkSemaphore signalsemaphore, VkFence fence, VkSemaphore const (&dependancies)[8] = {});
 
   void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor, VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, lml::Color4 const &clearcolor, VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data);
 
@@ -467,9 +466,12 @@ namespace Vulkan
   void beginquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query, VkQueryControlFlags flags);
   void endquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query);
 
-  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, size_t attachments, VkClearValue clearvalues[]);
+  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, size_t attachments, VkClearValue const *clearvalues);
   void nextsubpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
   void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
+
+  void clear(VkCommandBuffer commandbuffer, int x, int y, int width, int height, size_t attachment, lml::Color4 const &clearcolor, uint32_t baselayer = 0, uint32_t layercount = 1);
+  void clear(VkCommandBuffer commandbuffer, int x, int y, int width, int height, float depth, uint32_t stencil, uint32_t baselayer = 0, uint32_t layercount = 1);
 
   void scissor(VkCommandBuffer commandbuffer, int x, int y, int width, int height);
 
@@ -492,8 +494,8 @@ namespace Vulkan
   void draw(VkCommandBuffer commandbuffer, uint32_t indexcount, uint32_t instancecount, uint32_t firstindex, int32_t vertexoffset, uint32_t firstinstance);
 
   void dispatch(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t z);
-  void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3]);
-  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3]);
-  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3]);
+  void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const (&dim)[3]);
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t const (&dim)[3]);
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const (&dim)[3]);
 
 } // namespace

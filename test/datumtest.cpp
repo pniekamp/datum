@@ -55,7 +55,7 @@ namespace
 ///////////////////////// GameState::Constructor ////////////////////////////
 GameState::GameState(StackAllocator<> const &allocator)
   : assets(allocator),
-    resources(&assets, allocator),
+    resources(assets, allocator),
     scene(allocator)
 {
   readframe = &renderframes[0];
@@ -119,6 +119,7 @@ void datumtest_init(PlatformInterface &platform)
   state.suzanne = state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack"));
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
+  state.testcube = state.resources.create<Mesh>(state.assets.load(platform, "cube.pack"));
 
   state.testspotcaster = state.resources.create<SpotMap>(1024, 1024);
 
@@ -270,6 +271,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     request(platform, state.resources, state.suzanne, &ready, &total);
     request(platform, state.resources, state.testplane, &ready, &total);
     request(platform, state.resources, state.testsphere, &ready, &total);
+    request(platform, state.resources, state.testcube, &ready, &total);
     request(platform, state.resources, state.testimage, &ready, &total);
     request(platform, state.resources, state.oceanmaterial, &ready, &total);
     request(platform, state.resources, state.testparticlesystem, &ready, &total);
@@ -637,7 +639,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
       if (overlays.begin(buildstate, state.rendercontext, state.resources))
       {
-        overlays.set_depthfade(buildstate, 0.1f);
+        buildstate.depthfade = 0.1f;
 
         overlays.push_gizmo(buildstate, Vec3(0, 1, 0), Vec3(0.5f), Transform::identity().rotation(), state.suzanne, state.suzannematerial);
 

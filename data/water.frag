@@ -64,7 +64,7 @@ layout(set=1, binding=1) uniform sampler2DArray albedomap;
 layout(set=1, binding=2) uniform samplerCube specularmap;
 layout(set=1, binding=3) uniform sampler2DArray normalmap;
 
-layout(set=0, binding=11, input_attachment_index=3) uniform subpassInput depthmap;
+layout(set=0, binding=11, input_attachment_index=0) uniform subpassInput depthmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 texcoord;
@@ -128,10 +128,10 @@ void main()
   float scale = 0.05 * dist;
   float facing = 1 - dot(eyevec, normal);
 
-  vec4 color = textureLod(albedomap, vec3(clamp(vec2(scale, facing), 1/255.0, 254/255.0), 0), 0);
+  vec4 albedo = textureLod(albedomap, vec3(clamp(vec2(scale, facing), 1/255.0, 254/255.0), 0), 0);
   
-  Material material = make_material(color.rgb*params.color.rgb, params.emissive, params.metalness, params.reflectivity, params.roughness);
-  
+  Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness, params.reflectivity, params.roughness);
+
   vec3 diffuse = vec3(0);
   vec3 specular = vec3(0);
 
@@ -209,6 +209,8 @@ void main()
   }
 
   float fogfactor = clamp(exp2(-pow(params.color.a * dist, 2)), 0, 1); 
+  
+  vec4 color = vec4((diffuse + material.emissive) * material.diffuse + specular, 1) * mix(1, 1 - 0.8*envbrdf.x, fogfactor);
 
-  fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), mix(1, 1 - 0.8*envbrdf.x, fogfactor));
+  fragcolor = vec4(scene.camera.exposure * color.rgb, color.a);
 }

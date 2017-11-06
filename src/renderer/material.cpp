@@ -80,6 +80,12 @@ Material const *ResourceManager::create<Material>(Color4 color, float metalness,
 }
 
 template<>
+Material const *ResourceManager::create<Material>(Color4 color)
+{
+  return create<Material>(color, 0.0f, 1.0f, 0.5f, 0.0f, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);
+}
+
+template<>
 Material const *ResourceManager::create<Material>(Color4 color, float emissive)
 {
   return create<Material>(color, 0.0f, 1.0f, 0.5f, emissive, (Texture const *)nullptr, (Texture const *)nullptr, (Texture const *)nullptr);

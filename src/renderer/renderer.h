@@ -123,7 +123,9 @@ namespace Renderable
       Command *next;
     };
 
-    Command const *forwardcommands;
+    Command const *solidcommands;
+    Command const *blendcommands;
+    Command const *colorcommands;
   };
 
   struct Casters
@@ -353,7 +355,7 @@ struct RenderContext
   Vulkan::Texture normalbuffer;
   Vulkan::Texture depthbuffer;
   Vulkan::Texture ssaobuffers[2];
-  Vulkan::Texture scratchbuffers[3];
+  Vulkan::Texture scratchbuffers[4];
   Vulkan::FrameBuffer preframebuffer;
   Vulkan::FrameBuffer geometryframebuffer;
   Vulkan::FrameBuffer forwardframebuffer;
@@ -398,12 +400,16 @@ struct RenderContext
   Vulkan::Pipeline depthmippipeline[6];
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline opaquepipeline;
   Vulkan::Pipeline translucentpipeline;
+  Vulkan::Pipeline translucentblendpipeline;
   Vulkan::Pipeline ssaopipeline;
   Vulkan::Pipeline fogpipeline;
   Vulkan::Pipeline oceanpipeline;
   Vulkan::Pipeline waterpipeline;
-  Vulkan::Pipeline particlepipeline[1];
+  Vulkan::Pipeline particlepipeline;
+  Vulkan::Pipeline particleblendpipeline;
+  Vulkan::Pipeline weightblendpipeline;
   Vulkan::Pipeline ssrpipeline;
   Vulkan::Pipeline luminancepipeline;
   Vulkan::Pipeline bloompipeline[3];
@@ -418,8 +424,7 @@ struct RenderContext
   Vulkan::Pipeline linepipeline;
   Vulkan::Pipeline outlinepipeline;
 
-  Vulkan::CommandBuffer skyboxcommands[2];
-  Vulkan::CommandBuffer forwardcommands[2];
+  Vulkan::CommandBuffer forwardcommands[2][3];
   Vulkan::CommandBuffer compositecommands[2];
 
   float ssaoscale;

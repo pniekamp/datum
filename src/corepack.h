@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 35;
+  const uint32_t version = 36;
 
   enum
   {
@@ -54,14 +54,22 @@ namespace CoreAsset
     skybox_frag,
     ocean_vert,
     ocean_frag,
-    fogplane_vert,
-    fogplane_frag,
+    opaque_vert,
+    opaque_frag,
     translucent_vert,
     translucent_frag,
+    translucent_blend_vert,
+    translucent_blend_frag,
+    fogplane_vert,
+    fogplane_frag,
     water_vert,
     water_frag,
     particle_vert,
     particle_frag,
+    particle_blend_vert,
+    particle_blend_frag,
+    weightblend_vert,
+    weightblend_frag,
     ssr_comp,
     default_skybox,
     bloom_luma_comp,

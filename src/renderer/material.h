@@ -20,6 +20,7 @@ class Material
 
   public:
     friend Material const *ResourceManager::create<Material>(Asset const *asset);
+    friend Material const *ResourceManager::create<Material>(lml::Color4 color);
     friend Material const *ResourceManager::create<Material>(lml::Color4 color, float emissive);
     friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness);
     friend Material const *ResourceManager::create<Material>(lml::Color4 color, float metalness, float roughness, float reflectivity);

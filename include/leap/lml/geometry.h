@@ -417,6 +417,46 @@ namespace leap { namespace lml
   }
 
 
+  //|///////////////////// intersection /////////////////////////////////////
+  /// intersection of ray and triangle (moller–trumbore)
+  template<typename Point, std::enable_if_t<dim<Point>() == 3>* = nullptr>
+  auto intersection(Point const &origin, Point const &direction, Point const &a, Point const &b, Point const &c)
+  {
+    leap::optional<Point> result;
+
+    auto ab = vec(a, b);
+    auto ac = vec(a, c);
+
+    auto h = cross(direction, ac);
+    auto d = dot(ab, h);
+
+    if (d != 0)
+    {
+      auto f = 1 / d;
+      auto s = vec(a, origin);
+      auto u = dot(s, h) * f;
+
+      if (u >= 0 && u <= 1)
+      {
+        auto q = cross(s, ab);
+        auto v = dot(direction, q) * f;
+
+        if (v >= 0 && u + v <= 1)
+        {
+          auto t = dot(ac, q) * f;
+
+          if (t >= 0)
+          {
+            result.emplace(origin + t * direction);
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+
   //|///////////////////// nearest_on_polyline //////////////////////////////
   /// nearest point on line
   template<typename InputIterator>

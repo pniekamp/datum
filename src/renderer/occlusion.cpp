@@ -56,7 +56,7 @@ namespace
   };
 
   ///////////////////////// rasterize ///////////////////////////////////////
-  void rasterize(float buffer[OcclusionBuffer::Height][OcclusionBuffer::Width], Vec4 *vertices)
+  void rasterize(float (&buffer)[OcclusionBuffer::Height][OcclusionBuffer::Width], Vec4 *vertices)
   {
     Vec3 positions[3];
 
@@ -232,7 +232,7 @@ namespace
 
 
   ///////////////////////// fill_triangle ///////////////////////////////////
-  void fill_triangle(float buffer[OcclusionBuffer::Height][OcclusionBuffer::Width], Vec4 *vertices)
+  void fill_triangle(float (&buffer)[OcclusionBuffer::Height][OcclusionBuffer::Width], Vec4 *vertices)
   {
     int clipmask[3] = { 0, 0, 0 };
 
