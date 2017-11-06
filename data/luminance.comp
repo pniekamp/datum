@@ -7,7 +7,7 @@ layout(local_size_x = SIZEX, local_size_y = SIZEY) in;
 
 layout(set=0, binding=1) uniform sampler2D src;
 
-layout(set=0, binding=27, std430, row_major) buffer LumaParams
+layout(set=0, binding=28, std430, row_major) buffer LumaParams
 {
   float luminance;
 

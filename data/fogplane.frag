@@ -2,8 +2,6 @@
 #include "camera.glsl"
 #include "gbuffer.glsl"
 
-layout(origin_upper_left) in vec4 gl_FragCoord;
-
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
@@ -29,7 +27,7 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
 
 } params;
 
-layout(set=0, binding=11, input_attachment_index=3) uniform subpassInput depthmap;
+layout(set=0, binding=11, input_attachment_index=0) uniform subpassInput depthmap;
 
 layout(location=0) in vec2 texcoord;
 

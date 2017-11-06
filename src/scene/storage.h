@@ -71,7 +71,7 @@ class DefaultStorage : public Storage
     class iterator
     {
       public:
-        explicit iterator(size_t index, DefaultStorage const *storage)
+        explicit iterator(DefaultStorage const *storage, size_t index)
           : index(index), storage(storage)
         {
           if (index != storage->size() && storage->data<0>(index) == 0)
@@ -112,7 +112,7 @@ class DefaultStorage : public Storage
 
     iterator_pair<iterator> entities() const
     {
-      return { iterator{ 0, this }, iterator{ this->size(), this } };
+      return { iterator(this, 0), iterator(this, this->size()) };
     }
 
   protected:

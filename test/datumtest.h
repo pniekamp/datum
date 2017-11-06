@@ -57,6 +57,7 @@ struct GameState
 
   Mesh const *testplane;
   Mesh const *testsphere;
+  Mesh const *testcube;
   Sprite const *testimage;
 
   Transform testspotview;

@@ -10,7 +10,7 @@ using namespace std;
 
 
 ///////////////////////// load_shader ///////////////////////////////////////
-string load_shader(string const &path)
+string load_shader(string const &path, string const &defines)
 {
   ifstream fin(path);
   if (!fin)
@@ -33,6 +33,7 @@ string load_shader(string const &path)
     {
       shader = "";
       buffer += "\n#extension GL_GOOGLE_cpp_style_line_directive : enable\n";
+      buffer += "\n" + defines + "\n";
       buffer += "\n#line " + to_string(line) + "\"" + name + "\"";
     }
 
@@ -84,10 +85,10 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
 //    if (system(string("spirv-remap --do-everything --input tmp.spv -o .").c_str()) != 0)
 //      throw runtime_error("Error Executing glslangValidator");
 
-//  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 3\" -o tmp.spv " + tmpname).c_str()) != 0)
+//  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp.spv " + tmpname).c_str()) != 0)
 //    throw runtime_error("Error Executing glslc");
 
-  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 3\" -o tmp " + tmpname + " && spirv-opt --inline-entry-points-exhaustive --compact-ids -o tmp.spv tmp").c_str()) != 0)
+  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp " + tmpname + " && spirv-opt --inline-entry-points-exhaustive --compact-ids -o tmp.spv tmp").c_str()) != 0)
     throw runtime_error("Error Executing glslc");
 
 #else

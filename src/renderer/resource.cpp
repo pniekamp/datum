@@ -24,11 +24,11 @@ static constexpr size_t BufferAlignment = 4096;
 //|--------------------------------------------------------------------------
 
 ///////////////////////// ResourceManager::Constructor //////////////////////
-ResourceManager::ResourceManager(AssetManager *assets, allocator_type const &allocator)
+ResourceManager::ResourceManager(AssetManager &assets, allocator_type const &allocator)
   : m_allocator(allocator),
     m_slat(allocator),
     m_deleters(allocator),
-    m_assets(assets)
+    m_assets(&assets)
 {
   m_slots = nullptr;
   m_slathead = 0;

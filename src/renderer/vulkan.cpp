@@ -275,15 +275,18 @@ namespace Vulkan
     createinfo.size = size;
 
     VkBuffer transferbuffer;
-    vkCreateBuffer(vulkan.device, &createinfo, nullptr, &transferbuffer);
+    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &transferbuffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateBuffer failed");
 
     VkMemoryRequirements memoryrequirements;
     vkGetBufferMemoryRequirements(vulkan.device, transferbuffer, &memoryrequirements);
 
     VkDeviceMemory memory;
-    allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory);
+    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateMemory failed");
 
-    vkBindBufferMemory(vulkan.device, transferbuffer, memory, 0);
+    if (vkBindBufferMemory(vulkan.device, transferbuffer, memory, 0) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
 
     return { size, 0, { transferbuffer, { vulkan.device } }, { memory, { vulkan.device } } };
   }
@@ -298,7 +301,8 @@ namespace Vulkan
     createinfo.size = size;
 
     VkBuffer storagebuffer;
-    vkCreateBuffer(vulkan.device, &createinfo, nullptr, &storagebuffer);
+    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &storagebuffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateBuffer failed");
 
     VkMemoryRequirements memoryrequirements;
     vkGetBufferMemoryRequirements(vulkan.device, storagebuffer, &memoryrequirements);
@@ -306,7 +310,8 @@ namespace Vulkan
     if (offset % memoryrequirements.alignment != 0)
       throw runtime_error("Vulkan VkMemoryRequirements invalid alignment offset");
 
-    vkBindBufferMemory(vulkan.device, storagebuffer, memory, offset);
+    if (vkBindBufferMemory(vulkan.device, storagebuffer, memory, offset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
 
     size = memoryrequirements.size;
 
@@ -323,15 +328,18 @@ namespace Vulkan
     createinfo.size = size;
 
     VkBuffer storagebuffer;
-    vkCreateBuffer(vulkan.device, &createinfo, nullptr, &storagebuffer);
+    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &storagebuffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateBuffer failed");
 
     VkMemoryRequirements memoryrequirements;
     vkGetBufferMemoryRequirements(vulkan.device, storagebuffer, &memoryrequirements);
 
     VkDeviceMemory memory;
-    allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory);
+    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateMemory failed");
 
-    vkBindBufferMemory(vulkan.device, storagebuffer, memory, 0);
+    if (vkBindBufferMemory(vulkan.device, storagebuffer, memory, 0) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
 
     return { size, 0, { storagebuffer, { vulkan.device } }, { memory, { vulkan.device } } };
   }
@@ -382,15 +390,18 @@ namespace Vulkan
     vertexbufferinfo.size = vertexcount * vertexsize;
 
     VkBuffer vertexbuffer;
-    vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer);
+    if (vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateBuffer failed");
 
     VkMemoryRequirements memoryrequirements;
     vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer, &memoryrequirements);
 
     VkDeviceMemory memory;
-    allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory);
+    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateMemory failed");
 
-    vkBindBufferMemory(vulkan.device, vertexbuffer, memory, 0);
+    if (vkBindBufferMemory(vulkan.device, vertexbuffer, memory, 0) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
 
     return { vertexcount, vertexsize, { vertexbuffer, { vulkan.device } }, 0, 0, { }, memoryrequirements.size, 0, 0, { memory, { vulkan.device } } };
   }
@@ -437,7 +448,8 @@ namespace Vulkan
     vertexbufferinfo.size = vertexcount * vertexsize;
 
     VkBuffer vertexbuffer;
-    vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer);
+    if (vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateBuffer failed");
 
     VkMemoryRequirements vertexmemoryrequirements;
     vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer, &vertexmemoryrequirements);
@@ -448,7 +460,8 @@ namespace Vulkan
     indexbufferinfo.size = indexcount * indexsize;
 
     VkBuffer indexbuffer;
-    vkCreateBuffer(vulkan.device, &indexbufferinfo, nullptr, &indexbuffer);
+    if (vkCreateBuffer(vulkan.device, &indexbufferinfo, nullptr, &indexbuffer) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkCreateBuffer failed");
 
     VkMemoryRequirements indexmemoryrequirements;
     vkGetBufferMemoryRequirements(vulkan.device, indexbuffer, &indexmemoryrequirements);
@@ -464,10 +477,14 @@ namespace Vulkan
     memoryrequirements.size = vertexmemoryrequirements.size + padding + indexmemoryrequirements.size;
 
     VkDeviceMemory memory;
-    allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory);
+    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkAllocateMemory failed");
 
-    vkBindBufferMemory(vulkan.device, vertexbuffer, memory, verticesoffset);
-    vkBindBufferMemory(vulkan.device, indexbuffer, memory, indicesoffset);
+    if (vkBindBufferMemory(vulkan.device, vertexbuffer, memory, verticesoffset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
+
+    if (vkBindBufferMemory(vulkan.device, indexbuffer, memory, indicesoffset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
 
     return { vertexcount, vertexsize, { vertexbuffer, { vulkan.device } }, indexcount, indexsize, { indexbuffer, { vulkan.device } }, memoryrequirements.size, verticesoffset, indicesoffset, { memory, { vulkan.device } } };
   }
@@ -1104,23 +1121,6 @@ namespace Vulkan
     setimagelayout(commandbuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout, subresourcerange);
   }
 
-  void clear(VulkanDevice const &vulkan, VkImage image, VkImageLayout layout, Color4 const &clearcolor, VkImageSubresourceRange subresourcerange)
-  {
-    CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-
-    CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-
-    begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-    clear(setupbuffer, image, layout, clearcolor, subresourcerange);
-
-    end(vulkan, setupbuffer);
-
-    submit(vulkan, setupbuffer);
-
-    vkQueueWaitIdle(vulkan.queue);
-  }
-
 
   ///////////////////////// update //////////////////////////////////////////
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data)
@@ -1396,7 +1396,7 @@ namespace Vulkan
 
 
   ///////////////////////// beginpass ///////////////////////////////////////
-  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, size_t attachments, VkClearValue clearvalues[])
+  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, size_t attachments, VkClearValue const *clearvalues)
   {
     VkRenderPassBeginInfo renderpassinfo = {};
     renderpassinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1424,6 +1424,45 @@ namespace Vulkan
   void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass)
   {
     vkCmdEndRenderPass(commandbuffer);
+  }
+
+
+  ///////////////////////// clear ///////////////////////////////////////////
+  void clear(VkCommandBuffer commandbuffer, int x, int y, int width, int height, size_t attachment, Color4 const &clearcolor, uint32_t baselayer, uint32_t layercount)
+  {
+    VkClearAttachment attachments = {};
+    attachments.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    attachments.colorAttachment = attachment;
+    attachments.clearValue.color = { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a };
+
+    VkClearRect clearrect = {};
+    clearrect.rect.offset.x = x;
+    clearrect.rect.offset.y = y;
+    clearrect.rect.extent.width = width;
+    clearrect.rect.extent.height = height;
+    clearrect.baseArrayLayer = baselayer;
+    clearrect.layerCount = layercount;
+
+    vkCmdClearAttachments(commandbuffer, 1, &attachments, 1, &clearrect);
+  }
+
+
+  ///////////////////////// clear ///////////////////////////////////////////
+  void clear(VkCommandBuffer commandbuffer, int x, int y, int width, int height, float depth, uint32_t stencil, uint32_t baselayer, uint32_t layercount)
+  {
+    VkClearAttachment attachments = {};
+    attachments.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    attachments.clearValue.depthStencil = { depth, stencil };
+
+    VkClearRect clearrect = {};
+    clearrect.rect.offset.x = x;
+    clearrect.rect.offset.y = y;
+    clearrect.rect.extent.width = width;
+    clearrect.rect.extent.height = height;
+    clearrect.baseArrayLayer = baselayer;
+    clearrect.layerCount = layercount;
+
+    vkCmdClearAttachments(commandbuffer, 1, &attachments, 1, &clearrect);
   }
 
 
@@ -1559,14 +1598,14 @@ namespace Vulkan
 
 
   ///////////////////////// dispatch ////////////////////////////////////////
-  void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3])
+  void dispatch(VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t depth, uint32_t const (&dim)[3])
   {
     dispatch(commandbuffer, (width + dim[0] - 1)/dim[0], (height + dim[1] - 1)/dim[1], (depth + dim[2] - 1)/dim[2]);
   }
 
 
   ///////////////////////// dispatch ////////////////////////////////////////
-  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t const dim[3])
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t const (&dim)[3])
   {
     setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 
@@ -1577,7 +1616,7 @@ namespace Vulkan
 
 
   ///////////////////////// dispatch ////////////////////////////////////////
-  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const dim[3])
+  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const (&dim)[3])
   {
     dispatch(commandbuffer, texture, texture.width, texture.height, texture.layers, dim);
   }

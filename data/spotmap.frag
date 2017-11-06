@@ -9,6 +9,6 @@ void main()
 {
   vec4 albedo = texture(albedomap, vec3(texcoord, 0));
 
-  if (albedo.a < 0.5)
+  if (albedo.a < 0.95)
     discard;
 }

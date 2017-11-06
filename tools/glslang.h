@@ -15,6 +15,6 @@ enum class ShaderStage
   Compute
 };
 
-std::string load_shader(std::string const &path);
+std::string load_shader(std::string const &path, std::string const &defines = "");
 std::vector<uint8_t> compile_shader(std::string const &text, ShaderStage stage);
 

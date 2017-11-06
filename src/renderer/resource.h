@@ -23,7 +23,7 @@ class ResourceManager
 
     typedef StackAllocator<> allocator_type;
 
-    ResourceManager(AssetManager *assets, allocator_type const &allocator);
+    ResourceManager(AssetManager &assets, allocator_type const &allocator);
 
     ResourceManager(ResourceManager const &) = delete;
 

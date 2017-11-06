@@ -40,7 +40,7 @@ void main()
 
   Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness * surface.r, params.reflectivity * surface.g, params.roughness * surface.a);
 
-  if (albedo.a < 0.5)
+  if (albedo.a < 0.95)
     discard;
 
   fragcolor = vec4(material.diffuse, params.emissive);

@@ -140,7 +140,7 @@ auto draw_indexed_command(uint32_t indexcount, uint32_t instancecount)
 
 
 ///////////////////////// push_command //////////////////////////////////////
-void push_command(ForwardList::BuildState &state, Renderable::Forward::Command const &command)
+void push_command(ForwardList::BuildState &state, Renderable::Forward::Command **&commands, Renderable::Forward::Command const &command)
 {
   auto &commandlump = *state.commandlump;
 
@@ -153,19 +153,19 @@ void push_command(ForwardList::BuildState &state, Renderable::Forward::Command c
   {
     auto offset = state.commandset.reserve(sizeof(Renderable::Forward::Command));
 
-    *state.command = state.commandset.memory<Renderable::Forward::Command>(offset);
+    *commands = state.commandset.memory<Renderable::Forward::Command>(offset);
 
-    **state.command = command;
+    **commands = command;
 
-    state.command = &(*state.command)->next;
+    commands = &(*commands)->next;
   }
 }
 
 
 ///////////////////////// draw_forward //////////////////////////////////////
-void draw_forward(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Forward const &forward)
+void draw_forward(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Forward::Command const *commands)
 {
-  for(Renderable::Forward::Command const *command = forward.forwardcommands; command; command = command->next)
+  for(Renderable::Forward::Command const *command = commands; command; command = command->next)
   {
     switch (command->type)
     {
@@ -216,9 +216,13 @@ bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManag
   if (!commandlump)
     return false;
 
-  state.command = &forwardcommands;
+  solidcommands = nullptr;
+  blendcommands = nullptr;
+  colorcommands = nullptr;
 
-  forwardcommands = nullptr;
+  state.solidcommand = &solidcommands;
+  state.blendcommand = &blendcommands;
+  state.colorcommand = &colorcommands;
 
   m_commandlump = { resources, commandlump };
 
@@ -228,33 +232,39 @@ bool ForwardList::begin(BuildState &state, RenderContext &context, ResourceManag
 }
 
 
-///////////////////////// ForwardList::push_fogplane ////////////////////////
-void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &color, Plane const &plane, float density, float startdistance, float falloff)
+///////////////////////// ForwardList::push_opaque //////////////////////////
+void ForwardList::push_opaque(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material)
 {
   assert(state.commandlump);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
 
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  push_command(state, bind_pipeline_command(context.fogpipeline));
+  push_command(state, state.solidcommand, bind_pipeline_command(context.opaquepipeline));
 
-  push_command(state, bind_vertexbuffer_command(0, context.unitquad));
+  push_command(state, state.solidcommand, bind_vertexbuffer_command(0, mesh->vertexbuffer));
 
-  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(FogPlaneMaterialSet), std::move(state.materialset));
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
   if (state.materialset)
   {
-    auto offset = state.materialset.reserve(sizeof(FogPlaneMaterialSet));
+    auto offset = state.materialset.reserve(sizeof(MaterialSet));
 
-    auto materialset = state.materialset.memory<FogPlaneMaterialSet>(offset);
+    auto materialset = state.materialset.memory<MaterialSet>(offset);
 
-    materialset->plane = Vec4(plane.normal, plane.distance);
-    materialset->color = color;
-    materialset->density = density;
-    materialset->falloff = falloff;
-    materialset->startdistance = max(startdistance, 0.0f) * 1.4142135f;
+    materialset->color = material->color;
+    materialset->metalness = material->metalness;
+    materialset->roughness = material->roughness;
+    materialset->reflectivity = material->reflectivity;
+    materialset->emissive = material->emissive;
 
-    push_command(state, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+
+    push_command(state, state.solidcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
   }
 
   if (state.modelset.available() < sizeof(ModelSet))
@@ -268,18 +278,18 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
 
     auto modelset = state.modelset.memory<ModelSet>(offset);
 
-    modelset->modelworld = Transform::translation(0, 0, max(startdistance, 0.01f));
+    modelset->modelworld = transform;
 
-    push_command(state, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+    push_command(state, state.solidcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, draw_command(context.unitquad.vertexcount, 1));
+    push_command(state, state.solidcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
   }
 }
 
 
 ///////////////////////// ForwardList::push_translucent /////////////////////
 void ForwardList::push_translucent(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, float alpha)
-{ 
+{
   assert(state.commandlump);
   assert(mesh && mesh->ready());
   assert(material && material->ready());
@@ -287,9 +297,9 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  push_command(state, bind_pipeline_command(context.translucentpipeline));
+  push_command(state, state.colorcommand, bind_pipeline_command(context.translucentpipeline));
 
-  push_command(state, bind_vertexbuffer_command(0, mesh->vertexbuffer));
+  push_command(state, state.colorcommand, bind_vertexbuffer_command(0, mesh->vertexbuffer));
 
   state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
@@ -309,7 +319,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
     bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
     bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-    push_command(state, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
   }
 
   if (state.modelset.available() < sizeof(ModelSet))
@@ -325,9 +335,64 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
     modelset->modelworld = transform;
 
-    push_command(state, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+    push_command(state, state.colorcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+  }
+}
+
+
+///////////////////////// ForwardList::push_translucent /////////////////////
+void ForwardList::push_translucent_wb(ForwardList::BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, float alpha)
+{
+  assert(state.commandlump);
+  assert(mesh && mesh->ready());
+  assert(material && material->ready());
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  push_command(state, state.blendcommand, bind_pipeline_command(context.translucentblendpipeline));
+
+  push_command(state, state.blendcommand, bind_vertexbuffer_command(0, mesh->vertexbuffer));
+
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(MaterialSet));
+
+    auto materialset = state.materialset.memory<MaterialSet>(offset);
+
+    materialset->color = Color4(material->color.rgb, material->color.a * alpha);
+    materialset->metalness = material->metalness;
+    materialset->roughness = material->roughness;
+    materialset->reflectivity = material->reflectivity;
+    materialset->emissive = material->emissive;
+
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, material->albedomap ? material->albedomap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, material->surfacemap ? material->surfacemap->texture : context.whitediffuse);
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
+
+    push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+  }
+
+  if (state.modelset.available() < sizeof(ModelSet))
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
+
+    modelset->modelworld = transform;
+
+    push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+
+    push_command(state, state.blendcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
   }
 }
 
@@ -345,9 +410,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  push_command(state, bind_pipeline_command(context.particlepipeline[0]));
+  push_command(state, state.colorcommand, bind_pipeline_command(context.particlepipeline));
 
-  push_command(state, bind_vertexbuffer_command(0, context.unitquad));
+  push_command(state, state.colorcommand, bind_vertexbuffer_command(0, context.unitquad));
 
   state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
 
@@ -357,7 +422,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
 
-    push_command(state, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
   }
 
   size_t particlesetsize = particles->count * sizeof(Particle);
@@ -380,16 +445,16 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
       modelset[i].color = particles->color[i];
     }
 
-    push_command(state, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, draw_command(context.unitquad.vertexcount, particles->count));
+    push_command(state, state.colorcommand, draw_command(context.unitquad.vertexcount, particles->count));
   }
 }
 
 
 ///////////////////////// ForwardList::push_particlesystem //////////////////
 void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
-{ 
+{
   assert(state.commandlump);
   assert(particlesystem && particlesystem->ready());
   assert(particles);
@@ -400,9 +465,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  push_command(state, bind_pipeline_command(context.particlepipeline[0]));
+  push_command(state, state.colorcommand, bind_pipeline_command(context.particlepipeline));
 
-  push_command(state, bind_vertexbuffer_command(0, context.unitquad));
+  push_command(state, state.colorcommand, bind_vertexbuffer_command(0, context.unitquad));
 
   state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
 
@@ -412,7 +477,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
     bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
 
-    push_command(state, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
   }
 
   if (state.modelset.available() < particles->count*sizeof(Particle))
@@ -433,9 +498,117 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
       modelset[i].color = particles->color[i];
     }
 
-    push_command(state, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, draw_command(context.unitquad.vertexcount, particles->count));
+    push_command(state, state.colorcommand, draw_command(context.unitquad.vertexcount, particles->count));
+  }
+}
+
+
+///////////////////////// ForwardList::push_particlesystem //////////////////
+void ForwardList::push_particlesystem_wb(ForwardList::BuildState &state, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
+{
+  assert(state.commandlump);
+  assert(particlesystem && particlesystem->ready());
+  assert(particles);
+
+  if (particles->count == 0)
+    return;
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  push_command(state, state.blendcommand, bind_pipeline_command(context.particleblendpipeline));
+
+  push_command(state, state.blendcommand, bind_vertexbuffer_command(0, context.unitquad));
+
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
+
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
+
+    push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+  }
+
+  size_t particlesetsize = particles->count * sizeof(Particle);
+
+  if (state.modelset.available() < particlesetsize)
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particlesetsize, std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(particlesetsize);
+
+    auto modelset = state.modelset.memory<Particle>(offset);
+
+    for(int i = 0; i < particles->count; ++i)
+    {
+      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
+      modelset[i].transform = particles->transform[i];
+      modelset[i].color = particles->color[i];
+    }
+
+    push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+
+    push_command(state, state.blendcommand, draw_command(context.unitquad.vertexcount, particles->count));
+  }
+}
+
+
+///////////////////////// ForwardList::push_particlesystem //////////////////
+void ForwardList::push_particlesystem_wb(ForwardList::BuildState &state, Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
+{
+  assert(state.commandlump);
+  assert(particlesystem && particlesystem->ready());
+  assert(particles);
+
+  if (particles->count == 0)
+    return;
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  push_command(state, state.blendcommand, bind_pipeline_command(context.particleblendpipeline));
+
+  push_command(state, state.blendcommand, bind_vertexbuffer_command(0, context.unitquad));
+
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
+
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
+
+    push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+  }
+
+  if (state.modelset.available() < particles->count*sizeof(Particle))
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(particles->count*sizeof(Particle));
+
+    auto modelset = state.modelset.memory<Particle>(offset);
+
+    for(int i = 0; i < particles->count; ++i)
+    {
+      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
+      modelset[i].transform = particles->transform[i];
+      modelset[i].color = particles->color[i];
+    }
+
+    push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+
+    push_command(state, state.blendcommand, draw_command(context.unitquad.vertexcount, particles->count));
   }
 }
 
@@ -472,9 +645,9 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  push_command(state, bind_pipeline_command(context.waterpipeline));
+  push_command(state, state.colorcommand, bind_pipeline_command(context.waterpipeline));
 
-  push_command(state, bind_vertexbuffer_command(0, mesh->vertexbuffer));
+  push_command(state, state.colorcommand, bind_vertexbuffer_command(0, mesh->vertexbuffer));
 
   state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(WaterMaterialSet), std::move(state.materialset));
 
@@ -498,7 +671,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
     bind_texture(context.vulkan, state.materialset, ShaderLocation::surfacemap, envmap->texture);
     bind_texture(context.vulkan, state.materialset, ShaderLocation::normalmap, material->normalmap ? material->normalmap->texture : context.nominalnormal);
 
-    push_command(state, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
   }
 
   if (state.modelset.available() < sizeof(ModelSet))
@@ -514,9 +687,58 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
     modelset->modelworld = transform;
 
-    push_command(state, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+    push_command(state, state.colorcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+  }
+}
+
+
+///////////////////////// ForwardList::push_fogplane ////////////////////////
+void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &color, Plane const &plane, float density, float startdistance, float falloff)
+{
+  assert(state.commandlump);
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  push_command(state, state.colorcommand, bind_pipeline_command(context.fogpipeline));
+
+  push_command(state, state.colorcommand, bind_vertexbuffer_command(0, context.unitquad));
+
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(FogPlaneMaterialSet), std::move(state.materialset));
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(FogPlaneMaterialSet));
+
+    auto materialset = state.materialset.memory<FogPlaneMaterialSet>(offset);
+
+    materialset->plane = Vec4(plane.normal, plane.distance);
+    materialset->color = color;
+    materialset->density = density;
+    materialset->falloff = falloff;
+    materialset->startdistance = max(startdistance, 0.0f) * 1.4142135f;
+
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+  }
+
+  if (state.modelset.available() < sizeof(ModelSet))
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, sizeof(ModelSet), std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(sizeof(ModelSet));
+
+    auto modelset = state.modelset.memory<ModelSet>(offset);
+
+    modelset->modelworld = Transform::translation(0, 0, max(startdistance, 0.01f));
+
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+
+    push_command(state, state.colorcommand, draw_command(context.unitquad.vertexcount, 1));
   }
 }
 

@@ -47,8 +47,10 @@ void RenderList::push_forward(ForwardList const &forwardlist)
     auto entry = m_buffer.push<Renderable::Forward>();
 
     if (entry)
-    {
-      entry->forwardcommands = forwardlist.forwardcommands;
+    {      
+      entry->solidcommands = forwardlist.solidcommands;
+      entry->blendcommands = forwardlist.blendcommands;
+      entry->colorcommands = forwardlist.colorcommands;
     }
   }
 }

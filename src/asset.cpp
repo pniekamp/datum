@@ -413,7 +413,6 @@ void const *AssetManager::request(DatumPlatform::PlatformInterface &platform, As
 
       slot->asset = &assetex;
 
-
       platform.submit_work(background_loader, this, slot);
     }
   }

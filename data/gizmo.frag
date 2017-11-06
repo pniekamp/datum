@@ -77,5 +77,5 @@ void main()
 
   main_light(diffuse, specular, mainlight, normal, eyevec, material, 1);
 
-  fragcolor = vec4((diffuse * material.diffuse + specular) * depthfade, albedo.a);
+  fragcolor = vec4((diffuse * material.diffuse + specular) * depthfade, 1) * albedo.a * params.color.a;
 }

@@ -5,6 +5,8 @@
 #include "transform.glsl"
 #include "lighting.glsl"
 
+layout(constant_id = 52) const uint DecalMask = 8;
+
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
   mat4 proj;
@@ -66,6 +68,10 @@ layout(location=4) in vec2 texcoord;
 
 layout(location=0) out vec4 fragcolor;
 
+#ifdef WEIGHTEDBLEND
+layout(location=1) out vec4 fragweight;
+#endif
+
 ///////////////////////// mainlight_shadow //////////////////////////////////
 float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2DArrayShadow shadowmap)
 {
@@ -121,8 +127,6 @@ void main()
   //
   // Decals
   //
-  
-  uint decalmask = 0x4;
 
   for(uint jm = scene.cluster[tile].decalmask[tilez], j = findLSB(jm); jm != 0; jm ^= (1 << j), j = findLSB(jm))
   {
@@ -130,7 +134,7 @@ void main()
     {
       Decal decal = scene.decals[(j << 5) + i];
       
-      if ((decalmask & decal.mask) != 0)
+      if ((decal.mask & DecalMask) != 0)
       {
         vec3 localpos = transform_multiply(decal.invtransform, position) / decal.halfdim;
         vec3 localdir = quaternion_multiply(decal.invtransform.real, normal);
@@ -243,5 +247,20 @@ void main()
     }
   }
 
-  fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), albedo.a * params.color.a);
+  vec4 color = vec4((diffuse + material.emissive) * material.diffuse + specular, 1) * albedo.a * params.color.a; 
+
+#ifdef WEIGHTEDBLEND
+
+  //float weight = color.a * max(3e3 * pow(1 - gl_FragCoord.z, 3), 1e-2);
+  float weight = color.a * max(3e3 * (1 - pow(gl_FragCoord.z, 3)), 1e-2);
+  //float weight = color.a * clamp(0.03 / (1e-5 + pow(view_depth(scene.proj, gl_FragCoord.z)/200, 4)), 1e-2, 3e3);
+
+  fragcolor = vec4(scene.camera.exposure * color.rgb * weight, color.a);
+  fragweight = vec4(color.a * weight);
+  
+#else  
+
+  fragcolor = vec4(scene.camera.exposure * color.rgb, color.a);
+
+#endif  
 }

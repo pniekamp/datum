@@ -24,7 +24,11 @@ namespace lml
   {
     public:
 
-      typedef T result_type;
+      struct result_type
+      {
+        T noise;
+        Vector<T, N> derivative;
+      };
 
     public:
       explicit perlin_engine(std::mt19937 &entropy);
@@ -33,15 +37,17 @@ namespace lml
       void seed(std::mt19937 &entropy);
       void seed(std::uint_fast32_t value);
 
-      T operator()(T x);
-      T operator()(T x, T y);
-      T operator()(T x, T y, T z);
+      result_type operator()(T x) const;
+      result_type operator()(T x, T y) const;
+      result_type operator()(T x, T y, T z) const;
 
     private:
 
-      uint32_t P[2*TableSize];
+      T dotgrad(uint32_t p, T x) const;
+      T dotgrad(uint32_t p, T x, T y) const;
+      T dotgrad(uint32_t p, T x, T y, T z) const;
 
-      lml::Vector<T, N> G[TableSize];
+      uint32_t P[2*TableSize+1];
   };
 
 
@@ -65,30 +71,16 @@ namespace lml
   template<typename T, size_t N, size_t TableSize>
   void perlin_engine<T, N, TableSize>::seed(std::mt19937 &entropy)
   {
-    std::uniform_real_distribution<T> real11{-1.0f, 1.0f};
+    std::uniform_real_distribution<T> real11{T(-1), T(1)};
 
-    for(size_t i = 0; i < TableSize; ++i)
-    {
-      do
-      {
-        for(size_t k = 0; k < N; ++k)
-        {
-          G[i][k] = real11(entropy);
-        }
-
-      } while (normsqr(G[i]) > 1);
-
-      G[i] = normalise(G[i]);
-      P[i] = i;
-    }
+    std::iota(P, P + TableSize, 0);
 
     std::shuffle(P, P + TableSize, entropy);
 
     std::copy(P, P + TableSize, P + TableSize);
+    std::copy(P, P + 1, P + 2*TableSize);
   }
 
-
-  //|///////////////////// perlin_engine::seed ////////////////////////////////
   template<typename T, size_t N, size_t TableSize>
   void perlin_engine<T, N, TableSize>::seed(std::uint_fast32_t value)
   {
@@ -98,17 +90,71 @@ namespace lml
   }
 
 
+  //|///////////////////// perlin_engine::dotgrad /////////////////////////////
+  template<typename T, size_t N, size_t TableSize>
+  T perlin_engine<T, N, TableSize>::dotgrad(uint32_t p, T x) const
+  {
+    switch (p & 1)
+    {
+      case 0: return x; // (1)
+      case 1: return -x; // (-1)
+    }
+
+    return 0;
+  }
+
+  template<typename T, size_t N, size_t TableSize>
+  T perlin_engine<T, N, TableSize>::dotgrad(uint32_t p, T x, T y) const
+  {
+    switch (p & 3)
+    {
+      case 0: return x + y; // (1,1)
+      case 1: return -x + y; // (-1,1)
+      case 2: return x - y; // (1,-1)
+      case 3: return -x - y; // (-1,-1)
+    }
+
+    return 0;
+  }
+
+  template<typename T, size_t N, size_t TableSize>
+  T perlin_engine<T, N, TableSize>::dotgrad(uint32_t p, T x, T y, T z) const
+  {
+    switch (p & 15)
+    {
+      case 0: return x + y; // (1,1,0)
+      case 1: return -x + y; // (-1,1,0)
+      case 2: return x - y; // (1,-1,0)
+      case 3: return -x - y; // (-1,-1,0)
+      case 4: return x + z; // (1,0,1)
+      case 5: return -x + z; // (-1,0,1)
+      case 6: return x - z; // (1,0,-1)
+      case 7: return -x - z; // (-1,0,-1)
+      case 8: return y + z; // (0,1,1),
+      case 9: return -y + z; // (0,-1,1),
+      case 10: return y - z; // (0,1,-1),
+      case 11: return -y - z; // (0,-1,-1)
+
+      case 12: return y + x; // (1,1,0)
+      case 13: return -x + y; // (-1,1,0)
+      case 14: return -y + z; // (0,-1,1)
+      case 15: return -y - z; // (0,-1,-1)
+    }
+
+    return 0;
+  }
+
+
   //|///////////////////// perlin_engine::gen /////////////////////////////////
   template<typename T, size_t N, size_t TableSize>
-  T perlin_engine<T, N, TableSize>::operator()(T x)
+  typename perlin_engine<T, N, TableSize>::result_type perlin_engine<T, N, TableSize>::operator()(T x) const
   {
     using std::floor;
     using namespace leap::lml;
 
     static_assert(N == 1, "invalid");
 
-    int x0 = (int)(floor(x)) & (TableSize - 1);
-    int x1 = (int)(x0 + 1) & (TableSize - 1);
+    int ix = (int)(floor(x)) & (TableSize - 1);
 
     auto tx = x - floor(x);
 
@@ -116,26 +162,33 @@ namespace lml
 
     auto hash = [&](int i) { return P[i]; };
 
-    auto d000 = dot(G[hash(x0)], Vector<T, N>{tx});
-    auto d100 = dot(G[hash(x1)], Vector<T, N>{tx-1});
+    auto d000 = dotgrad(hash(ix), tx);
+    auto d100 = dotgrad(hash(ix+1), tx-1);
 
-    return lerp(d000, d100, u);
+    auto du = 30 * tx * tx * (tx * (tx - 2) + 1);
+
+    auto k0 = d000;
+    auto k1 = (d100 - d000);
+
+    result_type result;
+    result.noise = k0 + k1 * u;
+    result.derivative(0) = du * k1;
+
+    return result;
   }
 
 
   //|///////////////////// perlin_engine::gen /////////////////////////////////
   template<typename T, size_t N, size_t TableSize>
-  T perlin_engine<T, N, TableSize>::operator()(T x, T y)
+  typename perlin_engine<T, N, TableSize>::result_type perlin_engine<T, N, TableSize>::operator()(T x, T y) const
   {
     using std::floor;
     using namespace leap::lml;
 
     static_assert(N == 2, "invalid");
 
-    int x0 = (int)(floor(x)) & (TableSize - 1);
-    int x1 = (int)(x0 + 1) & (TableSize - 1);
-    int y0 = (int)(floor(y)) & (TableSize - 1);
-    int y1 = (int)(y0 + 1) & (TableSize - 1);
+    int ix = (int)(floor(x)) & (TableSize - 1);
+    int iy = (int)(floor(y)) & (TableSize - 1);
 
     auto tx = x - floor(x);
     auto ty = y - floor(y);
@@ -145,30 +198,40 @@ namespace lml
 
     auto hash = [&](int i, int j) { return P[P[i] + j]; };
 
-    auto d000 = dot(G[hash(x0, y0)], Vector<T, N>{tx, ty});
-    auto d100 = dot(G[hash(x1, y0)], Vector<T, N>{tx-1, ty});
-    auto d010 = dot(G[hash(x0, y1)], Vector<T, N>{tx, ty-1});
-    auto d110 = dot(G[hash(x1, y1)], Vector<T, N>{tx-1, ty-1});
+    auto d000 = dotgrad(hash(ix, iy), tx, ty);
+    auto d100 = dotgrad(hash(ix+1, iy), tx-1, ty);
+    auto d010 = dotgrad(hash(ix, iy+1), tx, ty-1);
+    auto d110 = dotgrad(hash(ix+1, iy+1), tx-1, ty-1);
 
-    return lerp(lerp(d000, d100, u), lerp(d010, d110, u), v);
+    auto du = 30 * tx * tx * (tx * (tx - 2) + 1);
+    auto dv = 30 * ty * ty * (ty * (ty - 2) + 1);
+
+    auto k0 = d000;
+    auto k1 = (d100 - d000);
+    auto k2 = (d010 - d000);
+    auto k4 = (d000 + d110 - d100 - d010);
+
+    result_type result;
+    result.noise = k0 + k1 * u + k2 * v + k4 * u * v;
+    result.derivative(0) = du * (k1 + k4 * v);
+    result.derivative(1) = dv * (k2 + k4 * u);
+
+    return result;
   }
 
 
   //|///////////////////// perlin_engine::gen /////////////////////////////////
   template<typename T, size_t N, size_t TableSize>
-  T perlin_engine<T, N, TableSize>::operator()(T x, T y, T z)
+  typename perlin_engine<T, N, TableSize>::result_type perlin_engine<T, N, TableSize>::operator()(T x, T y, T z) const
   {
     using std::floor;
     using namespace leap::lml;
 
     static_assert(N == 3, "invalid");
 
-    int x0 = (int)(floor(x)) & (TableSize - 1);
-    int x1 = (int)(x0 + 1) & (TableSize - 1);
-    int y0 = (int)(floor(y)) & (TableSize - 1);
-    int y1 = (int)(y0 + 1) & (TableSize - 1);
-    int z0 = (int)(floor(z)) & (TableSize - 1);
-    int z1 = (int)(z0 + 1) & (TableSize - 1);
+    int ix = (int)(floor(x)) & (TableSize - 1);
+    int iy = (int)(floor(y)) & (TableSize - 1);
+    int iz = (int)(floor(z)) & (TableSize - 1);
 
     auto tx = x - floor(x);
     auto ty = y - floor(y);
@@ -180,16 +243,35 @@ namespace lml
 
     auto hash = [&](int i, int j, int k) { return P[P[P[i] + j] + k]; };
 
-    auto d000 = dot(G[hash(x0, y0, z0)], Vector<T, N>{tx, ty, tz});
-    auto d100 = dot(G[hash(x1, y0, z0)], Vector<T, N>{tx-1, ty, tz});
-    auto d010 = dot(G[hash(x0, y1, z0)], Vector<T, N>{tx, ty-1, tz});
-    auto d110 = dot(G[hash(x1, y1, z0)], Vector<T, N>{tx-1, ty-1, tz});
-    auto d001 = dot(G[hash(x0, y0, z1)], Vector<T, N>{tx, ty, tz-1});
-    auto d101 = dot(G[hash(x1, y0, z1)], Vector<T, N>{tx-1, ty, tz-1});
-    auto d011 = dot(G[hash(x0, y1, z1)], Vector<T, N>{tx, ty-1, tz-1});
-    auto d111 = dot(G[hash(x1, y1, z1)], Vector<T, N>{tx-1, ty-1, tz-1});
+    auto d000 = dotgrad(hash(ix, iy, iz), tx, ty, tz);
+    auto d100 = dotgrad(hash(ix+1, iy, iz), tx-1, ty, tz);
+    auto d010 = dotgrad(hash(ix, iy+1, iz), tx, ty-1, tz);
+    auto d110 = dotgrad(hash(ix+1, iy+1, iz), tx-1, ty-1, tz);
+    auto d001 = dotgrad(hash(ix, iy, iz+1), tx, ty, tz-1);
+    auto d101 = dotgrad(hash(ix+1, iy, iz+1), tx-1, ty, tz-1);
+    auto d011 = dotgrad(hash(ix, iy+1, iz+1), tx, ty-1, tz-1);
+    auto d111 = dotgrad(hash(ix+1, iy+1, iz+1), tx-1, ty-1, tz-1);
 
-    return lerp(lerp(lerp(d000, d100, u), lerp(d010, d110, u), v), lerp(lerp(d001, d101, u), lerp(d011, d111, u), v), w);
+    auto du = 30 * tx * tx * (tx * (tx - 2) + 1);
+    auto dv = 30 * ty * ty * (ty * (ty - 2) + 1);
+    auto dw = 30 * tz * tz * (tz * (tz - 2) + 1);
+
+    auto k0 = d000;
+    auto k1 = (d100 - d000);
+    auto k2 = (d010 - d000);
+    auto k3 = (d001 - d000);
+    auto k4 = (d000 + d110 - d100 - d010);
+    auto k5 = (d000 + d101 - d100 - d001);
+    auto k6 = (d000 + d011 - d010 - d001);
+    auto k7 = (d100 + d010 + d001 + d111 - d000 - d110 - d101 - d011);
+
+    result_type result;
+    result.noise = k0 + k1 * u + k2 * v + k3 * w + k4 * u * v + k5 * u * w + k6 * v * w + k7 * u * v * w;
+    result.derivative(0) = du * (k1 + k4 * v + k5 * w + k7 * v * w);
+    result.derivative(1) = dv * (k2 + k4 * u + k6 * w + k7 * v * w);
+    result.derivative(2) = dw * (k3 + k5 * u + k6 * v + k7 * v * w);
+
+    return result;
   }
 
   typedef perlin_engine<float, 1, 256> Perlin1f;
