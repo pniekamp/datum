@@ -349,7 +349,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
    state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
 #endif
 
-    state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
+//    state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
 
     state.camera = normalise(state.camera);
 
@@ -593,9 +593,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
         //objects.push_water(buildstate, Transform::translation(0, 0.7f, 0), state.testplane, state.defaultmaterial, state.skybox, Vec2(0.1f));
 
-        //objects.push_translucent(buildstate, Transform::translation(0, 0.7f, 0), state.testplane, state.floormaterial, 0.9f);
+        objects.push_opaque(buildstate, Transform::translation(-1.5f, 0.7f, 0), state.suzanne, state.suzannematerial);
+        objects.push_translucent(buildstate, Transform::translation(1.5f, 0.7f, 0), state.suzanne, state.suzannematerial, 0.8f);
 
-        objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), Plane(Vec3(0.0f, 1.0f, 0.0f), -height), density, startdistance, falloff);
+        //objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), Plane(Vec3(0.0f, 1.0f, 0.0f), -height), density, startdistance, falloff);
 
         objects.finalise(buildstate);
       }
@@ -738,8 +739,10 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderparams.sundirection = state.readframe->sundirection;
     renderparams.sunintensity = state.readframe->sunintensity;
 //    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
+    renderparams.fogdensity = 0.0f;
     renderparams.ssrstrength = 1.0f;
 
+    DEBUG_MENU_VALUE("Lighting/Fog Strength", &renderparams.fogdensity, 0.0f, 10.0f)
     DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f)
     DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f)
 

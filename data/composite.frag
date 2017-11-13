@@ -26,8 +26,8 @@ layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
 layout(set=0, binding=6) uniform sampler2D depthmipmap;
 layout(set=0, binding=12) uniform sampler2D ssaomap;
-layout(set=0, binding=21) uniform sampler2D bloommap;
-layout(set=0, binding=23) uniform sampler2D ssrmap;
+layout(set=0, binding=27) uniform sampler2D bloommap;
+layout(set=0, binding=29) uniform sampler2D ssrmap;
 
 layout(location=0) in vec2 texcoord;
 

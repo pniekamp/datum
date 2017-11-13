@@ -69,17 +69,24 @@ enum ShaderLocation
   envmaps = 15,
   spotmaps = 16,
   decalmaps = 17,
-  ssaobuf = 18,
-  ssaoprevmap = 19,
-  ssaotarget = 20,
-  scratchmap0 = 21,
-  scratchmap1 = 22,
-  scratchmap2 = 23,
-  scratchmap3 = 24,
-  scratchtarget0 = 25,
-  scratchtarget1 = 26,
-  scratchtarget2 = 27,
-  lumabuf = 28,
+  fogmap = 18,
+  esmmap = 19,
+  esmtarget = 20,
+  ssaobuf = 21,
+  ssaoprevmap = 22,
+  ssaotarget = 23,
+  fogdensitymap = 24,
+  fogdensitytarget = 25,
+  fogscattertarget = 26,
+  scratchmap0 = 27,
+  scratchmap1 = 28,
+  scratchmap2 = 29,
+  scratchmap3 = 30,
+  scratchtarget0 = 31,
+  scratchtarget1 = 32,
+  scratchtarget2 = 33,
+  scratchtarget3 = 34,
+  lumabuf = 35,
 
   // Constant Ids
 
@@ -101,13 +108,18 @@ enum ShaderLocation
   BloomBlurRadius = 84,
   BloomBlurSigma = 85,
 
-  ColorCutoff = 81,
   ColorBlurRadius = 84,
   ColorBlurSigma = 85,
 
   DepthOfField = 26,
 
   DepthMipLayer = 23,
+
+  ESMBlurRadius = 84,
+
+  FogVolumeX = 16,
+  FogVolumeY = 17,
+  FogVolumeZ = 18,
 
   SoftParticles = 28,
 
@@ -177,6 +189,7 @@ struct CameraView
   alignas( 4) float skyboxlod;
   alignas( 4) float ssrstrength;
   alignas( 4) float bloomstrength;
+  alignas(16) Vec4 fogdensity;
   alignas( 4) uint32_t frame;
 };
 
@@ -238,6 +251,18 @@ static struct ComputeConstants
   uint32_t ClusterDispatch[3] = { ClusterTileX, ClusterTileY, 1 };
 
   uint32_t DepthMipDispatch[3] = { 16, 16, 1 };
+  uint32_t DepthMipSizeX = DepthMipDispatch[0];
+  uint32_t DepthMipSizeY = DepthMipDispatch[1];
+
+  uint32_t ESMGenDispatch[3] = { 16, 16, 1 };
+  uint32_t ESMGenSizeX = ESMGenDispatch[0];
+  uint32_t ESMGenSizeY = ESMGenDispatch[1];
+
+  uint32_t ESMBlurRadius = 2;
+  uint32_t ESMHBlurDispatch[3] = { 256, 1, 1 };
+  uint32_t ESMHBlurSize = ESMHBlurDispatch[0] + ESMBlurRadius + ESMBlurRadius;
+  uint32_t ESMVBlurDispatch[3] = { 1, 256, 1 };
+  uint32_t ESMVBlurSize = ESMVBlurDispatch[1] + ESMBlurRadius + ESMBlurRadius;
 
   uint32_t NoiseSize = extent<decltype(SSAOSet::noise)>::value;
   uint32_t KernelSize = extent<decltype(SSAOSet::kernel)>::value;
@@ -246,6 +271,20 @@ static struct ComputeConstants
   uint32_t SSAODispatch[3] = { 28, 28, 1 };
   uint32_t SSAOSizeX = SSAODispatch[0] + SSAORadius + SSAORadius;
   uint32_t SSAOSizeY = SSAODispatch[1] + SSAORadius + SSAORadius;
+
+  uint32_t FogVolumeX = 160;
+  uint32_t FogVolumeY = 90;
+  uint32_t FogVolumeZ = 64;
+
+  uint32_t FogDensityDispatch[3] = { 8, 4, 4 };
+  uint32_t FogDensitySizeX = FogDensityDispatch[0];
+  uint32_t FogDensitySizeY = FogDensityDispatch[1];
+  uint32_t FogDensitySizeZ = FogDensityDispatch[2];
+
+  uint32_t FogScatterDispatch[3] = { 8, 8, 1 };
+  uint32_t FogScatterSizeX = FogScatterDispatch[0];
+  uint32_t FogScatterSizeY = FogScatterDispatch[1];
+  uint32_t FogScatterSizeZ = FogScatterDispatch[2];
 
   uint32_t LightingDispatch[3] = { 16, 16, 1 };
   uint32_t LightingSizeX = LightingDispatch[0];
@@ -398,7 +437,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     typecounts[1].descriptorCount = 192;
     typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    typecounts[2].descriptorCount = 36;
+    typecounts[2].descriptorCount = 48;
     typecounts[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
     typecounts[3].descriptorCount = 3;
 
@@ -463,7 +502,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Scene Set
 
-    VkDescriptorSetLayoutBinding bindings[29] = {};
+    VkDescriptorSetLayoutBinding bindings[36] = {};
     bindings[0].binding = ShaderLocation::scenebuf;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -536,50 +575,78 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[17].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[17].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[17].descriptorCount = 16;
-    bindings[18].binding = ShaderLocation::ssaobuf;
-    bindings[18].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[18].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[18].binding = ShaderLocation::fogmap;
+    bindings[18].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[18].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[18].descriptorCount = 1;
-    bindings[19].binding = ShaderLocation::ssaoprevmap;
-    bindings[19].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[19].binding = ShaderLocation::esmmap;
+    bindings[19].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[19].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[19].descriptorCount = 1;
-    bindings[20].binding = ShaderLocation::ssaotarget;
+    bindings[20].binding = ShaderLocation::esmtarget;
     bindings[20].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[20].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[20].descriptorCount = 1;
-    bindings[21].binding = ShaderLocation::scratchmap0;
-    bindings[21].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[21].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[21].binding = ShaderLocation::ssaobuf;
+    bindings[21].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[21].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[21].descriptorCount = 1;
-    bindings[22].binding = ShaderLocation::scratchmap1;
-    bindings[22].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[22].binding = ShaderLocation::ssaoprevmap;
+    bindings[22].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[22].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[22].descriptorCount = 1;
-    bindings[23].binding = ShaderLocation::scratchmap2;
-    bindings[23].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[23].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[23].binding = ShaderLocation::ssaotarget;
+    bindings[23].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[23].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[23].descriptorCount = 1;
-    bindings[24].binding = ShaderLocation::scratchmap3;
-    bindings[24].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[24].binding = ShaderLocation::fogdensitymap;
+    bindings[24].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[24].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[24].descriptorCount = 1;
-    bindings[25].binding = ShaderLocation::scratchtarget0;
+    bindings[25].binding = ShaderLocation::fogdensitytarget;
     bindings[25].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[25].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[25].descriptorCount = 1;
-    bindings[26].binding = ShaderLocation::scratchtarget1;
+    bindings[26].binding = ShaderLocation::fogscattertarget;
     bindings[26].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[26].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[26].descriptorCount = 1;
-    bindings[27].binding = ShaderLocation::scratchtarget2;
-    bindings[27].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[27].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[27].binding = ShaderLocation::scratchmap0;
+    bindings[27].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[27].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[27].descriptorCount = 1;
-    bindings[28].binding = ShaderLocation::lumabuf;
-    bindings[28].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[28].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[28].binding = ShaderLocation::scratchmap1;
+    bindings[28].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[28].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[28].descriptorCount = 1;
+    bindings[29].binding = ShaderLocation::scratchmap2;
+    bindings[29].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[29].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[29].descriptorCount = 1;
+    bindings[30].binding = ShaderLocation::scratchmap3;
+    bindings[30].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[30].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[30].descriptorCount = 1;
+    bindings[31].binding = ShaderLocation::scratchtarget0;
+    bindings[31].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[31].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[31].descriptorCount = 1;
+    bindings[32].binding = ShaderLocation::scratchtarget1;
+    bindings[32].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[32].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[32].descriptorCount = 1;
+    bindings[33].binding = ShaderLocation::scratchtarget2;
+    bindings[33].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[33].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[33].descriptorCount = 1;
+    bindings[34].binding = ShaderLocation::scratchtarget3;
+    bindings[34].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[34].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    bindings[34].descriptorCount = 1;
+    bindings[35].binding = ShaderLocation::lumabuf;
+    bindings[35].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[35].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[35].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -2228,8 +2295,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     for(size_t i = 0; i < extentof(context.depthmippipeline); ++i)
     {
       VkSpecializationMapEntry specializationmap[3] = {};
-      specializationmap[0] = { ShaderLocation::SizeX, uint32_t(offsetof(ComputeConstants, DepthMipDispatch[0])), sizeof(ComputeConstants::DepthMipDispatch[0]) };
-      specializationmap[1] = { ShaderLocation::SizeY, uint32_t(offsetof(ComputeConstants, DepthMipDispatch[1])), sizeof(ComputeConstants::DepthMipDispatch[1]) };
+      specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, DepthMipSizeX), sizeof(ComputeConstants::DepthMipSizeX) };
+      specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, DepthMipSizeY), sizeof(ComputeConstants::DepthMipSizeY) };
       specializationmap[2] = { ShaderLocation::DepthMipLayer, uint32_t(offsetof(ComputeConstants, Layers) + i*sizeof(uint32_t)), sizeof(uint32_t) };
 
       VkSpecializationInfo specializationinfo = {};
@@ -2249,6 +2316,228 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
       context.depthmippipeline[i] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
     }
+  }
+
+  if (context.esmpipeline[0] == 0)
+  {
+    //
+    // ESM Gen Pipeline
+    //
+
+    auto cs = assets.find(CoreAsset::esm_gen_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets.request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[2] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, ESMGenSizeX), sizeof(ComputeConstants::ESMGenSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, ESMGenSizeY), sizeof(ComputeConstants::ESMGenSizeY) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+    pipelineinfo.stage.pName = "main";
+
+    context.esmpipeline[0] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.esmpipeline[1] == 0)
+  {
+    //
+    // ESM H-Blur Pipeline
+    //
+
+    auto cs = assets.find(CoreAsset::esm_hblur_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets.request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[2] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, ESMHBlurSize), sizeof(ComputeConstants::ESMHBlurSize) };
+    specializationmap[1] = { ShaderLocation::ESMBlurRadius, offsetof(ComputeConstants, ESMBlurRadius), sizeof(ComputeConstants::ESMBlurRadius) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+    pipelineinfo.stage.pName = "main";
+
+    context.esmpipeline[1] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.esmpipeline[2] == 0)
+  {
+    //
+    // ESM V-Blur Pipeline
+    //
+
+    auto cs = assets.find(CoreAsset::esm_vblur_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets.request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[2] = {};
+    specializationmap[0] = { ShaderLocation::SizeY, offsetof(ComputeConstants, ESMVBlurSize), sizeof(ComputeConstants::ESMVBlurSize) };
+    specializationmap[1] = { ShaderLocation::ESMBlurRadius, offsetof(ComputeConstants, ESMBlurRadius), sizeof(ComputeConstants::ESMBlurRadius) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+    pipelineinfo.stage.pName = "main";
+
+    context.esmpipeline[2] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.fogvolumepipeline[0] == 0)
+  {
+    //
+    // Volumetric Fog Density Pipeline
+    //
+
+    auto cs = assets.find(CoreAsset::fog_density_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets.request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[8] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, FogDensitySizeX), sizeof(ComputeConstants::FogDensitySizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, FogDensitySizeY), sizeof(ComputeConstants::FogDensitySizeY) };
+    specializationmap[2] = { ShaderLocation::SizeZ, offsetof(ComputeConstants, FogDensitySizeZ), sizeof(ComputeConstants::FogDensitySizeZ) };
+    specializationmap[3] = { ShaderLocation::FogVolumeX, offsetof(ComputeConstants, FogVolumeX), sizeof(ComputeConstants::FogVolumeX) };
+    specializationmap[4] = { ShaderLocation::FogVolumeY, offsetof(ComputeConstants, FogVolumeY), sizeof(ComputeConstants::FogVolumeY) };
+    specializationmap[5] = { ShaderLocation::FogVolumeZ, offsetof(ComputeConstants, FogVolumeZ), sizeof(ComputeConstants::FogVolumeZ) };
+    specializationmap[6] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[7] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+    pipelineinfo.stage.pName = "main";
+
+    context.fogvolumepipeline[0] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.fogvolumepipeline[1] == 0)
+  {
+    //
+    // Volumetric Fog Scatter Pipeline
+    //
+
+    auto cs = assets.find(CoreAsset::fog_scatter_comp);
+
+    if (!cs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto cssrc = assets.request(platform, cs);
+
+    if (!cssrc)
+      return false;
+
+    auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
+
+    VkSpecializationMapEntry specializationmap[8] = {};
+    specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, FogScatterSizeX), sizeof(ComputeConstants::FogScatterSizeX) };
+    specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, FogScatterSizeY), sizeof(ComputeConstants::FogScatterSizeY) };
+    specializationmap[2] = { ShaderLocation::SizeZ, offsetof(ComputeConstants, FogScatterSizeZ), sizeof(ComputeConstants::FogScatterSizeZ) };
+    specializationmap[3] = { ShaderLocation::FogVolumeX, offsetof(ComputeConstants, FogVolumeX), sizeof(ComputeConstants::FogVolumeX) };
+    specializationmap[4] = { ShaderLocation::FogVolumeY, offsetof(ComputeConstants, FogVolumeY), sizeof(ComputeConstants::FogVolumeY) };
+    specializationmap[5] = { ShaderLocation::FogVolumeZ, offsetof(ComputeConstants, FogVolumeZ), sizeof(ComputeConstants::FogVolumeZ) };
+    specializationmap[6] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[7] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkComputePipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineinfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineinfo.stage.module = csmodule;
+    pipelineinfo.stage.pSpecializationInfo = &specializationinfo;
+    pipelineinfo.stage.pName = "main";
+
+    context.fogvolumepipeline[1] = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.lightingpipeline == 0)
@@ -2836,7 +3125,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.translucentblendpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
-  if (context.fogpipeline == 0)
+  if (context.fogplanepipeline == 0)
   {
     //
     // Fog Pipeline
@@ -2955,7 +3244,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.fogpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+    context.fogplanepipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.oceanpipeline == 0)
@@ -4998,6 +5287,8 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
       context.shadows.shadowmap.sampler = create_sampler(context.vulkan, shadowsamplerinfo);
 
+      context.esmshadowbuffer = create_texture(context.vulkan, setupbuffer, context.shadows.width/4, context.shadows.height/4, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+
       //
       // Shadow Frame Buffer
       //
@@ -5194,6 +5485,17 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     context.ssaoscale = params.ssaoscale;
 
     //
+    // Volumetric Fog
+    //
+
+    for(size_t i = 0; i < extentof(context.fogvolumebuffers); ++i)
+    {
+      context.fogvolumebuffers[i] = create_texture(context.vulkan, setupbuffer, computeconstants.FogVolumeX, computeconstants.FogVolumeY, computeconstants.FogVolumeZ, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_3D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+      clear(setupbuffer, context.fogvolumebuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(0.0, 0.0, 0.0, 1.0));
+    }
+
+    //
     // Scene Descriptor
     //
 
@@ -5234,6 +5536,9 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::depthmiptarget, context.depthmipviews[5], VK_IMAGE_LAYOUT_GENERAL, 5);
       bind_attachment(context.vulkan, context.framedescriptors[i], ShaderLocation::depthattachment, context.depthbuffer.imageview, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::esmmap, context.esmshadowbuffer);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::esmtarget, context.esmshadowbuffer);
+
       bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::ssaomap, context.ssaobuffers[i]);
       bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::shadowmap, context.shadows.shadowmap);
       bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::envbrdf, context.envbrdf);
@@ -5241,6 +5546,11 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bind_buffer(context.vulkan, context.framedescriptors[i], ShaderLocation::ssaobuf, context.ssaoset, 0, sizeof(SSAOSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
       bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::ssaoprevmap, context.ssaobuffers[i ^ 1]);
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::ssaotarget, context.ssaobuffers[i]);
+
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::fogmap, context.fogvolumebuffers[i]);
+      bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::fogdensitymap, context.fogvolumebuffers[i ^ 1]);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::fogdensitytarget, context.fogvolumebuffers[i ^ 1]);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::fogscattertarget, context.fogvolumebuffers[i]);
 
       bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::scratchmap0, context.scratchbuffers[0]);
       bind_texture(context.vulkan, context.framedescriptors[i], ShaderLocation::scratchmap1, context.scratchbuffers[1]);
@@ -5250,6 +5560,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::scratchtarget0, context.scratchbuffers[0]);
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::scratchtarget1, context.scratchbuffers[1]);
       bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::scratchtarget2, context.scratchbuffers[2]);
+      bind_image(context.vulkan, context.framedescriptors[i], ShaderLocation::scratchtarget3, context.scratchbuffers[3]);
 
       bind_buffer(context.vulkan, context.framedescriptors[i], ShaderLocation::lumabuf, context.transferbuffer, 0, sizeof(LumaSet), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
@@ -5521,6 +5832,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   sceneset.camera.skyboxlod = params.skyboxlod;
   sceneset.camera.ssrstrength = params.ssrstrength;
   sceneset.camera.bloomstrength = params.bloomstrength;
+  sceneset.camera.fogdensity = Vec4(params.fogattenuation, params.fogdensity);
   sceneset.camera.frame = context.frame;
 
   sceneset.mainlight.direction = params.sundirection;
@@ -5752,6 +6064,23 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.shadowpass);
 
+  if (params.fogdensity != 0)
+  {
+    // ESM Downsample
+
+    bind_pipeline(commandbuffer, context.esmpipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.esmshadowbuffer, context.esmshadowbuffer.width, context.esmshadowbuffer.height, 1, computeconstants.ESMGenDispatch);
+
+    bind_pipeline(commandbuffer, context.esmpipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.scratchbuffers[3], context.esmshadowbuffer.width, context.esmshadowbuffer.height, 1, computeconstants.ESMHBlurDispatch);
+
+    bind_pipeline(commandbuffer, context.esmpipeline[2], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.esmshadowbuffer, context.esmshadowbuffer.width, context.esmshadowbuffer.height, 1, computeconstants.ESMVBlurDispatch);
+  }
+
   querytimestamp(commandbuffer, context.timingquerypool, 1);
 
   //
@@ -5824,18 +6153,33 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     bind_pipeline(commandbuffer, context.ssaopipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.ssaobuffers[context.frame & 1], computeconstants.SSAODispatch);
+    dispatch(commandbuffer, context.ssaobuffers[context.frame & 1], context.ssaobuffers[context.frame & 1].width, context.ssaobuffers[context.frame & 1].height, 1, computeconstants.SSAODispatch);
   }
 
   querytimestamp(commandbuffer, context.timingquerypool, 5);
 
   barrier(commandbuffer, context.sceneset, 0, context.sceneset.size);
 
-  bind_pipeline(commandbuffer, context.lightingpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+  if (params.fogdensity != 0)
+  {
+    // Volumetric Fog
 
-  dispatch(commandbuffer, context.colorbuffer, computeconstants.LightingDispatch);
+    bind_pipeline(commandbuffer, context.fogvolumepipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.fogvolumebuffers[(context.frame & 1) ^ 1], computeconstants.FogVolumeX, computeconstants.FogVolumeY, computeconstants.FogVolumeZ, computeconstants.FogDensityDispatch);
+
+    bind_pipeline(commandbuffer, context.fogvolumepipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
+
+    dispatch(commandbuffer, context.fogvolumebuffers[context.frame & 1], computeconstants.FogVolumeX, computeconstants.FogVolumeY, 1, computeconstants.FogScatterDispatch);
+  }
 
   querytimestamp(commandbuffer, context.timingquerypool, 6);
+
+  bind_pipeline(commandbuffer, context.lightingpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
+
+  dispatch(commandbuffer, context.colorbuffer, context.colorbuffer.width, context.colorbuffer.height, 1, computeconstants.LightingDispatch);
+
+  querytimestamp(commandbuffer, context.timingquerypool, 7);
 
   //
   // Forward
@@ -5865,9 +6209,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     }
 
     end(context.vulkan, forwardcommands[0]);
-  }
 
-  execute(commandbuffer, forwardcommands[0]);
+    execute(commandbuffer, forwardcommands[0]);
+  }
 
   nextsubpass(commandbuffer, context.forwardpass);
 
@@ -5931,7 +6275,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.forwardpass);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 7);
+  querytimestamp(commandbuffer, context.timingquerypool, 8);
 
   //
   // Color Blur
@@ -5948,7 +6292,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     dispatch(commandbuffer, context.colorbuffer, context.colorbuffer.width/2, context.colorbuffer.height/2, 1, computeconstants.ColorVBlurDispatch);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 8);
+  querytimestamp(commandbuffer, context.timingquerypool, 9);
 
   //
   // SSR
@@ -5965,10 +6309,10 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
     bind_pipeline(commandbuffer, context.ssrpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.scratchbuffers[2], computeconstants.SSRDispatch);
+    dispatch(commandbuffer, context.scratchbuffers[2], context.scratchbuffers[2].width, context.scratchbuffers[2].height, 1, computeconstants.SSRDispatch);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 9);
+  querytimestamp(commandbuffer, context.timingquerypool, 10);
 
   //
   // Luminance
@@ -5978,7 +6322,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   dispatch(commandbuffer, 1, 1, 1);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 10);
+  querytimestamp(commandbuffer, context.timingquerypool, 11);
 
   //
   // Bloom
@@ -5988,18 +6332,18 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   {
     bind_pipeline(commandbuffer, context.bloompipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.scratchbuffers[0], computeconstants.BloomLumaDispatch);
+    dispatch(commandbuffer, context.scratchbuffers[0], context.scratchbuffers[0].width, context.scratchbuffers[0].height, 1, computeconstants.BloomLumaDispatch);
 
     bind_pipeline(commandbuffer, context.bloompipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.scratchbuffers[1], computeconstants.BloomHBlurDispatch);
+    dispatch(commandbuffer, context.scratchbuffers[1], context.scratchbuffers[1].width, context.scratchbuffers[1].height, 1, computeconstants.BloomHBlurDispatch);
 
     bind_pipeline(commandbuffer, context.bloompipeline[2], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.scratchbuffers[0], computeconstants.BloomVBlurDispatch);
+    dispatch(commandbuffer, context.scratchbuffers[0], context.scratchbuffers[0].width, context.scratchbuffers[0].height, 1, computeconstants.BloomVBlurDispatch);
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 11);
+  querytimestamp(commandbuffer, context.timingquerypool, 12);
 
   //
   // Overlay
@@ -6036,7 +6380,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   endpass(commandbuffer, context.overlaypass);
 
-  querytimestamp(commandbuffer, context.timingquerypool, 12);
+  querytimestamp(commandbuffer, context.timingquerypool, 13);
 
   //
   // Blit
@@ -6051,7 +6395,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
     setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
   }
 
-  querytimestamp(commandbuffer, context.timingquerypool, 13);
+  querytimestamp(commandbuffer, context.timingquerypool, 14);
 
   barrier(commandbuffer);
 
@@ -6074,21 +6418,22 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Timing Queries
 
   uint64_t timings[16];
-  retreive_querypool(context.vulkan, context.timingquerypool, 0, 14, timings);
+  retreive_querypool(context.vulkan, context.timingquerypool, 0, 15, timings);
 
   GPU_TIMED_BLOCK(Shadows, Color3(0.0f, 0.4f, 0.0f), timings[0], timings[1])
   GPU_TIMED_BLOCK(PrePass, Color3(0.4f, 0.2f, 0.4f), timings[1], timings[2])
   GPU_TIMED_BLOCK(Geometry, Color3(0.4f, 0.0f, 0.4f), timings[2], timings[3])
   GPU_TIMED_BLOCK(Cluster, Color3(0.5f, 0.5f, 0.1f), timings[3], timings[4])
   GPU_TIMED_BLOCK(SSAO, Color3(0.2f, 0.8f, 0.2f), timings[4], timings[5])
-  GPU_TIMED_BLOCK(Lighting, Color3(0.0f, 0.6f, 0.4f), timings[5], timings[6])
-  GPU_TIMED_BLOCK(Forward, Color3(0.2f, 0.3f, 0.6f), timings[6], timings[7])
-  GPU_TIMED_BLOCK(Blur, Color3(0.2f, 0.5f, 0.2f), timings[7], timings[8])
-  GPU_TIMED_BLOCK(SSR, Color3(0.0f, 0.4f, 0.8f), timings[8], timings[9])
-  GPU_TIMED_BLOCK(Luminance, Color3(0.8f, 0.4f, 0.2f), timings[9], timings[10])
-  GPU_TIMED_BLOCK(Bloom, Color3(0.5f, 0.2f, 0.6f), timings[10], timings[11])
-  GPU_TIMED_BLOCK(Overlay, Color3(0.4f, 0.4f, 0.0f), timings[11], timings[12])
-  GPU_TIMED_BLOCK(Blit, Color3(0.4f, 0.4f, 0.4f), timings[12], timings[13])
+  GPU_TIMED_BLOCK(Fog, Color3(0.0f, 0.2f, 0.2f), timings[5], timings[6])
+  GPU_TIMED_BLOCK(Lighting, Color3(0.0f, 0.6f, 0.4f), timings[6], timings[7])
+  GPU_TIMED_BLOCK(Forward, Color3(0.2f, 0.3f, 0.6f), timings[7], timings[8])
+  GPU_TIMED_BLOCK(Blur, Color3(0.2f, 0.5f, 0.2f), timings[8], timings[9])
+  GPU_TIMED_BLOCK(SSR, Color3(0.0f, 0.4f, 0.8f), timings[9], timings[10])
+  GPU_TIMED_BLOCK(Luminance, Color3(0.8f, 0.4f, 0.2f), timings[10], timings[11])
+  GPU_TIMED_BLOCK(Bloom, Color3(0.5f, 0.2f, 0.6f), timings[11], timings[12])
+  GPU_TIMED_BLOCK(Overlay, Color3(0.4f, 0.4f, 0.0f), timings[12], timings[13])
+  GPU_TIMED_BLOCK(Blit, Color3(0.4f, 0.4f, 0.4f), timings[13], timings[14])
 
   GPU_SUBMIT();
 

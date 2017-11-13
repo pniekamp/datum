@@ -74,8 +74,6 @@ void main()
 
   vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, bumpscale)); 
   vec3 eyevec = normalize(scene.camera.position - position);
-  
-  normal = normalize(normal - min(dot(normal, eyevec), 0) * eyevec);
 
   float dist = texelFetch(depthmipmap, xy/2, 0).g - view_depth(scene.proj, gl_FragCoord.z);
 

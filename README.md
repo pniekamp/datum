@@ -20,6 +20,7 @@
 - Water and FFT Ocean
 - Skeletal Animation
 - Deferred Decals
+- Volumetric Fog
 - Entity-Component Scene Management
 
 ![Datum](/bin/datumtest.png?raw=true "Datum")

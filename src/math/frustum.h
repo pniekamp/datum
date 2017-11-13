@@ -24,7 +24,7 @@ namespace lml
   {
     public:
       Frustum() = default;
-      Frustum(Vec3 corners[8]);
+      Frustum(Vec3 const (&corners)[8]);
 
       static Frustum perspective(float fov, float aspect, float znear, float zfar);
       static Frustum perspective(float left, float bottom, float right, float top, float znear, float zfar);
@@ -38,7 +38,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::Constructor ////////////////////////////
-  inline Frustum::Frustum(Vec3 corners[8])
+  inline Frustum::Frustum(Vec3 const (&corners)[8])
     : corners{corners[0], corners[1], corners[2], corners[3], corners[4], corners[5], corners[6], corners[7]}
   {
     planes[0] = Plane(corners[2], corners[1], corners[0]); // Near

@@ -25,16 +25,16 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 layout(set=0, binding=4) uniform sampler2D normalmap;
 layout(set=0, binding=5) uniform sampler2D depthmap;
 
-layout(set=0, binding=18, std430, row_major) readonly buffer SSAOParams
+layout(set=0, binding=21, std430, row_major) readonly buffer SSAOParams
 {
   vec3 noise[NoiseSize];
   vec3 kernel[KernelSize];
 
 } params;
 
-layout(set=0, binding=19) uniform sampler2D prevmap;
+layout(set=0, binding=22) uniform sampler2D prevmap;
 
-layout(set=0, binding=20) writeonly uniform image2D dest;
+layout(set=0, binding=23) writeonly uniform image2D dest;
 
 const float OcclusionRadius = 0.35;
 const float OcclusionPower = 1.5;
@@ -57,7 +57,7 @@ void main()
   ivec2 xy = ivec2(gl_WorkGroupID.x * SizeX + ij.x - Radius, gl_WorkGroupID.y * SizeY + ij.y - Radius);
   vec2 viewport = imageSize(dest);
 
-  vec2 texcoord = vec2(xy + 0.5) / viewport;
+  vec2 texcoord = (vec2(xy) + 0.5) / viewport;
 
 #if 0  // FULLRES
   float depth = texelFetch(depthmap, xy, 0).r;

@@ -1,0 +1,48 @@
+#version 440 core
+
+layout(local_size_y = 256) in;
+layout(local_size_y_id = 2) in;
+
+layout(constant_id = 84) const uint Radius = 16;
+
+const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
+
+layout(set=0, binding=30) uniform sampler2D src;
+
+layout(set=0, binding=20) writeonly uniform image2D dest;
+
+shared vec3 texels[SizeY + Radius + Radius];
+
+///////////////////////// blur //////////////////////////////////////////////
+vec3 blur(uint k)
+{
+  vec3 avg = texels[k];
+  float weight = 1;
+
+  for(uint i = 1; i <= Radius; ++i)
+  {
+    avg += texels[k + i];
+    avg += texels[k - i];
+    weight += 2;
+  }
+  
+  return avg / weight;
+}
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  gl_WorkGroupSize;
+  ivec2 ij = ivec2(gl_LocalInvocationID.xy);
+  ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * SizeY);
+  ivec2 viewport = imageSize(dest);
+  
+  texels[ij.y] = texelFetch(src, ivec2(tile.x + ij.x, clamp(tile.y + ij.y - int(Radius), 0, viewport.y - 1)), 0).rgb;
+  
+  barrier();
+  
+  if (ij.y < SizeY)
+  {  
+    imageStore(dest, tile + ij, vec4(blur(ij.y + Radius), 1));
+  }
+}

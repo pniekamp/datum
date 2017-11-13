@@ -1018,7 +1018,6 @@ void Window::mousemove(xcb_motion_notify_event_t const *event)
 }
 
 
-
 //|//////////////////// Window::show ////////////////////////////////////////
 void Window::show()
 {

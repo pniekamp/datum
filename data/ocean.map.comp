@@ -71,8 +71,8 @@ void main()
   {
     vec3 l = displacements[ij.y][ij.x-1];
     vec3 r = displacements[ij.y][ij.x+1];
-    vec3 t = displacements[ij.y+1][ij.x];
-    vec3 b = displacements[ij.y-1][ij.x];
+    vec3 t = displacements[ij.y-1][ij.x];
+    vec3 b = displacements[ij.y+1][ij.x];
     
     vec3 normal = normalize(vec3(l.z - r.z, t.z - b.z, 3 / (params.scale * WaveResolution)));
   

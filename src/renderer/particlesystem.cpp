@@ -164,7 +164,7 @@ Distribution<lml::Color4> make_colorfade_distribution(Color4 const &basecolor, f
   {
     auto fade = 1.0f - clamp(i / ((1-startfade) * (extentof(distribution.table) - 2)) - startfade/(1-startfade), 0.0f, 1.0f);
 
-    distribution.table[i] = basecolor * fade;
+    distribution.table[i] = Color4(basecolor.rgb, basecolor.a * fade);
   }
 
   return distribution;

@@ -47,6 +47,7 @@ layout(set=0, binding=14) uniform sampler2DArray envbrdfmap;
 layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
 layout(set=0, binding=16) uniform sampler2DShadow spotmaps[MaxSpotLights];
 layout(set=0, binding=17) uniform sampler2DArray decalmaps[MaxDecalMaps];
+layout(set=0, binding=18) uniform sampler3D fogmap;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -109,8 +110,10 @@ void main()
   ivec2 xy = ivec2(gl_FragCoord.xy);
   ivec2 viewport = textureSize(colormap, 0).xy;
 
+  float depth = gl_FragCoord.z;
+
   uint tile = cluster_tile(xy, viewport);
-  uint tilez = cluster_tilez(gl_FragCoord.z);
+  uint tilez = cluster_tilez(depth);
 
   vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
   vec3 eyevec = normalize(scene.camera.position - position);
@@ -144,7 +147,7 @@ void main()
         { 
           vec3 texcoord = vec3(decal.texcoords.xy + decal.texcoords.zw * (0.5 * localpos.xy + 0.5), decal.layer);
           
-          float lod = 0.25 * (decal.texcoords.z * textureSize(decalmaps[decal.albedomap], 0).x) / (decal.halfdim.x * viewport.x) * view_depth(scene.proj, gl_FragCoord.z) - 0.5;
+          float lod = 0.25 * (decal.texcoords.z * textureSize(decalmaps[decal.albedomap], 0).x) / (decal.halfdim.x * viewport.x) * view_depth(scene.proj, depth) - 0.5;
 
           vec4 decalalbedo = textureLod(decalmaps[decal.albedomap], texcoord, lod);
           vec4 decalnormal = textureLod(decalmaps[decal.normalmap], texcoord, lod);
@@ -247,8 +250,14 @@ void main()
       }
     }
   }
+  
+  vec4 fog = global_fog(xy, viewport, view_depth(scene.proj, depth), fogmap);
 
-  fragcolor = vec4(scene.camera.exposure * ((diffuse + material.emissive) * material.diffuse + specular), 0);
+  vec3 color = ((diffuse + material.emissive) * material.diffuse + specular) * fog.a + fog.rgb;
+
+  // Output
+
+  fragcolor = vec4(scene.camera.exposure * color, 0);
   fragspecular = vec4(material.specular, material.roughness);
   fragnormal = vec4(0.5 * normal + 0.5, DecalMask/3.0+0.01);
 }

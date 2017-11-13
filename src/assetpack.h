@@ -64,7 +64,7 @@ struct PackCatalogPayload
   static auto stringstable(void const *bits, int entrycount) { return reinterpret_cast<char const *>((size_t)bits + sizeof(PackCatalogPayload) + entrycount*sizeof(Entry)); }
 };
 
-constexpr size_t pack_payload_size(PackCalalogHeader const &catl)
+inline size_t pack_payload_size(PackCalalogHeader const &catl)
 {
   return catl.length;
 }
@@ -80,7 +80,7 @@ struct PackTextPayload
 // char string[length];
 };
 
-constexpr size_t pack_payload_size(PackTextHeader const &text)
+inline size_t pack_payload_size(PackTextHeader const &text)
 {
   return text.length;
 }
@@ -103,7 +103,7 @@ struct PackImagePayload
 // uint32_t image[levels][layers][height][width];
 };
 
-constexpr size_t pack_payload_size(PackImageHeader const &imag)
+inline size_t pack_payload_size(PackImageHeader const &imag)
 {
   return imag.datasize;
 }
@@ -189,7 +189,7 @@ struct PackFontPayload
   static auto advancetable(void const *bits, int glyphcount) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(PackFontPayload) + 6*glyphcount*sizeof(uint16_t)); }
 };
 
-constexpr size_t pack_payload_size(PackFontHeader const &font)
+inline size_t pack_payload_size(PackFontHeader const &font)
 {
   return sizeof(PackFontPayload) + 6*font.glyphcount*sizeof(uint16_t) + font.glyphcount*font.glyphcount*sizeof(uint8_t);
 }
@@ -212,7 +212,7 @@ struct PackMaterialPayload
   uint32_t normalmap;
 };
 
-constexpr size_t pack_payload_size(PackMaterialHeader const &matl)
+inline size_t pack_payload_size(PackMaterialHeader const &matl)
 {
   return sizeof(PackMaterialPayload);
 }
@@ -249,7 +249,7 @@ struct PackAnimationPayload
   static auto transformtable(void const *bits, int jointcount, int transformcount) { return reinterpret_cast<Transform const *>((size_t)bits + sizeof(PackAnimationPayload) + jointcount*sizeof(Joint)); }
 };
 
-constexpr size_t pack_payload_size(PackAnimationHeader const &anim)
+inline size_t pack_payload_size(PackAnimationHeader const &anim)
 {
   return sizeof(PackAnimationPayload) + anim.jointcount*sizeof(PackAnimationPayload::Joint) + anim.transformcount*sizeof(PackAnimationPayload::Transform);
 }
@@ -275,7 +275,7 @@ struct PackParticleSystemPayload
 void pack(std::vector<uint8_t> &bits, class ParticleEmitter const &emitter);
 void unpack(class ParticleEmitter &emitter, void const *bits, size_t &cursor);
 
-constexpr size_t pack_payload_size(PackParticleSystemHeader const &part)
+inline size_t pack_payload_size(PackParticleSystemHeader const &part)
 {
   return sizeof(PackParticleSystemPayload) + part.emitterssize;
 }
@@ -337,7 +337,7 @@ struct PackModelPayload
   static auto instancetable(void const *bits, int texturecount, int materialcount, int meshcount, int instancecount) { return reinterpret_cast<Instance const *>((size_t)bits + sizeof(PackModelPayload) + texturecount*sizeof(Texture) + materialcount*sizeof(Material) + meshcount*sizeof(Mesh)); }
 };
 
-constexpr size_t pack_payload_size(PackModelHeader const &modl)
+inline size_t pack_payload_size(PackModelHeader const &modl)
 {
   return sizeof(PackModelPayload) + modl.texturecount*sizeof(PackModelPayload::Texture) + modl.materialcount*sizeof(PackModelPayload::Material) + modl.meshcount*sizeof(PackModelPayload::Mesh) + modl.instancecount*sizeof(PackModelPayload::Instance);
 }

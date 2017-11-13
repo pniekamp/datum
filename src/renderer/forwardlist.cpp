@@ -702,7 +702,7 @@ void ForwardList::push_fogplane(ForwardList::BuildState &state, Color4 const &co
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  push_command(state, state.colorcommand, bind_pipeline_command(context.fogpipeline));
+  push_command(state, state.colorcommand, bind_pipeline_command(context.fogplanepipeline));
 
   push_command(state, state.colorcommand, bind_vertexbuffer_command(0, context.unitquad));
 

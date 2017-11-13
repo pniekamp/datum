@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 36;
+  const uint32_t version = 37;
 
   enum
   {
@@ -47,6 +47,11 @@ namespace CoreAsset
     foilage_geometry_vert,
     foilage_spotmap_vert,
     depth_mip_comp,
+    esm_gen_comp,
+    esm_hblur_comp,
+    esm_vblur_comp,
+    fog_density_comp,
+    fog_scatter_comp,
     ssao_comp,
     envbrdf_lut,
     lighting_comp,

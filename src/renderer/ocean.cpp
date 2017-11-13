@@ -637,7 +637,7 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
 
   bind_pipeline(commandbuffer, context.pipeline[3], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  dispatch(commandbuffer, context.displacementmap, computeconstants.DisplacementDispatch);
+  dispatch(commandbuffer, context.displacementmap, context.displacementmap.width, context.displacementmap.height, 1, computeconstants.DisplacementDispatch);
 
   bind_pipeline(commandbuffer, context.pipeline[4], VK_PIPELINE_BIND_POINT_COMPUTE);
 

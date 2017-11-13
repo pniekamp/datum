@@ -29,15 +29,19 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
+layout(set=0, binding=1) uniform sampler2D colormap;
 layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=18) uniform sampler3D fogmap;
 
 layout(location=0) in vec3 texcoord;
 
 layout(location=0) out vec4 fragcolor;
 
 void main()
-{ 
+{
   vec3 skycolor = textureLod(envmaps[scene.environmentcount-1], texcoord, scene.camera.skyboxlod).rgb;
   
-  fragcolor = vec4(scene.camera.exposure * skycolor, 0);
+  vec4 fog = global_fog(vec3(gl_FragCoord.xy / textureSize(colormap, 0).xy, 1.0), fogmap);
+
+  fragcolor = vec4(scene.camera.exposure * (skycolor * fog.a + fog.rgb), 0);
 }

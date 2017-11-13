@@ -45,10 +45,10 @@ namespace leap
       pathstring(std::string const &path);
       explicit pathstring(std::string const &base, std::string const &path);
 
-      operator const std::string() const { return m_path; }
+      operator std::string const &() const { return m_path; }
 
       const char *c_str() const { return m_path.c_str(); }
-      const std::string &path() const { return m_path; }
+      std::string const &path() const { return m_path; }
 
       std::string base() const;
       std::string name() const;

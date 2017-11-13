@@ -1,0 +1,192 @@
+#version 440 core
+#include "bound.glsl"
+#include "camera.glsl"
+#include "gbuffer.glsl"
+#include "transform.glsl"
+#include "lighting.glsl"
+
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+layout(local_size_x_id = 1, local_size_y_id = 2, local_size_z_id = 3) in;
+
+layout(constant_id = 16) const uint FogVolumeX = 160;
+layout(constant_id = 17) const uint FogVolumeY = 90;
+layout(constant_id = 18) const uint FogVolumeZ = 64;
+
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 worldview;
+  mat4 prevview;
+  mat4 skyview;
+  vec4 viewport;
+
+  Camera camera;
+
+  MainLight mainlight;
+
+  uint environmentcount;
+  Environment environments[MaxEnvironments];
+
+  uint pointlightcount;
+  PointLight pointlights[MaxPointLights];
+
+  uint spotlightcount;
+  SpotLight spotlights[MaxSpotLights];
+
+  uint probecount;
+  Probe probes[MaxProbes];
+  
+  uint decalcount;
+  Decal decals[MaxDecals];
+
+  Cluster cluster[];
+  
+} scene;
+
+layout(set=0, binding=1) uniform sampler2D colormap;
+layout(set=0, binding=5) uniform sampler2D depthmap;
+layout(set=0, binding=18) uniform sampler3D prevmap;
+layout(set=0, binding=19) uniform sampler2D esmmap;
+
+layout(set=0, binding=25) writeonly uniform image3D dest;
+
+const vec3 Albedo = vec3(0.6, 0.6, 0.5);
+const float Scattering = 0.0015;
+
+///////////////////////// cell_xy ///////////////////////////////////////////
+vec2 cell_xy(ivec3 xyz)
+{
+  return (2.0 / vec2(FogVolumeX, FogVolumeY)) * (vec2(xyz.xy) + 0.5) - 1.0;
+}
+
+///////////////////////// cell_depth ////////////////////////////////////////
+float cell_depth(ivec3 xyz)
+{
+  return pow((float(xyz.z) + 0.5) * (1.0 / FogVolumeZ), FogDepthExponent) * FogDepthRange;
+}
+
+///////////////////////// view_position /////////////////////////////////////
+vec3 view_position(vec2 xy, float depth)
+{
+  return vec3(scene.invproj[0][0] * xy.x, scene.invproj[1][1] * xy.y, -1) * depth;
+}
+
+///////////////////////// world_position ////////////////////////////////////
+vec3 world_position(vec2 xy, float depth)
+{
+  return (scene.invview * vec4(view_position(xy, depth), 1)).xyz;
+}
+
+///////////////////////// mainlight_shadow //////////////////////////////////
+float mainlight_shadow(MainLight mainlight, vec3 position)
+{
+  const int slice = 2;
+  
+  vec4 shadowspace = scene.mainlight.shadowview[slice] * vec4(position, 1);
+
+  vec4 texel = vec4(0.5 * shadowspace.xy + 0.5, slice, shadowspace.z);
+
+  if (texel.x > 0.0 && texel.x < 1.0 && texel.y > 0.0 && texel.y < 1.0 && texel.w > 0.0 && texel.w < 1.0)
+  { 
+    return pow(clamp(exp(-shadowspace.z * 30) * texture(esmmap, texel.xy).r * 1.1 - 0.1, 0, 1), 4);
+  }
+  
+  return 1;
+}
+
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  gl_WorkGroupSize;
+  ivec3 xyz = ivec3(gl_GlobalInvocationID.xyz);
+  ivec2 viewport = textureSize(colormap, 0).xy;
+  
+  vec3 cellpos = vec3(cell_xy(xyz), cell_depth(xyz));
+   
+  uint tile = cluster_tile(0.5 * cellpos.xy + 0.5, viewport);
+  uint tilez = cluster_tilez(proj_depth(scene.proj, -cellpos.z));
+
+  vec3 position = world_position(cellpos.xy, cellpos.z);
+
+  float density = scene.camera.fogdensity.a * exp(-max(dot(scene.camera.fogdensity.xyz, position), 0));
+
+  float thickness = cell_depth(xyz + ivec3(0, 0, 1)) - cellpos.z;
+  
+  float scattering = Scattering * (0.1f + density) * thickness;
+  float absorbtion = 0.0f * thickness;
+
+  vec3 lighting = vec3(0);
+  
+  //
+  // Main Light
+  //
+
+  MainLight mainlight = scene.mainlight;
+
+  float mainlightshadow = mainlight_shadow(mainlight, position);
+  
+  lighting += mainlight.intensity * mainlightshadow;
+
+  //
+  // Point Lights
+  //
+  
+  for(uint jm = scene.cluster[tile].pointlightmask[tilez], j = findLSB(jm); jm != 0; jm ^= (1 << j), j = findLSB(jm))
+  {
+    for(uint im = scene.cluster[tile].pointlightmasks[tilez][j], i = findLSB(im); im != 0; im ^= (1 << i), i = findLSB(im))
+    {
+      PointLight light = scene.pointlights[(j << 5) + i];
+      
+      float lightdistance = length(light.position - position);
+
+      float attenuation = pow(clamp(1 - pow(lightdistance/light.attenuation.w, 4.0), 0, 1), 2);
+
+      lighting += light.intensity * attenuation;
+    }
+  }
+  
+  //
+  // Spot Lights
+  //
+
+  for(uint jm = scene.cluster[tile].spotlightmask[tilez], j = findLSB(jm); jm != 0; jm ^= (1 << j), j = findLSB(jm))
+  {
+    for(uint im = scene.cluster[tile].spotlightmasks[tilez][j], i = findLSB(im); im != 0; im ^= (1 << i), i = findLSB(im))
+    {
+      SpotLight light = scene.spotlights[(j << 5) + i];
+            
+      vec3 lightvec = normalize(light.position - position);
+      float lightdistance = length(light.position - position);
+
+      float attenuation = pow(clamp(1 - pow(lightdistance/light.attenuation.w, 4.0), 0, 1), 2);
+  
+      attenuation *= smoothstep(light.cutoff, light.cutoff+0.05, dot(light.direction, -lightvec));
+
+      lighting += light.intensity * attenuation;
+    }
+  }
+  
+  vec4 fog = vec4(Albedo * lighting * scattering, scattering + absorbtion);
+  
+  // Temporal Blend
+  
+  float temporalweight = 0.85;
+  
+  vec3 prevtexcoord = (scene.prevview * vec4(position, 1)).xyz;
+  
+  temporalweight *= float(prevtexcoord.z < 0);
+
+  prevtexcoord.x = 0.5 * prevtexcoord.x / (scene.invproj[0][0] * -prevtexcoord.z) + 0.5;
+  prevtexcoord.y = 0.5 * prevtexcoord.y / (scene.invproj[1][1] * -prevtexcoord.z) + 0.5;
+  prevtexcoord.z = pow(-prevtexcoord.z / FogDepthRange, 1.0f / FogDepthExponent);
+
+  fog = mix(fog, texture(prevmap, prevtexcoord), temporalweight);
+  
+  // Output
+  
+  imageStore(dest, xyz, fog); 
+}

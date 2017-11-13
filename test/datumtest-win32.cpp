@@ -1034,6 +1034,8 @@ void Window::mousemove(UINT msg, WPARAM wParam, LPARAM lParam)
       ClientToScreen(hwnd, &pos);
 
       SetCursorPos(pos.x, pos.y);
+
+      lParam = MAKELPARAM(width/2, height/2);
     }
   }
   else

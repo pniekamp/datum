@@ -785,6 +785,13 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::depth_mip_comp, "../../data/depth.mip.comp");
 
+  write_shader_asset(fout, CoreAsset::esm_gen_comp, "../../data/esm.gen.comp");
+  write_shader_asset(fout, CoreAsset::esm_hblur_comp, "../../data/esm.hblur.comp");
+  write_shader_asset(fout, CoreAsset::esm_vblur_comp, "../../data/esm.vblur.comp");
+
+  write_shader_asset(fout, CoreAsset::fog_density_comp, "../../data/fog.density.comp");
+  write_shader_asset(fout, CoreAsset::fog_scatter_comp, "../../data/fog.scatter.comp");
+
   write_shader_asset(fout, CoreAsset::ssao_comp, "../../data/hbao.comp");
 
   write_envbrdf_asset(fout, CoreAsset::envbrdf_lut);
