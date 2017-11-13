@@ -9,7 +9,7 @@ layout(constant_id = 84) const uint Radius = 16;
 const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
 
 layout(set=0, binding=5) uniform sampler2D depthmap;
-layout(set=0, binding=21) uniform sampler2D colormap;
+layout(set=0, binding=27) uniform sampler2D colormap;
 
 layout(set=0, binding=8) writeonly uniform image2D dest[1];
 

@@ -1,0 +1,39 @@
+#version 440 core
+#include "gbuffer.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x_id = 1, local_size_y_id = 2) in;
+
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+
+} scene;
+
+layout(set=0, binding=13) uniform sampler2DArray shadowmap;
+
+layout(set=0, binding=20) writeonly uniform image2D dest;
+
+const float Exponent = 30.0;
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  gl_WorkGroupSize;
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+  
+  const int slice = 2;
+  
+  vec3 texcoord = vec3(vec2(xy) / imageSize(dest), slice);
+
+  vec4 sum = vec4(0);
+  sum += exp(textureGatherOffset(shadowmap, texcoord, ivec2(0,0)) * Exponent);
+  sum += exp(textureGatherOffset(shadowmap, texcoord, ivec2(2,0)) * Exponent);
+  sum += exp(textureGatherOffset(shadowmap, texcoord, ivec2(0,2)) * Exponent);
+  sum += exp(textureGatherOffset(shadowmap, texcoord, ivec2(2,2)) * Exponent);
+
+  imageStore(dest, xy, vec4(dot(sum, vec4(1.0/16.0)))); 
+}

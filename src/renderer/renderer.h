@@ -363,6 +363,9 @@ struct RenderContext
   Vulkan::Texture depthmipbuffer;
   Vulkan::ImageView depthmipviews[6];
 
+  Vulkan::Texture esmshadowbuffer;
+  Vulkan::Texture fogvolumebuffers[2];
+
   Vulkan::Texture rendertarget;
   Vulkan::Texture depthstencil;
   Vulkan::FrameBuffer framebuffer;
@@ -398,13 +401,15 @@ struct RenderContext
   Vulkan::Pipeline foilagegeometrypipeline;
   Vulkan::Pipeline terrainpipeline;
   Vulkan::Pipeline depthmippipeline[6];
+  Vulkan::Pipeline esmpipeline[3];
+  Vulkan::Pipeline fogvolumepipeline[2];
   Vulkan::Pipeline lightingpipeline;
   Vulkan::Pipeline skyboxpipeline;
   Vulkan::Pipeline opaquepipeline;
   Vulkan::Pipeline translucentpipeline;
   Vulkan::Pipeline translucentblendpipeline;
   Vulkan::Pipeline ssaopipeline;
-  Vulkan::Pipeline fogpipeline;
+  Vulkan::Pipeline fogplanepipeline;
   Vulkan::Pipeline oceanpipeline;
   Vulkan::Pipeline waterpipeline;
   Vulkan::Pipeline particlepipeline;
@@ -473,6 +478,9 @@ struct RenderParams
   float ssaoscale = 1.0f;
   float ssrstrength = 1.0f;
   float bloomstrength = 1.0f;
+
+  float fogdensity = 0.0f;
+  lml::Vec3 fogattenuation = { 0.0f, 0.5f, 0.0f };
 };
 
 void prefetch_core_assets(DatumPlatform::PlatformInterface &platform, AssetManager &assets);

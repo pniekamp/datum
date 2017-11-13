@@ -1,0 +1,55 @@
+#version 440 core
+#include "bound.glsl"
+#include "camera.glsl"
+#include "gbuffer.glsl"
+#include "transform.glsl"
+#include "lighting.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(local_size_x_id = 1, local_size_y_id = 2) in;
+
+layout(constant_id = 16) const uint FogVolumeX = 160;
+layout(constant_id = 17) const uint FogVolumeY = 90;
+layout(constant_id = 18) const uint FogVolumeZ = 64;
+
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+  mat4 worldview;
+  mat4 prevview;
+  mat4 skyview;
+  vec4 viewport;
+
+  Camera camera;
+
+} scene;
+
+layout(set=0, binding=24) uniform sampler3D densitymap;
+
+layout(set=0, binding=26) writeonly uniform image3D dest;
+
+vec4 accumulate_scattering(vec4 front, vec4 back)
+{
+  return vec4(front.rgb + clamp(exp(-front.a), 0, 1) * back.rgb, front.a + back.a);
+}
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  gl_WorkGroupSize;
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+
+  vec4 density = texelFetch(densitymap, ivec3(xy, 0), 0);
+  
+  imageStore(dest, ivec3(xy, 0), vec4(density.rgb, clamp(exp(-density.a), 0, 1)));
+
+  for(uint z = 1; z < FogVolumeZ; z++)
+  {
+    density = accumulate_scattering(density, texelFetch(densitymap, ivec3(xy, z), 0));
+
+    imageStore(dest, ivec3(xy, z), vec4(density.rgb, clamp(exp(-density.a), 0, 1)));
+  }
+}

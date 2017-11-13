@@ -13,8 +13,8 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=23) uniform sampler2D colormap;
-layout(set=0, binding=24) uniform sampler2D weightmap;
+layout(set=0, binding=29) uniform sampler2D colormap;
+layout(set=0, binding=30) uniform sampler2D weightmap;
 
 layout(location=0) in vec2 texcoord;
 

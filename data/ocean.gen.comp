@@ -88,7 +88,7 @@ void main()
 
   float dist = (costheta > 0) ? cameraheight/costheta : 1e6;
 
-  vec3 position = vec3(camerapos.xy + dist * worlddir.xy, -params.plane.w);
+  vec3 baseposition = vec3(camerapos.xy + dist * worlddir.xy, -params.plane.w);
 
   float amplitude = params.swellamplitude;
   float frequency = 2 * PI / params.swelllength;
@@ -96,36 +96,38 @@ void main()
   float qi = params.swellsteepness / (frequency * amplitude * 4 + 1e-6);
 
   float phi = frequency * amplitude;
-  float theta = frequency * dot(direction, position.xy) + params.swellphase;
+  float theta = frequency * dot(direction, baseposition.xy) + params.swellphase;
 
-  position += vec3(qi * amplitude * direction * cos(theta), amplitude * sin(theta));
+  vec3 position = baseposition + vec3(qi * amplitude * direction * cos(theta), amplitude * sin(theta));
 
   vec3 normal = vec3(phi * direction * cos(theta)/6, qi * phi * sin(theta));
-  vec3 tangent = vec3(qi * phi * direction * direction.y * sin(theta)/6, phi * direction.y * cos(theta));
+  vec3 tangent = vec3(qi * phi * direction * direction.x * sin(theta), phi * direction.x * cos(theta)/6);
 
   mat3 tbn;
   tbn[2] = normalize(vec3(-normal.x, -normal.y, 1 - normal.z));
-  tbn[0] = normalize(vec3(-tangent.x, 1 - tangent.y, tangent.z));
+  tbn[0] = normalize(vec3(1 - tangent.x, -tangent.y, tangent.z));
   tbn[1] = cross(tbn[2], tbn[0]);
 
   vec2 texcoord = position.xy * params.scale;
 
-  vec4 displacement = texture(displacementmap, vec3(texcoord, 0));
-  vec4 displacementnormal = texture(displacementmap, vec3(texcoord, 1));
+  vec3 displacement = texture(displacementmap, vec3(texcoord, 0)).xyz;
+  vec3 displacementnormal = texture(displacementmap, vec3(texcoord, 1)).xyz;
+  
+  float smoothing = pow(clamp(dist * params.smoothing - 0.35, 0.0, 1.0), 0.2);
 
-  normal = mix(tbn * displacementnormal.xyz, vec3(0, 0, 1), pow(clamp(dist * params.smoothing, 0.0f, 1.0f), 0.2));
+  tbn[2] = normalize(mix(tbn * displacementnormal, params.plane.xyz, smoothing));
 
   vertexbuffer.vertices[index].position[0] = position.x - displacement.x;
   vertexbuffer.vertices[index].position[1] = position.y - displacement.y;
   vertexbuffer.vertices[index].position[2] = position.z + displacement.z;
 
-  vertexbuffer.vertices[index].normal[0] = normal.x;
-  vertexbuffer.vertices[index].normal[1] = normal.y;
-  vertexbuffer.vertices[index].normal[2] = normal.z;
+  vertexbuffer.vertices[index].normal[0] = tbn[2].x;
+  vertexbuffer.vertices[index].normal[1] = tbn[2].y;
+  vertexbuffer.vertices[index].normal[2] = tbn[2].z;
 
-  vertexbuffer.vertices[index].tangent[0] = tangent.x;
-  vertexbuffer.vertices[index].tangent[0] = tangent.y;
-  vertexbuffer.vertices[index].tangent[0] = tangent.z;
+  vertexbuffer.vertices[index].tangent[0] = tbn[0].x;
+  vertexbuffer.vertices[index].tangent[0] = tbn[0].y;
+  vertexbuffer.vertices[index].tangent[0] = tbn[0].z;
   vertexbuffer.vertices[index].tangent[0] = 1;
 
   vertexbuffer.vertices[index].texcoord[0] = 0.1*position.x;

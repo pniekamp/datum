@@ -7,6 +7,8 @@ const uint MaxProbes = 128;
 const uint MaxDecals = 128;
 const uint MaxDecalMaps = 16;
 const uint ClusterSizeZ = 24;
+const float FogDepthRange = 50.0;
+const float FogDepthExponent = 3.0;
 
 layout(constant_id = 4) const uint ClusterTileX = 64;
 layout(constant_id = 5) const uint ClusterTileY = 64;
@@ -108,12 +110,17 @@ struct Cluster
   uint decalmasks[ClusterSizeZ][(MaxDecals + 31)/32];
 };
 
-uint cluster_tile(ivec2 xy, ivec2 viewport)
+uint cluster_tile(vec2 uv, ivec2 viewport)
 {
   uint ClusterSizeX = uint(float(viewport.x)/ClusterTileX + float(ClusterTileX - 1)/ClusterTileX);
   uint ClusterSizeY = uint(float(viewport.y)/ClusterTileY + float(ClusterTileY - 1)/ClusterTileY);
 
-  return uint(float(xy.y)*ClusterSizeY/viewport.y)*ClusterSizeX + uint(float(xy.x)*ClusterSizeX/viewport.x);
+  return uint(uv.y*ClusterSizeY)*ClusterSizeX + uint(uv.x*ClusterSizeX);
+}
+
+uint cluster_tile(ivec2 xy, ivec2 viewport)
+{
+  return cluster_tile((vec2(xy) + 0.5)/viewport, viewport);
 }
 
 uint cluster_tilez(float depth)
@@ -212,7 +219,7 @@ Material mix_material(Material first, Material second, float factor)
 ///////////////////////// ambient_intensity /////////////////////////////////
 float ambient_intensity(MainLight light, sampler2D ssaomap, ivec2 xy, ivec2 viewport)
 {
-  return texture(ssaomap, vec2(xy+0.5)/viewport).x;
+  return texture(ssaomap, (vec2(xy) + 0.5)/viewport).x;
 }
 
 ///////////////////////// shadow_split //////////////////////////////////////
@@ -455,4 +462,25 @@ void spot_light(inout vec3 diffuse, inout vec3 specular, SpotLight light, vec3 p
   diffuse += NdotL * Fd * light.intensity * attenuation * shadowfactor;
 
   specular += NdotL * Fr * light.intensity * attenuation * shadowfactor;
+}
+
+
+///////////////////////// global_fog ////////////////////////////////////////
+vec4 global_fog(vec3 xyz, sampler3D fogmap)
+{
+#if (defined(GLOBALFOG) && GLOBALFOG == 0)
+  return vec4(0, 0, 0, 1);
+#else
+  return texture(fogmap, xyz);
+#endif  
+}
+
+vec4 global_fog(vec2 texcoord, float viewdepth, sampler3D fogmap)
+{
+  return global_fog(vec3(texcoord, pow(viewdepth / FogDepthRange, 1.0f / FogDepthExponent)), fogmap);
+}
+
+vec4 global_fog(ivec2 xy, ivec2 viewport, float viewdepth, sampler3D fogmap)
+{
+  return global_fog((vec2(xy) + 0.5)/viewport, viewdepth, fogmap);
 }

@@ -11,6 +11,7 @@ struct Camera
   float skyboxlod;
   float ssrstrength;
   float bloomstrength;
+  vec4 fogdensity;
   uint frame;
 };
 

@@ -24,11 +24,11 @@ namespace lml
   {
     public:
       Frustum() = default;
-      Frustum(Vec3 corners[8]);
+      constexpr Frustum(Vec3 const (&corners)[8]);
 
-      static Frustum perspective(float fov, float aspect, float znear, float zfar);
-      static Frustum perspective(float left, float bottom, float right, float top, float znear, float zfar);
-      static Frustum orthographic(float left, float bottom, float right, float top, float znear, float zfar);
+      static constexpr Frustum perspective(float fov, float aspect, float znear, float zfar);
+      static constexpr Frustum perspective(float left, float bottom, float right, float top, float znear, float zfar);
+      static constexpr Frustum orthographic(float left, float bottom, float right, float top, float znear, float zfar);
 
       Vec3 centre() const;
 
@@ -38,7 +38,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::Constructor ////////////////////////////
-  inline Frustum::Frustum(Vec3 corners[8])
+  constexpr Frustum::Frustum(Vec3 const (&corners)[8])
     : corners{corners[0], corners[1], corners[2], corners[3], corners[4], corners[5], corners[6], corners[7]}
   {
     planes[0] = Plane(corners[2], corners[1], corners[0]); // Near
@@ -51,7 +51,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::perspective ////////////////////////////
-  inline Frustum Frustum::perspective(float fov, float aspect, float znear, float zfar)
+  constexpr Frustum Frustum::perspective(float fov, float aspect, float znear, float zfar)
   {
     Vec3 corners[8];
 
@@ -72,7 +72,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::perspective ////////////////////////////
-  inline Frustum Frustum::perspective(float left, float bottom, float right, float top, float znear, float zfar)
+  constexpr Frustum Frustum::perspective(float left, float bottom, float right, float top, float znear, float zfar)
   {
     Vec3 corners[8];
 
@@ -91,7 +91,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::orthographic ///////////////////////////
-  inline Frustum Frustum::orthographic(float left, float bottom, float right, float top, float znear, float zfar)
+  constexpr Frustum Frustum::orthographic(float left, float bottom, float right, float top, float znear, float zfar)
   {
     Vec3 corners[8];
 

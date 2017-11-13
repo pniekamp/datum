@@ -467,7 +467,7 @@ void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams con
 
     setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 });
 
-    dispatch(commandbuffer, (target->texture.width + 15)/16, (target->texture.height + 15)/16, 1);
+    dispatch(commandbuffer, target->texture.width, target->texture.height, 1, { 16, 16, 1 });
 
     setimagelayout(commandbuffer, target->texture.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 6 });
   }

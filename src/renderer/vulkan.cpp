@@ -590,8 +590,18 @@ namespace Vulkan
     imageinfo.usage = usage;
     imageinfo.flags = flags;
 
+    if (type == VK_IMAGE_VIEW_TYPE_3D)
+    {
+      texture.layers = 1;
+      imageinfo.imageType = VK_IMAGE_TYPE_3D;
+      imageinfo.extent.depth = layers;
+      imageinfo.arrayLayers = 1;
+    }
+
     if (type == VK_IMAGE_VIEW_TYPE_CUBE)
+    {
       imageinfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    }
 
     texture.image = create_image(vulkan, imageinfo);
 
@@ -617,7 +627,7 @@ namespace Vulkan
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewinfo.viewType = type;
     viewinfo.format = format;
-    viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, layers };
+    viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, imageinfo.mipLevels, 0, imageinfo.arrayLayers };
     viewinfo.image = texture.image;
 
     if (format == VK_FORMAT_D16_UNORM || format == VK_FORMAT_D32_SFLOAT)
@@ -1612,13 +1622,6 @@ namespace Vulkan
     dispatch(commandbuffer, width, height, depth, dim);
 
     setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-  }
-
-
-  ///////////////////////// dispatch ////////////////////////////////////////
-  void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t const (&dim)[3])
-  {
-    dispatch(commandbuffer, texture, texture.width, texture.height, texture.layers, dim);
   }
 
 
