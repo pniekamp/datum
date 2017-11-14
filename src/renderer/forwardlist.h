@@ -57,9 +57,9 @@ class ForwardList
     void push_translucent_wb(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, float alpha = 1.0f);
 
     void push_particlesystem(BuildState &state, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles);
-    void push_particlesystem(BuildState &state, lml::Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles);
-
     void push_particlesystem_wb(BuildState &state, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles);
+
+    void push_particlesystem(BuildState &state, lml::Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles);
     void push_particlesystem_wb(BuildState &state, lml::Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles);
 
     void push_water(BuildState &state, lml::Transform const &transform, Mesh const *mesh, Material const *material, EnvMap const *envmap, lml::Vec2 const &flow, lml::Vec3 const &bumpscale = { 1.0f, 1.0f, 1.0f }, float alpha = 1.0f);

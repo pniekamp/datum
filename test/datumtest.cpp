@@ -142,7 +142,8 @@ void datumtest_init(PlatformInterface &platform)
   emitter.size = Vec2(1.0f, 0.5f);
   emitter.scale = make_uniform_distribution(0.01f, 0.06f);
   emitter.rotation = 0;
-  emitter.color = Color4(30, 10, 10, 1);
+  emitter.color = Color4(1.0f, 0.33f, 0.33f, 1.0f);
+  emitter.emissive = cbrt(30.0f/128.0f);
   emitter.modules |= ParticleEmitter::ShapeEmitter;
   emitter.shape = ParticleEmitter::Shape::Hemisphere;
   emitter.shaperadius = 0.5f;
@@ -349,7 +350,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
    state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
 #endif
 
-//    state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
+    state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
 
     state.camera = normalise(state.camera);
 
@@ -549,6 +550,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   //    renderparams.scale = 2.0f;//0.5f;
       renderparams.aspect = state.aspect;
       renderparams.ssaoscale = 0.5f;
+      renderparams.fogdensity = 1.0f;
 
       prepare_render_pipeline(state.rendercontext, renderparams);
     }
@@ -739,7 +741,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderparams.sundirection = state.readframe->sundirection;
     renderparams.sunintensity = state.readframe->sunintensity;
 //    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
-    renderparams.fogdensity = 0.0f;
+    renderparams.fogdensity = 0.1f;
     renderparams.ssrstrength = 1.0f;
 
     DEBUG_MENU_VALUE("Lighting/Fog Strength", &renderparams.fogdensity, 0.0f, 10.0f)

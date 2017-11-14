@@ -24,7 +24,7 @@ layout(set=1, binding=1) uniform sampler2DArray albedomap;
 layout(set=0, binding=11, input_attachment_index=0) uniform subpassInput depthmap;
 
 layout(location=0) in vec3 texcoord;
-layout(location=1) in vec4 tint;
+layout(location=1) in vec4 lighting;
 
 layout(location=0) out vec4 fragcolor;
 
@@ -35,7 +35,7 @@ layout(location=1) out vec4 fragweight;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  vec4 color = texture(albedomap, texcoord) * tint;
+  vec4 color = texture(albedomap, texcoord) * lighting;
 
   if (SoftParticles)
   {

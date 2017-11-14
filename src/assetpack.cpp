@@ -77,6 +77,7 @@ void pack(vector<uint8_t> &bits, ParticleEmitter const &emitter)
   pack<Distribution<float>>(bits, emitter.rotation);
   pack<Distribution<Vec3>>(bits, emitter.velocity);
   pack<Distribution<Color4>>(bits, emitter.color);
+  pack<Distribution<float>>(bits, emitter.emissive);
   pack<Distribution<float>>(bits, emitter.layer);
   pack<Vec3>(bits, emitter.acceleration);
   pack<uint32_t>(bits, emitter.modules);
@@ -134,6 +135,7 @@ void unpack(ParticleEmitter &emitter, void const *bits, size_t &cursor)
   unpack<Distribution<float>>(emitter.rotation, bits, cursor);
   unpack<Distribution<Vec3>>(emitter.velocity, bits, cursor);
   unpack<Distribution<Color4>>(emitter.color, bits, cursor);
+  unpack<Distribution<float>>(emitter.emissive, bits, cursor);
   unpack<Distribution<float>>(emitter.layer, bits, cursor);
   unpack<Vec3>(emitter.acceleration, bits, cursor);
   unpack<uint32_t>(emitter.modules, bits, cursor);

@@ -124,6 +124,7 @@ class ParticleEmitter
     Distribution<float> rotation = 0.0f;
     Distribution<Vec3> velocity = Vec3(8.0f, 0.0f, 0.0f);
     Distribution<Color4> color = Color4(1.0f, 1.0f, 1.0f, 1.0f);
+    Distribution<float> emissive = 0.0f;
     Distribution<float> layer = 0.0f;
 
     Vec3 acceleration = Vec3(0.0f, -9.81f, 0.0f);
@@ -180,6 +181,7 @@ class ParticleSystem
       float *rotation;
       lml::Color4 *color;
       lml::Color4 *basecolor;
+      float *emissive;
       float *layer;
       float *layerrate;
     };
@@ -245,6 +247,7 @@ class ParticleSystem
       float rotation[1];
       lml::Color4 color[1];
       lml::Color4 basecolor[1];
+      float emissive[1];
       float layer[1];
       float layerrate[1];
     };

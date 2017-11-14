@@ -99,6 +99,9 @@ enum ShaderLocation
 
   ShadowSlices = 6,
 
+  FogDepthRange = 7,
+  FogDepthExponent = 8,
+
   NoiseSize = 62,
   KernelSize = 63,
 
@@ -275,6 +278,9 @@ static struct ComputeConstants
   uint32_t FogVolumeX = 160;
   uint32_t FogVolumeY = 90;
   uint32_t FogVolumeZ = 64;
+
+  float FogDepthRange = 50.0f;
+  float FogDepthExponent = 3.0f;
 
   uint32_t FogDensityDispatch[3] = { 8, 4, 4 };
   uint32_t FogDensitySizeX = FogDensityDispatch[0];
@@ -600,7 +606,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[23].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[23].descriptorCount = 1;
     bindings[24].binding = ShaderLocation::fogdensitymap;
-    bindings[24].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[24].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[24].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[24].descriptorCount = 1;
     bindings[25].binding = ShaderLocation::fogdensitytarget;
@@ -2464,7 +2470,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
-    VkSpecializationMapEntry specializationmap[8] = {};
+    VkSpecializationMapEntry specializationmap[11] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, FogDensitySizeX), sizeof(ComputeConstants::FogDensitySizeX) };
     specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, FogDensitySizeY), sizeof(ComputeConstants::FogDensitySizeY) };
     specializationmap[2] = { ShaderLocation::SizeZ, offsetof(ComputeConstants, FogDensitySizeZ), sizeof(ComputeConstants::FogDensitySizeZ) };
@@ -2473,6 +2479,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     specializationmap[5] = { ShaderLocation::FogVolumeZ, offsetof(ComputeConstants, FogVolumeZ), sizeof(ComputeConstants::FogVolumeZ) };
     specializationmap[6] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[7] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[8] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[9] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[10] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -2512,7 +2521,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
-    VkSpecializationMapEntry specializationmap[8] = {};
+    VkSpecializationMapEntry specializationmap[11] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, FogScatterSizeX), sizeof(ComputeConstants::FogScatterSizeX) };
     specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, FogScatterSizeY), sizeof(ComputeConstants::FogScatterSizeY) };
     specializationmap[2] = { ShaderLocation::SizeZ, offsetof(ComputeConstants, FogScatterSizeZ), sizeof(ComputeConstants::FogScatterSizeZ) };
@@ -2521,6 +2530,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     specializationmap[5] = { ShaderLocation::FogVolumeZ, offsetof(ComputeConstants, FogVolumeZ), sizeof(ComputeConstants::FogVolumeZ) };
     specializationmap[6] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[7] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[8] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[9] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[10] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -2560,12 +2572,14 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
 
     auto csmodule = create_shadermodule(context.vulkan, cssrc, cs->length);
 
-    VkSpecializationMapEntry specializationmap[5] = {};
+    VkSpecializationMapEntry specializationmap[7] = {};
     specializationmap[0] = { ShaderLocation::SizeX, offsetof(ComputeConstants, LightingSizeX), sizeof(ComputeConstants::LightingSizeX) };
     specializationmap[1] = { ShaderLocation::SizeY, offsetof(ComputeConstants, LightingSizeY), sizeof(ComputeConstants::LightingSizeY) };
     specializationmap[2] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[3] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[4] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[5] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[6] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -2827,10 +2841,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[3] = {};
+    VkSpecializationMapEntry specializationmap[5] = {};
     specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[4] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -2951,10 +2967,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[3] = {};
+    VkSpecializationMapEntry specializationmap[5] = {};
     specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[4] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -3083,10 +3101,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[3] = {};
+    VkSpecializationMapEntry specializationmap[5] = {};
     specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[4] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -3128,7 +3148,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   if (context.fogplanepipeline == 0)
   {
     //
-    // Fog Pipeline
+    // Fog Plane Pipeline
     //
 
     auto vs = assets.find(CoreAsset::fogplane_vert);
@@ -3434,9 +3454,13 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[2] = {};
-    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
-    specializationmap[1] = { ShaderLocation::SoftParticles, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+    VkSpecializationMapEntry specializationmap[6] = {};
+    specializationmap[0] = { ShaderLocation::SoftParticles, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+    specializationmap[1] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[2] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[3] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[4] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[5] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -3565,9 +3589,13 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[2] = {};
-    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
-    specializationmap[1] = { ShaderLocation::SoftParticles, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+    VkSpecializationMapEntry specializationmap[6] = {};
+    specializationmap[0] = { ShaderLocation::SoftParticles, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+    specializationmap[1] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[2] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[3] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[4] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[5] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -3688,8 +3716,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[1] = {};
-    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    VkSpecializationMapEntry specializationmap[5] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::FogDepthRange, offsetof(ComputeConstants, FogDepthRange), sizeof(ComputeConstants::FogDepthRange) };
+    specializationmap[4] = { ShaderLocation::FogDepthExponent, offsetof(ComputeConstants, FogDepthExponent), sizeof(ComputeConstants::FogDepthExponent) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -5379,7 +5411,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
       for(size_t i = 0; i < extentof(context.scratchbuffers); ++i)
       {
-        clear(setupbuffer, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(0.0, 0.0, 0.0, 0.0));
+        clear(setupbuffer, context.scratchbuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(0.0f, 0.0f, 0.0f, 0.0f));
       }
 
       //
@@ -5479,7 +5511,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     {
       context.ssaobuffers[i] = create_texture(context.vulkan, setupbuffer, max(int(context.fbowidth*params.ssaoscale), 1), max(int(context.fboheight*params.ssaoscale), 1), 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-      clear(setupbuffer, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(1.0, 1.0, 1.0, 1.0));
+      clear(setupbuffer, context.ssaobuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(1.0f, 1.0f, 1.0f, 1.0f));
     }
 
     context.ssaoscale = params.ssaoscale;
@@ -5492,7 +5524,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
     {
       context.fogvolumebuffers[i] = create_texture(context.vulkan, setupbuffer, computeconstants.FogVolumeX, computeconstants.FogVolumeY, computeconstants.FogVolumeZ, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_VIEW_TYPE_3D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-      clear(setupbuffer, context.fogvolumebuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(0.0, 0.0, 0.0, 1.0));
+      clear(setupbuffer, context.fogvolumebuffers[i].image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, Color4(0.0f, 0.0f, 0.0f, (params.fogdensity == 0) ? 1.0f : 0.0f));
     }
 
     //

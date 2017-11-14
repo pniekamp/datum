@@ -53,19 +53,18 @@ layout(set=0, binding=19) uniform sampler2D esmmap;
 
 layout(set=0, binding=25) writeonly uniform image3D dest;
 
-const vec3 Albedo = vec3(0.6, 0.6, 0.5);
 const float Scattering = 0.0015;
 
 ///////////////////////// cell_xy ///////////////////////////////////////////
 vec2 cell_xy(ivec3 xyz)
 {
-  return (2.0 / vec2(FogVolumeX, FogVolumeY)) * (vec2(xyz.xy) + 0.5) - 1.0;
+  return (2.0 / vec2(FogVolumeX - 1, FogVolumeY - 1)) * vec2(xyz.xy) - 1.0;
 }
 
 ///////////////////////// cell_depth ////////////////////////////////////////
 float cell_depth(ivec3 xyz)
 {
-  return pow((float(xyz.z) + 0.5) * (1.0 / FogVolumeZ), FogDepthExponent) * FogDepthRange;
+  return pow(xyz.z * (1.0 / FogVolumeZ), FogDepthExponent) * FogDepthRange;
 }
 
 ///////////////////////// view_position /////////////////////////////////////
@@ -117,7 +116,6 @@ void main()
   float thickness = cell_depth(xyz + ivec3(0, 0, 1)) - cellpos.z;
   
   float scattering = Scattering * (0.1f + density) * thickness;
-  float absorbtion = 0.0f * thickness;
 
   vec3 lighting = vec3(0);
   
@@ -170,7 +168,7 @@ void main()
     }
   }
   
-  vec4 fog = vec4(Albedo * lighting * scattering, scattering + absorbtion);
+  vec4 fog = vec4(lighting, scattering);
   
   // Temporal Blend
   

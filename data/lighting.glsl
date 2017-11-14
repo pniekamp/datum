@@ -7,12 +7,12 @@ const uint MaxProbes = 128;
 const uint MaxDecals = 128;
 const uint MaxDecalMaps = 16;
 const uint ClusterSizeZ = 24;
-const float FogDepthRange = 50.0;
-const float FogDepthExponent = 3.0;
 
 layout(constant_id = 4) const uint ClusterTileX = 64;
 layout(constant_id = 5) const uint ClusterTileY = 64;
 layout(constant_id = 6) const uint ShadowSlices = 4;
+layout(constant_id = 7) const float FogDepthRange = 50.0;
+layout(constant_id = 8) const float FogDepthExponent = 3.0;
 
 //----------------------- Main Light ----------------------------------------
 //---------------------------------------------------------------------------
