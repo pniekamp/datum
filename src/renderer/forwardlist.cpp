@@ -51,7 +51,9 @@ struct Particle
 {
   alignas(16) Vec4 position;
   alignas(16) Matrix2f transform;
-  alignas(16) Color4 color;
+  alignas(16) Color3 color;
+  alignas( 2) uint16_t alpha;
+  alignas( 2) uint16_t emissive;
 };
 
 struct ParticleMaterialSet
@@ -442,60 +444,9 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
     {
       modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
       modelset[i].transform = particles->transform[i];
-      modelset[i].color = particles->color[i];
-    }
-
-    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
-
-    push_command(state, state.colorcommand, draw_command(context.unitquad.vertexcount, particles->count));
-  }
-}
-
-
-///////////////////////// ForwardList::push_particlesystem //////////////////
-void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
-{
-  assert(state.commandlump);
-  assert(particlesystem && particlesystem->ready());
-  assert(particles);
-
-  if (particles->count == 0)
-    return;
-
-  auto &context = *state.context;
-  auto &commandlump = *state.commandlump;
-
-  push_command(state, state.colorcommand, bind_pipeline_command(context.particlepipeline));
-
-  push_command(state, state.colorcommand, bind_vertexbuffer_command(0, context.unitquad));
-
-  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
-
-  if (state.materialset)
-  {
-    auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
-
-    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
-
-    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
-  }
-
-  if (state.modelset.available() < particles->count*sizeof(Particle))
-  {
-    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
-  }
-
-  if (state.modelset && state.materialset)
-  {
-    auto offset = state.modelset.reserve(particles->count*sizeof(Particle));
-
-    auto modelset = state.modelset.memory<Particle>(offset);
-
-    for(int i = 0; i < particles->count; ++i)
-    {
-      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
-      modelset[i].transform = particles->transform[i];
-      modelset[i].color = particles->color[i];
+      modelset[i].color = particles->color[i].rgb;
+      modelset[i].alpha = uint16_t(particles->color[i].a * 65535);
+      modelset[i].emissive = uint16_t(particles->emissive[i] * 65535);
     }
 
     push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
@@ -550,12 +501,69 @@ void ForwardList::push_particlesystem_wb(ForwardList::BuildState &state, Particl
     {
       modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
       modelset[i].transform = particles->transform[i];
-      modelset[i].color = particles->color[i];
+      modelset[i].color = particles->color[i].rgb;
+      modelset[i].alpha = uint16_t(particles->color[i].a * 65535);
+      modelset[i].emissive = uint16_t(particles->emissive[i] * 65535);
     }
 
     push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
     push_command(state, state.blendcommand, draw_command(context.unitquad.vertexcount, particles->count));
+  }
+}
+
+
+///////////////////////// ForwardList::push_particlesystem //////////////////
+void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform const &transform, ParticleSystem const *particlesystem, ParticleSystem::Instance const *particles)
+{
+  assert(state.commandlump);
+  assert(particlesystem && particlesystem->ready());
+  assert(particles);
+
+  if (particles->count == 0)
+    return;
+
+  auto &context = *state.context;
+  auto &commandlump = *state.commandlump;
+
+  push_command(state, state.colorcommand, bind_pipeline_command(context.particlepipeline));
+
+  push_command(state, state.colorcommand, bind_vertexbuffer_command(0, context.unitquad));
+
+  state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(ParticleMaterialSet), std::move(state.materialset));
+
+  if (state.materialset)
+  {
+    auto offset = state.materialset.reserve(sizeof(ParticleMaterialSet));
+
+    bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, particlesystem->spritesheet->texture);
+
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::materialset, state.materialset, offset));
+  }
+
+  if (state.modelset.available() < particles->count*sizeof(Particle))
+  {
+    state.modelset = commandlump.acquire_descriptor(context.modelsetlayout, particles->count*sizeof(Particle), std::move(state.modelset));
+  }
+
+  if (state.modelset && state.materialset)
+  {
+    auto offset = state.modelset.reserve(particles->count*sizeof(Particle));
+
+    auto modelset = state.modelset.memory<Particle>(offset);
+
+    for(int i = 0; i < particles->count; ++i)
+    {
+      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
+      modelset[i].transform = particles->transform[i];
+      modelset[i].color = particles->color[i].rgb;
+      modelset[i].alpha = uint16_t(particles->color[i].a * 65535);
+      modelset[i].emissive = uint16_t(particles->emissive[i] * 65535);
+    }
+
+    push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
+
+    push_command(state, state.colorcommand, draw_command(context.unitquad.vertexcount, particles->count));
   }
 }
 
@@ -603,7 +611,9 @@ void ForwardList::push_particlesystem_wb(ForwardList::BuildState &state, Transfo
     {
       modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
       modelset[i].transform = particles->transform[i];
-      modelset[i].color = particles->color[i];
+      modelset[i].color = particles->color[i].rgb;
+      modelset[i].alpha = uint16_t(particles->color[i].a * 65535);
+      modelset[i].emissive = uint16_t(particles->emissive[i] * 65535);
     }
 
     push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));

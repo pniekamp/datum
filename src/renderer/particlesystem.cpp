@@ -216,6 +216,7 @@ ParticleSystem::InstanceEx::InstanceEx(int maxparticles)
   rotation = new(&data + capacity * offsetof(Particle, rotation)) float[capacity];
   color = new(&data + capacity * offsetof(Particle, color)) Color4[capacity];
   basecolor = new(&data + capacity * offsetof(Particle, basecolor)) Color4[capacity];
+  emissive = new(&data + capacity * offsetof(Particle, emissive)) float[capacity];
   layer = new(&data + capacity * offsetof(Particle, layer)) float[capacity];
   layerrate = new(&data + capacity * offsetof(Particle, layerrate)) float[capacity];
 
@@ -334,6 +335,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
         instance->transform[instance->count] = RotationMatrix(instance->rotation[instance->count]) * ScaleMatrix(instance->scale[instance->count]);
         instance->basecolor[instance->count] = emitter.color.get(entropy, t);
         instance->color[instance->count] = instance->basecolor[instance->count];
+        instance->emissive[instance->count] = emitter.emissive.get(entropy, t);
         instance->layer[instance->count] = emitter.layer.get(entropy, t);
         instance->layerrate[instance->count] = emitter.layerrate.get(entropy, t);
 
@@ -438,6 +440,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
       instance->rotation[i] = instance->rotation[instance->count-1];
       instance->color[i] = instance->color[instance->count-1];
       instance->basecolor[i] = instance->basecolor[instance->count-1];
+      instance->emissive[i] = instance->emissive[instance->count-1];
       instance->layer[i] = instance->layer[instance->count-1];
       instance->layerrate[i] = instance->layerrate[instance->count-1];
 

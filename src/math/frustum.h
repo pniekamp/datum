@@ -39,7 +39,8 @@ namespace lml
 
   ///////////////////////// Frustum::Constructor ////////////////////////////
   constexpr Frustum::Frustum(Vec3 const (&corners)[8])
-    : corners{corners[0], corners[1], corners[2], corners[3], corners[4], corners[5], corners[6], corners[7]}
+    : planes{},
+      corners{corners[0], corners[1], corners[2], corners[3], corners[4], corners[5], corners[6], corners[7]}
   {
     planes[0] = Plane(corners[2], corners[1], corners[0]); // Near
     planes[1] = Plane(corners[0], corners[4], corners[7]); // Left
@@ -53,7 +54,7 @@ namespace lml
   ///////////////////////// Frustum::perspective ////////////////////////////
   constexpr Frustum Frustum::perspective(float fov, float aspect, float znear, float zfar)
   {
-    Vec3 corners[8];
+    Vec3 corners[8] = {};
 
     float scale = std::tan(fov/2);
 
@@ -74,7 +75,7 @@ namespace lml
   ///////////////////////// Frustum::perspective ////////////////////////////
   constexpr Frustum Frustum::perspective(float left, float bottom, float right, float top, float znear, float zfar)
   {
-    Vec3 corners[8];
+    Vec3 corners[8] = {};
 
     corners[0] = Vec3(left, bottom, -znear);
     corners[1] = Vec3(right, bottom, -znear);
@@ -93,7 +94,7 @@ namespace lml
   ///////////////////////// Frustum::orthographic ///////////////////////////
   constexpr Frustum Frustum::orthographic(float left, float bottom, float right, float top, float znear, float zfar)
   {
-    Vec3 corners[8];
+    Vec3 corners[8] = {};
 
     corners[0] = Vec3(left, bottom, -znear);
     corners[1] = Vec3(right, bottom, -znear);

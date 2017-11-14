@@ -31,7 +31,16 @@ layout(set=0, binding=24) uniform sampler3D densitymap;
 
 layout(set=0, binding=26) writeonly uniform image3D dest;
 
-vec4 accumulate_scattering(vec4 front, vec4 back)
+///////////////////////// fetch /////////////////////////////////////////////
+vec4 fetch(ivec3 xyz)
+{
+  vec4 fog = texelFetch(densitymap, xyz, 0);
+  
+  return vec4(fog.rgb, 1) * fog.a;
+}
+
+///////////////////////// accumulate ////////////////////////////////////////
+vec4 accumulate(vec4 front, vec4 back)
 {
   return vec4(front.rgb + clamp(exp(-front.a), 0, 1) * back.rgb, front.a + back.a);
 }
@@ -42,13 +51,13 @@ void main()
   gl_WorkGroupSize;
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
 
-  vec4 density = texelFetch(densitymap, ivec3(xy, 0), 0);
+  vec4 density = fetch(ivec3(xy, 0));
   
   imageStore(dest, ivec3(xy, 0), vec4(density.rgb, clamp(exp(-density.a), 0, 1)));
 
   for(uint z = 1; z < FogVolumeZ; z++)
   {
-    density = accumulate_scattering(density, texelFetch(densitymap, ivec3(xy, z), 0));
+    density = accumulate(density, fetch(ivec3(xy, z)));
 
     imageStore(dest, ivec3(xy, z), vec4(density.rgb, clamp(exp(-density.a), 0, 1)));
   }
