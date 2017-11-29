@@ -83,33 +83,33 @@ HDRImage load_hdr(string const &path)
   if (!fin)
     throw runtime_error("Unable to open file: " + path);
 
-  string line;
+  string buffer;
 
-  while (getline(fin, line))
+  while (getline(fin, buffer))
   {
-    line = trim(line);
+    auto line = trim(buffer);
 
     if (line.empty() || line[0] == '#')
       continue;
 
-    if (tolower(line.substr(0, 6)) == "format")
+    if (stricmp(line.substr(0, 6), "format") == 0)
     {
-      vector<string> fields = split(line, "=");
+      auto fields = split(line, "=");
 
-      if (fields.size() != 2 && tolower(fields[1]) != "32-bit_rle_rgbe")
+      if (fields.size() != 2 && fields[1] != "32-bit_rle_rgbe")
         throw runtime_error("Unsupported hdr file format");
     }
 
-    if (tolower(line.substr(0, 8)) == "exposure")
+    if (stricmp(line.substr(0, 8), "exposure") == 0)
     {
-      vector<string> fields = split(line, "=");
+      auto fields = split(line, "=");
 
       image.exposure = ato<float>(fields[1]);
     }
 
     if (line[0] == '-' || line[0] == '+')
     {
-      vector<string> fields = split(line);
+      auto fields = split(line);
 
       if (fields[0] != "-Y" || fields[2] != "+X")
         throw runtime_error("Unsupported hdr file dimensions");

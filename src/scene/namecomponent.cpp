@@ -52,7 +52,7 @@ void NameComponentStorage::set_name(EntityId entity, const char *name)
 
   data<1>(index) = m_names.size();
 
-  m_names.insert(m_names.end(), name, name + strlen(name) + 2);
+  m_names.insert(m_names.end(), name, name + strlen(name) + 1);
 }
 
 
@@ -63,7 +63,7 @@ Scene::EntityId NameComponentStorage::find(const char *name) const
   {
     if (data<0>(index) != 0)
     {
-      if (stricmp(m_names.data() + data<1>(index), name) == 0)
+      if (_stricmp(m_names.data() + data<1>(index), name) == 0)
         return data<0>(index);
     }
   }
