@@ -82,7 +82,7 @@
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <CompileAs>CompileAsCpp</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <DisableSpecificWarnings>4244;4800;4267;4146</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4244;4800;4267;4146;4814</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <Optimization>Disabled</Optimization>
@@ -102,7 +102,7 @@
     <ClCompile>
       <AssemblerListingLocation>Release/</AssemblerListingLocation>
       <CompileAs>CompileAsCpp</CompileAs>
-      <DisableSpecificWarnings>4244;4800;4267;4146</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4244;4800;4267;4146;4814</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <Optimization>MaxSpeed</Optimization>
@@ -124,7 +124,7 @@
     <ClCompile>
       <AssemblerListingLocation>MinSizeRel/</AssemblerListingLocation>
       <CompileAs>CompileAsCpp</CompileAs>
-      <DisableSpecificWarnings>4244;4800;4267;4146</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4244;4800;4267;4146;4814</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <Optimization>MinSpace</Optimization>
@@ -147,7 +147,7 @@
       <AssemblerListingLocation>RelWithDebInfo/</AssemblerListingLocation>
       <CompileAs>CompileAsCpp</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <DisableSpecificWarnings>4244;4800;4267;4146</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4244;4800;4267;4146;4814</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <Optimization>MaxSpeed</Optimization>

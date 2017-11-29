@@ -130,7 +130,7 @@ class FreeList
 
   public:
 
-    size_t bucket(size_t n) const
+    static size_t bucket(size_t n)
     {
 #if defined(_MSC_VER) && defined(_WIN64)
       auto __builtin_clzll = [](unsigned long long mask)
@@ -149,7 +149,7 @@ class FreeList
       return std::min(((bits - 5) << 2) + ((n + mask) >> bits), std::extent<decltype(m_freelist)>::value) - 1;
     }
 
-    size_t bucket_mask(size_t n) const
+    static size_t bucket_mask(size_t n)
     {
       return (1 << ((bucket(n) >> 2) + 5)) - 1;
     }
@@ -313,7 +313,7 @@ StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocatorWithFree
 template<typename T>
 T *StackAllocatorWithFreelist<T>::allocate(std::size_t n, std::size_t alignment)
 {
-  auto mask = m_freelist->bucket_mask(n*sizeof(T));
+  auto mask = FreeList::bucket_mask(n*sizeof(T));
 
   auto result = m_freelist->acquire((n*sizeof(T) + mask) & ~mask, alignment);
 
@@ -330,7 +330,7 @@ T *StackAllocatorWithFreelist<T>::allocate(std::size_t n, std::size_t alignment)
 template<typename T>
 void StackAllocatorWithFreelist<T>::deallocate(T * const ptr, std::size_t n)
 {
-  auto mask = m_freelist->bucket_mask(n*sizeof(T));
+  auto mask = FreeList::bucket_mask(n*sizeof(T));
 
   m_freelist->release(ptr, (n*sizeof(T) + mask) & ~mask);
 }

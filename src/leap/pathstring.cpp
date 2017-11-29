@@ -26,9 +26,8 @@
 using namespace std;
 using namespace leap;
 
-
-///////////// exeBasePath ///////////////
-string exeBasePath()
+///////////// process_basepath ///////////////
+string process_basepath()
 {
   char path[FILENAME_MAX];
 
@@ -53,55 +52,44 @@ string exeBasePath()
 }
 
 
-///////////// isRelative ////////////////
-bool isRelative(string const &path)
-{
-  return !((path.size() == 0) || (path.size() > 0 && path[0] == '/') || (path.size() > 1 && path[1] == ':'));
-}
-
-
-
 //|------------------------- pathstring -------------------------------------
 //|--------------------------------------------------------------------------
 
-
 //|///////////////////// pathstring::Constructor ////////////////////////////
 pathstring::pathstring(const char *path)
+  : pathstring(process_basepath(), path)
 {
-  set(exeBasePath(), path);
 }
 
 
 //|///////////////////// pathstring::Constructor ////////////////////////////
 pathstring::pathstring(string const &path)
+  : pathstring(process_basepath(), path)
 {
-  set(exeBasePath(), path);
 }
 
 
 //|///////////////////// pathstring::Constructor ////////////////////////////
-pathstring::pathstring(string const &base, string const &path)
+pathstring::pathstring(string_view path)
+  : pathstring(process_basepath(), path)
 {
-  set(base, path);
 }
 
 
-//|///////////////////// pathstring::set ////////////////////////////////////
-void pathstring::set(std::string const &base, std::string const &path)
+//|///////////////////// pathstring::Constructor ////////////////////////////
+pathstring::pathstring(string_view base, string_view path)
 {
-  if (isRelative(path))
+  if (!path.empty() && path[0] != '/' && (path.size() < 2 || path[1] != ':'))
   {
-    if (base.empty() || base[base.size()-1] == '/' || base[base.size()-1] == '\\')
-      m_path = base + path;
-    else
-      m_path = base + "/" + path;
-  }
-  else
-    m_path = path;
+    m_path.append(base.data(), base.size());
 
-#ifdef _WIN32
-  replace(m_path.begin(), m_path.end(), '\\', '/');
-#endif
+    if (!base.empty() && base[base.size()-1] != '/')
+    {
+      m_path.append("/", 1);
+    }
+  }
+
+  m_path.append(path.data(), path.size());
 }
 
 

@@ -20,7 +20,6 @@
 #include <array>
 #include <initializer_list>
 
-
 /**
  * \namespace leap::lml
  * \brief Leap Math Library containing mathmatical routines
@@ -52,21 +51,19 @@ namespace leap { namespace lml
 
       Vector operator()() const { return { (*this)[Indices]... }; }
 
-      VectorView &operator =(Vector const &v) { std::tie((*this)[Indices]...) = tie(&v[0], make_index_sequence<0, sizeof...(Indices)>()); return *this; }
+      template<typename V>
+      VectorView &operator +=(V &&v) { assign(*this, *this + std::forward<V>(v)); return *this; }
 
       template<typename V>
-      VectorView &operator +=(V &&v) { *this = *this + std::forward<V>(v); return *this; }
+      VectorView &operator -=(V &&v) { assign(*this, *this - std::forward<V>(v)); return *this; }
 
       template<typename V>
-      VectorView &operator -=(V &&v) { *this = *this - std::forward<V>(v); return *this; }
+      VectorView &operator *=(V &&v) { assign(*this, *this * std::forward<V>(v)); return *this; }
 
       template<typename V>
-      VectorView &operator *=(V &&v) { *this = *this * std::forward<V>(v); return *this; }
+      VectorView &operator /=(V &&v) { assign(*this, *this / std::forward<V>(v)); return *this; }
 
-      template<typename V>
-      VectorView &operator /=(V &&v) { *this = *this / std::forward<V>(v); return *this; }
-
-      constexpr T const &operator[](size_t i) const { return *((T const *)this + i); }
+      T const &operator[](size_t i) const { return *((T const *)this + i); }
       T &operator[](size_t i) { return *((T*)this + i); }
 
     protected:
@@ -83,6 +80,14 @@ namespace leap { namespace lml
   constexpr auto const &get(VectorView<Vector, T, Indices...> const &v) noexcept
   {
     return v[get<i>(index_sequence<Indices...>())];
+  }
+
+
+  //|///////////////////// VectorView assign ////////////////////////////////
+  template<typename Vector, typename T, size_t... Indices, size_t... Jndices>
+  constexpr void assign(VectorView<Vector, T, Indices...> &lhs, VectorView<Vector, T, Jndices...> const &rhs)
+  {
+    std::tie(lhs[Indices]...) = std::tie(rhs[Jndices]...);
   }
 
 
@@ -168,14 +173,13 @@ namespace leap { namespace lml
       constexpr Vector(std::initializer_list<T> v);
       explicit constexpr Vector(T k);
       explicit constexpr Vector(std::array<T, N> const &v);
-      explicit Vector(std::vector<T> const &v);
 
       // Element Access
       constexpr T const &operator()(size_t i) const { return m_data[i]; }
       T &operator()(size_t i) { return m_data[i]; }
 
       // Storage Access
-      constexpr data_type const &data() const { return m_data; }
+      data_type const &data() const { return m_data; }
       data_type &data() { return m_data; }
 
       // Converters
@@ -191,7 +195,7 @@ namespace leap { namespace lml
   //|///////////////////// Vector::Constructor //////////////////////////////
   template<typename T, size_t N>
   constexpr Vector<T, N>::Vector(std::initializer_list<T> v)
-    : m_data(gather(v.begin(), make_index_sequence<0, N>()))
+    : m_data((v.size() == N) ? gather(v.begin(), make_index_sequence<0, N>()) : throw 0)
   {
   }
 
@@ -209,15 +213,6 @@ namespace leap { namespace lml
   constexpr Vector<T, N>::Vector(std::array<T, N> const &v)
     : m_data(v)
   {
-  }
-
-
-  //|///////////////////// Vector::Constructor //////////////////////////////
-  template<typename T, size_t N>
-  Vector<T, N>::Vector(std::vector<T> const &v)
-  {
-    for(size_t i = 0; i < std::min(N, v.size()); ++i)
-      (*this)(i) = v[i];
   }
 
 
@@ -305,7 +300,7 @@ namespace leap { namespace lml
   //|///////////////////// safenormalise ////////////////////////////////////
   /// normalise a vector to a unit vector or return zero
   template<typename Vector, typename T, size_t... Indices>
-  constexpr Vector safenormalise(VectorView<Vector, T, Indices...> const &v)
+  constexpr Vector safenormalise(VectorView<Vector, T, Indices...> const &v, Vector const &nominalvalue = {})
   {
     auto lengthsqr = normsqr(v);
 
@@ -649,13 +644,13 @@ namespace leap { namespace lml
   template<typename T>
   constexpr Vector<T, 2> Vector2(T k)
   {
-    return Vector<T, 2>(std::array<T, 2>{ k, k });
+    return { k, k };
   }
 
   template<typename T>
   constexpr Vector<T, 2> Vector2(T x, T y)
   {
-    return Vector<T, 2>(std::array<T, 2>{ x, y });
+    return { x, y };
   }
 
 
@@ -664,7 +659,7 @@ namespace leap { namespace lml
   template<typename T>
   constexpr Vector<T, 2> Polar2(T angle, T length)
   {
-    return Vector<T, 2>(std::array<T, 2>{ std::cos(angle)*length, std::sin(angle)*length });
+    return { std::cos(angle)*length, std::sin(angle)*length };
   }
 
 
@@ -674,19 +669,19 @@ namespace leap { namespace lml
   template<typename T>
   constexpr Vector<T, 3> Vector3(T k)
   {
-    return Vector<T, 3>(std::array<T, 3>{ k, k, k });
+    return { k, k, k };
   }
 
   template<typename T>
   constexpr Vector<T, 3> Vector3(T x, T y, T z)
   {
-    return Vector<T, 3>(std::array<T, 3>{ x, y, z });
+    return { x, y, z };
   }
 
   template<typename T>
   constexpr Vector<T, 3> Vector3(Vector<T, 2> const &v, T z)
   {
-    return Vector<T, 3>(std::array<T, 3>{ v(0), v(1), z });
+    return { v(0), v(1), z };
   }
 
 
@@ -696,19 +691,19 @@ namespace leap { namespace lml
   template<typename T>
   constexpr Vector<T, 4> Vector4(T k)
   {
-    return Vector<T, 4>(std::array<T, 4>{ k, k, k, k });
+    return { k, k, k, k };
   }
 
   template<typename T>
   constexpr Vector<T, 4> Vector4(T x, T y, T z, T w)
   {
-    return Vector<T, 4>(std::array<T, 4>{ x, y, z, w });
+    return { x, y, z, w };
   }
 
   template<typename T>
   constexpr Vector<T, 4> Vector4(Vector<T, 3> const &v, T w)
   {
-    return Vector<T, 4>(std::array<T, 4>{ v(0), v(1), v(2), w });
+    return { v(0), v(1), v(2), w };
   }
 
 

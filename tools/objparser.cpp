@@ -29,14 +29,14 @@ float gScale = 1.0f;
 namespace
 {
 
-  vector<string> seperate(string const &str, const char *delimiters = " \t\r\n")
+  vector<string_view> seperate(string_view str, const char *delimiters = " \t\r\n")
   {
-    vector<string> result;
+    vector<string_view> result;
 
     size_t i = 0;
     size_t j = 0;
 
-    while (j != string::npos)
+    while (j != string_view::npos)
     {
       j = str.find_first_of(delimiters, i);
 
@@ -49,7 +49,7 @@ namespace
   }
 
 
-  void calculatetangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
+  void calculate_tangents(vector<PackVertex> &vertices, vector<uint32_t> &indices)
   {
     vector<Vec3> tan1(vertices.size(), Vec3(0));
     vector<Vec3> tan2(vertices.size(), Vec3(0));
@@ -365,13 +365,13 @@ void write_model(string const &filename)
 
   while (getline(fin, buffer))
   {
-    buffer = trim(buffer);
+    auto line = trim(buffer);
 
     // skip comments
-    if (buffer.empty() || buffer[0] == '#' || buffer[0] == '/')
+    if (line.empty() || line[0] == '#' || line[0] == '/')
       continue;
 
-    auto fields = split(buffer);
+    auto fields = split(line);
 
     if (fields[0] == "mtllib")
     {
@@ -385,13 +385,13 @@ void write_model(string const &filename)
       mesh = &meshes.back();
 
       mesh->name = name;
-      mesh->usemtl = fields[1];
+      mesh->usemtl = fields[1].to_string();
       mesh->transform = transform;
     }
 
     if (fields[0] == "o" || fields[0] == "g")
     {
-      name = fields[1];
+      name = fields[1].to_string();
       transform = Transform::identity();
     }
 
@@ -415,7 +415,7 @@ void write_model(string const &filename)
       if (!mesh)
         throw runtime_error("Object not specified");
 
-      vector<string> face[] = { seperate(fields[1], "/"), seperate(fields[2], "/"), seperate(fields[3], "/") };
+      vector<string_view> face[] = { seperate(fields[1], "/"), seperate(fields[2], "/"), seperate(fields[3], "/") };
 
       for(auto &v : face)
       {
@@ -457,15 +457,13 @@ void write_model(string const &filename)
 
     while (getline(fin, buffer))
     {
-      buffer = trim(buffer);
+      auto line = trim(buffer);
 
       // skip comments
-      if (buffer.empty() || buffer[0] == '#' || buffer[0] == '/')
+      if (line.empty() || line[0] == '#' || line[0] == '/')
         continue;
 
-      auto fields = split(buffer);
-
-      fields[0] = tolower(fields[0]);
+      auto fields = split(line);
 
       if (fields[0] == "newmtl")
       {
@@ -473,7 +471,7 @@ void write_model(string const &filename)
 
         material = &materials.back();
 
-        material->name = fields[1];
+        material->name = fields[1].to_string();
 
         for(auto &mesh : meshes)
         {
@@ -508,27 +506,27 @@ void write_model(string const &filename)
 
       if (fields[0] == "map_d")
       {
-        material->albedomask = fields[1];
+        material->albedomask = ato<string>(fields[1]);
       }
 
       if (fields[0] == "map_ka")
       {
-        material->metalmap = fields[1];
+        material->metalmap = ato<string>(fields[1]);
       }
 
       if (fields[0] == "map_kd")
       {
-        material->albedobase = fields[1];
+        material->albedobase = ato<string>(fields[1]);
       }
 
       if (fields[0] == "map_ns")
       {
-        material->roughmap = fields[1];
+        material->roughmap = ato<string>(fields[1]);
       }
 
       if (fields[0] == "map_bump" || fields[0] == "bump")
       {
-        material->bumpmap = fields[1];
+        material->bumpmap = ato<string>(fields[1]);
       }
     }
 
@@ -550,7 +548,7 @@ void write_model(string const &filename)
       vertex.position[2] *= gScale;
     }
 
-    calculatetangents(mesh.vertices, mesh.indices);
+    calculate_tangents(mesh.vertices, mesh.indices);
   }
 
   for(auto &material : materials)

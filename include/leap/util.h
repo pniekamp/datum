@@ -11,9 +11,9 @@
 #ifndef LEAPUTIL_HH
 #define LEAPUTIL_HH
 
+#include <leap/stringview.h>
 #include <cstdlib>
 #include <ostream>
-#include <sstream>
 #include <string>
 #include <cstring>
 #include <vector>
@@ -120,6 +120,12 @@ namespace leap
     return value;
   }
 
+  template<>
+  inline std::string toa(string_view const &value, int /*precision*/)
+  {
+    return value.to_string();
+  }
+
 
   //|//////////// ato ///////////////////////////////////////////////////////
   /**
@@ -142,36 +148,65 @@ namespace leap
   **/
 
   template<typename T>
-  T ato(std::string const &str, T const &defaultvalue = T())
+  T ato(string_view str, T const &defaultvalue = T())
   {
-    T result = defaultvalue;
+    T result;
 
     if (!str.empty())
     {
-      std::stringstream ss(str);
+      struct svbuf : std::streambuf
+      {
+        svbuf(string_view sv)
+        {
+          setg(const_cast<char*>(sv.begin()), const_cast<char*>(sv.begin()), const_cast<char*>(sv.end()));
+        }
+      };
+
+      svbuf svss(str);
+      std::istream ss(&svss);
 
       ss >> result;
+    }
+    else
+    {
+      result = defaultvalue;
     }
 
     return result;
   }
 
   template<>
-  inline int ato(std::string const &str, int const &defaultvalue)
+  inline int ato(string_view str, int const &defaultvalue)
   {
-    return (!str.empty()) ? atoi(str.c_str()) : defaultvalue;
+    // TODO: implement with from_chars
+    return (!str.empty()) ? stoi(str.to_string()) : defaultvalue;
   }
 
   template<>
-  inline double ato(std::string const &str, double const &defaultvalue)
+  inline long ato(string_view str, long const &defaultvalue)
   {
-    return (!str.empty()) ? atof(str.c_str()) : defaultvalue;
+    // TODO: implement with from_chars
+    return (!str.empty()) ? stol(str.to_string()) : defaultvalue;
   }
 
   template<>
-  inline std::string ato(std::string const &str, std::string const &defaultvalue)
+  inline float ato(string_view str, float const &defaultvalue)
   {
-    return (!str.empty()) ? str : defaultvalue;
+    // TODO: implement with from_chars
+    return (!str.empty()) ? stof(str.to_string()) : defaultvalue;
+  }
+
+  template<>
+  inline double ato(string_view str, double const &defaultvalue)
+  {
+    // TODO: implement with from_chars
+    return (!str.empty()) ? stod(str.to_string()) : defaultvalue;
+  }
+
+  template<>
+  inline std::string ato(string_view str, std::string const &defaultvalue)
+  {
+    return (!str.empty()) ? str.to_string() : defaultvalue;
   }
 
 
@@ -196,37 +231,16 @@ namespace leap
   **/
 
   template<typename T>
-  std::vector<T> atov(std::string const &str, const char *delimiters = ", \t")
+  std::vector<T> atov(string_view str, const char *delimiters = ", \t")
   {
-    std::stringstream ss(str);
+    std::vector<T> result;
 
-    T v;
-    std::vector<T> values;
+    auto i = str.find_first_not_of(delimiters, 0);
+    auto j = str.find_first_of(delimiters, i);
 
-    while (ss >> v)
+    while (i != string_view::npos)
     {
-      values.push_back(v);
-
-      while (std::strchr(delimiters, ss.peek()))
-        ss.ignore(1);
-    }
-
-    return values;
-  }
-
-#ifdef __MINGW32__
-  // mingw uses msvcrt which on XPSP3 has iostream thread safety bug
-  template<>
-  inline std::vector<double> atov(std::string const &str, const char *delimiters)
-  {
-    std::vector<double> result;
-
-    size_t i = str.find_first_not_of(delimiters, 0);
-    size_t j = str.find_first_of(delimiters, i);
-
-    while (i != std::string::npos)
-    {
-      result.push_back(ato<double>(str.substr(i, j-i)));
+      result.push_back(ato<T>(str.substr(i, j-i)));
 
       i = str.find_first_not_of(delimiters, j);
       j = str.find_first_of(delimiters, i);
@@ -234,7 +248,6 @@ namespace leap
 
     return result;
   }
-#endif
 
 
   //|//////////// vtoa //////////////////////////////////////////////////////
@@ -272,17 +285,12 @@ namespace leap
       }
     }
     else
+    {
       std::copy(v.begin(), v.end(), std::ostream_iterator<T>(os, " "));
+    }
 
     return os.str();
   }
-
-/*
-  template<>
-  inline std::string vto(std::vector<T> const &v, int precision)
-  {
-  }
-*/
 
 
   //|//////////// tolower ///////////////////////////////////////////////////
@@ -291,9 +299,9 @@ namespace leap
    * \ingroup leaputil
   **/
 
-  inline std::string tolower(std::string const &str)
+  inline std::string tolower(std::string str)
   {
-    auto result = str;
+    auto result = std::move(str);
 
     for(size_t i = 0; i < result.length(); ++i)
       result[i] = std::tolower(result[i]);
@@ -308,9 +316,9 @@ namespace leap
    * \ingroup leaputil
   **/
 
-  inline std::string toupper(std::string const &str)
+  inline std::string toupper(std::string str)
   {
-    auto result = str;
+    auto result = std::move(str);
 
     for(size_t i = 0; i < result.length(); ++i)
       result[i] = std::toupper(result[i]);
@@ -325,7 +333,7 @@ namespace leap
    * \ingroup leaputil
   **/
 
-  inline std::string trim(std::string const &str, const char *characters = " \t\r\n")
+  inline string_view trim(string_view str, const char *characters = " \t\r\n")
   {
     auto i = str.find_first_not_of(characters);
     auto j = str.find_last_not_of(characters);
@@ -343,14 +351,14 @@ namespace leap
    * \ingroup leaputil
   **/
 
-  inline std::vector<std::string> split(std::string const &str, const char *delimiters = " \t\r\n")
+  inline std::vector<string_view> split(string_view str, const char *delimiters = " \t\r\n")
   {
-    std::vector<std::string> result;
+    std::vector<string_view> result;
 
     auto i = str.find_first_not_of(delimiters, 0);
     auto j = str.find_first_of(delimiters, i);
 
-    while (i != std::string::npos)
+    while (i != string_view::npos)
     {
       result.push_back(str.substr(i, j-i));
 
@@ -673,68 +681,124 @@ namespace leap
   }
 
 
-  //|//////////// stricmp ///////////////////////////////////////////////////
+  //|//////////// absdiff ///////////////////////////////////////////////////
   /**
-   * \brief Compares two strings in a case-insensitive manner
+   * \brief absolute difference of two values
    * \ingroup leaputil
   **/
 
   template<typename T>
-  int stricmp(const T *str1, const T *str2)
+  T absdiff(T a, T b)
   {
-    while (std::tolower(*str1) == std::tolower(*str2) && *str1 != 0)
+    return (a < b) ? b - a : a - b;
+  }
+
+
+  //|//////////// strlcpy ///////////////////////////////////////////////////
+  /**
+   * \brief copy string and add a nul character
+   * \ingroup leaputil
+  **/
+
+  template<typename T>
+  void strlcpy(T *dst, T const *src, size_t n)
+  {
+    if (n != 0)
     {
-      ++str1;
-      ++str2;
+      while (--n != 0)
+      {
+        if ((*dst++ = *src++) == 0)
+          break;
+      }
+
+      if (n == 0)
+      {
+        *dst = 0;
+      }
     }
-
-    return (std::tolower(*str2) - std::tolower(*str1));
   }
 
 
-  //|//////////// stricmp ///////////////////////////////////////////////////
+  //|//////////// strlcat ///////////////////////////////////////////////////
   /**
-   * \brief Compares two strings in a case-insensitive manner
-   * \ingroup leaputil
-  **/
-
-  template<typename T, class traits>
-  int stricmp(std::basic_string<T, traits> const &str1, std::basic_string<T, traits> const &str2)
-  {
-    return stricmp(str1.c_str(), str2.c_str());
-  }
-
-
-  //|//////////// strincmp //////////////////////////////////////////////////
-  /**
-   * \brief Compares two strings in a case-insensitive manner
+   * \brief concatenate string and add a nul character
    * \ingroup leaputil
   **/
 
   template<typename T>
-  int strincmp(const T *str1, const T *str2, size_t n)
+  void strlcat(T *dst, T const *src, size_t n)
   {
-    while (std::tolower(*str1) == std::tolower(*str2) && *str1 != 0 && n > 1)
+    while (n != 0 && *dst != 0)
     {
-      ++str1;
-      ++str2;
+      ++dst;
       --n;
     }
 
-    return (std::tolower(*str2) - std::tolower(*str1));
+    strlcpy(dst, src, n);
   }
 
 
-  //|//////////// strincmp //////////////////////////////////////////////////
+  //|//////////// strcmp ////////////////////////////////////////////////////
+  /**
+   * \brief Compares two strings in a case-sensitive manner
+   * \ingroup leaputil
+  **/
+
+  template<typename T, class traits>
+  int strcmp(basic_string_view<T, traits> str1, basic_string_view<T, traits> str2)
+  {
+    size_t n = std::min(str1.size(), str2.size());
+
+    while (n != 0 && str1[0] == str2[0])
+    {
+      str1.remove_prefix(1);
+      str2.remove_prefix(1);
+      --n;
+    }
+
+    return (n == 0) ? str1.size() - str2.size() : str1[0] - str2[0];
+  }
+
+  inline int strcmp(basic_string_view<char> str1, basic_string_view<char> str2)
+  {
+    return strcmp<char, std::char_traits<char>>(str1, str2);
+  }
+
+  inline int strcmp(basic_string_view<wchar_t> str1, basic_string_view<wchar_t> str2)
+  {
+    return strcmp<wchar_t, std::char_traits<wchar_t>>(str1, str2);
+  }
+
+
+  //|//////////// stricmp ///////////////////////////////////////////////////
   /**
    * \brief Compares two strings in a case-insensitive manner
    * \ingroup leaputil
   **/
 
   template<typename T, class traits>
-  int strincmp(std::basic_string<T, traits> const &str1, std::basic_string<T, traits> const &str2, size_t n)
+  int stricmp(basic_string_view<T, traits> str1, basic_string_view<T, traits> str2)
   {
-    return strincmp(str1.c_str(), str2.c_str(), n);
+    size_t n = std::min(str1.size(), str2.size());
+
+    while (n != 0 && std::tolower(str1[0]) == std::tolower(str2[0]))
+    {
+      str1.remove_prefix(1);
+      str2.remove_prefix(1);
+      --n;
+    }
+
+    return (n == 0) ? str1.size() - str2.size() : std::tolower(str1[0]) - std::tolower(str2[0]);
+  }
+
+  inline int stricmp(basic_string_view<char> str1, basic_string_view<char> str2)
+  {
+    return stricmp<char, std::char_traits<char>>(str1, str2);
+  }
+
+  inline int stricmp(basic_string_view<wchar_t> str1, basic_string_view<wchar_t> str2)
+  {
+    return stricmp<wchar_t, std::char_traits<wchar_t>>(str1, str2);
   }
 
 

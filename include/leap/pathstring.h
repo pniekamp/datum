@@ -15,7 +15,7 @@
 #ifndef PATHSTRING_HH
 #define PATHSTRING_HH
 
-#include <string>
+#include <leap/stringview.h>
 
 /**
  * \namespace leap
@@ -43,7 +43,8 @@ namespace leap
       pathstring() = default;
       pathstring(const char *path);
       pathstring(std::string const &path);
-      explicit pathstring(std::string const &base, std::string const &path);
+      explicit pathstring(string_view path);
+      explicit pathstring(string_view base, string_view path);
 
       operator std::string const &() const { return m_path; }
 
@@ -56,7 +57,7 @@ namespace leap
 
     private:
 
-      void set(std::string const &base, std::string const &path);
+      void set(string_view base, string_view path);
 
       std::string m_path;
   };

@@ -15,11 +15,11 @@
 #include "point.h"
 #include <leap/lml/vector.h>
 #include <leap/lml/matrix.h>
+#include <leap/optional.h>
 #include <cstddef>
 #include <functional>
 #include <vector>
 #include <limits>
-#include <leap/optional.h>
 
 /**
  * \namespace leap::lml
@@ -141,8 +141,8 @@ namespace leap { namespace lml
   //|///////////////////// Bound::Constructor ///////////////////////////////
   template<typename T, size_t N>
   constexpr Bound<T, N>::Bound(std::initializer_list<T> lo, std::initializer_list<T> hi)
-    : m_lo(gather(lo.begin(), make_index_sequence<0, N>())),
-      m_hi(gather(hi.begin(), make_index_sequence<0, N>()))
+    : m_lo((lo.size() == N) ? gather(lo.begin(), make_index_sequence<0, N>()) : throw 0),
+      m_hi((hi.size() == N) ? gather(hi.begin(), make_index_sequence<0, N>()) : throw 0)
   {
   }
 

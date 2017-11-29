@@ -62,35 +62,21 @@ namespace leap { namespace lml
       return is;
     }
 
-    std::vector<T> elements;
-
-    while (is >> ch && ch != ')')
+    for(size_t i = 0; i < N; ++i)
     {
-      is.putback(ch);
-
-      T value;
-      if (is >> value)
-        elements.push_back(value);
+      is >> v(i);
 
       if (is >> ch && ch != ',')
       {
         is.putback(ch);
-
-        if (ch != ')')
-        {
-          is.setstate(std::ios_base::failbit);
-          return is;
-        }
       }
     }
 
-    if (elements.size() != N)
+    if (is >> ch && ch != ')')
     {
       is.setstate(std::ios_base::failbit);
       return is;
     }
-
-    v = Vector<T, N>(elements);
 
     return is;
   }
@@ -149,25 +135,22 @@ namespace leap { namespace lml
       return is;
     }
 
-    std::vector<std::vector<T>> elements;
-
-    while (is >> ch && ch != ']')
+    for(size_t i = 0; i < M; ++i)
     {
-      is.putback(ch);
-
       Vector<T, N> column;
 
       if (is >> column)
-        elements.push_back(std::vector<T>(column.data().begin(), column.data().end()));
+      {
+        for(size_t j = 0; j < N; ++j)
+          m(i, j) = column[j];
+      }
     }
 
-    if (elements.size() != M)
+    if (is >> ch && ch != ']')
     {
       is.setstate(std::ios_base::failbit);
       return is;
     }
-
-    m = Matrix<T, M, N, B>(elements);
 
     return is;
   }
@@ -211,23 +194,19 @@ namespace leap { namespace lml
       return is;
     }
 
-    T w, x, y, z;
-
-    is >> w;
+    is >> q.w;
     is >> ch;
-    is >> x;
+    is >> q.x;
     is >> ch;
-    is >> y;
+    is >> q.y;
     is >> ch;
-    is >> z;
+    is >> q.z;
 
     if (is >> ch && ch != ')')
     {
       is.setstate(std::ios_base::failbit);
       return is;
     }
-
-    q = Quaternion<T>(w, x, y, z);
 
     return is;
   }

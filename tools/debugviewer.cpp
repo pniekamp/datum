@@ -139,9 +139,9 @@ class DebugView : public QAbstractScrollArea
 
     void invalidate();
 
-    void wheelEvent(QWheelEvent *event);
+    void wheelEvent(QWheelEvent *event) override;
 
-    void resizeEvent(QResizeEvent *event);
+    void resizeEvent(QResizeEvent *event) override;
 
     void paintEvent(QPaintEvent *event) override;
 
