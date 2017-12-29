@@ -14,6 +14,7 @@
 #include <leap/stringview.h>
 #include <cstdlib>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <cstring>
 #include <vector>
@@ -626,6 +627,7 @@ namespace leap
   }
 
 
+#if _MSVC_LANG < 201703
   //|//////////// clamp /////////////////////////////////////////////////////
   /**
    * \brief clamp a value within lower and upper
@@ -637,7 +639,9 @@ namespace leap
   {
     return std::max(lower, std::min(value, upper));
   }
-
+#else
+  using std::clamp;
+#endif
 
   //|//////////// lerp //////////////////////////////////////////////////////
   /**

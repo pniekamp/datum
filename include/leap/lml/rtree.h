@@ -309,7 +309,7 @@ namespace leap { namespace lml
 
     //|///////////////////// less_area_overlap //////////////////////////////
     template<typename Item, size_t dimension, class box, typename Alloc>
-    class basic_rtree<Item, dimension, box, Alloc>::less_area_overlap : public std::binary_function<Node const&, Node const&, bool>
+    class basic_rtree<Item, dimension, box, Alloc>::less_area_overlap
     {
       public:
 
@@ -348,7 +348,7 @@ namespace leap { namespace lml
 
     //|///////////////////// less_area_expansion ////////////////////////////
     template<typename Item, size_t dimension, class box, typename Alloc>
-    class basic_rtree<Item, dimension, box, Alloc>::less_area_expansion : public std::binary_function<Node const&, Node const&, bool>
+    class basic_rtree<Item, dimension, box, Alloc>::less_area_expansion
     {
       public:
 

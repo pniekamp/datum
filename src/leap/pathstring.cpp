@@ -70,14 +70,14 @@ pathstring::pathstring(string const &path)
 
 
 //|///////////////////// pathstring::Constructor ////////////////////////////
-pathstring::pathstring(string_view path)
+pathstring::pathstring(leap::string_view path)
   : pathstring(process_basepath(), path)
 {
 }
 
 
 //|///////////////////// pathstring::Constructor ////////////////////////////
-pathstring::pathstring(string_view base, string_view path)
+pathstring::pathstring(leap::string_view base, leap::string_view path)
 {
   if (!path.empty() && path[0] != '/' && (path.size() < 2 || path[1] != ':'))
   {

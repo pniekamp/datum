@@ -8,8 +8,8 @@ const uint WaveResolution = 64;
 const uint SizeX = gl_WorkGroupSize.x - 2;
 const uint SizeY = gl_WorkGroupSize.y - 2;
 
-layout(set=0, binding=0, std430, row_major) readonly buffer OceanParams 
-{ 
+layout(set=0, binding=0, std430, row_major) readonly buffer OceanParams
+{
   mat4 proj;
   mat4 invproj;
   Transform camera;
@@ -24,14 +24,14 @@ layout(set=0, binding=0, std430, row_major) readonly buffer OceanParams
   float scale;
   float choppiness;
   float smoothing;
- 
+
   uint size;
   vec2 h0[WaveResolution*WaveResolution];
   float phase[WaveResolution*WaveResolution];
 
 } params;
 
-layout(set=0, binding=1, std430, row_major) readonly buffer Spectrum 
+layout(set=0, binding=1, std430, row_major) readonly buffer Spectrum
 {
   vec2 h[WaveResolution*WaveResolution];
   vec2 hx[WaveResolution*WaveResolution];
@@ -49,12 +49,12 @@ const float signs[] = { 1.0f, -1.0f };
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
-{ 
+{
   gl_WorkGroupSize;
 
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   ivec2 xy = ivec2(gl_WorkGroupID.x * SizeX + ij.x - 1, gl_WorkGroupID.y * SizeY + ij.y - 1);
-  
+
   uint index = ((xy.y + WaveResolution) % WaveResolution) * WaveResolution + ((xy.x + WaveResolution) % WaveResolution);
 
   float sigma = signs[(xy.x + xy.y) & 1];
@@ -64,19 +64,19 @@ void main()
   float dy = spectrum.hy[index].x * sigma * params.choppiness;
 
   displacements[ij.y][ij.x] = vec3(dx, dy, dz);
-  
+
   barrier();
-  
+
   if (ij.x >= 1 && ij.x < SizeX+1 && ij.y >= 1 && ij.y < SizeY+1)
   {
     vec3 l = displacements[ij.y][ij.x-1];
     vec3 r = displacements[ij.y][ij.x+1];
     vec3 t = displacements[ij.y-1][ij.x];
     vec3 b = displacements[ij.y+1][ij.x];
-    
+
     vec3 normal = normalize(vec3(l.z - r.z, t.z - b.z, 3 / (params.scale * WaveResolution)));
-  
-    imageStore(dest, ivec3(xy, 0), vec4(dx, dy, dz, 0)); 
-    imageStore(dest, ivec3(xy, 1), vec4(normal.xyz, 0)); 
+
+    imageStore(dest, ivec3(xy, 0), vec4(dx, dy, dz, 0));
+    imageStore(dest, ivec3(xy, 1), vec4(normal, 0));
   }
 }

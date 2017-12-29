@@ -2165,7 +2165,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     // Terrain Pipeline
     //
 
-    auto vs = assets.find(CoreAsset::model_geometry_vert);
+    auto vs = assets.find(CoreAsset::terrain_vert);
     auto fs = assets.find(CoreAsset::terrain_frag);
 
     if (!vs || !fs)
@@ -6469,7 +6469,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   GPU_SUBMIT();
 
-  submit(context.vulkan, commandbuffer, viewport.rendercomplete, context.framefence, { viewport.acquirecomplete, dependancies[0], dependancies[1], dependancies[2], dependancies[3], dependancies[4], dependancies[5], dependancies[6]});
+  submit(context.vulkan, commandbuffer, viewport.rendercomplete, context.framefence, { viewport.acquirecomplete, dependancies[0], dependancies[1], dependancies[2], dependancies[3], dependancies[4], dependancies[5], dependancies[6] });
 
   context.prevcamera = camera;
 

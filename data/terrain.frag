@@ -10,8 +10,6 @@ layout(constant_id = 52) const uint DecalMask = 0;
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
   vec4 color;
-  vec2 uvscale;
-  uint layers;
 
 } params;
 
@@ -24,6 +22,8 @@ layout(set=3, binding=0) uniform sampler2DArray blendmap;
 layout(location=0) in vec3 position;
 layout(location=1) in mat3 tbnworld;
 layout(location=4) in vec2 texcoord;
+layout(location=5) in vec2 tilecoord;
+layout(location=6) flat in uint layers;
 
 layout(location=0) out vec4 fragcolor;
 layout(location=1) out vec4 fragspecular;
@@ -36,9 +36,9 @@ void main()
   vec4 surface = vec4(0);
   vec3 normal = vec3(0);
 
-  vec3 uv = vec3(texcoord * params.uvscale, 0);
+  vec3 uv = vec3(tilecoord, 0);
   
-  for(uint i = 0, end = params.layers/4; i < end; ++i)
+  for(uint i = 0, end = layers/4; i < end; ++i)
   {  
     vec4 blend = texture(blendmap, vec3(texcoord, i));
     
@@ -63,23 +63,23 @@ void main()
     uv.z += 1;
   }
   
-  if ((params.layers & 0x3) > 0)
+  if ((layers & 0x3) > 0)
   {
-    vec4 blend = texture(blendmap, vec3(texcoord, params.layers/4));
+    vec4 blend = texture(blendmap, vec3(texcoord, layers/4));
 
     albedo += texture(albedomap, uv) * blend.r;
     surface += texture(surfacemap, uv) * blend.r;
     normal += texture(normalmap, uv).xyz * blend.r;
     uv.z += 1;
 
-    if ((params.layers & 0x3) > 1)
+    if ((layers & 0x3) > 1)
     {
       albedo += texture(albedomap, uv) * blend.g;
       surface += texture(surfacemap, uv) * blend.g;
       normal += texture(normalmap, uv).xyz * blend.g;
       uv.z += 1;
     
-      if ((params.layers & 0x3) > 2)
+      if ((layers & 0x3) > 2)
       {
         albedo += texture(albedomap, uv) * blend.b;
         surface += texture(surfacemap, uv) * blend.b;

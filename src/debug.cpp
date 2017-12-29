@@ -163,6 +163,7 @@ namespace
         ToggleFrameGraph,
         ToggleGroup,
         ToggleBoolEntry,
+        SlideIntEntry,
         SlideFloat0Entry,
         SlideFloat1Entry,
         SlideFloat2Entry,
@@ -688,6 +689,18 @@ namespace
                   x += font->width(buffer);
                 }
 
+                if (entry.type == typeid(int))
+                {
+                  snprintf(buffer, sizeof(buffer), "%d", entry.value<int>());
+
+                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideIntEntry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+
+                  if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
+                    *interaction = { Ui::Interaction::SlideIntEntry, k };
+
+                  x += font->width(buffer);
+                }
+
                 if (entry.type == typeid(float) || entry.type == typeid(Vec2) || entry.type == typeid(Vec3) || entry.type == typeid(Color3))
                 {
                   snprintf(buffer, sizeof(buffer), "%f", entry.value<float[]>()[0]);
@@ -881,6 +894,7 @@ void debug_menu_entry(const char *name, T const &value)
 }
 
 template void debug_menu_entry<bool>(const char *name, bool const &value);
+template void debug_menu_entry<int>(const char *name, int const &value);
 template void debug_menu_entry<float>(const char *name, float const &value);
 template void debug_menu_entry<Vec2>(const char *name, Vec2 const &value);
 template void debug_menu_entry<Vec3>(const char *name, Vec3 const &value);
@@ -906,6 +920,7 @@ T debug_menu_value(const char *name, T const &value, T const &min, T const &max)
 }
 
 template bool debug_menu_value<bool>(const char *name, bool const &value, bool const &min, bool const &max);
+template int debug_menu_value<int>(const char *name, int const &value, int const &min, int const &max);
 template float debug_menu_value<float>(const char *name, float const &value, float const &min, float const &max);
 template Vec2 debug_menu_value<Vec2>(const char *name, Vec2 const &value, Vec2 const &min, Vec2 const &max);
 template Vec3 debug_menu_value<Vec3>(const char *name, Vec3 const &value, Vec3 const &min, Vec3 const &max);
@@ -937,6 +952,14 @@ void update_debug_overlay(GameInput const &input, bool *accepted)
     {
       switch(interaction.type)
       {
+        case Ui::Interaction::SlideIntEntry:
+          if (abs(input.mousex - g_interaction.mousepresspos.x) > 0.05f)
+          {
+            g_menu.entries[interaction.id].value<int>() = clamp(g_menu.entries[interaction.id].value<int>() + (int)sign((input.mousex - g_interaction.mousepos.x)), g_menu.entries[interaction.id].min<int>(), g_menu.entries[interaction.id].max<int>());
+            g_interaction.mousepresspos.x = input.mousex;
+          }
+          break;
+
         case Ui::Interaction::SlideFloat0Entry:
           g_menu.entries[interaction.id].value<float[]>()[0] = clamp(g_menu.entries[interaction.id].value<float[]>()[0] + 0.5f * (g_menu.entries[interaction.id].max<float[]>()[0] - g_menu.entries[interaction.id].min<float[]>()[0]) * (input.mousex - g_interaction.mousepos.x), g_menu.entries[interaction.id].min<float[]>()[0], g_menu.entries[interaction.id].max<float[]>()[0]);
           break;

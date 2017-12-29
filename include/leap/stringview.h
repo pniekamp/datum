@@ -13,6 +13,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <algorithm>
 
 /**
  * \namespace leap

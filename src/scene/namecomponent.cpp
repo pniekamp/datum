@@ -8,6 +8,7 @@
 
 #include "namecomponent.h"
 #include <leap.h>
+#include <string.h>
 #include "debug.h"
 
 using namespace std;
@@ -63,7 +64,16 @@ Scene::EntityId NameComponentStorage::find(const char *name) const
   {
     if (data<0>(index) != 0)
     {
-      if (_stricmp(m_names.data() + data<1>(index), name) == 0)
+      auto str1 = name;
+      auto str2 = m_names.data() + data<1>(index);
+      
+      while (std::tolower(*str1) == std::tolower(*str2) && *str1 != 0)
+      {
+        ++str1;
+        ++str2;
+      }
+
+      if (std::tolower(*str2) - std::tolower(*str1) == 0)
         return data<0>(index);
     }
   }

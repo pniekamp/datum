@@ -114,6 +114,7 @@ namespace Renderable
 
         struct
         {
+          uint32_t indexbase;
           uint32_t indexcount;
           uint32_t instancecount;
 
@@ -228,18 +229,26 @@ class PushBuffer
       uint16_t size;
     };
 
-    class const_iterator : public std::iterator<std::forward_iterator_tag, Header>
+    class const_iterator
     {
       public:
-        explicit const_iterator(Header const *position) : m_header(position) { }
+      
+        typedef Header value_type;
+        typedef Header const *pointer;
+        typedef Header const &reference;
+        typedef std::ptrdiff_t difference_type;
+        typedef std::forward_iterator_tag iterator_category;
 
+      public:
+        explicit const_iterator(Header const *position) : m_header(position) { }
+        
         bool operator ==(const_iterator const &that) const { return m_header == that.m_header; }
         bool operator !=(const_iterator const &that) const { return m_header != that.m_header; }
 
         Header const &operator *() const { return *m_header; }
         Header const *operator ->() const { return &*m_header; }
 
-        iterator &operator++()
+        const_iterator &operator++()
         {
           m_header = reinterpret_cast<Header const *>(reinterpret_cast<char const *>(m_header) + m_header->size);
 
