@@ -130,10 +130,11 @@ auto draw_command(uint32_t vertexcount, uint32_t instancecount)
   return command;
 }
 
-auto draw_indexed_command(uint32_t indexcount, uint32_t instancecount)
+auto draw_indexed_command(uint32_t indexbase, uint32_t indexcount, uint32_t instancecount)
 {
   Renderable::Forward::Command command = {};
   command.type = Renderable::Forward::Command::Type::draw_indexed;
+  command.draw_indexed.indexbase = indexbase;
   command.draw_indexed.indexcount = indexcount;
   command.draw_indexed.instancecount = instancecount;
 
@@ -188,7 +189,7 @@ void draw_forward(RenderContext &context, VkCommandBuffer commandbuffer, Rendera
         break;
 
       case Renderable::Forward::Command::Type::draw_indexed:
-        draw(commandbuffer, command->draw_indexed.indexcount, command->draw_indexed.instancecount, 0, 0, 0);
+        draw(commandbuffer, command->draw_indexed.indexcount, command->draw_indexed.instancecount, command->draw_indexed.indexbase, 0, 0);
         break;
 
       default:
@@ -284,7 +285,7 @@ void ForwardList::push_opaque(ForwardList::BuildState &state, Transform const &t
 
     push_command(state, state.solidcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, state.solidcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+    push_command(state, state.solidcommand, draw_indexed_command(0, mesh->vertexbuffer.indexcount, 1));
   }
 }
 
@@ -339,7 +340,7 @@ void ForwardList::push_translucent(ForwardList::BuildState &state, Transform con
 
     push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, state.colorcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+    push_command(state, state.colorcommand, draw_indexed_command(0, mesh->vertexbuffer.indexcount, 1));
   }
 }
 
@@ -394,7 +395,7 @@ void ForwardList::push_translucent_wb(ForwardList::BuildState &state, Transform 
 
     push_command(state, state.blendcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, state.blendcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+    push_command(state, state.blendcommand, draw_indexed_command(0, mesh->vertexbuffer.indexcount, 1));
   }
 }
 
@@ -699,7 +700,7 @@ void ForwardList::push_water(BuildState &state, lml::Transform const &transform,
 
     push_command(state, state.colorcommand, bind_descriptor_command(ShaderLocation::modelset, state.modelset, offset));
 
-    push_command(state, state.colorcommand, draw_indexed_command(mesh->vertexbuffer.indexcount, 1));
+    push_command(state, state.colorcommand, draw_indexed_command(0, mesh->vertexbuffer.indexcount, 1));
   }
 }
 

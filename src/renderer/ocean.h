@@ -57,7 +57,7 @@ struct OceanParams
   lml::Vec2 swelldirection = { 0.780869f, 0.624695f };
 
   // Waves
-  float wavescale = 64;
+  float wavescale = 64.0f;
   float waveamplitude = 0.00002f;
   float windspeed = 30.0f;
   lml::Vec2 winddirection = { 0.780869f, 0.624695f };

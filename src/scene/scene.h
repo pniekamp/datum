@@ -216,7 +216,7 @@ class Scene
 
     friend class Storage;
 
-    std::unordered_map<std::type_index, Storage*, std::hash<std::type_index>, std::equal_to<>, StackAllocator<>> m_systems;
+    std::unordered_map<std::type_index, Storage*, std::hash<std::type_index>, std::equal_to<>, StackAllocator<std::pair<const std::type_index, Storage*>>> m_systems;
 
   private:
 

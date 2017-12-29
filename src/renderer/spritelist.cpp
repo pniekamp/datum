@@ -162,7 +162,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
 
 ///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(SpriteList::BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, Vec4 const &texcoords, float layer)
+void SpriteList::push_model(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, Vec4 const &texcoords, float layer)
 {
   assert(state.commandlump);
 

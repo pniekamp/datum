@@ -766,7 +766,6 @@ void write_core()
 
   write_shader_asset(fout, CoreAsset::prepass_frag, "../../data/prepass.frag");
   write_shader_asset(fout, CoreAsset::geometry_frag, "../../data/geometry.frag");
-  write_shader_asset(fout, CoreAsset::terrain_frag, "../../data/terrain.frag");
 
   write_shader_asset(fout, CoreAsset::model_shadow_vert, "../../data/model.shadow.vert");
   write_shader_asset(fout, CoreAsset::model_prepass_vert, "../../data/model.prepass.vert");
@@ -782,6 +781,9 @@ void write_core()
   write_shader_asset(fout, CoreAsset::foilage_prepass_vert, "../../data/foilage.prepass.vert");
   write_shader_asset(fout, CoreAsset::foilage_geometry_vert, "../../data/foilage.geometry.vert");
   write_shader_asset(fout, CoreAsset::foilage_spotmap_vert, "../../data/foilage.spotmap.vert");
+
+  write_shader_asset(fout, CoreAsset::terrain_vert, "../../data/terrain.vert");
+  write_shader_asset(fout, CoreAsset::terrain_frag, "../../data/terrain.frag");
 
   write_shader_asset(fout, CoreAsset::depth_mip_comp, "../../data/depth.mip.comp");
 

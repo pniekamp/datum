@@ -118,6 +118,18 @@ Material const *ResourceManager::create<Material>(Color4 color, float metalness,
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
+void ResourceManager::update<Material>(Material const *material, Color4 color)
+{
+  assert(material);
+
+  auto slot = const_cast<Material*>(material);
+
+  slot->color = color;
+}
+
+
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
 void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive)
 {
   assert(material);
