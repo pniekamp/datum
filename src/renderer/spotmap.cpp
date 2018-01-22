@@ -1050,8 +1050,6 @@ void prepare_framebuffer(SpotMapContext &context, SpotMap const *target)
 ///////////////////////// render ////////////////////////////////////////////
 void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params, VkSemaphore const (&dependancies)[8])
 {
-  using namespace Vulkan;
-
   assert(context.ready);
   assert(spotmapcount < extentof(context.srcblitcommands));
   assert(spotmapcount < extentof(context.srcblitdescriptors));

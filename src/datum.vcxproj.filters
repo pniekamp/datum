@@ -97,9 +97,6 @@
     <ClCompile Include="renderer\geometrylist.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="assetpack.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="renderer\animation.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
@@ -291,7 +288,9 @@
     <ClInclude Include="renderer\ocean.h">
       <Filter>Source Files\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="math\perlin.h" />
+    <ClInclude Include="math\perlin.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">

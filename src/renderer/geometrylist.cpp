@@ -367,12 +367,12 @@ void GeometryList::push_terrain(BuildState &state, Transform const &transform, M
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  if (state.pipeline != context.terrainpipeline)
+  if (state.pipeline != context.terraingeometrypipeline)
   {
-    bind_pipeline(prepasscommands, context.modelprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    bind_pipeline(geometrycommands, context.terrainpipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(prepasscommands, context.terrainprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    bind_pipeline(geometrycommands, context.terraingeometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    state.pipeline = context.terrainpipeline;
+    state.pipeline = context.terraingeometrypipeline;
   }
 
   if (state.mesh != mesh)

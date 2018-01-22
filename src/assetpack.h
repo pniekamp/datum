@@ -47,9 +47,6 @@ struct PackCalalogHeader
 
 struct PackCatalogPayload
 {
-  uint32_t entrycount;
-  uint32_t stringslength;
-
   struct Entry
   {
     uint32_t id;
@@ -57,6 +54,8 @@ struct PackCatalogPayload
     uint32_t pathlength;
   };
 
+  uint32_t entrycount;
+  uint32_t stringslength;
 // Entry entries[entrycount];
 // char strings[stringslength];
 
@@ -272,9 +271,6 @@ struct PackParticleSystemPayload
   static auto emitters(void const *bits) { return reinterpret_cast<uint8_t const *>((size_t)bits + sizeof(PackParticleSystemPayload)); }
 };
 
-void pack(std::vector<uint8_t> &bits, class ParticleEmitter const &emitter);
-void unpack(class ParticleEmitter &emitter, void const *bits, size_t &cursor);
-
 inline size_t pack_payload_size(PackParticleSystemHeader const &part)
 {
   return sizeof(PackParticleSystemPayload) + part.emitterssize;
@@ -364,4 +360,54 @@ namespace std
 inline bool operator ==(PackVertex const &lhs, PackVertex const &rhs)
 {
   return memcmp(&lhs, &rhs, sizeof(PackVertex)) == 0;
+}
+
+
+//
+// Puning
+//
+
+template<typename T>
+void pack(std::vector<uint8_t> &bits, T const &value)
+{
+  bits.insert(bits.end(), (uint8_t const *)&value, (uint8_t const *)&value + sizeof(value));
+}
+
+template<typename T, typename U>
+void pack(std::vector<uint8_t> &bits, U const *values, size_t N)
+{
+  for(auto *value = values; value != values + N; ++value)
+    pack<T>(bits, *value);
+}
+
+template<typename T, typename U, size_t N>
+void pack(std::vector<uint8_t> &bits, U const (&values)[N])
+{
+  for(auto &value : values)
+    pack<T>(bits, value);
+}
+
+template<typename T>
+void unpack(T &value, void const *bits, size_t &cursor)
+{
+  memcpy(&value, (uint8_t const *)bits + cursor, sizeof(value));
+
+  cursor += sizeof(value);
+}
+
+template<typename T, typename U, std::enable_if_t<!std::is_same<T, U>::value>* = nullptr>
+void unpack(U &value, void const *bits, size_t &cursor)
+{
+  T tmp;
+  memcpy(&tmp, (uint8_t const *)bits + cursor, sizeof(tmp));
+  value = static_cast<U>(tmp);
+
+  cursor += sizeof(tmp);
+}
+
+template<typename T, typename U, size_t N>
+void unpack(U (&values)[N], void const *bits, size_t &cursor)
+{
+  for(auto &value : values)
+    unpack<T>(value, bits, cursor);
 }

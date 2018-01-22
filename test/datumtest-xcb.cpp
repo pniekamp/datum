@@ -496,7 +496,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   //
 
   bool vsync = true;
-  uint32_t desiredimages = 2;
+  uint32_t desiredimages = 3;
 
   VkSurfaceCapabilitiesKHR surfacecapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);

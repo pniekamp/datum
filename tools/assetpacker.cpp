@@ -113,26 +113,27 @@ uint32_t write_catl_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_t v
   for(auto &entry : entries)
     stringslength += get<1>(entry).size() + 1;
 
-  vector<char> payload(sizeof(PackCatalogPayload) + entries.size()*sizeof(PackCatalogPayload::Entry) + stringslength);
+  vector<uint8_t> payload;
 
-  reinterpret_cast<PackCatalogPayload*>(payload.data())->entrycount = entries.size();
-  reinterpret_cast<PackCatalogPayload*>(payload.data())->stringslength = stringslength;
+  pack<uint32_t>(payload, entries.size());
+  pack<uint32_t>(payload, stringslength);
 
-  auto entrytable = const_cast<PackCatalogPayload::Entry*>(PackCatalogPayload::entrytable(payload.data(), entries.size()));
-  auto stringstable = const_cast<char*>(PackCatalogPayload::stringstable(payload.data(), entries.size()));
+  int i = 0;
+  for(auto &entry : entries)
+  {
+    PackCatalogPayload::Entry ed;
+    ed.id = get<0>(entry);
+    ed.pathindex = i;
+    ed.pathlength = get<1>(entry).size();
 
-  int i = 0, j = 0;
+    pack<PackCatalogPayload::Entry>(payload, ed);
+
+    i += get<1>(entry).size() + 1;
+  }
 
   for(auto &entry : entries)
   {
-    entrytable[i].id = get<0>(entry);
-    entrytable[i].pathindex = j;
-    entrytable[i].pathlength = get<1>(entry).size();
-
-    memcpy(stringstable + j, get<1>(entry).c_str(), get<1>(entry).size() + 1);
-
-    i += 1;
-    j += get<1>(entry).size() + 1;
+    pack<char>(payload, get<1>(entry).c_str(), get<1>(entry).size() + 1);
   }
 
   PackAssetHeader aset = { id };
@@ -235,25 +236,16 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t 
 ///////////////////////// write_font_asset //////////////////////////////////
 uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t descent, uint32_t leading, uint32_t glyphcount, uint32_t glyphatlas, vector<uint16_t> const &x, vector<uint16_t> const &y, vector<uint16_t> const &width, vector<uint16_t> const &height, vector<int16_t> const &offsetx, vector<int16_t> const &offsety, vector<uint8_t> const &advance)
 {
-  vector<char> payload(sizeof(PackFontPayload) + 6*glyphcount*sizeof(uint16_t) + glyphcount*glyphcount*sizeof(uint8_t));
+  vector<uint8_t> payload;
 
-  reinterpret_cast<PackFontPayload*>(payload.data())->glyphatlas = glyphatlas;
-
-  auto xtable = const_cast<uint16_t*>(PackFontPayload::xtable(payload.data(), glyphcount));
-  auto ytable = const_cast<uint16_t*>(PackFontPayload::ytable(payload.data(), glyphcount));
-  auto widthtable = const_cast<uint16_t*>(PackFontPayload::widthtable(payload.data(), glyphcount));
-  auto heighttable = const_cast<uint16_t*>(PackFontPayload::heighttable(payload.data(), glyphcount));
-  auto offsetxtable = const_cast<int16_t*>(PackFontPayload::offsetxtable(payload.data(), glyphcount));
-  auto offsetytable = const_cast<int16_t*>(PackFontPayload::offsetytable(payload.data(), glyphcount));
-  auto advancetable = const_cast<uint8_t*>(PackFontPayload::advancetable(payload.data(), glyphcount));
-
-  memcpy(xtable, x.data(), x.size()*sizeof(uint16_t));
-  memcpy(ytable, y.data(), y.size()*sizeof(uint16_t));
-  memcpy(widthtable, width.data(), width.size()*sizeof(uint16_t));
-  memcpy(heighttable, height.data(), height.size()*sizeof(uint16_t));
-  memcpy(offsetxtable, offsetx.data(), offsetx.size()*sizeof(int16_t));
-  memcpy(offsetytable, offsety.data(), offsety.size()*sizeof(int16_t));
-  memcpy(advancetable, advance.data(), advance.size()*sizeof(uint8_t));
+  pack<uint32_t>(payload, glyphatlas);
+  pack<uint16_t>(payload, x.data(), x.size());
+  pack<uint16_t>(payload, y.data(), y.size());
+  pack<uint16_t>(payload, width.data(), width.size());
+  pack<uint16_t>(payload, height.data(), height.size());
+  pack<uint16_t>(payload, offsetx.data(), offsetx.size());
+  pack<uint16_t>(payload, offsety.data(), offsety.size());
+  pack<uint8_t>(payload, advance.data(), advance.size());
 
   write_font_asset(fout, id, ascent, descent, leading, glyphcount, payload.data());
 
@@ -299,13 +291,10 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
     bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
   }
 
-  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t));
+  vector<uint8_t> payload;
 
-  auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
-  auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
-
-  memcpy(vertextable, vertices.data(), vertices.size()*sizeof(PackVertex));
-  memcpy(indextable, indices.data(), indices.size()*sizeof(uint32_t));
+  pack<PackVertex>(payload, vertices.data(), vertices.size());
+  pack<uint32_t>(payload, indices.data(), indices.size());
 
   write_mesh_asset(fout, id, vertices.size(), indices.size(), 0, bound, payload.data());
 
@@ -323,17 +312,12 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, vector<PackVertex> const &
     bound = expand(bound, Vec3(vertex.position[0], vertex.position[1], vertex.position[2]));
   }
 
-  vector<char> payload(vertices.size()*sizeof(PackVertex) + indices.size()*sizeof(uint32_t) + rig.size()*sizeof(PackMeshPayload::Rig) + bones.size()*sizeof(PackMeshPayload::Bone));
+  vector<uint8_t> payload;
 
-  auto vertextable = const_cast<PackVertex*>(PackMeshPayload::vertextable(payload.data(), vertices.size(), indices.size()));
-  auto indextable = const_cast<uint32_t*>(PackMeshPayload::indextable(payload.data(), vertices.size(), indices.size()));
-  auto rigtable = const_cast<PackMeshPayload::Rig*>(PackMeshPayload::rigtable(payload.data(), vertices.size(), indices.size()));
-  auto bonetable = const_cast<PackMeshPayload::Bone*>(PackMeshPayload::bonetable(payload.data(), vertices.size(), indices.size()));
-
-  memcpy(vertextable, vertices.data(), vertices.size()*sizeof(PackVertex));
-  memcpy(indextable, indices.data(), indices.size()*sizeof(uint32_t));
-  memcpy(rigtable, rig.data(), rig.size()*sizeof(PackMeshPayload::Rig));
-  memcpy(bonetable, bones.data(), bones.size()*sizeof(PackMeshPayload::Bone));
+  pack<PackVertex>(payload, vertices.data(), vertices.size());
+  pack<uint32_t>(payload, indices.data(), indices.size());
+  pack<PackMeshPayload::Rig>(payload, rig.data(), rig.size());
+  pack<PackMeshPayload::Bone>(payload, bones.data(), bones.size());
 
   write_mesh_asset(fout, id, vertices.size(), indices.size(), bones.size(), bound, payload.data());
 
@@ -405,13 +389,10 @@ uint32_t write_anim_asset(ostream &fout, uint32_t id, float duration, uint32_t j
 ///////////////////////// write_anim_asset //////////////////////////////////
 uint32_t write_anim_asset(ostream &fout, uint32_t id, float duration, vector<PackAnimationPayload::Joint> const &joints, vector<PackAnimationPayload::Transform> const &transforms)
 {
-  vector<char> payload(sizeof(PackAnimationPayload) + joints.size()*sizeof(PackAnimationPayload::Joint) + transforms.size()*sizeof(PackAnimationPayload::Transform));
+  vector<uint8_t> payload(sizeof(PackAnimationPayload)); // Note: Empty Payload has one byte
 
-  auto jointtable = const_cast<PackAnimationPayload::Joint*>(PackAnimationPayload::jointtable(payload.data(), joints.size(), transforms.size()));
-  auto transformtable = const_cast<PackAnimationPayload::Transform*>(PackAnimationPayload::transformtable(payload.data(), joints.size(), transforms.size()));
-
-  memcpy(jointtable, joints.data(), joints.size()*sizeof(PackAnimationPayload::Joint));
-  memcpy(transformtable, transforms.data(), transforms.size()*sizeof(PackAnimationPayload::Transform));
+  pack<PackAnimationPayload::Joint>(payload, joints.data(), joints.size());
+  pack<PackAnimationPayload::Transform>(payload, transforms.data(), transforms.size());
 
   write_anim_asset(fout, id, duration, joints.size(), transforms.size(), payload.data());
 
@@ -441,11 +422,10 @@ uint32_t write_part_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint3
 ///////////////////////// write_part_asset //////////////////////////////////
 uint32_t write_part_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint32_t spritesheet, uint32_t maxparticles, uint32_t emittercount, vector<uint8_t> const &emitters)
 {
-  vector<char> payload(sizeof(PackParticleSystemPayload) + emitters.size());
+  vector<uint8_t> payload;
 
-  reinterpret_cast<PackParticleSystemPayload*>(payload.data())->spritesheet = spritesheet;
-
-  memcpy(payload.data() + sizeof(PackParticleSystemPayload), emitters.data(), emitters.size());
+  pack<uint32_t>(payload, spritesheet);
+  pack<uint8_t>(payload, emitters.data(), emitters.size());
 
   write_part_asset(fout, id, bound, maxparticles, emittercount, emitters.size(), payload.data());
 
@@ -475,17 +455,12 @@ uint32_t write_modl_asset(ostream &fout, uint32_t id, uint32_t texturecount, uin
 ///////////////////////// write_modl_asset //////////////////////////////////
 uint32_t write_modl_asset(ostream &fout, uint32_t id, vector<PackModelPayload::Texture> const &textures, vector<PackModelPayload::Material> const &materials, vector<PackModelPayload::Mesh> const &meshes, vector<PackModelPayload::Instance> const &instances)
 {
-  vector<char> payload(sizeof(PackModelPayload) + textures.size()*sizeof(PackModelPayload::Texture) + materials.size()*sizeof(PackModelPayload::Material) + meshes.size()*sizeof(PackModelPayload::Mesh) + instances.size()*sizeof(PackModelPayload::Instance));
+  vector<uint8_t> payload(sizeof(PackModelPayload)); // Note: Empty Payload has one byte
 
-  auto texturetable = const_cast<PackModelPayload::Texture*>(PackModelPayload::texturetable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
-  auto materialtable = const_cast<PackModelPayload::Material*>(PackModelPayload::materialtable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
-  auto meshtable = const_cast<PackModelPayload::Mesh*>(PackModelPayload::meshtable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
-  auto instancetable = const_cast<PackModelPayload::Instance*>(PackModelPayload::instancetable(payload.data(), textures.size(), materials.size(), meshes.size(), instances.size()));
-
-  memcpy(texturetable, textures.data(), textures.size()*sizeof(PackModelPayload::Texture));
-  memcpy(materialtable, materials.data(), materials.size()*sizeof(PackModelPayload::Material));
-  memcpy(meshtable, meshes.data(), meshes.size()*sizeof(PackModelPayload::Mesh));
-  memcpy(instancetable, instances.data(), instances.size()*sizeof(PackModelPayload::Instance));
+  pack<PackModelPayload::Texture>(payload, textures.data(), textures.size());
+  pack<PackModelPayload::Material>(payload, materials.data(), materials.size());
+  pack<PackModelPayload::Mesh>(payload, meshes.data(), meshes.size());
+  pack<PackModelPayload::Instance>(payload, instances.data(), instances.size());
 
   write_modl_asset(fout, id, textures.size(), materials.size(), meshes.size(), instances.size(), payload.data());
 

@@ -222,7 +222,6 @@
     <ClInclude Include="renderlist.h" />
     <ClInclude Include="debug.h" />
     <ClCompile Include="asset.cpp" />
-    <ClCompile Include="assetpack.cpp" />
     <ClCompile Include="renderer\animation.cpp" />
     <ClCompile Include="renderer\commandlump.cpp" />
     <ClCompile Include="renderer\decal.cpp" />

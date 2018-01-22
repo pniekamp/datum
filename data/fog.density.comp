@@ -58,7 +58,7 @@ const float Scattering = 0.0015;
 ///////////////////////// cell_xy ///////////////////////////////////////////
 vec2 cell_xy(ivec3 xyz)
 {
-  return (2.0 / vec2(FogVolumeX - 1, FogVolumeY - 1)) * vec2(xyz.xy) - 1.0;
+  return (2.0 / vec2(FogVolumeX, FogVolumeY)) * vec2(xyz.xy) - 1.0;
 }
 
 ///////////////////////// cell_depth ////////////////////////////////////////
@@ -167,7 +167,7 @@ void main()
       lighting += light.intensity * attenuation;
     }
   }
-  
+
   vec4 fog = vec4(lighting, scattering);
   
   // Temporal Blend
@@ -185,6 +185,6 @@ void main()
   fog = mix(fog, texture(prevmap, prevtexcoord), temporalweight);
   
   // Output
-  
+
   imageStore(dest, xyz, fog); 
 }

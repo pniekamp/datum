@@ -498,7 +498,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   //
 
   bool vsync = true;
-  uint32_t desiredimages = 2;
+  uint32_t desiredimages = 3;
 
   VkSurfaceCapabilitiesKHR surfacecapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
@@ -1110,8 +1110,10 @@ int main(int argc, char *args[])
           TranslateMessage(&msg);
           DispatchMessage(&msg);
         }
-
-        RedrawWindow(window.hwnd, NULL, NULL, RDW_INTERNALPAINT);
+        else
+        {
+          RedrawWindow(window.hwnd, NULL, NULL, RDW_INTERNALPAINT);
+        }
       }
     }
     catch(const exception &e)

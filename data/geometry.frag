@@ -5,6 +5,7 @@
 #include "transform.glsl"
 #include "lighting.glsl"
 
+layout(constant_id = 31) const bool CutOut = true;
 layout(constant_id = 52) const uint DecalMask = 0;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
@@ -40,8 +41,11 @@ void main()
 
   Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness * surface.r, params.reflectivity * surface.g, params.roughness * surface.a);
 
-  if (albedo.a < 0.95)
-    discard;
+  if (CutOut)
+  {
+    if (albedo.a < 0.95)
+      discard;
+  }
 
   fragcolor = vec4(material.diffuse, params.emissive);
   fragspecular = vec4(material.specular, material.roughness);

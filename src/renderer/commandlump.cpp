@@ -12,7 +12,6 @@
 #include "debug.h"
 
 using namespace std;
-using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
