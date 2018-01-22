@@ -408,7 +408,8 @@ struct RenderContext
   Vulkan::Pipeline foilageshadowpipeline;
   Vulkan::Pipeline foilageprepasspipeline;
   Vulkan::Pipeline foilagegeometrypipeline;
-  Vulkan::Pipeline terrainpipeline;
+  Vulkan::Pipeline terrainprepasspipeline;
+  Vulkan::Pipeline terraingeometrypipeline;
   Vulkan::Pipeline depthmippipeline[6];
   Vulkan::Pipeline esmpipeline[3];
   Vulkan::Pipeline fogvolumepipeline[2];

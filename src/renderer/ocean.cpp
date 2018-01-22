@@ -10,6 +10,7 @@
 
 using namespace std;
 using namespace lml;
+using namespace Vulkan;
 using leap::extentof;
 
 enum ShaderLocation
@@ -561,8 +562,6 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 ///////////////////////// render ////////////////////////////////////////////
 void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params, VkSemaphore const (&dependancies)[8])
 {
-  using namespace Vulkan;
-
   assert(context.ready);
   assert(target->ready());
   assert(target->vertexbuffer.vertexcount == sizex*sizey);

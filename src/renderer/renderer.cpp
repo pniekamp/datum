@@ -124,6 +124,8 @@ enum ShaderLocation
   FogVolumeY = 17,
   FogVolumeZ = 18,
 
+  CutOut = 31,
+
   SoftParticles = 28,
 
   DecalMask = 52,
@@ -1205,8 +1207,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[1] = {};
-    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1218,6 +1223,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_GEOMETRY_BIT;
@@ -1227,6 +1233,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     shaders[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[2].module = fsmodule;
+    shaders[2].pSpecializationInfo = &specializationinfo;
     shaders[2].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
@@ -1313,14 +1320,28 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
     VkPipelineShaderStageCreateInfo shaders[2] = {};
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[1].module = fsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
     shaders[1].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
@@ -1417,11 +1438,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[4] = {};
+    VkSpecializationMapEntry specializationmap[5] = {};
     specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
-    specializationmap[3] = { ShaderLocation::DecalMask, offsetof(ComputeConstants, Two), sizeof(ComputeConstants::Two) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+    specializationmap[4] = { ShaderLocation::DecalMask, offsetof(ComputeConstants, Two), sizeof(ComputeConstants::Two) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1547,8 +1569,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[1] = {};
-    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1560,6 +1585,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_GEOMETRY_BIT;
@@ -1569,6 +1595,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     shaders[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[2].module = fsmodule;
+    shaders[2].pSpecializationInfo = &specializationinfo;
     shaders[2].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
@@ -1673,14 +1700,28 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
     VkPipelineShaderStageCreateInfo shaders[2] = {};
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[1].module = fsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
     shaders[1].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
@@ -1795,10 +1836,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[3] = {};
+    VkSpecializationMapEntry specializationmap[4] = {};
     specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1906,8 +1948,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[1] = {};
-    specializationmap[0] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -1919,6 +1964,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_GEOMETRY_BIT;
@@ -1928,6 +1974,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     shaders[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[2].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[2].module = fsmodule;
+    shaders[2].pSpecializationInfo = &specializationinfo;
     shaders[2].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
@@ -2014,14 +2061,28 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
     VkPipelineShaderStageCreateInfo shaders[2] = {};
     shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
     shaders[0].pName = "main";
     shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaders[1].module = fsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
     shaders[1].pName = "main";
 
     VkGraphicsPipelineCreateInfo pipelineinfo = {};
@@ -2118,10 +2179,11 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[3] = {};
+    VkSpecializationMapEntry specializationmap[4] = {};
     specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -2159,10 +2221,118 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     context.foilagegeometrypipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
-  if (context.terrainpipeline == 0)
+  if (context.terrainprepasspipeline == 0)
   {
     //
-    // Terrain Pipeline
+    // Terrain Prepass Pipeline
+    //
+
+    auto vs = assets.find(CoreAsset::model_prepass_vert);
+    auto fs = assets.find(CoreAsset::prepass_frag);
+
+    if (!vs || !fs)
+      return false;
+
+    asset_guard lock(assets);
+
+    auto vssrc = assets.request(platform, vs);
+    auto fssrc = assets.request(platform, fs);
+
+    if (!vssrc || !fssrc)
+      return false;
+
+    auto vsmodule = create_shadermodule(context.vulkan, vssrc, vs->length);
+    auto fsmodule = create_shadermodule(context.vulkan, fssrc, fs->length);
+
+    VkVertexInputBindingDescription vertexbindings[1] = {};
+    vertexbindings[0].stride = VertexLayout::stride;
+    vertexbindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexinput = {};
+    vertexinput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexinput.vertexBindingDescriptionCount = extentof(vertexbindings);
+    vertexinput.pVertexBindingDescriptions = vertexbindings;
+    vertexinput.vertexAttributeDescriptionCount = extentof(context.vertexattributes);
+    vertexinput.pVertexAttributeDescriptions = context.vertexattributes;
+
+    VkPipelineInputAssemblyStateCreateInfo inputassembly = {};
+    inputassembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterization = {};
+    rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterization.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterization.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.lineWidth = 1.0;
+
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineDepthStencilStateCreateInfo depthstate = {};
+    depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthstate.depthTestEnable = VK_TRUE;
+    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_LESS;
+
+    VkPipelineViewportStateCreateInfo viewport = {};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkDynamicState dynamicstates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dynamic = {};
+    dynamic.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic.dynamicStateCount = extentof(dynamicstates);
+    dynamic.pDynamicStates = dynamicstates;
+
+    VkSpecializationMapEntry specializationmap[4] = {};
+    specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
+    specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
+    specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, False), sizeof(ComputeConstants::False) };
+
+    VkSpecializationInfo specializationinfo = {};
+    specializationinfo.mapEntryCount = extentof(specializationmap);
+    specializationinfo.pMapEntries = specializationmap;
+    specializationinfo.dataSize = sizeof(computeconstants);
+    specializationinfo.pData = &computeconstants;
+
+    VkPipelineShaderStageCreateInfo shaders[2] = {};
+    shaders[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaders[0].module = vsmodule;
+    shaders[0].pSpecializationInfo = &specializationinfo;
+    shaders[0].pName = "main";
+    shaders[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaders[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaders[1].module = fsmodule;
+    shaders[1].pSpecializationInfo = &specializationinfo;
+    shaders[1].pName = "main";
+
+    VkGraphicsPipelineCreateInfo pipelineinfo = {};
+    pipelineinfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineinfo.layout = context.pipelinelayout;
+    pipelineinfo.renderPass = context.prepass;
+    pipelineinfo.pVertexInputState = &vertexinput;
+    pipelineinfo.pInputAssemblyState = &inputassembly;
+    pipelineinfo.pRasterizationState = &rasterization;
+    pipelineinfo.pMultisampleState = &multisample;
+    pipelineinfo.pDepthStencilState = &depthstate;
+    pipelineinfo.pViewportState = &viewport;
+    pipelineinfo.pDynamicState = &dynamic;
+    pipelineinfo.stageCount = extentof(shaders);
+    pipelineinfo.pStages = shaders;
+
+    context.terrainprepasspipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+  }
+
+  if (context.terraingeometrypipeline == 0)
+  {
+    //
+    // Terrain Geometry Pipeline
     //
 
     auto vs = assets.find(CoreAsset::terrain_vert);
@@ -2236,11 +2406,12 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[4] = {};
+    VkSpecializationMapEntry specializationmap[5] = {};
     specializationmap[0] = { ShaderLocation::ClusterTileX, offsetof(ComputeConstants, ClusterTileX), sizeof(ComputeConstants::ClusterTileX) };
     specializationmap[1] = { ShaderLocation::ClusterTileY, offsetof(ComputeConstants, ClusterTileY), sizeof(ComputeConstants::ClusterTileY) };
     specializationmap[2] = { ShaderLocation::ShadowSlices, offsetof(ComputeConstants, ShadowSlices), sizeof(ComputeConstants::ShadowSlices) };
-    specializationmap[3] = { ShaderLocation::DecalMask, offsetof(ComputeConstants, One), sizeof(ComputeConstants::One) };
+    specializationmap[3] = { ShaderLocation::CutOut, offsetof(ComputeConstants, True), sizeof(ComputeConstants::True) };
+    specializationmap[4] = { ShaderLocation::DecalMask, offsetof(ComputeConstants, One), sizeof(ComputeConstants::One) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -2275,7 +2446,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     pipelineinfo.stageCount = extentof(shaders);
     pipelineinfo.pStages = shaders;
 
-    context.terrainpipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
+    context.terraingeometrypipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
   if (context.depthmippipeline[0] == 0)

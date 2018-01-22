@@ -14,6 +14,7 @@
 
 using namespace std;
 using namespace lml;
+using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
@@ -425,8 +426,6 @@ bool prepare_convolve_context(DatumPlatform::PlatformInterface &platform, Convol
 ///////////////////////// convolve //////////////////////////////////////////
 void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams const &params, VkSemaphore const (&dependancies)[8])
 {
-  using namespace Vulkan;
-
   assert(context.ready);
   assert(target->ready());
 
@@ -631,8 +630,6 @@ bool prepare_project_context(DatumPlatform::PlatformInterface &platform, Project
 ///////////////////////// project ///////////////////////////////////////////
 void project(ProjectContext &context, EnvMap const *source, Irradiance &target, ProjectParams const &params, VkSemaphore const (&dependancies)[8])
 {
-  using namespace Vulkan;
-
   assert(context.ready);
   assert(source->ready());
 

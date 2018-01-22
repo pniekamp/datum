@@ -14,6 +14,7 @@
 
 using namespace std;
 using namespace lml;
+using namespace Vulkan;
 using leap::alignto;
 using leap::extentof;
 
@@ -303,8 +304,6 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxCo
 ///////////////////////// render ////////////////////////////////////////////
 void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams const &params, VkSemaphore const (&dependancies)[8])
 { 
-  using namespace Vulkan;
-
   assert(context.ready);
   assert(target->ready());
 
