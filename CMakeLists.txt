@@ -78,3 +78,13 @@ add_subdirectory(test)
 if(Qt5Gui_FOUND)
   add_subdirectory(tools)
 endif(Qt5Gui_FOUND)
+
+#
+# examples
+#
+
+option(EXAMPLES "Examples" OFF)
+
+if(EXAMPLES)
+  add_subdirectory(examples)
+endif(EXAMPLES)

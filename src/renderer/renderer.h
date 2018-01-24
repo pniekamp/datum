@@ -485,11 +485,11 @@ struct RenderParams
   float skyboxlod = 0.0f;
 
   float lightfalloff = 0.66f;
-  float ssaoscale = 1.0f;
+  float ssaoscale = 0.0f;
   float ssrstrength = 1.0f;
   float bloomstrength = 1.0f;
 
-  float fogdensity = 0.0f;
+  float fogdensity = 0.1f;
   lml::Vec3 fogattenuation = { 0.0f, 0.5f, 0.0f };
 };
 

@@ -127,6 +127,12 @@ Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount)
 }
 
 template<>
+Mesh const *ResourceManager::create<Mesh>(size_t vertexcount, size_t indexcount)
+{
+  return create<Mesh>((int)vertexcount, (int)indexcount);
+}
+
+template<>
 Mesh const *ResourceManager::create<Mesh>(uint32_t vertexcount, uint32_t indexcount)
 {
   return create<Mesh>((int)vertexcount, (int)indexcount);
