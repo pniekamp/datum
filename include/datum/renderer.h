@@ -15,6 +15,7 @@
 #include "../../src/renderer/forwardlist.h"
 #include "../../src/renderer/overlaylist.h"
 #include "../../src/renderer/skybox.h"
+#include "../../src/renderer/ocean.h"
 #include "../../src/renderer/envmap.h"
 #include "../../src/renderer/spotmap.h"
 #include "../../src/renderer/animation.h"
