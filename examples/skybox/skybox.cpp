@@ -44,7 +44,7 @@ void example_init(PlatformInterface &platform)
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
   state.sundirection = Vec3(0.2869f, -0.7174f, -0.6347f);
-  state.sunintensity = Color3(8.0f, 7.56f, 7.88f);
+  state.sunintensity = Color3(8.0f, 7.65f, 6.71f);
 
   auto clouddensity = state.resources.create<Texture>(state.assets.find(CoreAsset::cloud_density), Texture::Format::RGBA);
   auto cloudnormal = state.resources.create<Texture>(state.assets.find(CoreAsset::cloud_normal), Texture::Format::RGBA);

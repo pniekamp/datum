@@ -118,6 +118,9 @@
     <ClCompile Include="renderer\ocean.cpp">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="renderer\colorlut.cpp">
+      <Filter>Source Files\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asset.h">
@@ -290,6 +293,9 @@
     </ClInclude>
     <ClInclude Include="math\perlin.h">
       <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer\colorlut.h">
+      <Filter>Source Files\renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

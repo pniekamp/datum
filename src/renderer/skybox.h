@@ -65,7 +65,7 @@ struct SkyBoxParams
   lml::Color3 skycolor = { 0.650f, 0.570f, 0.475f };
   lml::Color3 groundcolor = { 0.41f, 0.41f, 0.4f };
   lml::Vec3 sundirection = { -0.57735f, -0.57735f, -0.57735f };
-  lml::Color3 sunintensity = { 8.0f, 7.56f, 7.88f };
+  lml::Color3 sunintensity = { 8.0f, 7.65f, 6.71f };
 
   float cloudheight = 10000.0f;
   Material const *clouds = nullptr;

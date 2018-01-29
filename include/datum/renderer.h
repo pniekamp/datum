@@ -18,6 +18,7 @@
 #include "../../src/renderer/ocean.h"
 #include "../../src/renderer/envmap.h"
 #include "../../src/renderer/spotmap.h"
+#include "../../src/renderer/colorlut.h"
 #include "../../src/renderer/animation.h"
 #include "../../src/renderer/particlesystem.h"
 #include "../../src/renderlist.h"

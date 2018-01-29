@@ -65,3 +65,14 @@ vec3 tonemap(vec3 color)
 {
   return max(filmic_uncharted2(2.0 * color) / whitepoint(), 0);
 }
+
+
+///////////////////////// colorgrad /////////////////////////////////////////
+vec3 colorgrad(sampler3D colorlut, vec3 color)
+{
+  const vec3 size = vec3(32, 32, 32);//textureSize(colorlut, 0);
+  const vec3 scale = (size - 1.0) / size;
+  const vec3 offset = 1.0 / (2.0 * size);
+
+  return texture(colorlut, scale * color + offset).rgb;
+}

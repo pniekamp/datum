@@ -86,7 +86,8 @@ enum ShaderLocation
   scratchtarget1 = 32,
   scratchtarget2 = 33,
   scratchtarget3 = 34,
-  lumabuf = 35,
+  colorlut = 35,
+  lumabuf = 36,
 
   // Constant Ids
 
@@ -115,6 +116,7 @@ enum ShaderLocation
   ColorBlurSigma = 85,
 
   DepthOfField = 26,
+  ColorGrading = 27,
 
   DepthMipLayer = 23,
 
@@ -314,7 +316,7 @@ static struct ComputeConstants
   uint32_t BloomVBlurDispatch[3] = { 1, 575, 1 };
   uint32_t BloomVBlurSize = BloomVBlurDispatch[1] + BloomBlurRadius + BloomBlurRadius;
 
-  uint32_t ColorBlurSigma = 3;
+  uint32_t ColorBlurSigma = 8;
   uint32_t ColorBlurRadius = 16;
   uint32_t ColorHBlurDispatch[3] = { 991, 1, 1 };
   uint32_t ColorHBlurSize = ColorHBlurDispatch[0] + ColorBlurRadius + ColorBlurRadius;
@@ -322,6 +324,7 @@ static struct ComputeConstants
   uint32_t ColorVBlurSize = ColorVBlurDispatch[1] + ColorBlurRadius + ColorBlurRadius;
 
   uint32_t DepthOfField = false;
+  uint32_t ColorGrading = false;
 
   uint32_t True = true;
   uint32_t False = false;
@@ -391,6 +394,40 @@ void prefetch_core_assets(DatumPlatform::PlatformInterface &platform, AssetManag
   for(int i = 1; i < CoreAsset::core_asset_count; ++i)
   {
     assets.request(platform, assets.find(i));
+  }
+}
+
+
+///////////////////////// config_render_pipeline ////////////////////////////
+template<>
+void config_render_pipeline<bool>(RenderPipelineConfig config, bool value)
+{
+  switch(config)
+  {
+    case RenderPipelineConfig::EnableDepthOfField:
+      computeconstants.DepthOfField = true;
+      break;
+
+    case RenderPipelineConfig::EnableColorGrading:
+      computeconstants.ColorGrading = true;
+      break;
+
+    default:
+      throw std::logic_error("Unknown PipelineConfig bool value");
+  }
+}
+
+template<>
+void config_render_pipeline<float>(RenderPipelineConfig config, float value)
+{
+  switch(config)
+  {
+    case RenderPipelineConfig::FogDepthRange:
+      computeconstants.FogDepthRange = value;
+      break;
+
+    default:
+      throw std::logic_error("Unknown PipelineConfig float value");
   }
 }
 
@@ -510,7 +547,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
   {
     // Scene Set
 
-    VkDescriptorSetLayoutBinding bindings[36] = {};
+    VkDescriptorSetLayoutBinding bindings[37] = {};
     bindings[0].binding = ShaderLocation::scenebuf;
     bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -651,10 +688,14 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     bindings[34].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings[34].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     bindings[34].descriptorCount = 1;
-    bindings[35].binding = ShaderLocation::lumabuf;
-    bindings[35].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings[35].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[35].binding = ShaderLocation::colorlut;
+    bindings[35].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[35].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[35].descriptorCount = 1;
+    bindings[36].binding = ShaderLocation::lumabuf;
+    bindings[36].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings[36].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[36].descriptorCount = 1;
 
     VkDescriptorSetLayoutCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -4399,8 +4440,9 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dynamic.dynamicStateCount = extentof(dynamicstates);
     dynamic.pDynamicStates = dynamicstates;
 
-    VkSpecializationMapEntry specializationmap[1] = {};
+    VkSpecializationMapEntry specializationmap[2] = {};
     specializationmap[0] = { ShaderLocation::DepthOfField, offsetof(ComputeConstants, DepthOfField), sizeof(ComputeConstants::DepthOfField) };
+    specializationmap[1] = { ShaderLocation::ColorGrading, offsetof(ComputeConstants, ColorGrading), sizeof(ComputeConstants::ColorGrading) };
 
     VkSpecializationInfo specializationinfo = {};
     specializationinfo.mapEntryCount = extentof(specializationmap);
@@ -5813,6 +5855,19 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     bind_texture(context.vulkan, context.framedescriptors[0], ShaderLocation::decalmaps, decalmapinfos, extentof(decalmapinfos));
     bind_texture(context.vulkan, context.framedescriptors[1], ShaderLocation::decalmaps, decalmapinfos, extentof(decalmapinfos));
+
+    tmp.image.release();
+    tmp.sampler.release();
+    tmp.imageview.release();
+
+    tmp = create_texture(context.vulkan, setupbuffer, 32, 32, 32, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+    bind_texture(context.vulkan, context.framedescriptors[0], ShaderLocation::colorlut, tmp);
+    bind_texture(context.vulkan, context.framedescriptors[1], ShaderLocation::colorlut, tmp);
+
+    tmp.image.release();
+    tmp.sampler.release();
+    tmp.imageview.release();
 #endif
 
     // Finalise
@@ -6162,6 +6217,13 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
     bind_texture(context.vulkan, context.framedescriptors[context.frame & 1], ShaderLocation::envmaps, envmapinfos, sceneset.environmentcount);
   }
 
+  if (params.colorlut)
+  {
+    assert(params.colorlut->ready());
+
+    bind_texture(context.vulkan, context.framedescriptors[context.frame & 1], ShaderLocation::colorlut, params.colorlut->texture);
+  }
+
   update(context.commandbuffers[context.frame & 1], context.sceneset, 0, sizeof(SceneSet), &sceneset);
 }
 
@@ -6176,7 +6238,7 @@ extern void draw_overlays(RenderContext &context, VkCommandBuffer commandbuffer,
 
 
 ///////////////////////// render_fallback ///////////////////////////////////
-void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap, int width, int height)
+void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, const void *bitmap, int width, int height)
 {
   assert(context.vulkan);
 
@@ -6488,11 +6550,11 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   {
     bind_pipeline(commandbuffer, context.colorblurpipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.scratchbuffers[0], context.colorbuffer.width/2, context.colorbuffer.height/2, 1, computeconstants.ColorHBlurDispatch);
+    dispatch(commandbuffer, context.scratchbuffers[2], context.colorbuffer.width, context.colorbuffer.height, 1, computeconstants.ColorHBlurDispatch);
 
     bind_pipeline(commandbuffer, context.colorblurpipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.colorbuffer, context.colorbuffer.width/2, context.colorbuffer.height/2, 1, computeconstants.ColorVBlurDispatch);
+    dispatch(commandbuffer, context.colorbuffer, context.colorbuffer.width/2, context.colorbuffer.height, 1, computeconstants.ColorVBlurDispatch);
   }
 
   querytimestamp(commandbuffer, context.timingquerypool, 9);

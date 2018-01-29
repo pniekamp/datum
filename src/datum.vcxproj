@@ -181,6 +181,7 @@
     <ClInclude Include="assetpack.h" />
     <ClInclude Include="asset.h" />
     <ClInclude Include="renderer\animation.h" />
+    <ClInclude Include="renderer\colorlut.h" />
     <ClInclude Include="renderer\commandlump.h" />
     <ClInclude Include="renderer\decal.h" />
     <ClInclude Include="renderer\decallist.h" />
@@ -223,6 +224,7 @@
     <ClInclude Include="debug.h" />
     <ClCompile Include="asset.cpp" />
     <ClCompile Include="renderer\animation.cpp" />
+    <ClCompile Include="renderer\colorlut.cpp" />
     <ClCompile Include="renderer\commandlump.cpp" />
     <ClCompile Include="renderer\decal.cpp" />
     <ClCompile Include="renderer\decallist.cpp" />

@@ -137,6 +137,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.skybox = state.skybox;
   renderparams.skyboxorientation = Transform::rotation(Vec3(1, 0, 0), pi<float>()/2);
   renderparams.fogdensity = 0.0f;
+  renderparams.fogattenuation = Vec3(0.0f, 0.0f, 0.5f);
   renderparams.ssaoscale = 0.0f;
 
   if (state.mode == GameState::Startup)
