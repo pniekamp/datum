@@ -398,6 +398,12 @@ SpotMap const *ResourceManager::create<SpotMap>(int width, int height)
 }
 
 template<>
+SpotMap const *ResourceManager::create<SpotMap>(size_t width, size_t height)
+{
+  return create<SpotMap>((int)width, (int)height);
+}
+
+template<>
 SpotMap const *ResourceManager::create<SpotMap>(uint32_t width, uint32_t height)
 {
   return create<SpotMap>((int)width, (int)height);

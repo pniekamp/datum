@@ -508,6 +508,43 @@ uint32_t write_envbrdf_asset(ostream &fout, uint32_t id)
 }
 
 
+uint32_t write_colorlut_asset(ostream &fout, uint32_t id, string const &path)
+{
+  QImage sheet(path.c_str());
+
+  if (sheet.isNull())
+    throw runtime_error("Failed to load image - " + path);
+
+  cout << "  " << path << endl;
+
+  int count = 32;
+  int width = sheet.width() / count;
+  int height = sheet.height();
+  int layers = count;
+  int levels = 1;
+
+  vector<char> payload(image_datasize(width, height, layers, levels));
+
+  char *dst = payload.data();
+
+  for(int i = 0; i < sheet.width(); i += width)
+  {
+    QImage image = sheet.copy(i, 0, width, height).convertToFormat(QImage::Format_ARGB32);
+
+    if (image.width() != width || image.height() != height)
+      throw runtime_error("Layers with differing dimensions");
+
+    memcpy(dst, image.bits(), image.byteCount());
+
+    dst += image.byteCount();
+  }
+
+  write_imag_asset(fout, id, width, height, layers, levels, PackImageHeader::rgba, payload.data());
+
+  return id + 1;
+}
+
+
 uint32_t write_watermap_asset(ostream &fout, uint32_t id, Color3 const &deepcolor, Color3 const &shallowcolor, float depthscale = 1.0f, Color3 const &fresnelcolor = { 0.0f, 0.0f, 0.0f }, float fresnelbias = 0.328f, float fresnelpower = 5.0f)
 {
   int width = 256;
@@ -841,6 +878,8 @@ void write_core()
   write_shader_asset(fout, CoreAsset::bloom_vblur_comp, "../../data/bloom.vblur.comp");
 
   write_shader_asset(fout, CoreAsset::luminance_comp, "../../data/luminance.comp");
+
+  write_colorlut_asset(fout, CoreAsset::color_lut, "../../data/color_lut.png");
 
   write_shader_asset(fout, CoreAsset::color_hblur_comp, "../../data/color.hblur.comp");
   write_shader_asset(fout, CoreAsset::color_vblur_comp, "../../data/color.vblur.comp");

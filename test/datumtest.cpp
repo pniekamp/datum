@@ -110,6 +110,7 @@ void datumtest_init(PlatformInterface &platform)
   state.linequad = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_quad));
   state.linecube = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_cube));
   state.linecone = state.resources.create<Mesh>(state.assets.find(CoreAsset::line_cone));
+  state.colorlut = state.resources.create<ColorLut>(state.assets.find(CoreAsset::color_lut), ColorLut::Format::RGBA);
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
@@ -266,6 +267,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     request(platform, state.resources, state.linequad, &ready, &total);
     request(platform, state.resources, state.linecube, &ready, &total);
     request(platform, state.resources, state.linecone, &ready, &total);
+    request(platform, state.resources, state.colorlut, &ready, &total);
     request(platform, state.resources, state.defaultmaterial, &ready, &total);
     request(platform, state.resources, state.loader, &ready, &total);
 
@@ -347,7 +349,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     state.lastmousez = input.mousez;
 
 #ifdef DEBUG
-   state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
+    state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
 #endif
 
     state.camera = adapt(state.camera, state.rendercontext.luminance, state.luminancetarget, 0.5f*dt);
@@ -550,7 +552,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
   //    renderparams.scale = 2.0f;//0.5f;
       renderparams.aspect = state.aspect;
       renderparams.ssaoscale = 0.5f;
-      renderparams.fogdensity = 1.0f;
+      renderparams.fogdensity = 0.0f;
 
       prepare_render_pipeline(state.rendercontext, renderparams);
     }
@@ -741,7 +743,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderparams.sundirection = state.readframe->sundirection;
     renderparams.sunintensity = state.readframe->sunintensity;
 //    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
-    renderparams.fogdensity = 0.1f;
+    renderparams.fogdensity = 0.0f;
     renderparams.ssrstrength = 1.0f;
 
     DEBUG_MENU_VALUE("Lighting/Fog Strength", &renderparams.fogdensity, 0.0f, 10.0f)

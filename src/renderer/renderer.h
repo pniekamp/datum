@@ -17,6 +17,7 @@
 #include "skybox.h"
 #include "envmap.h"
 #include "spotmap.h"
+#include "colorlut.h"
 #include "material.h"
 
 // Renderables
@@ -470,6 +471,13 @@ struct RenderContext
   Camera prevcamera;
 };
 
+enum class RenderPipelineConfig
+{
+  FogDepthRange = 0x07, // float
+  EnableDepthOfField = 0x1A, // bool
+  EnableColorGrading = 0x1B, // bool
+};
+
 struct RenderParams
 {
   int width = 1280;
@@ -478,7 +486,7 @@ struct RenderParams
   float aspect = 1.7777778f;
 
   lml::Vec3 sundirection = { -0.57735f, -0.57735f, -0.57735f };
-  lml::Color3 sunintensity = { 8.0f, 7.56f, 7.88f };
+  lml::Color3 sunintensity = { 8.0f, 7.65f, 6.71f };
 
   SkyBox const *skybox = nullptr;
   lml::Transform skyboxorientation = lml::Transform::identity();
@@ -491,9 +499,15 @@ struct RenderParams
 
   float fogdensity = 0.1f;
   lml::Vec3 fogattenuation = { 0.0f, 0.5f, 0.0f };
+
+  ColorLut const *colorlut = nullptr;
 };
 
 void prefetch_core_assets(DatumPlatform::PlatformInterface &platform, AssetManager &assets);
+
+// Config
+template<typename T>
+void config_render_pipeline(RenderPipelineConfig config, T value);
 
 // Initialise
 void initialise_render_context(DatumPlatform::PlatformInterface &platform, RenderContext &context, size_t storagesize, uint32_t queueindex);
@@ -508,7 +522,7 @@ void blit(RenderContext &context, Vulkan::Texture const &src, VkBuffer dst, VkDe
 void blit(RenderContext &context, Vulkan::Texture const &src, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers, VkFilter filter, VkSemaphore const (&dependancies)[8] = {});
 
 // Fallback
-void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, void *bitmap = nullptr, int width = 0, int height = 0);
+void render_fallback(RenderContext &context, DatumPlatform::Viewport const &viewport, const void *bitmap = nullptr, int width = 0, int height = 0);
 
 // Render
 void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Camera const &camera, PushBuffer const &renderables, RenderParams const &params, VkSemaphore const (&dependancies)[7] = {});

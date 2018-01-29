@@ -1265,6 +1265,26 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, int dx, int dy, int dz, int dw, int dh, int dd, VkImageSubresourceLayers dstlayers)
+  {
+    VkBufferImageCopy buffercopy = {};
+
+    buffercopy.bufferOffset = offset;
+
+    buffercopy.imageOffset.x = dx;
+    buffercopy.imageOffset.y = dy;
+    buffercopy.imageOffset.z = dz;
+    buffercopy.imageSubresource = dstlayers;
+
+    buffercopy.imageExtent.width = dw;
+    buffercopy.imageExtent.height = dh;
+    buffercopy.imageExtent.depth = dd;
+
+    vkCmdCopyBufferToImage(commandbuffer, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffercopy);
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
   void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkBuffer dst, VkDeviceSize offset)
   {
     VkBufferImageCopy buffercopy = {};

@@ -80,6 +80,11 @@ SkyBox const *ResourceManager::create<SkyBox>(int width, int height, EnvMap::For
   return (SkyBox const *)create<EnvMap>(width, height, format);
 }
 
+template<>
+SkyBox const *ResourceManager::create<SkyBox>(size_t width, size_t height, EnvMap::Format format)
+{
+  return create<SkyBox>((int)width, (int)height, format);
+}
 
 template<>
 SkyBox const *ResourceManager::create<SkyBox>(uint32_t width, uint32_t height, EnvMap::Format format)

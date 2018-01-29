@@ -44,6 +44,7 @@ struct GameState
   Mesh const *linequad;
   Mesh const *linecube;
   Mesh const *linecone;
+  ColorLut const *colorlut;
   Material const *defaultmaterial;
 
   AssetManager assets;
@@ -77,7 +78,7 @@ struct GameState
 
   SkyBox const *skybox;
   Vec3 sundirection = normalise(Vec3(0.4f, -1.0f, -0.1f));
-  Color3 sunintensity = Color3(8.0f, 7.56f, 7.88f);
+  Color3 sunintensity = Color3(8.0f, 8.0f, 8.0f);
 
   // Render Frames
 

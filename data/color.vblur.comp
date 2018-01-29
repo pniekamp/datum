@@ -9,7 +9,7 @@ layout(constant_id = 84) const uint Radius = 16;
 const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
 
 layout(set=0, binding=5) uniform sampler2D depthmap;
-layout(set=0, binding=27) uniform sampler2D colormap;
+layout(set=0, binding=29) uniform sampler2D colormap;
 
 layout(set=0, binding=8) writeonly uniform image2D dest[1];
 
@@ -46,21 +46,21 @@ void main()
   gl_WorkGroupSize;
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * SizeY);
+  ivec2 viewport = textureSize(colormap, 0).xy; 
+  ivec2 texcoord = ivec2(tile.x + ij.x, clamp(tile.y + ij.y - int(Radius), 0, viewport.y - 1));
   
-  vec2 texcoord = vec2(tile.x + ij.x, tile.y + ij.y - int(Radius)) / textureSize(colormap, 0).xy;
-  
-  texels[ij.y] = texture(colormap, texcoord);
-  depths[ij.y] = texture(depthmap, texcoord).r;
+  texels[ij.y] = texture(colormap, vec2(texcoord)/viewport);
+  depths[ij.y] = texelFetch(depthmap, ivec2(2*texcoord.x, texcoord.y), 0).r;
 
   barrier();
   
-  if (ij.y < SizeY)
+  if (ij.y < SizeY/2)
   {  
     vec3 coefficients;
     coefficients.x = 1.0 / (sqrt(2.0 * 3.14159265) * Sigma);
     coefficients.y = exp(-0.5 / (Sigma * Sigma));
     coefficients.z = coefficients.y * coefficients.y;   
 
-    imageStore(dest[0], tile + ij, blur(ij.y + Radius, coefficients));
+    imageStore(dest[0], tile + ij, blur(2*ij.y + Radius, coefficients));
   }
 }

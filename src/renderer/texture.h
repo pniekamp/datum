@@ -24,7 +24,7 @@ class Texture
       RGBM,
       RGBE,
       FLOAT16,
-      FLOAT32
+      FLOAT32,
     };
 
   public:

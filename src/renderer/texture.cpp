@@ -154,6 +154,12 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
 }
 
 template<>
+Texture const *ResourceManager::create<Texture>(size_t width, size_t height, size_t layers, size_t levels, Texture::Format format)
+{
+  return create<Texture>((int)width, (int)height, (int)layers, (int)levels, format);
+}
+
+template<>
 Texture const *ResourceManager::create<Texture>(uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, Texture::Format format)
 {
   return create<Texture>((int)width, (int)height, (int)layers, (int)levels, format);

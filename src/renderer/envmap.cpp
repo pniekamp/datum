@@ -162,6 +162,12 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
 }
 
 template<>
+EnvMap const *ResourceManager::create<EnvMap>(size_t width, size_t height, EnvMap::Format format)
+{
+  return create<EnvMap>((int)width, (int)height, format);
+}
+
+template<>
 EnvMap const *ResourceManager::create<EnvMap>(uint32_t width, uint32_t height, EnvMap::Format format)
 {
   return create<EnvMap>((int)width, (int)height, format);

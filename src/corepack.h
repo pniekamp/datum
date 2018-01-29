@@ -13,7 +13,7 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 39;
+  const uint32_t version = 40;
 
   enum
   {
@@ -84,6 +84,7 @@ namespace CoreAsset
     luminance_comp,
     color_hblur_comp,
     color_vblur_comp,
+    color_lut,
     composite_vert,
     composite_frag,
     sprite_vert,

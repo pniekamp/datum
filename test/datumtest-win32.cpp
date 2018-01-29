@@ -323,7 +323,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   appinfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appinfo.pApplicationName = "Datum Test";
   appinfo.pEngineName = "Datum";
-  appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 51);
+  appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 65);
 
 #if VALIDATION
   const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
