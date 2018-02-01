@@ -53,7 +53,7 @@ void main()
   
 #else  
 
-  fragcolor = vec4(scene.camera.exposure * 4.0f * color.rgb, color.a);
+  fragcolor = vec4(scene.camera.exposure * 4.0 * color.rgb, color.a);
 
 #endif 
 }

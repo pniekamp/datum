@@ -45,7 +45,7 @@ vec3 view_position(mat4 proj, mat4 invproj, vec2 texcoord, float depth)
 
 vec3 view_position(mat4 proj, mat4 invproj, ivec2 xy, ivec2 viewport, float depth)
 {
-  return view_position(proj, invproj, (vec2(xy) + 0.5)/viewport, depth);
+  return view_position(proj, invproj, (xy + 0.5) / viewport, depth);
 }
 
 vec3 view_position(mat4 view, vec3 position)

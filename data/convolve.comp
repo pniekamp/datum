@@ -77,7 +77,7 @@ void main()
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
   ivec2 dim = imageSize(dest);
 
-  vec2 eyeray = vec2(2 * (xy.x + 0.5f)/dim.x - 1, 2 * (xy.y + 0.5f)/dim.y - 1);
+  vec2 eyeray = vec2(2 * (xy.x + 0.5)/dim.x - 1, 2 * (xy.y + 0.5)/dim.y - 1);
 
   if (xy.x < dim.x && xy.y < dim.y)
   {

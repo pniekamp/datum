@@ -45,7 +45,7 @@ layout(set=0, binding=2) writeonly uniform image2DArray dest;
 
 shared vec3 displacements[SizeY + 2][SizeX + 2];
 
-const float signs[] = { 1.0f, -1.0f };
+const float signs[] = { 1.0, -1.0 };
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

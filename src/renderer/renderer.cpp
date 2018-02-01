@@ -266,9 +266,9 @@ static struct ComputeConstants
   uint32_t ESMGenSizeY = ESMGenDispatch[1];
 
   uint32_t ESMBlurRadius = 2;
-  uint32_t ESMHBlurDispatch[3] = { 256, 1, 1 };
+  uint32_t ESMHBlurDispatch[3] = { 64, 1, 1 };
   uint32_t ESMHBlurSize = ESMHBlurDispatch[0] + ESMBlurRadius + ESMBlurRadius;
-  uint32_t ESMVBlurDispatch[3] = { 1, 256, 1 };
+  uint32_t ESMVBlurDispatch[3] = { 1, 64, 1 };
   uint32_t ESMVBlurSize = ESMVBlurDispatch[1] + ESMBlurRadius + ESMBlurRadius;
 
   uint32_t NoiseSize = extent<decltype(SSAOSet::noise)>::value;
@@ -311,16 +311,16 @@ static struct ComputeConstants
 
   uint32_t BloomBlurSigma = 8;
   uint32_t BloomBlurRadius = 16;
-  uint32_t BloomHBlurDispatch[3] = { 991, 1, 1 };
+  uint32_t BloomHBlurDispatch[3] = { 64, 1, 1 };
   uint32_t BloomHBlurSize = BloomHBlurDispatch[0] + BloomBlurRadius + BloomBlurRadius;
-  uint32_t BloomVBlurDispatch[3] = { 1, 575, 1 };
+  uint32_t BloomVBlurDispatch[3] = { 1, 64, 1 };
   uint32_t BloomVBlurSize = BloomVBlurDispatch[1] + BloomBlurRadius + BloomBlurRadius;
 
-  uint32_t ColorBlurSigma = 8;
+  uint32_t ColorBlurSigma = 4;
   uint32_t ColorBlurRadius = 16;
-  uint32_t ColorHBlurDispatch[3] = { 991, 1, 1 };
+  uint32_t ColorHBlurDispatch[3] = { 64, 1, 1 };
   uint32_t ColorHBlurSize = ColorHBlurDispatch[0] + ColorBlurRadius + ColorBlurRadius;
-  uint32_t ColorVBlurDispatch[3] = { 1, 575, 1 };
+  uint32_t ColorVBlurDispatch[3] = { 1, 64, 1 };
   uint32_t ColorVBlurSize = ColorVBlurDispatch[1] + ColorBlurRadius + ColorBlurRadius;
 
   uint32_t DepthOfField = false;
@@ -6550,11 +6550,11 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   {
     bind_pipeline(commandbuffer, context.colorblurpipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.scratchbuffers[2], context.colorbuffer.width, context.colorbuffer.height, 1, computeconstants.ColorHBlurDispatch);
+    dispatch(commandbuffer, context.scratchbuffers[2], context.colorbuffer.width/2, context.colorbuffer.height, 1, computeconstants.ColorHBlurDispatch);
 
     bind_pipeline(commandbuffer, context.colorblurpipeline[1], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-    dispatch(commandbuffer, context.colorbuffer, context.colorbuffer.width/2, context.colorbuffer.height, 1, computeconstants.ColorVBlurDispatch);
+    dispatch(commandbuffer, context.colorbuffer, context.colorbuffer.width/2, context.colorbuffer.height/2, 1, computeconstants.ColorVBlurDispatch);
   }
 
   querytimestamp(commandbuffer, context.timingquerypool, 9);

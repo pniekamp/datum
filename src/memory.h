@@ -28,12 +28,6 @@ class StackAllocator
 
     typedef T value_type;
 
-    template<typename U>
-    struct rebind
-    {
-      typedef StackAllocator<U> other;
-    };
-
   public:
 
     StackAllocator(Arena &arena);
@@ -45,7 +39,7 @@ class StackAllocator
 
     T *allocate(std::size_t n, std::size_t alignment = alignof(T), std::size_t mask = 0);
 
-    void deallocate(T * const ptr, std::size_t n);
+    void deallocate(T *ptr, std::size_t n) noexcept;
 
   private:
 
@@ -91,7 +85,7 @@ T *StackAllocator<T>::allocate(std::size_t n, std::size_t alignment, std::size_t
 
 ///////////////////////// StackAllocator::deallocate ////////////////////////
 template<typename T>
-void StackAllocator<T>::deallocate(T * const ptr, std::size_t n)
+void StackAllocator<T>::deallocate(T *ptr, std::size_t n) noexcept
 {
 }
 
@@ -124,7 +118,7 @@ class FreeList
 
     void *acquire(std::size_t bytes, std::size_t alignment);
 
-    void release(void * const ptr, std::size_t bytes);
+    void release(void *ptr, std::size_t bytes) noexcept;
 
     void siphon(FreeList *other);
 
@@ -203,7 +197,7 @@ inline void *FreeList::acquire(std::size_t bytes, std::size_t alignment)
 
 
 ///////////////////////// Freelist::release /////////////////////////////////
-inline void FreeList::release(void * const ptr, std::size_t bytes)
+inline void FreeList::release(void *ptr, std::size_t bytes) noexcept
 {
   Node *node = aligned<Node>(ptr);
 
@@ -254,12 +248,6 @@ class StackAllocatorWithFreelist : public StackAllocator<T>
 
     typedef T value_type;
 
-    template<typename U>
-    struct rebind
-    {
-      typedef StackAllocatorWithFreelist<U> other;
-    };
-
   public:
 
     StackAllocatorWithFreelist(Arena &arena, FreeList &freelist);
@@ -274,7 +262,7 @@ class StackAllocatorWithFreelist : public StackAllocator<T>
 
     T *allocate(std::size_t n, std::size_t alignment = alignof(T));
 
-    void deallocate(T * const ptr, std::size_t n);
+    void deallocate(T *ptr, std::size_t n) noexcept;
 
   private:
 
@@ -328,7 +316,7 @@ T *StackAllocatorWithFreelist<T>::allocate(std::size_t n, std::size_t alignment)
 
 ///////////////////////// StackAllocatorWithFreelist::deallocate ////////////
 template<typename T>
-void StackAllocatorWithFreelist<T>::deallocate(T * const ptr, std::size_t n)
+void StackAllocatorWithFreelist<T>::deallocate(T *ptr, std::size_t n) noexcept
 {
   auto mask = FreeList::bucket_mask(n*sizeof(T));
 
@@ -352,32 +340,32 @@ bool inarena(Arena &arena, T *ptr)
 template<typename T>
 T *allocate(StackAllocator<> const &allocator, std::size_t n = 1, std::size_t alignment = alignof(T))
 {
-  return typename StackAllocator<>::template rebind<T>::other(allocator).allocate(n, alignment);
+  return StackAllocator<T>(allocator).allocate(n, alignment);
 }
 
 template<typename T>
 T *allocate(StackAllocatorWithFreelist<> const &allocator, std::size_t n = 1, std::size_t alignment = alignof(T))
 {
-  return typename StackAllocatorWithFreelist<>::template rebind<T>::other(allocator).allocate(n, alignment);
+  return StackAllocatorWithFreelist<T>(allocator).allocate(n, alignment);
 }
 
 
 ///////////////////////// deallocate ////////////////////////////////////////
 template<typename T>
-void deallocate(StackAllocator<> const &allocator, T * const ptr, std::size_t n = 1)
+void deallocate(StackAllocator<> const &allocator, T *ptr, std::size_t n = 1)
 {
   if (ptr)
   {
-    typename StackAllocator<>::template rebind<T>::other(allocator).deallocate(ptr, n);
+    StackAllocator<T>(allocator).deallocate(ptr, n);
   }
 }
 
 template<typename T>
-void deallocate(StackAllocatorWithFreelist<> const &allocator, T * const ptr, std::size_t n = 1)
+void deallocate(StackAllocatorWithFreelist<> const &allocator, T *ptr, std::size_t n = 1)
 {
   if (ptr)
   {
-    typename StackAllocatorWithFreelist<>::template rebind<T>::other(allocator).deallocate(ptr, n);
+    StackAllocatorWithFreelist<T>(allocator).deallocate(ptr, n);
   }
 }
 

@@ -125,7 +125,7 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, vec2 viewport, out vec2 hi
         for(int i = 0; P.x * stepdir <= end && stepcount < MaxSteps && i < 4; ++i)
         {
           rayzmin = rayzmax;
-          rayzmax = (Q.z + 0.5f * dQ.z) / (k + 0.5f * dk);
+          rayzmax = (Q.z + 0.5 * dQ.z) / (k + 0.5 * dk);
 
           hitpixel = permute ? P.yx : P.xy;
 

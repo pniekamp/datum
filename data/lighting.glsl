@@ -120,7 +120,7 @@ uint cluster_tile(vec2 uv, ivec2 viewport)
 
 uint cluster_tile(ivec2 xy, ivec2 viewport)
 {
-  return cluster_tile((vec2(xy) + 0.5)/viewport, viewport);
+  return cluster_tile((xy + 0.5) / viewport, viewport);
 }
 
 uint cluster_tilez(float depth)
@@ -219,7 +219,7 @@ Material mix_material(Material first, Material second, float factor)
 ///////////////////////// ambient_intensity /////////////////////////////////
 float ambient_intensity(MainLight light, sampler2D ssaomap, ivec2 xy, ivec2 viewport)
 {
-  return texture(ssaomap, (vec2(xy) + 0.5)/viewport).x;
+  return texture(ssaomap, (xy + 0.5) / viewport).x;
 }
 
 ///////////////////////// shadow_split //////////////////////////////////////
@@ -234,7 +234,7 @@ vec4 shadow_split(float splits[4], uint nslices, float depth)
 ///////////////////////// shadow_intensity //////////////////////////////////
 float shadow_intensity(sampler2D shadowmap, ivec2 xy, ivec2 viewport)
 {
-  return texture(shadowmap, vec2(xy+0.5)/viewport).r;
+  return texture(shadowmap, (xy + 0.5) / viewport).r;
 }
 
 ///////////////////////// shadow_intensity //////////////////////////////////
@@ -477,10 +477,10 @@ vec4 global_fog(vec3 xyz, sampler3D fogmap)
 
 vec4 global_fog(vec2 texcoord, float viewdepth, sampler3D fogmap)
 {
-  return global_fog(vec3(texcoord, pow(viewdepth / FogDepthRange, 1.0f / FogDepthExponent)), fogmap);
+  return global_fog(vec3(texcoord, pow(viewdepth / FogDepthRange, 1.0 / FogDepthExponent)), fogmap);
 }
 
 vec4 global_fog(ivec2 xy, ivec2 viewport, float viewdepth, sampler3D fogmap)
 {
-  return global_fog((vec2(xy) + 0.5)/viewport, viewdepth, fogmap);
+  return global_fog((xy + 0.5) / viewport, viewdepth, fogmap);
 }

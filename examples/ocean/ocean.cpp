@@ -172,7 +172,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
       if (geometry.begin(buildstate, state.rendercontext, state.resources))
       {
         Vec3 bumpscale = Vec3(0.35f, 0.35f, 0.15f);
-        float foamwaveheight = 0.8f;
+        float foamwaveheight = 0.55f;
         float foamwavescale = 0.2f;
         float foamshoreheight = 0.1f;
         float foamshorescale = 0.02f;

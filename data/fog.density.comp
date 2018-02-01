@@ -115,7 +115,7 @@ void main()
 
   float thickness = cell_depth(xyz + ivec3(0, 0, 1)) - cellpos.z;
   
-  float scattering = Scattering * (0.1f + density) * thickness;
+  float scattering = Scattering * (0.1 + density) * thickness;
 
   vec3 lighting = vec3(0);
   
@@ -180,7 +180,7 @@ void main()
 
   prevtexcoord.x = 0.5 * prevtexcoord.x / (scene.invproj[0][0] * -prevtexcoord.z) + 0.5;
   prevtexcoord.y = 0.5 * prevtexcoord.y / (scene.invproj[1][1] * -prevtexcoord.z) + 0.5;
-  prevtexcoord.z = pow(-prevtexcoord.z / FogDepthRange, 1.0f / FogDepthExponent);
+  prevtexcoord.z = pow(-prevtexcoord.z / FogDepthRange, 1.0 / FogDepthExponent);
 
   fog = mix(fog, texture(prevmap, prevtexcoord), temporalweight);
   

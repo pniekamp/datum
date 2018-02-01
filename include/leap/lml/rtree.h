@@ -120,7 +120,9 @@ namespace leap { namespace lml
 
         typedef Item item_type;
         typedef Item value_type;
-        typedef typename Alloc::template rebind<Node>::other allocator_type;
+        typedef Alloc allocator_type;
+        typedef typename std::allocator_traits<Alloc>::template rebind_alloc<Item> item_allocator_type;
+        typedef typename std::allocator_traits<Alloc>::template rebind_alloc<Node> node_allocator_type;
         typedef std::decay_t<decltype(box()(std::declval<Item&>()))> bound_type;
 
         typedef normal_iterator<Node *> iterator;
@@ -175,8 +177,8 @@ namespace leap { namespace lml
 
             bound_type bound;
 
-            std::vector<Item, typename Alloc::template rebind<Item>::other> items;
-            std::vector<Node, typename Alloc::template rebind<Node>::other> nodes;
+            std::vector<Item, item_allocator_type> items;
+            std::vector<Node, node_allocator_type> nodes;
         };
 
         class less_area_overlap;
@@ -313,7 +315,7 @@ namespace leap { namespace lml
     {
       public:
 
-        less_area_overlap(bound_type const &bound, std::vector<Node, allocator_type> const &nodes)
+        less_area_overlap(bound_type const &bound, std::vector<Node, node_allocator_type> const &nodes)
           : m_bound(bound), m_nodes(nodes)
         {
         }
@@ -342,7 +344,7 @@ namespace leap { namespace lml
         }
 
         bound_type m_bound;
-        std::vector<Node, allocator_type> const &m_nodes;
+        std::vector<Node, node_allocator_type> const &m_nodes;
     };
 
 
