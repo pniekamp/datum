@@ -73,7 +73,7 @@ void main()
 
   MainLight mainlight;
   mainlight.direction = -eyevec;
-  mainlight.intensity = vec3(1.0f, 0.945f, 0.985f);
+  mainlight.intensity = vec3(1.0, 0.945, 0.985);
 
   main_light(diffuse, specular, mainlight, normal, eyevec, material, 1);
 

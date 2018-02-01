@@ -18,7 +18,7 @@ void main()
   
   vec2 texelsize = 1.0 / textureSize(src, 0).xy;
 
-  vec3 texel = texture(src, (2 * vec2(xy) + 0.5) * texelsize).rgb;
+  vec3 texel = texture(src, 2 * (xy + 0.5) * texelsize).rgb;
 
   float luma = dot(texel, vec3(0.299, 0.587, 0.114));
 

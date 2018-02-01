@@ -1,6 +1,6 @@
 #version 440 core
 
-layout(local_size_y = 256) in;
+layout(local_size_y = 64) in;
 layout(local_size_y_id = 2) in;
 
 layout(constant_id = 84) const uint Radius = 16;

@@ -80,7 +80,7 @@ void main()
   ivec2 xy = ivec2(gl_WorkGroupID.x * SizeX + ij.x - Radius, gl_WorkGroupID.y * SizeY + ij.y - Radius);
   vec2 viewport = imageSize(dest);
   
-  vec2 texcoord = (vec2(xy) + 0.5) / viewport;
+  vec2 texcoord = (xy + 0.5) / viewport;
  
   float depth = texture(depthmap, texcoord).r;
   

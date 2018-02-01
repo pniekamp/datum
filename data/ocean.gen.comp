@@ -81,7 +81,7 @@ void main()
   float u = (2 * float(xy.x) / (mesh.sizex-1) - 1) * margin;
   float v = (1 - 2 * float(xy.y) / (mesh.sizey-1)) * margin;
 
-  vec4 viewvec = params.invproj * vec4(u, v, 0.0f, 1.0f);
+  vec4 viewvec = params.invproj * vec4(u, v, 0.0, 1.0);
   vec3 worlddir = quaternion_multiply(params.camera.real, normalize(viewvec.xyz));
 
   float costheta = dot(worlddir, -params.plane.xyz);

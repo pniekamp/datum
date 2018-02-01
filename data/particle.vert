@@ -60,7 +60,7 @@ void main()
   vec3 lightingtexcoord = (scene.view * position).xyz;
   lightingtexcoord.x = 0.5 * lightingtexcoord.x / (scene.invproj[0][0] * -lightingtexcoord.z) + 0.5;
   lightingtexcoord.y = 0.5 * lightingtexcoord.y / (scene.invproj[1][1] * -lightingtexcoord.z) + 0.5;
-  lightingtexcoord.z = pow(max(-lightingtexcoord.z / FogDepthRange, 0), 1.0f / FogDepthExponent);
+  lightingtexcoord.z = pow(max(-lightingtexcoord.z / FogDepthRange, 0), 1.0 / FogDepthExponent);
 
   vec3 diffuse = texture(lightingmap, lightingtexcoord).rgb;
 
