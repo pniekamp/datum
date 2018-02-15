@@ -75,6 +75,8 @@ struct SkyBoxParams
   float exposure = 1.0f;
 };
 
+lml::Color3 fog_color(SkyBoxParams const &params);
+
 // Initialise
 void initialise_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxContext &context, uint32_t queueindex);
 

@@ -40,7 +40,7 @@ class Platform : public PlatformInterface
 
     handle_t open_handle(const char *identifier) override;
 
-    void read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
+    size_t read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
 
     void close_handle(handle_t handle) override;
 
@@ -111,9 +111,9 @@ PlatformInterface::handle_t Platform::open_handle(const char *identifier)
 
 
 ///////////////////////// PlatformCore::read_handle /////////////////////////
-void Platform::read_handle(PlatformInterface::handle_t handle, uint64_t position, void *buffer, size_t bytes)
+size_t Platform::read_handle(PlatformInterface::handle_t handle, uint64_t position, void *buffer, size_t bytes)
 {
-  static_cast<FileHandle*>(handle)->read(position, buffer, bytes);
+  return static_cast<FileHandle*>(handle)->read(position, buffer, bytes);
 }
 
 

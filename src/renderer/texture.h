@@ -32,6 +32,7 @@ class Texture
     friend Texture const *ResourceManager::create<Texture>(int width, int height, int layers, int levels, Format format);
 
     friend void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump);
+    friend void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump, int x, int y, int w, int h, int layer, int level);
 
     bool ready() const { return (state == State::Ready); }
 

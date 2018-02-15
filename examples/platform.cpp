@@ -267,7 +267,7 @@ namespace DatumPlatform
 
 
   ///////////////////////// FileHandle::Read ////////////////////////////////
-  void FileHandle::read(uint64_t position, void *buffer, size_t bytes)
+  size_t FileHandle::read(uint64_t position, void *buffer, size_t bytes)
   {  
     lock_guard<mutex> lock(m_lock);
 
@@ -277,6 +277,8 @@ namespace DatumPlatform
 
     if (!m_fio)
       throw runtime_error("FileHandle Read Error");
+
+    return bytes;
   }
 
 } // namespace

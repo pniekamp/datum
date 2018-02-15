@@ -86,6 +86,8 @@ struct Asset
       int instancecount;
     };
   };
+
+  size_t datasize;
 };
 
 
@@ -112,6 +114,9 @@ class AssetManager
 
     // find
     Asset const *find(size_t id) const;
+
+    // read (immediate)
+    void *read(DatumPlatform::PlatformInterface &platform, Asset const *asset, void *buffer);
 
     // Request asset payload. May not be loaded, will initiate background load and return null.
     void const *request(DatumPlatform::PlatformInterface &platform, Asset const *asset);
@@ -148,7 +153,6 @@ class AssetManager
       File *file;
 
       uint64_t datapos;
-      size_t datasize;
 
       Slot *slot;
     };

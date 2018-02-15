@@ -379,11 +379,11 @@ namespace Vulkan
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices);
   void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices);
 
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageLayout layout, VkImageUsageFlags usage, VkImageCreateFlags flags = 0);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageLayout layout, VkImageUsageFlags usage, VkImageCreateFlags flags = 0);
 
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
-  Texture create_texture(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, unsigned int width, unsigned int height, unsigned int layers, unsigned int levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+  Texture create_texture(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits, VkFilter filter = VK_FILTER_LINEAR, VkSamplerAddressMode addressmode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
   void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, Texture &texture);
   void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, Texture &texture, const void *bits);
@@ -443,13 +443,13 @@ namespace Vulkan
   void barrier(VkCommandBuffer commandbuffer);
   void barrier(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
 
-  void mip(VkCommandBuffer commandbuffer, VkImage image, int width, int height, uint32_t layers, uint32_t levels);
+  void mip(VkCommandBuffer commandbuffer, VkImage image, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels);
 
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkImage dst, int dx, int dy, VkImageSubresourceLayers dstlayers);
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers, VkFilter filter);
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, int dx, int dy, int dw, int dh, VkImageSubresourceLayers dstlayers);
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, int dx, int dy, int dz, int dw, int dh, int dd, VkImageSubresourceLayers dstlayers);
-  void blit(VkCommandBuffer commandbuffer, VkImage src, int sx, int sy, int sw, int sh, VkImageSubresourceLayers srclayers, VkBuffer dst, VkDeviceSize offset);
+  void blit(VkCommandBuffer commandbuffer, VkImage src, uint32_t sx, uint32_t sy, uint32_t sw, uint32_t sh, VkImageSubresourceLayers srclayers, VkImage dst, uint32_t dx, uint32_t dy, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkImage src, uint32_t sx, uint32_t sy, uint32_t sw, uint32_t sh, VkImageSubresourceLayers srclayers, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers, VkFilter filter);
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dz, uint32_t dw, uint32_t dh, uint32_t dd, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkImage src, uint32_t sx, uint32_t sy, uint32_t sw, uint32_t sh, VkImageSubresourceLayers srclayers, VkBuffer dst, VkDeviceSize offset);
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkBuffer dst, VkDeviceSize dstoffset, VkDeviceSize size);
 
   void fill(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t data);
@@ -465,14 +465,14 @@ namespace Vulkan
   void beginquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query, VkQueryControlFlags flags);
   void endquery(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query);
 
-  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, int x, int y, int width, int height, size_t attachments, VkClearValue const *clearvalues);
+  void beginpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass, VkFramebuffer framebuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height, size_t attachments, VkClearValue const *clearvalues);
   void nextsubpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
   void endpass(VkCommandBuffer commandbuffer, VkRenderPass renderpass);
 
-  void clear(VkCommandBuffer commandbuffer, int x, int y, int width, int height, size_t attachment, lml::Color4 const &clearcolor, uint32_t baselayer = 0, uint32_t layercount = 1);
-  void clear(VkCommandBuffer commandbuffer, int x, int y, int width, int height, float depth, uint32_t stencil, uint32_t baselayer = 0, uint32_t layercount = 1);
+  void clear(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height, size_t attachment, lml::Color4 const &clearcolor, uint32_t baselayer = 0, uint32_t layercount = 1);
+  void clear(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height, float depth, uint32_t stencil, uint32_t baselayer = 0, uint32_t layercount = 1);
 
-  void scissor(VkCommandBuffer commandbuffer, int x, int y, int width, int height);
+  void scissor(VkCommandBuffer commandbuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
   void execute(VkCommandBuffer commandbuffer, VkCommandBuffer buffer);
 
@@ -484,8 +484,8 @@ namespace Vulkan
   void bind_descriptor(VkCommandBuffer commandbuffer, VkPipelineLayout layout, uint32_t set, VkDescriptorSet descriptorset, uint32_t offset, VkPipelineBindPoint bindpoint);
 
   void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, VkPipelineBindPoint bindpoint);
-  void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, VkPipelineBindPoint bindpoint);
-  void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, int x, int y, int width, int height, int clipx, int clipy, int clipwidth, int clipheight, VkPipelineBindPoint bindpoint);
+  void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, uint32_t x, uint32_t y, uint32_t width, uint32_t height, VkPipelineBindPoint bindpoint);
+  void bind_pipeline(VkCommandBuffer commandbuffer, VkPipeline pipeline, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t clipx, uint32_t clipy, uint32_t clipwidth, uint32_t clipheight, VkPipelineBindPoint bindpoint);
 
   void bind_vertexbuffer(VkCommandBuffer commandbuffer, uint32_t binding, VertexBuffer const &vertexbuffer);
 

@@ -13,6 +13,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <type_traits>
 #include <algorithm>
 
 /**
@@ -68,6 +69,8 @@ namespace leap
       constexpr const_iterator end() const noexcept { return m_ptr + m_size; }
       constexpr const_iterator cend() const noexcept { return m_ptr + m_size; }
 
+      int compare(basic_string_view s) const noexcept;
+
       size_t find(T c, size_t pos = 0) const;
       size_t find(const T *s, size_t pos = 0) const;
 
@@ -116,6 +119,23 @@ namespace leap
   constexpr basic_string_view<T, traits>::basic_string_view(std::basic_string<T, traits> const &str)
     : m_ptr(str.data()), m_size(str.size())
   {
+  }
+
+  template<typename T, class traits>
+  int basic_string_view<T, traits>::compare(basic_string_view s) const noexcept
+  {
+    auto comp = traits::compare(data(), s.data(), std::min(size(), s.size()));
+
+    if (comp == 0)
+    {
+      if (size() < s.size())
+        return -1;
+
+      if (size() > s.size())
+        return 1;
+    }
+
+    return comp;
   }
 
   template<typename T, class traits>
@@ -293,65 +313,56 @@ namespace leap
   template<typename T, class traits>
   constexpr bool operator ==(basic_string_view<T, traits> const &lhs, basic_string_view<T, traits> const &rhs)
   {
-    return (lhs.size() == rhs.size()) && (traits::compare(lhs.data(), rhs.data(), std::min(lhs.size(), rhs.size())) == 0);
+    return lhs.compare(rhs) == 0;
   }
-
 
   template<typename T, class traits>
   constexpr bool operator ==(basic_string_view<T, traits> const &lhs, std::decay_t<basic_string_view<T, traits>> const &rhs)
   {
-    return (lhs == rhs);
+    return lhs.compare(rhs) == 0;
   }
-
 
   template<typename T, class traits>
   constexpr bool operator ==(std::decay_t<basic_string_view<T, traits>> const &lhs, basic_string_view<T, traits> const &rhs)
   {
-    return (lhs == rhs);
+    return lhs.compare(rhs) == 0;
   }
-
 
   template<typename T, class traits>
   constexpr bool operator !=(basic_string_view<T, traits> const &lhs, basic_string_view<T, traits> const &rhs)
   {
-    return !(lhs == rhs);
+    return lhs.compare(rhs) != 0;
   }
-
 
   template<typename T, class traits>
   constexpr bool operator !=(basic_string_view<T, traits> const &lhs, std::decay_t<basic_string_view<T, traits>> const &rhs)
   {
-    return !(lhs == rhs);
+    return lhs.compare(rhs) != 0;
   }
 
   template<typename T, class traits>
   constexpr bool operator !=(std::decay_t<basic_string_view<T, traits>> const &lhs, basic_string_view<T, traits> const &rhs)
   {
-    return !(lhs == rhs);
+    return lhs.compare(rhs) != 0;
   }
 
   template<typename T, class traits>
   constexpr bool operator <(basic_string_view<T, traits> const &lhs, basic_string_view<T, traits> const &rhs)
   {
-    auto comp = traits::compare(lhs.data(), rhs.data(), std::min(lhs.size(), rhs.size()));
-
-    return comp ? (comp < 0) : (lhs.size() < rhs.size());
+    return lhs.compare(rhs) < 0;
   }
-
 
   template<typename T, class traits>
   constexpr bool operator <(basic_string_view<T, traits> const &lhs, std::decay_t<basic_string_view<T, traits>> const &rhs)
   {
-    return (lhs < rhs);
+    return lhs.compare(rhs) < 0;
   }
-
 
   template<typename T, class traits>
   constexpr bool operator <(std::decay_t<basic_string_view<T, traits>> const &lhs, basic_string_view<T, traits> const &rhs)
   {
-    return (lhs < rhs);
+    return lhs.compare(rhs) < 0;
   }
-
 
   typedef basic_string_view<char> string_view;
   typedef basic_string_view<wchar_t> wstring_view;

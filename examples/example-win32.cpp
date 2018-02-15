@@ -41,7 +41,7 @@ class Platform : public PlatformInterface
 
     handle_t open_handle(const char *identifier) override;
 
-    void read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
+    size_t read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
 
     void close_handle(handle_t handle) override;
 
@@ -112,9 +112,9 @@ PlatformInterface::handle_t Platform::open_handle(const char *identifier)
 
 
 ///////////////////////// PlatformCore::read_handle /////////////////////////
-void Platform::read_handle(PlatformInterface::handle_t handle, uint64_t position, void *buffer, size_t bytes)
+size_t Platform::read_handle(PlatformInterface::handle_t handle, uint64_t position, void *buffer, size_t bytes)
 {
-  static_cast<FileHandle*>(handle)->read(position, buffer, bytes);
+  return static_cast<FileHandle*>(handle)->read(position, buffer, bytes);
 }
 
 
@@ -754,6 +754,8 @@ struct Window
 
   void resize(int width, int height);
 
+  void paint(UINT msg, WPARAM wParam, LPARAM lParam);
+
   void keypress(UINT msg, WPARAM wParam, LPARAM lParam);
   void keyrelease(UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -769,6 +771,8 @@ struct Window
   Game *game;
 
   HWND hwnd;
+
+  bool visible;
 
   bool mousewrap;
   int mousex, mousey;
@@ -789,9 +793,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       break;
 
     case WM_PAINT:
-      vulkan.acquire();
-      window.game->render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
-      vulkan.present();
+      window.paint(uMsg, wParam, lParam);
       break;
 
     case WM_SIZE:
@@ -844,6 +846,7 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
 {
   game = gameptr;
 
+  visible = false;
   mousewrap = false;
 
   WNDCLASSEX winclass;
@@ -907,6 +910,20 @@ void Window::resize(int width, int height)
 
       game->resize(0, 0, width, height);
     }
+  }
+
+  window.visible = (vulkan.surface && width != 0 && height != 0);
+}
+
+
+//|//////////////////// Window::paint ///////////////////////////////////////
+void Window::paint(UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  if (window.visible)
+  {
+    vulkan.acquire();
+    window.game->render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
+    vulkan.present();
   }
 }
 

@@ -319,33 +319,34 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size
 
 
 ///////////////////////// SpriteList::push_text /////////////////////////////
-void SpriteList::push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Vec2 const &position, float size, Font const *font, const char *str, Color4 const &tint)
+void SpriteList::push_text(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, float size, Font const *font, const char *str, Color4 const &tint)
 {
   assert(font && font->ready());
 
-  if (state.texture != font->glyphs->texture || state.color != tint)
+  if (state.texture != font->sheet->texture || state.color != tint)
   {
-    push_material(state, font->glyphs->texture, tint);
+    push_material(state, font->sheet->texture, tint);
   }
 
   auto scale = size / font->height();
 
   auto cursor = position;
 
-  uint32_t othercodepoint = 0;
+  uint32_t codepoint;;
+  uint32_t lastcodepoint = 0;
 
-  for(const char *ch = str; *ch; ++ch)
+  for(uint8_t const *ch = (uint8_t const *)str; *ch; ++ch)
   {
-    uint32_t codepoint = *ch;
+    if (*ch >= font->glyphcount)
+      continue;
 
-    if (codepoint >= (size_t)font->glyphcount)
-      codepoint = 0;
+    codepoint = *ch;
 
-    cursor += scale * font->width(othercodepoint, codepoint) * xbasis;
+    cursor += scale * font->width(lastcodepoint, codepoint) * xbasis;
 
-    push_model(state, scale * font->dimension[codepoint].x * xbasis, scale * font->dimension[codepoint].y * ybasis, cursor - scale * font->alignment[codepoint].x*xbasis - scale * font->alignment[codepoint].y*ybasis, font->texcoords[codepoint], 0);
+    push_model(state, scale * font->dimension[codepoint].x * xbasis, scale * font->dimension[codepoint].y * ybasis, cursor - scale * font->alignment[codepoint].x * xbasis - scale * font->alignment[codepoint].y * ybasis, font->texcoords[codepoint], 0);
 
-    othercodepoint = codepoint;
+    lastcodepoint = codepoint;
   }
 }
 
@@ -371,7 +372,7 @@ void SpriteList::push_text(BuildState &state, Vec2 const &position, float size, 
 
 
 ///////////////////////// SpriteList::push_texture //////////////////////////
-void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 const &rect, Vulkan::Texture const &texture, float layer, lml::Color4 const &tint)
+void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 const &rect, Vulkan::Texture const &texture, float layer, Color4 const &tint)
 {
   auto xbasis = Vec2(1, 0);
   auto ybasis = Vec2(0, 1);

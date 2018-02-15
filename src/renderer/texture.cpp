@@ -191,6 +191,35 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 }
 
 
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
+void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump, int x, int y, int w, int h, int layer, int level)
+{
+  assert(lump);
+  assert(texture);
+  assert(texture->state == Texture::State::Ready);
+
+  auto slot = const_cast<Texture*>(texture);
+
+  wait_fence(vulkan, lump->fence);
+
+  begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+  setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+  blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture.image, x, y, w, h, { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t)level, (uint32_t)layer, 1 });
+
+  setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  end(vulkan, lump->commandbuffer);
+
+  submit(lump);
+
+  while (!test_fence(vulkan, lump->fence))
+    ;
+}
+
+
 ///////////////////////// ResourceManager::request //////////////////////////
 template<>
 void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platform, Texture const *texture)

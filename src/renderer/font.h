@@ -36,7 +36,7 @@ class Font
     lml::Vec2 const *dimension;//[count]
     uint8_t const *advance;//[count][count];
 
-    Texture const *glyphs;
+    Texture const *sheet;
 
   public:
 
@@ -65,13 +65,22 @@ inline int Font::width(const char *str) const
 {
   int sum = 0;
 
-  if (ready())
+  uint32_t codepoint;
+  uint32_t lastcodepoint = 0;
+
+  for(uint8_t const *ch = (uint8_t const *)str; *ch; ++ch)
   {
-    for(const char *ch = str; *ch != 0; ++ch)
-    {
-      sum += width(ch[0], ch[1]);
-    }
+    if (*ch >= glyphcount)
+      continue;
+
+    codepoint = *ch;
+
+    sum += width(lastcodepoint, codepoint);
+
+    lastcodepoint = codepoint;
   }
+
+  sum += width(lastcodepoint, 0);
 
   return sum;
 }

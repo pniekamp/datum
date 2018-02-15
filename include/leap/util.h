@@ -24,6 +24,7 @@
 #include <iomanip>
 #include <memory>
 #include <cctype>
+#include <tuple>
 
 /**
  * \namespace leap

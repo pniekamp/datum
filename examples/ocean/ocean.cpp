@@ -44,18 +44,19 @@ void example_init(PlatformInterface &platform)
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
   state.ocean.wavescale = 22.0f;
-  state.ocean.waveamplitude = 0.000035f;
+  state.ocean.waveamplitude = 0.000117f;
   state.ocean.swellamplitude = 0.8f;
-  state.ocean.windspeed = 7.2f;
+  state.ocean.windspeed = 7.9f;
+  state.ocean.smoothing = 340.0f;
 
   seed_ocean(state.ocean);
 
   auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
-  auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::noise_normal), Texture::Format::RGBA);
+  auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
   auto watersurface = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_foam), Texture::Format::RGBA);
-  state.oceanmaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.58f, 0.0f, 0.0f, watercolor, watersurface, waternormal);
+  state.oceanmaterial = state.resources.create<Material>(Color4(0.468f, 0.686f, 0.74f, 1), 0.0f, 0.32f, 0.02f, 0.0f, watercolor, watersurface, waternormal);
 
-  state.oceanmesh = make_plane(state.resources, 512, 1024);
+  state.oceanmesh = make_plane(state.resources, 1024, 1024);
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
 
@@ -136,9 +137,9 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.aspect = state.aspect;
   renderparams.skybox = state.skybox;
   renderparams.skyboxorientation = Transform::rotation(Vec3(1, 0, 0), pi<float>()/2);
+  renderparams.ssaoscale = 0.0f;
   renderparams.fogdensity = 0.0f;
   renderparams.fogattenuation = Vec3(0.0f, 0.0f, 0.5f);
-  renderparams.ssaoscale = 0.0f;
 
   if (state.mode == GameState::Startup)
   {
@@ -161,7 +162,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   {
     auto &camera = state.camera;
 
-    render_ocean_surface(state.oceancontext, state.oceanmesh, 512, 1024, camera, state.ocean);
+    render_ocean_surface(state.oceancontext, state.oceanmesh, 1024, 1024, camera, state.ocean);
 
     RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 
@@ -171,13 +172,13 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
 
       if (geometry.begin(buildstate, state.rendercontext, state.resources))
       {
-        Vec3 bumpscale = Vec3(0.35f, 0.35f, 0.15f);
+        Vec3 bumpscale = Vec3(0.1f, 0.1f, 0.2f);
         float foamwaveheight = 0.55f;
         float foamwavescale = 0.2f;
         float foamshoreheight = 0.1f;
         float foamshorescale = 0.02f;
 
-        geometry.push_ocean(buildstate, Transform::identity(), state.oceanmesh, state.oceanmaterial, 0.002f*state.ocean.flow, bumpscale, state.ocean.plane, foamwaveheight, foamwavescale, foamshoreheight, foamshorescale);
+        geometry.push_ocean(buildstate, Transform::identity(), state.oceanmesh, state.oceanmaterial, 0.0004f*state.ocean.flow, bumpscale, state.ocean.plane, foamwaveheight, foamwavescale, foamshoreheight, foamshorescale);
 
         geometry.finalise(buildstate);
       }

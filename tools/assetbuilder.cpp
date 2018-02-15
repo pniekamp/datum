@@ -698,10 +698,10 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, string const &fontname, in
 
     assert(position);
 
-    x[codepoint] = position->x;
-    y[codepoint] = position->y;
-    width[codepoint] = position->width - 1;
-    height[codepoint] = position->height - 1;
+    x[codepoint] = position->x + 1;
+    y[codepoint] = position->y + 1;
+    width[codepoint] = position->width - 2;
+    height[codepoint] = position->height - 2;
     offsetx[codepoint] = 1 - tm.leftBearing(codepoint);
     offsety[codepoint] = 1 + tm.ascent();
   }
@@ -948,7 +948,7 @@ void write_core()
 
   write_sprite_asset(fout, CoreAsset::test_image, "../../data/testimage.png");
 
-  write_font_asset(fout, CoreAsset::debug_font, "Comic Sans MS", 10, 50);
+  write_font_asset(fout, CoreAsset::debug_font, "Arial", 10, 50);
 
   write_chunk(fout, "HEND", 0, nullptr);
 
