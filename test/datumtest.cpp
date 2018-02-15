@@ -749,6 +749,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     DEBUG_MENU_VALUE("Lighting/Fog Strength", &renderparams.fogdensity, 0.0f, 10.0f)
     DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f)
     DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f)
+    DEBUG_MENU_VALUE("Lighting/Ambient Intensity", &renderparams.ambientintensity, 0.0f, 10.0f)
+    DEBUG_MENU_VALUE("Lighting/Specular Intensity", &renderparams.specularintensity, 0.0f, 10.0f)
 
     render(state.rendercontext, viewport, camera, renderlist, renderparams, { state.spotmapcontext.rendercomplete });
   }

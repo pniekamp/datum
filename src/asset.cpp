@@ -71,20 +71,20 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
     asset.slot = nullptr;
     asset.file = &m_files.back();
 
+    uint64_t filepos = 0;
+
     PackHeader header;
 
-    platform.read_handle(file.handle, 0, &header, sizeof(header));
+    filepos += platform.read_handle(file.handle, filepos, &header, sizeof(header));
 
     if (header.signature[0] != 0xD9 || header.signature[1] != 'S' || header.signature[2] != 'V' || header.signature[3] != 'A')
       throw runtime_error("Invalid sva file");
-
-    uint64_t position = sizeof(header);
 
     while (true)
     {
       PackChunk chunk;
 
-      platform.read_handle(file.handle, position, &chunk, sizeof(chunk));
+      filepos += platform.read_handle(file.handle, filepos, &chunk, sizeof(chunk));
 
       if (chunk.type == "HEND"_packchunktype)
         break;
@@ -95,7 +95,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackAssetHeader aset;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &aset, sizeof(aset));
+            platform.read_handle(file.handle, filepos, &aset, sizeof(aset));
 
             asset.id = file.baseid + aset.id;
 
@@ -109,7 +109,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackCalalogHeader catl;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &catl, sizeof(catl));
+            platform.read_handle(file.handle, filepos, &catl, sizeof(catl));
 
             asset.magic = catl.magic;
             asset.version = catl.version;
@@ -123,7 +123,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackTextHeader text;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &text, sizeof(text));
+            platform.read_handle(file.handle, filepos, &text, sizeof(text));
 
             asset.length = text.length;
             asset.datasize = pack_payload_size(text);
@@ -136,7 +136,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackImageHeader imag;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &imag, sizeof(imag));
+            platform.read_handle(file.handle, filepos, &imag, sizeof(imag));
 
             asset.width = imag.width;
             asset.height = imag.height;
@@ -153,7 +153,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackFontHeader font;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &font, sizeof(font));
+            platform.read_handle(file.handle, filepos, &font, sizeof(font));
 
             asset.ascent = font.ascent;
             asset.descent = font.descent;
@@ -169,7 +169,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackMeshHeader mesh;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &mesh, sizeof(mesh));
+            platform.read_handle(file.handle, filepos, &mesh, sizeof(mesh));
 
             asset.vertexcount = mesh.vertexcount;
             asset.indexcount = mesh.indexcount;
@@ -190,7 +190,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackMaterialHeader matl;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &matl, sizeof(matl));
+            platform.read_handle(file.handle, filepos, &matl, sizeof(matl));
 
             asset.datasize = pack_payload_size(matl);
             asset.datapos = matl.dataoffset;
@@ -202,7 +202,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackAnimationHeader anim;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &anim, sizeof(anim));
+            platform.read_handle(file.handle, filepos, &anim, sizeof(anim));
 
             asset.duration = anim.duration;
             asset.jointcount = anim.jointcount;
@@ -217,7 +217,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackParticleSystemHeader part;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &part, sizeof(part));
+            platform.read_handle(file.handle, filepos, &part, sizeof(part));
 
             asset.minrange[0] = part.minrange[0];
             asset.minrange[1] = part.minrange[1];
@@ -237,7 +237,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
           {
             PackModelHeader modl;
 
-            platform.read_handle(file.handle, position + sizeof(chunk), &modl, sizeof(modl));
+            platform.read_handle(file.handle, filepos, &modl, sizeof(modl));
 
             asset.texturecount = modl.texturecount;
             asset.materialcount = modl.materialcount;
@@ -270,7 +270,7 @@ Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, 
 
       }
 
-      position += chunk.length + sizeof(chunk) + sizeof(uint32_t);
+      filepos += chunk.length + sizeof(uint32_t);
     }
 
     cout << "Asset Pack Loaded: " << identifier << " (" << count << " assets)" << endl;
@@ -295,6 +295,61 @@ Asset const *AssetManager::find(size_t id) const
     return nullptr;
 
   return &m_assets[id];
+}
+
+
+///////////////////////// AssetManager::read ////////////////////////////////
+void *AssetManager::read(DatumPlatform::PlatformInterface &platform, Asset const *asset, void *buffer)
+{
+  auto &assetex = m_assets[static_cast<AssetEx const *>(asset) - m_assets.data()];
+
+  if (assetex.file == nullptr)
+    throw runtime_error("Invalid File Handle");
+
+  uint64_t filepos = assetex.datapos;
+
+  PackChunk chunk;
+
+  filepos += platform.read_handle(assetex.file->handle, assetex.datapos, &chunk, sizeof(PackChunk));
+
+  switch (chunk.type)
+  {
+    case "DATA"_packchunktype:
+      {
+        if (chunk.length != assetex.datasize)
+          throw runtime_error("Chunk Data Size Mismatch");
+
+        filepos += platform.read_handle(assetex.file->handle, filepos, buffer, assetex.datasize);
+
+        break;
+      }
+
+    case "CDAT"_packchunktype:
+      {
+        size_t count = 0;
+        size_t remaining = chunk.length;
+
+        while (remaining != 0)
+        {
+          PackBlock block;
+
+          auto bytes = min(sizeof(block), remaining);
+
+          filepos += platform.read_handle(assetex.file->handle, filepos, &block, bytes);
+
+          count += lz4_decompress(block.data, (uint8_t*)buffer + count, block.size, assetex.datasize - count);
+
+          remaining -= bytes;
+        }
+
+        break;
+      }
+
+    default:
+      throw runtime_error("Unhandled Pack Data Chunk");
+  }
+
+  return buffer;
 }
 
 
@@ -474,51 +529,7 @@ void AssetManager::background_loader(DatumPlatform::PlatformInterface &platform,
 
   try
   {
-    if (slot.asset->file == nullptr)
-      throw runtime_error("Invalid File Handle");
-
-    PackChunk chunk;
-
-    platform.read_handle(slot.asset->file->handle, slot.asset->datapos, &chunk, sizeof(PackChunk));
-
-    switch (chunk.type)
-    {
-      case "DATA"_packchunktype:
-        {
-          if (chunk.length != slot.asset->datasize)
-            throw runtime_error("Chunk Data Size Mismatch");
-
-          platform.read_handle(slot.asset->file->handle, slot.asset->datapos + sizeof(PackChunk), slot.data, slot.asset->datasize);
-
-          break;
-        }
-
-      case "CDAT"_packchunktype:
-        {
-          size_t remaining = chunk.length;
-          uint8_t *datapos = slot.data;
-          uint64_t filepos = slot.asset->datapos + sizeof(PackChunk);
-
-          while (remaining != 0)
-          {
-            PackBlock block;
-
-            auto bytes = min(sizeof(block), remaining);
-
-            platform.read_handle(slot.asset->file->handle, filepos, &block, bytes);
-
-            datapos += lz4_decompress(block.data, datapos, block.size, slot.data + slot.asset->datasize - datapos);
-
-            filepos += bytes;
-            remaining -= bytes;
-          }
-
-          break;
-        }
-
-      default:
-        throw runtime_error("Unhandled Pack Data Chunk");
-    }
+    manager.read(platform, slot.asset, slot.data);
 
     {
       leap::threadlib::SyncLock lock(manager.m_mutex);

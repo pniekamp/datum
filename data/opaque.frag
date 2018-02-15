@@ -196,8 +196,8 @@ void main()
       vec3 localray = localpos + hittest.y * localspecular;
       float localroughness = clamp(material.roughness * hittest.y / length(localray), 0, material.roughness);     
 
-      envdiffuse = textureLod(envmaps[i], localdiffuse * vec3(1, -1, -1), 6.3).rgb;        
-      envspecular = textureLod(envmaps[i], localray * vec3(1, -1, -1), localroughness * 8.0).rgb;
+      envdiffuse = textureLod(envmaps[i], localdiffuse * vec3(1, -1, -1), 6.3).rgb * scene.camera.ambientintensity;        
+      envspecular = textureLod(envmaps[i], localray * vec3(1, -1, -1), localroughness * 8.0).rgb * scene.camera.specularintensity;
       
       break;
     }

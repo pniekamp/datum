@@ -93,12 +93,12 @@ namespace lml
 
 
   //|///////////////////// RGBA /////////////////////////////////////////////
-  inline uint32_t rgba(Color4 const &color)
+  inline constexpr uint32_t rgba(Color4 const &color)
   {
     return ((uint8_t)(color.b * 255) << 0) | ((uint8_t)(color.g * 255) << 8) | ((uint8_t)(color.r * 255) << 16) | ((uint8_t)(color.a * 255) << 24);
   }
 
-  inline Color4 rgba(uint32_t color)
+  inline constexpr Color4 rgba(uint32_t color)
   {
     return Color4((uint8_t)(color >> 16) / 255.0f, (uint8_t)(color >> 8) / 255.0f, (uint8_t)(color >> 0) / 255.0f, (uint8_t)(color >> 24) / 255.0f);
   }

@@ -26,7 +26,7 @@ namespace lml
       Frustum() = default;
       constexpr Frustum(Vec3 const (&corners)[8]);
 
-      static constexpr Frustum perspective(float fov, float aspect, float znear, float zfar);
+      static Frustum perspective(float fov, float aspect, float znear, float zfar);
       static constexpr Frustum perspective(float left, float bottom, float right, float top, float znear, float zfar);
       static constexpr Frustum orthographic(float left, float bottom, float right, float top, float znear, float zfar);
 
@@ -52,7 +52,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::perspective ////////////////////////////
-  constexpr Frustum Frustum::perspective(float fov, float aspect, float znear, float zfar)
+  inline Frustum Frustum::perspective(float fov, float aspect, float znear, float zfar)
   {
     Vec3 corners[8] = {};
 

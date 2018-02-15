@@ -66,25 +66,24 @@ void main()
   ivec2 xy = ivec2(gl_FragCoord.xy);
   ivec2 viewport = textureSize(colormap, 0).xy;
 
-  float bumpscale = mix(1, 32, clamp(0.5*gl_FragCoord.w, 0, 1)) * params.bumpscale.z;
-
   vec4 bump0 = texture(normalmap, vec3(texcoord*params.bumpscale.xy + params.flow, 0));
   vec4 bump1 = texture(normalmap, vec3(texcoord*params.bumpscale.xy*2.0 + 4.0*params.flow, 0));
   vec4 bump2 = texture(normalmap, vec3(texcoord*params.bumpscale.xy*4.0 + 8.0*params.flow, 0));
 
-  vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, bumpscale)); 
+  vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, params.bumpscale.z));
   vec3 eyevec = normalize(scene.camera.position - position);
-
+   
   float dist = texelFetch(depthmipmap, xy/2, 0).g - view_depth(scene.proj, gl_FragCoord.z);
 
   float scale = 0.05 * dist;
   float facing = clamp(1 - dot(eyevec, tbnworld[2]), 0, 1);
-
-  float roughness = mix(1, 0.4, FresnelBias + pow(facing, FresnelPower)) * params.roughness;
-  float reflectivity = mix(1, 0.32, FresnelBias + pow(1 - facing, FresnelPower)) * params.reflectivity;
-
+  
+  float roughness = mix(0, params.roughness, clamp(FresnelBias + pow(facing, FresnelPower), 0, 1));
+  
   vec4 albedo = textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
 
+  normal = mix(tbnworld[2], normal, clamp(dot(normal, eyevec), 0, 1));
+  
   float height = dot(params.foamplane.xyz, position) + params.foamplane.w; 
 
   vec3 wavefoam = texture(surfacemap, vec3(texcoord + 0.2*bump0.xy, 0)).rgb * clamp(pow(height - params.foamwaveheight, 3) * params.foamwavescale, 0, 1);
@@ -92,6 +91,6 @@ void main()
   vec3 shorefoam = (0.25 * texture(surfacemap, vec3(texcoord + 2.0*params.flow, 0)).rgb + 0.02) * clamp(height - (dist - params.foamshoreheight) * params.foamshorescale, 0, 1);
 
   fragcolor = vec4(albedo.rgb * params.color.rgb + wavefoam + shorefoam, params.emissive);
-  fragspecular = vec4(vec3(reflectivity), roughness);
+  fragspecular = vec4(params.color.rgb * params.reflectivity, roughness);
   fragnormal = vec4(0.5 * normal + 0.5, 0);
 }

@@ -126,7 +126,7 @@ namespace DatumPlatform
     public:
       FileHandle(const char *path);
 
-      void read(uint64_t position, void *buffer, std::size_t bytes);
+      size_t read(uint64_t position, void *buffer, std::size_t bytes);
 
     private:
 

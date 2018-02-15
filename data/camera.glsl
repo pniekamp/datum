@@ -9,6 +9,8 @@ struct Camera
   float focalwidth;
   float focaldistance;
   float skyboxlod;
+  float ambientintensity;
+  float specularintensity;
   float ssrstrength;
   float bloomstrength;
   vec4 fogdensity;

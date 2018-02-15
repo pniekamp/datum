@@ -142,7 +142,7 @@ namespace DatumPlatform
 
       virtual handle_t open_handle(const char *identifier) = 0;
 
-      virtual void read_handle(handle_t handle, uint64_t position, void *buffer, std::size_t bytes) = 0;
+      virtual std::size_t read_handle(handle_t handle, uint64_t position, void *buffer, std::size_t bytes) = 0;
 
       virtual void close_handle(handle_t handle) = 0;
 

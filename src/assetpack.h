@@ -41,7 +41,7 @@ struct PackCalalogHeader
 {
   uint32_t magic;
   uint32_t version;
-  uint32_t length;
+  uint32_t datasize;
   uint64_t dataoffset;
 };
 
@@ -65,7 +65,7 @@ struct PackCatalogPayload
 
 inline size_t pack_payload_size(PackCalalogHeader const &catl)
 {
-  return catl.length;
+  return catl.datasize;
 }
 
 struct PackTextHeader

@@ -125,6 +125,37 @@ void ResourceManager::destroy<SkyBox>(SkyBox const *skybox)
 }
 
 
+//|---------------------- Misc ----------------------------------------------
+//|--------------------------------------------------------------------------
+
+
+///////////////////////// fog_color /////////////////////////////////////////
+Color3 fog_color(SkyBoxParams const &params)
+{
+  const float Kr = 0.0025f;
+  const float Km = 0.0015f;
+  const float Kr4PI = Kr * 4.0f * 3.14159265f;
+  const float Km4PI = Km * 4.0f * 3.14159265f;
+
+  auto scale = [](float cosangle) {
+      float x = 1 - cosangle;
+      return 0.25f * exp(-0.00287f + x*(0.459f + x*(3.83f + x*(-6.80f + x*5.25f))));
+  };
+
+  Color3 InvWavelength = Color3(1.0f / pow(params.skycolor.r, 4.0f), 1.0f / pow(params.skycolor.g, 4.0f), 1.0f / pow(params.skycolor.b, 4.0f));
+
+  float lightangle = -params.sundirection.y / 1.00168f;
+  float cameraangle = 0.0561557f;
+  float scatter = 3.79557f + 0.764294f * (scale(lightangle) - scale(cameraangle));
+
+  Color3 attenuate = -clamp(scatter, 0.0f, 50.0f) * (InvWavelength * Kr4PI + Color3(Km4PI, Km4PI, Km4PI));
+
+  Color3 frontcolor = Color3(exp(attenuate.r), exp(attenuate.g), exp(attenuate.b)) * (0.764294f * 4.5f);
+
+  return hada(hada(frontcolor, InvWavelength), params.sunintensity) * Kr * params.exposure;
+}
+
+
 //|---------------------- SkyBoxRenderer ------------------------------------
 //|--------------------------------------------------------------------------
 

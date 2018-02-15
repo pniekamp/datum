@@ -194,6 +194,8 @@ struct CameraView
   alignas( 4) float focalwidth;
   alignas( 4) float focaldistance;
   alignas( 4) float skyboxlod;
+  alignas( 4) float ambientintensity;
+  alignas( 4) float specularintensity;
   alignas( 4) float ssrstrength;
   alignas( 4) float bloomstrength;
   alignas(16) Vec4 fogdensity;
@@ -1082,8 +1084,8 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachments[0].initialLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     attachments[1].format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -5693,7 +5695,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       // Render Target
       //
 
-      context.rendertarget = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+      context.rendertarget = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
       context.depthstencil = create_texture(context.vulkan, setupbuffer, context.width, context.height, 1, 1, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
       //
@@ -6088,6 +6090,8 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   sceneset.camera.focalwidth = context.camera.focalwidth();
   sceneset.camera.focaldistance = context.camera.focaldistance();
   sceneset.camera.skyboxlod = params.skyboxlod;
+  sceneset.camera.ambientintensity = params.ambientintensity;
+  sceneset.camera.specularintensity = params.specularintensity;
   sceneset.camera.ssrstrength = params.ssrstrength;
   sceneset.camera.bloomstrength = params.bloomstrength;
   sceneset.camera.fogdensity = Vec4(params.fogattenuation, params.fogdensity);

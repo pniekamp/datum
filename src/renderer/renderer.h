@@ -492,6 +492,9 @@ struct RenderParams
   lml::Transform skyboxorientation = lml::Transform::identity();
   float skyboxlod = 0.0f;
 
+  float ambientintensity = 1.0f;
+  float specularintensity = 1.0f;
+
   float lightfalloff = 0.66f;
   float ssaoscale = 0.0f;
   float ssrstrength = 1.0f;

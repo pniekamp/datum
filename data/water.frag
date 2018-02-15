@@ -113,14 +113,12 @@ void main()
 
   uint tile = cluster_tile(xy, viewport);
   uint tilez = cluster_tilez(gl_FragCoord.z);
-  
-  float bumpscale = params.bumpscale.z;
 
   vec4 bump0 = texture(normalmap, vec3(params.bumpscale.xy*(texcoord + params.flow), 0));
   vec4 bump1 = texture(normalmap, vec3(params.bumpscale.xy*(2.0*texcoord + 4.0*params.flow), 0));
   vec4 bump2 = texture(normalmap, vec3(params.bumpscale.xy*(4.0*texcoord + 8.0*params.flow), 0));
 
-  vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, bumpscale)); 
+  vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, params.bumpscale.z)); 
   vec3 eyevec = normalize(scene.camera.position - position);
 
   float dist = view_depth(scene.proj, subpassLoad(depthmap).r) - view_depth(scene.proj, gl_FragCoord.z);
