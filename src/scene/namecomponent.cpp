@@ -62,7 +62,7 @@ Scene::EntityId NameComponentStorage::find(const char *name) const
 {
   for(size_t index = 1; index < size(); ++index)
   {
-    if (data<0>(index) != 0)
+    if (data<0>(index))
     {
       auto str1 = name;
       auto str2 = m_names.data() + data<1>(index);

@@ -251,7 +251,11 @@ void main()
     }
   }
   
+  // Global Fog
+  
   vec4 fog = global_fog(xy, viewport, view_depth(scene.proj, depth), fogmap);
+  
+  // Final Color
 
   vec3 color = ((diffuse + material.emissive) * material.diffuse + specular) * fog.a + fog.rgb;
 

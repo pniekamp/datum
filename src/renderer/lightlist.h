@@ -23,7 +23,7 @@ class LightList
 
     Renderable::Lights::LightList *lightlist;
 
-    operator bool() const { return m_commandlump; }
+    explicit operator bool() const { return *m_commandlump; }
 
   public:
 

@@ -13,7 +13,6 @@
 
 #include <string>
 #include <stdexcept>
-#include <type_traits>
 #include <algorithm>
 
 /**
@@ -72,7 +71,10 @@ namespace leap
       int compare(basic_string_view s) const noexcept;
 
       size_t find(T c, size_t pos = 0) const;
-      size_t find(const T *s, size_t pos = 0) const;
+      size_t find(T const *s, size_t pos = 0) const;
+
+      size_t rfind(T c, size_t pos = npos) const;
+      size_t rfind(T const *s, size_t pos = npos) const;
 
       size_t find_first_of(T c, size_t pos = 0) const;
       size_t find_first_of(T const *s, size_t pos = 0) const;
@@ -151,18 +153,60 @@ namespace leap
   }
 
   template<typename T, class traits>
-  size_t basic_string_view<T, traits>::find(const T *s, size_t pos) const
+  size_t basic_string_view<T, traits>::find(T const *s, size_t pos) const
   {
     for(auto i = pos; i < m_size - std::min(m_size, traits::length(s)); ++i)
     {
       bool found = true;
       for(auto j = 0; found && s[j] != 0; ++j)
       {
-        found &= (m_ptr[i+j] == s[+j]);
+        found &= (m_ptr[i+j] == s[j]);
       }
 
       if (found)
         return i;
+    }
+
+    return npos;
+  }
+
+  template<typename T, class traits>
+  size_t basic_string_view<T, traits>::rfind(T c, size_t pos) const
+  {
+    if (m_size != 0)
+    {
+      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      {
+        if (m_ptr[i] == c)
+          return i;
+
+        if (i == 0)
+          break;
+      }
+    }
+
+    return npos;
+  }
+
+  template<typename T, class traits>
+  size_t basic_string_view<T, traits>::rfind(T const *s, size_t pos) const
+  {
+    if (m_size != 0 && m_size >= traits::length(s))
+    {
+      for(size_t i = std::min(m_size - 1, pos) - (std::max(size_t(1), traits::length(s)) - 1); i >= 0; --i)
+      {
+        bool found = true;
+        for(auto j = 0; found && s[j] != 0; ++j)
+        {
+          found &= (m_ptr[i+j] == s[j]);
+        }
+
+        if (found)
+          return i;
+
+        if (i == 0)
+          break;
+      }
     }
 
     return npos;
@@ -230,10 +274,16 @@ namespace leap
   template<typename T, class traits>
   size_t basic_string_view<T, traits>::find_last_of(T c, size_t pos) const
   {
-    for(int i = std::min(std::max(m_size, size_t(1)) - 1, pos); i > 0; --i)
+    if (m_size != 0)
     {
-      if (m_ptr[i] == c)
-        return i;
+      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      {
+        if (m_ptr[i] == c)
+          return i;
+
+        if (i == 0)
+          break;
+      }
     }
 
     return npos;
@@ -242,12 +292,18 @@ namespace leap
   template<typename T, class traits>
   size_t basic_string_view<T, traits>::find_last_of(T const *s, size_t pos) const
   {
-    for(int i = std::min(std::max(m_size, size_t(1)) - 1, pos); i > 0; --i)
+    if (m_size != 0)
     {
-      for(auto c = s; *c != 0; ++c)
+      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
       {
-        if (m_ptr[i] == *c)
-          return i;
+        for(auto c = s; *c != 0; ++c)
+        {
+          if (m_ptr[i] == *c)
+            return i;
+        }
+
+        if (i == 0)
+          break;
       }
     }
 
@@ -257,12 +313,18 @@ namespace leap
   template<typename T, class traits>
   size_t basic_string_view<T, traits>::find_last_not_of(T c, size_t pos) const
   {
-    for(int i = std::min(std::max(m_size, size_t(1)) - 1, pos); i > 0; --i)
+    if (m_size != 0)
     {
-      bool found = (m_ptr[i] == c);
+      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      {
+        bool found = (m_ptr[i] == c);
 
-      if (!found)
-        return i;
+        if (!found)
+          return i;
+
+        if (i == 0)
+          break;
+      }
     }
 
     return npos;
@@ -271,16 +333,22 @@ namespace leap
   template<typename T, class traits>
   size_t basic_string_view<T, traits>::find_last_not_of(T const *s, size_t pos) const
   {
-    for(int i = std::min(std::max(m_size, size_t(1)) - 1, pos); i > 0; --i)
+    if (m_size != 0)
     {
-      bool found = false;
-      for(auto c = s; !found && *c != 0; ++c)
+      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
       {
-        found |= (m_ptr[i] == *c);
-      }
+        bool found = false;
+        for(auto c = s; !found && *c != 0; ++c)
+        {
+          found |= (m_ptr[i] == *c);
+        }
 
-      if (!found)
-        return i;
+        if (!found)
+          return i;
+
+        if (i == 0)
+          break;
+      }
     }
 
     return npos;

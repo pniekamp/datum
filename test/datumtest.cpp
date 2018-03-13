@@ -117,16 +117,19 @@ void datumtest_init(PlatformInterface &platform)
 
   state.testimage = state.resources.create<Sprite>(state.assets.find(CoreAsset::test_image), Vec2(0.0, 0.0));
 
-  state.suzanne = state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack"));
+  state.suzanne = state.resources.create<Mesh>(state.assets.load(platform, "suzanne.pack")); 
   state.testplane = state.resources.create<Mesh>(state.assets.load(platform, "plane.pack"));
   state.testsphere = state.resources.create<Mesh>(state.assets.load(platform, "sphere.pack"));
   state.testcube = state.resources.create<Mesh>(state.assets.load(platform, "cube.pack"));
 
   state.testspotcaster = state.resources.create<SpotMap>(1024, 1024);
 
+  state.floormaterial = unique_resource<Material>(state.resources, state.resources.create<Material>(Color4(1, 1, 1, 1)));
+  state.suzannematerial = unique_resource<Material>(state.resources, state.resources.create<Material>(Color4(1, 1, 1, 1)));
+
   auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
   auto watersurface = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_foam), Texture::Format::RGBA);
-  auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::noise_normal), Texture::Format::RGBA);
+  auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
   state.oceanmaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.4f, 0.5f, 0.0f, watercolor, watersurface, waternormal);
 
   ParticleEmitter emitter;
@@ -374,7 +377,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     float suzanneemissive = 0.0f;
     DEBUG_MENU_VALUE("Suzanne/Emissive", &suzanneemissive, 0.0f, 128.0f)
 
-    state.suzannematerial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(1, 0, 0, 1), suzannemetalness, suzanneroughness, suzannereflectivity, cbrt(suzanneemissive/128)));
+    state.resources.update(state.suzannematerial, Color4(1, 0, 0, 1), suzannemetalness, suzanneroughness, suzannereflectivity, cbrt(suzanneemissive/128));
 
     float floormetalness = 0.0f;
     DEBUG_MENU_VALUE("Floor/Metalness", &floormetalness, 0.0f, 1.0f)
@@ -385,7 +388,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     float floorflectivity = 0.5f;
     DEBUG_MENU_VALUE("Floor/Reflectivity", &floorflectivity, 0.0f, 4.0f)
 
-    state.floormaterial = unique_resource<Material>(&state.resources, state.resources.create<Material>(Color4(0.4f, 0.4f, 0.4f, 1.0f), floormetalness, floorroughness, floorflectivity));
+    state.resources.update(state.floormaterial, Color4(0.4f, 0.4f, 0.4f, 1.0f), floormetalness, floorroughness, floorflectivity);
 
 #if 1
     {
@@ -676,7 +679,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
         sprites.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, (float)state.loader->layers));
 
-//        sprites.push_sprite(buildstate, Vec2(400, 300), 300, state.testimage);
+//        sprites.push_sprite(buildstate, Vec2(200, 100), 300, state.testimage);
 
         sprites.finalise(buildstate);
       }

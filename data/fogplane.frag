@@ -58,5 +58,5 @@ void main()
 
   float factor = clamp(exp2(-pow(params.density * dist, 2)), 0, 1);
 
-  fragcolor = vec4(scene.camera.exposure * params.color.rgb, params.color.a) * (1 - factor);
+  fragcolor = vec4(scene.camera.exposure * params.color.rgb, 1) * params.color.a * (1 - factor);
 }

@@ -9,8 +9,8 @@
 #include "asset.h"
 #include "assetpack.h"
 #include <leap/lz4.h>
-#include "debug.h"
 #include <algorithm>
+#include "debug.h"
 
 using namespace std;
 using namespace leap::crypto;
@@ -51,7 +51,7 @@ void AssetManager::initialise(size_t slotcount, size_t slabsize)
 
 
 ///////////////////////// AssetManager::load ////////////////////////////////
-Asset const *AssetManager::load(DatumPlatform::v1::PlatformInterface &platform, const char *identifier)
+Asset const *AssetManager::load(DatumPlatform::PlatformInterface &platform, const char *identifier)
 {
   leap::threadlib::SyncLock lock(m_mutex);
 
@@ -298,61 +298,6 @@ Asset const *AssetManager::find(size_t id) const
 }
 
 
-///////////////////////// AssetManager::read ////////////////////////////////
-void *AssetManager::read(DatumPlatform::PlatformInterface &platform, Asset const *asset, void *buffer)
-{
-  auto &assetex = m_assets[static_cast<AssetEx const *>(asset) - m_assets.data()];
-
-  if (assetex.file == nullptr)
-    throw runtime_error("Invalid File Handle");
-
-  uint64_t filepos = assetex.datapos;
-
-  PackChunk chunk;
-
-  filepos += platform.read_handle(assetex.file->handle, assetex.datapos, &chunk, sizeof(PackChunk));
-
-  switch (chunk.type)
-  {
-    case "DATA"_packchunktype:
-      {
-        if (chunk.length != assetex.datasize)
-          throw runtime_error("Chunk Data Size Mismatch");
-
-        filepos += platform.read_handle(assetex.file->handle, filepos, buffer, assetex.datasize);
-
-        break;
-      }
-
-    case "CDAT"_packchunktype:
-      {
-        size_t count = 0;
-        size_t remaining = chunk.length;
-
-        while (remaining != 0)
-        {
-          PackBlock block;
-
-          auto bytes = min(sizeof(block), remaining);
-
-          filepos += platform.read_handle(assetex.file->handle, filepos, &block, bytes);
-
-          count += lz4_decompress(block.data, (uint8_t*)buffer + count, block.size, assetex.datasize - count);
-
-          remaining -= bytes;
-        }
-
-        break;
-      }
-
-    default:
-      throw runtime_error("Unhandled Pack Data Chunk");
-  }
-
-  return buffer;
-}
-
-
 ///////////////////////// AssetManager::acquire_slot ////////////////////////
 AssetManager::Slot *AssetManager::acquire_slot(size_t size)
 {
@@ -527,9 +472,55 @@ void AssetManager::background_loader(DatumPlatform::PlatformInterface &platform,
 
   auto &slot = *static_cast<Slot*>(rdata);
 
+  auto asset = slot.asset;
+
   try
   {
-    manager.read(platform, slot.asset, slot.data);
+    if (asset->file == nullptr)
+      throw runtime_error("Invalid File Handle");
+
+    uint64_t filepos = asset->datapos;
+
+    PackChunk chunk;
+
+    filepos += platform.read_handle(asset->file->handle, asset->datapos, &chunk, sizeof(PackChunk));
+
+    switch (chunk.type)
+    {
+      case "DATA"_packchunktype:
+        {
+          if (chunk.length != asset->datasize)
+            throw runtime_error("Chunk Data Size Mismatch");
+
+          filepos += platform.read_handle(asset->file->handle, filepos, slot.data, asset->datasize);
+
+          break;
+        }
+
+      case "CDAT"_packchunktype:
+        {
+          size_t count = 0;
+          size_t remaining = chunk.length;
+
+          while (remaining != 0)
+          {
+            PackBlock block;
+
+            auto bytes = min(sizeof(block), remaining);
+
+            filepos += platform.read_handle(asset->file->handle, filepos, &block, bytes);
+
+            count += lz4_decompress(block.data, (uint8_t*)slot.data + count, block.size, asset->datasize - count);
+
+            remaining -= bytes;
+          }
+
+          break;
+        }
+
+      default:
+        throw runtime_error("Unhandled Pack Data Chunk");
+    }
 
     {
       leap::threadlib::SyncLock lock(manager.m_mutex);

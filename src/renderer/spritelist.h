@@ -24,7 +24,7 @@ class SpriteList
 
     VkCommandBuffer spritecommands;
 
-    operator bool() const { return m_commandlump; }
+    explicit operator bool() const { return *m_commandlump; }
 
   public:
 
@@ -36,6 +36,10 @@ class SpriteList
       CommandLump::Descriptor materialset;
 
       CommandLump::Descriptor modelset;
+
+      int clipx, clipy, clipwidth, clipheight;
+
+      lml::Rect2 cliprect() const { return lml::Rect2(lml::Vec2(clipx, clipy), lml::Vec2(clipx + clipwidth, clipy + clipheight)); }
 
       CommandLump *commandlump = nullptr;
 
@@ -50,7 +54,7 @@ class SpriteList
 
     void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Color4 const &tint);
 
-    void push_model(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, lml::Vec4 const &texcoords, float layer);
+    void push_model(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec4 const &texcoords, float layer);
 
     void push_line(BuildState &state, lml::Vec2 const &a, lml::Vec2 const &b, lml::Color4 const &color, float thickness = 1.0f);
 
@@ -65,13 +69,16 @@ class SpriteList
     void push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
     void push_sprite(BuildState &state, lml::Vec2 const &position, float size, float rotation, Sprite const *sprite, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 
-    void push_sprite(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, float size, Sprite const *sprite, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
-    void push_sprite(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, float size, Sprite const *sprite, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+    void push_sprite(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Sprite const *sprite, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+    void push_sprite(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Sprite const *sprite, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+
+    void push_sprite(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Sprite const *sprite, lml::Rect2 const &region, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+    void push_sprite(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Sprite const *sprite, lml::Rect2 const &region, float layer, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 
     void push_text(BuildState &state, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
     void push_text(BuildState &state, lml::Vec2 const &position, float size, float rotation, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 
-    void push_text(BuildState &state, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec2 const &position, float size, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+    void push_text(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, Font const *font, const char *str, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 
     void push_texture(BuildState &state, lml::Vec2 const &position, lml::Rect2 const &rect, Vulkan::Texture const &texture, float layer = 0, lml::Color4 const &tint = { 1.0f, 1.0f, 1.0f, 1.0f });
 

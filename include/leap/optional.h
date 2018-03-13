@@ -49,12 +49,14 @@ namespace leap
       template<typename... Args>
       void emplace(Args&&... args);
 
-      operator bool() const { return std::pair<T, bool>::second; }
+      bool has_value() const noexcept { return std::pair<T, bool>::second; }
 
       T &operator*() { return std::pair<T, bool>::first; }
       T const &operator*() const { return std::pair<T, bool>::first; }
       T *operator->() { return &(std::pair<T, bool>::first); }
       T const *operator->() const { return &(std::pair<T, bool>::first); }
+
+      explicit operator bool() const { return has_value(); }
   };
 
   template<typename T>

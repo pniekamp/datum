@@ -498,7 +498,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   //
 
   bool vsync = true;
-  uint32_t desiredimages = 3;
+  uint32_t desiredimages = 2;
 
   VkSurfaceCapabilitiesKHR surfacecapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
@@ -515,9 +515,10 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   VkPresentModeKHR presentmode = VK_PRESENT_MODE_FIFO_KHR;
   for(size_t i = 0; i < presentmodescount; ++i)
   {
-    if (!vsync && presentmodes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+    if (presentmodes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
     {
       presentmode = presentmodes[i];
+      desiredimages = 3;
       break;
     }
 
@@ -752,6 +753,8 @@ struct Window
   void keypress(UINT msg, WPARAM wParam, LPARAM lParam);
   void keyrelease(UINT msg, WPARAM wParam, LPARAM lParam);
 
+  void textinput(UINT msg, WPARAM wParam, LPARAM lParam);
+
   void mousepress(UINT msg, WPARAM wParam, LPARAM lParam);
   void mouserelease(UINT msg, WPARAM wParam, LPARAM lParam);
   void mousemove(UINT msg, WPARAM wParam, LPARAM lParam);
@@ -802,6 +805,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_SYSKEYUP:
       window.keyrelease(uMsg, wParam, lParam);
       return 0;
+
+    case WM_UNICHAR:
+      if (wParam == UNICODE_NOCHAR) return 1;
+    case WM_CHAR:
+      window.textinput(uMsg, wParam, lParam);
+      break;
 
     case WM_LBUTTONDOWN:
     case WM_RBUTTONDOWN:
@@ -894,6 +903,7 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
   keysym[VK_SHIFT] = KB_KEY_SHIFT;
   keysym[VK_CONTROL] = KB_KEY_CONTROL;
   keysym[VK_LEFT] = KB_KEY_LEFT; keysym[VK_DOWN] = KB_KEY_DOWN; keysym[VK_RIGHT] = KB_KEY_RIGHT; keysym[VK_UP] = KB_KEY_UP;
+  keysym[VK_HOME] = KB_KEY_HOME; keysym[VK_END] = KB_KEY_END; keysym[VK_INSERT] = KB_KEY_INSERT; keysym[VK_DELETE] = KB_KEY_DELETE;
   keysym[VK_F1] = KB_KEY_F1;  keysym[VK_F2] = KB_KEY_F2;  keysym[VK_F3] = KB_KEY_F3;  keysym[VK_F4] = KB_KEY_F4;  keysym[VK_F5] = KB_KEY_F5;  keysym[VK_F6] = KB_KEY_F6;  keysym[VK_F7] = KB_KEY_F7;  keysym[VK_F8] = KB_KEY_F8;  keysym[VK_F9] = KB_KEY_F9;  keysym[VK_F10] = KB_KEY_F10;
   keysym['1'] = '1';  keysym['2'] = '2';  keysym['3'] = '3';  keysym['4'] = '4';  keysym['5'] = '5';  keysym['6'] = '6';  keysym['7'] = '7';  keysym['8'] = '8';  keysym['9'] = '9';  keysym['0'] = '0';  keysym[VK_OEM_MINUS] = '-';  keysym[VK_OEM_PLUS] = '=';  keysym[VK_BACK] = KB_KEY_BACKSPACE;
   keysym['Q'] = 'Q';  keysym['W'] = 'W';  keysym['E'] = 'E';  keysym['R'] = 'R';  keysym['T'] = 'T';  keysym['Y'] = 'Y';  keysym['U'] = 'U';  keysym['I'] = 'I';  keysym['O'] = 'O';  keysym['P'] = 'P';  keysym['['] = '[';  keysym[']'] = ']';  keysym['\\'] = '\\';
@@ -970,6 +980,16 @@ void Window::keyrelease(UINT msg, WPARAM wParam, LPARAM lParam)
   uint8_t key = wParam;
 
   game->inputbuffer().register_keyrelease(keysym[key]);
+}
+
+
+//|//////////////////// Window::textinput ///////////////////////////////////
+void Window::textinput(UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  if (wParam >= ' ' && wParam != 127)
+  {
+    game->inputbuffer().register_textinput(wParam);
+  }
 }
 
 
@@ -1074,6 +1094,8 @@ void Window::mousemove(UINT msg, WPARAM wParam, LPARAM lParam)
 void Window::show()
 {
   ShowWindow(hwnd, SW_SHOW);
+
+  visible = (vulkan.surface && width != 0 && height != 0);
 }
 
 

@@ -27,7 +27,7 @@ class ForwardList
     Renderable::Forward::Command *blendcommands;
     Renderable::Forward::Command *colorcommands;
 
-    operator bool() const { return m_commandlump; }
+    explicit operator bool() const { return *m_commandlump; }
 
   public:
 

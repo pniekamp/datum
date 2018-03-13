@@ -16,7 +16,7 @@ using namespace lml;
 enum MaterialFlags
 {
   MaterialOwnsAlbedoMap = 0x01,
-  MaterialOwnsSpecularMap = 0x02,
+  MaterialOwnsSurfaceMap = 0x02,
   MaterialOwnsNormalMap = 0x04,
 };
 
@@ -130,6 +130,48 @@ void ResourceManager::update<Material>(Material const *material, Color4 color)
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
+void ResourceManager::update<Material>(Material const *material, Color4 color, float emissive)
+{
+  assert(material);
+
+  auto slot = const_cast<Material*>(material);
+
+  slot->color = color;
+  slot->emissive = emissive;
+}
+
+
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
+void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness)
+{
+  assert(material);
+
+  auto slot = const_cast<Material*>(material);
+
+  slot->color = color;
+  slot->metalness = metalness;
+  slot->roughness = roughness;
+}
+
+
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
+void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity)
+{
+  assert(material);
+
+  auto slot = const_cast<Material*>(material);
+
+  slot->color = color;
+  slot->metalness = metalness;
+  slot->roughness = roughness;
+  slot->reflectivity = reflectivity;
+}
+
+
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
 void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive)
 {
   assert(material);
@@ -146,10 +188,33 @@ void ResourceManager::update<Material>(Material const *material, Color4 color, f
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
+void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *normalmap)
+{
+  assert(material);
+  assert(material->ready());
+  assert((material->flags & (MaterialOwnsAlbedoMap | MaterialOwnsNormalMap)) == 0);
+  assert(!albedomap || albedomap->ready());
+  assert(!normalmap || normalmap->ready());
+
+  auto slot = const_cast<Material*>(material);
+
+  slot->color = color;
+  slot->metalness = metalness;
+  slot->roughness = roughness;
+  slot->reflectivity = reflectivity;
+  slot->emissive = emissive;
+  slot->albedomap = albedomap;
+  slot->normalmap = normalmap;
+}
+
+
+///////////////////////// ResourceManager::update ///////////////////////////
+template<>
 void ResourceManager::update<Material>(Material const *material, Color4 color, float metalness, float roughness, float reflectivity, float emissive, Texture const *albedomap, Texture const *surfacemap, Texture const *normalmap)
 {
   assert(material);
-  assert((material->flags & (MaterialOwnsAlbedoMap | MaterialOwnsSpecularMap | MaterialOwnsNormalMap)) == 0);
+  assert(material->ready());
+  assert((material->flags & (MaterialOwnsAlbedoMap | MaterialOwnsSurfaceMap | MaterialOwnsNormalMap)) == 0);
   assert(!albedomap || albedomap->ready());
   assert(!surfacemap || surfacemap->ready());
   assert(!normalmap || normalmap->ready());
@@ -205,7 +270,7 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
         {
           slot->surfacemap = create<Texture>(assets()->find(asset->id + payload->surfacemap), Texture::Format::SRGBA);
 
-          slot->flags |= MaterialOwnsSpecularMap;
+          slot->flags |= MaterialOwnsSurfaceMap;
         }
 
         if (payload->normalmap && !slot->normalmap)
@@ -273,7 +338,7 @@ void ResourceManager::destroy<Material>(Material const *material)
     if (material->flags & MaterialOwnsAlbedoMap)
       destroy(material->albedomap);
 
-    if (material->flags & MaterialOwnsSpecularMap)
+    if (material->flags & MaterialOwnsSurfaceMap)
       destroy(material->surfacemap);
 
     if (material->flags & MaterialOwnsNormalMap)

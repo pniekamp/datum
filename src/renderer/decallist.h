@@ -23,7 +23,7 @@ class DecalList
 
     Renderable::Decals::DecalList *decallist;
 
-    operator bool() const { return m_commandlump; }
+    explicit operator bool() const { return *m_commandlump; }
 
   public:
 

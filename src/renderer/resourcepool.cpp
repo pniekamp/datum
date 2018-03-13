@@ -74,9 +74,13 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
   {
     m_lumps[i].storagepool.count = 0;
 
-    m_lumps[i].commandpool = create_commandpool(vulkan, 0);
+    m_lumps[i].commandpool.used = 0;
+    m_lumps[i].commandpool.pool = create_commandpool(vulkan, 0);
 
-    m_lumps[i].descriptorpool = create_descriptorpool(vulkan, descriptorpoolinfo);
+    for(auto &commandbuffer : m_lumps[i].commandpool.buffers)
+      commandbuffer = allocate_commandbuffer(vulkan, m_lumps[i].commandpool.pool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+
+    m_lumps[i].descriptorpool.pool = create_descriptorpool(vulkan, descriptorpoolinfo);
   }
 
   RESOURCE_USE(RenderLump, (m_lumpsused = 0), ResourceLumpCount)
@@ -87,14 +91,30 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
 
 
 ///////////////////////// ResourcePool::reset_storagepool ///////////////////
-void ResourcePool::reset_storagepool(StoragePool &pool)
+void ResourcePool::reset(StoragePool &pool)
 {
   for(size_t i = 0; i < pool.count; ++i)
-  {  
+  {
     m_storagebuffers[pool.buffers[i] - m_storagebuffers].refcount -= 1;
   }
 
   pool.count = 0;
+}
+
+
+///////////////////////// ResourcePool::reset_commandpool ///////////////////
+void ResourcePool::reset(CommandPool &pool)
+{
+  reset_commandpool(vulkan, pool.pool);
+
+  pool.used = 0;
+}
+
+
+///////////////////////// ResourcePool::reset_descriptorpool ////////////////
+void ResourcePool::reset(DescriptorPool &pool)
+{
+  reset_descriptorpool(vulkan, pool.pool);
 }
 
 
@@ -134,9 +154,9 @@ void ResourcePool::release_lump(ResourceLump const *lumphandle)
 
   RESOURCE_USE(RenderLump, (m_lumpsused -= 1), ResourceLumpCount)
 
-  reset_storagepool(lump.storagepool);
-  reset_commandpool(vulkan, lump.commandpool);
-  reset_descriptorpool(vulkan, lump.descriptorpool);
+  reset(lump.storagepool);
+  reset(lump.commandpool);
+  reset(lump.descriptorpool);
 
   lump.lock.clear(std::memory_order_release);
 }
@@ -147,10 +167,11 @@ ResourcePool::CommandBuffer ResourcePool::acquire_commandbuffer(ResourceLump con
 {
   assert(m_initialised);
   assert(lumphandle >= m_lumps && lumphandle - m_lumps < ResourceLumpCount);
+  assert(m_lumps[lumphandle - m_lumps].commandpool.used < extent<decltype(CommandPool::buffers)>::value);
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  return { allocate_commandbuffer(vulkan, lump.commandpool, VK_COMMAND_BUFFER_LEVEL_SECONDARY).release() };
+  return { lump.commandpool.buffers[lump.commandpool.used++] };
 }
 
 
@@ -232,7 +253,7 @@ ResourcePool::DescriptorSet ResourcePool::acquire_descriptorset(ResourceLump con
 
   ResourceLump &lump = m_lumps[lumphandle - m_lumps];
 
-  return { allocate_descriptorset(vulkan, lump.descriptorpool, layout).release() };
+  return { allocate_descriptorset(vulkan, lump.descriptorpool.pool, layout).release() };
 }
 
 

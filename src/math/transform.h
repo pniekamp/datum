@@ -217,5 +217,13 @@ namespace lml
 
     return Transform::translation(translation) * Transform::rotation(rotation);
   }
-}
 
+
+  //////////////////////// blend ////////////////////////////////////////////
+  inline Transform blend(Transform const &t1, Transform const &t2, float weight)
+  {
+    auto flip = std::copysign(1.0f, dot(t1.real, t2.real));
+
+    return { t1.real + weight * flip * t2.real, t1.dual + weight * flip * t2.dual };
+  }
+}

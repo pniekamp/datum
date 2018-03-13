@@ -305,7 +305,7 @@ namespace leap { namespace lml
     bool segray() const { return u != 0 && s >= 0 && s <= 1 && t >= 0; }
     bool rayseg() const { return u != 0 && s >= 0 && t >= 0 && t <= 1; }
     bool rayray() const { return u != 0 && s >= 0 && t >= 0; }
-    bool overlap() const { return region; }
+    bool overlap() const { return region.has_value(); }
 
     leap::optional<std::pair<Point, Point>> region;
   };

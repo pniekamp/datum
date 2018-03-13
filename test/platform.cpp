@@ -15,7 +15,6 @@ using namespace std;
 
 namespace
 {
-
   ///////////////////////// map_key_to_modifier /////////////////////////////
   long map_key_to_modifier(int key)
   {
@@ -38,6 +37,43 @@ namespace
 
       default:
         return 0;
+    }
+  }
+
+  ///////////////////////// append_codepoint ////////////////////////////////
+  void append_codepoint(char *str, size_t n, uint32_t codepoint)
+  {
+    while (*str && n--)
+      ++str;
+
+    if (n > 4)
+    {
+      if (codepoint <= 0x7F)
+      {
+        str[0] = (char)codepoint;
+        str[1] = 0;
+      }
+      else if (codepoint <= 0x7FF)
+      {
+        str[0] = 0xC0 | (char)((codepoint >> 6) & 0x1F);
+        str[1] = 0x80 | (char)(codepoint & 0x3F);
+        str[2] = 0;
+      }
+      else if (codepoint <= 0xFFFF)
+      {
+        str[0] = 0xE0 | (char)((codepoint >> 12) & 0x0F);
+        str[1] = 0x80 | (char)((codepoint >> 6) & 0x3F);
+        str[2] = 0x80 | (char)(codepoint & 0x3F);
+        str[3] = 0;
+      }
+      else if (codepoint <= 0x10FFFF)
+      {
+        str[0] = 0xF0 | (char)((codepoint >> 18) & 0x0F);
+        str[1] = 0x80 | (char)((codepoint >> 12) & 0x3F);
+        str[2] = 0x80 | (char)((codepoint >> 6) & 0x3F);
+        str[3] = 0x80 | (char)(codepoint & 0x3F);
+        str[4] = 0;
+      }
     }
   }
 }
@@ -127,6 +163,15 @@ namespace DatumPlatform
   }
 
 
+  ///////////////////////// InputBuffer::register_textinput /////////////////
+  void InputBuffer::register_textinput(uint32_t codepoint)
+  {
+    lock_guard<mutex> lock(m_mutex);
+
+    m_events.push_back({ EventType::Text, codepoint });
+  }
+
+
   ///////////////////////// InputBuffer::release_all ////////////////////////
   void InputBuffer::release_all()
   {
@@ -151,6 +196,9 @@ namespace DatumPlatform
     // Keyboard
     for(size_t i = 0; i < std::extent<decltype(m_input.keys)>::value; ++i)
       m_input.keys[i].transitions = 0;
+
+    // Text
+    m_input.text[0] = 0;
 
     for(auto &evt : m_events)
     {
@@ -188,6 +236,10 @@ namespace DatumPlatform
         case EventType::MouseRelease:
           m_input.mousebuttons[evt.data].state = false;
           m_input.mousebuttons[evt.data].transitions += 1;
+          break;
+
+        case EventType::Text:
+          append_codepoint(m_input.text, sizeof(m_input.text), evt.data);
           break;
       }
     }

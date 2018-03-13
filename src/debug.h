@@ -131,7 +131,6 @@ double clock_frequency();
     g_debuglog[entry].timestamp = __rdtsc();                                               \
   }
 
-
 #define GPU_SUBMIT() \
   {                                                                                        \
     size_t entry = g_debuglogtail.fetch_add(1) % std::extent<decltype(g_debuglog)>::value; \
@@ -148,25 +147,6 @@ double clock_frequency();
     g_debuglog[entry].type = DebugLogEntry::GpuBlock;                                      \
     g_debuglog[entry].thread = std::this_thread::get_id();                                 \
     g_debuglog[entry].timestamp = finish - start;                                          \
-  }
-
-#define BEGIN_STAT_BLOCK(name) \
-  auto stat_start_##name = __rdtsc();
-
-#define END_STAT_BLOCK(name) \
-  {                                                                                        \
-    static int stat_count = 0;                                                             \
-    static double stat_time = 0;                                                           \
-                                                                                           \
-    auto stat_end = __rdtsc();                                                             \
-    stat_time += (stat_end - stat_start_##name) / clock_frequency();                       \
-    stat_count += 1;                                                                       \
-    if (stat_time > 1.0)                                                                   \
-    {                                                                                      \
-      std::cout << #name << ": " << 1000 * stat_time / stat_count << "ms" << std::endl;    \
-      stat_count = 0;                                                                      \
-      stat_time = 0.0;                                                                     \
-    }                                                                                      \
   }
 
 //
@@ -286,8 +266,6 @@ void stream_debuglog(const char *filename);
 #define END_TIMED_BLOCK(...)
 #define GPU_SUBMIT(...)
 #define GPU_TIMED_BLOCK(...)
-#define BEGIN_STAT_BLOCK(...)
-#define END_STAT_BLOCK(...)
 #define RESOURCE_USE(...)
 #define STATISTIC_HIT(...)
 #define LOG_ONCE(...)

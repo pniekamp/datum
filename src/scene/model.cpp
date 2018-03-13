@@ -134,6 +134,7 @@ Scene::EntityId Model::add_instance(Transform const &transform, size_t mesh, siz
   return instance;
 }
 
+
 ///////////////////////// Model::load ///////////////////////////////////////
 bool Model::load(DatumPlatform::PlatformInterface &platform, ResourceManager *resources, Asset const *asset)
 {

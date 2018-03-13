@@ -107,6 +107,11 @@ void SpriteList::viewport(BuildState &state, Rect2 const &viewport) const
 
   auto &context = *state.context;
 
+  state.clipx = 0;
+  state.clipy = 0;
+  state.clipwidth = (int)(viewport.max.x - viewport.min.x);
+  state.clipheight = (int)(viewport.max.y - viewport.min.y);
+
   auto orthoview = OrthographicProjection(viewport.min.x, viewport.min.y, viewport.max.x, viewport.max.y, 0.0f, 1000.0f);
 
   push(spritecommands, context.pipelinelayout, offsetof(ParamSet, orthoview), sizeof(orthoview), &orthoview, VK_SHADER_STAGE_VERTEX_BIT);
@@ -119,6 +124,11 @@ void SpriteList::viewport(BuildState &state, DatumPlatform::Viewport const &view
   assert(state.commandlump);
 
   auto &context = *state.context;
+
+  state.clipx = 0;
+  state.clipy = 0;
+  state.clipwidth = viewport.width;
+  state.clipheight = viewport.height;
 
   auto orthoview = OrthographicProjection(0.0f, 0.0f, (float)viewport.width, (float)viewport.height, 0.0f, 1000.0f);
 
@@ -162,7 +172,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
 
 ///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, Vec4 const &texcoords, float layer)
+void SpriteList::push_model(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Vec4 const &texcoords, float layer)
 {
   assert(state.commandlump);
 
@@ -210,7 +220,7 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
   auto xbasis = Vec2(1, 0);
   auto ybasis = Vec2(0, 1);
 
-  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, Vec4(0, 0, 1, 1), 0);
+  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), 0);
 }
 
 
@@ -225,7 +235,7 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
   auto xbasis = rotate(Vec2(1, 0), rotation);
   auto ybasis = rotate(Vec2(0, 1), rotation);
 
-  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, Vec4(0, 0, 1, 1), 0);
+  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), 0);
 }
 
 
@@ -255,14 +265,14 @@ void SpriteList::push_rect_outline(BuildState &state, Vec2 const &position, Rect
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, float size, Sprite const *sprite, Color4 const &tint)
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Sprite const *sprite, Color4 const &tint)
 {
-  push_sprite(state, xbasis, ybasis, position, size, sprite, 0, tint);
+  push_sprite(state, position, xbasis, ybasis, sprite, 0, tint);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
-void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, float size, Sprite const *sprite, float layer, Color4 const &tint)
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Sprite const *sprite, float layer, Color4 const &tint)
 {
   assert(sprite && sprite->ready());
 
@@ -271,55 +281,79 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &xbasis, Vec2 const &
     push_material(state, sprite->atlas->texture, tint);
   }
 
-  auto dim = Vec2(size * sprite->aspect, size);
-  auto align = Vec2(sprite->align.x * dim.x, sprite->align.y * dim.y);
+  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, sprite->extent, layer);
+}
 
-  push_model(state, dim.x * xbasis, dim.y * ybasis, position - align.x*xbasis - align.y*ybasis, sprite->extent, layer);
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Sprite const *sprite, Rect2 const &region, Color4 const &tint)
+{
+  push_sprite(state, position, xbasis, ybasis, sprite, region, 0, tint);
+}
+
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Sprite const *sprite, Rect2 const &region, float layer, Color4 const &tint)
+{
+  assert(sprite && sprite->ready());
+
+  if (state.texture != sprite->atlas->texture || state.color != tint)
+  {
+    push_material(state, sprite->atlas->texture, tint);
+  }
+
+  Vec4 extent;
+  extent.x = sprite->extent.x + (region.min.x * sprite->extent.z);
+  extent.y = sprite->extent.y + (region.min.y * sprite->extent.w);
+  extent.z = sprite->extent.z * (region.max.x - region.min.x);
+  extent.w = sprite->extent.w * (region.max.y - region.min.y);
+
+  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, extent, layer);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
 void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, Sprite const *sprite, Color4 const &tint)
 {
-  auto xbasis = Vec2(1, 0);
-  auto ybasis = Vec2(0, 1);
+  auto xbasis = Vec2(size * sprite->aspect, 0);
+  auto ybasis = Vec2(0, size);
 
-  push_sprite(state, xbasis, ybasis, position, size, sprite, 0, tint);
+  push_sprite(state, position, xbasis, ybasis, sprite, 0, tint);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
 void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, Sprite const *sprite, float layer, Color4 const &tint)
 {
-  auto xbasis = Vec2(1, 0);
-  auto ybasis = Vec2(0, 1);
+  auto xbasis = Vec2(size * sprite->aspect, 0);
+  auto ybasis = Vec2(0, size);
 
-  push_sprite(state, xbasis, ybasis, position, size, sprite, layer, tint);
+  push_sprite(state, position, xbasis, ybasis, sprite, layer, tint);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
 void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, float rotation, Sprite const *sprite, Color4 const &tint)
 { 
-  auto xbasis = rotate(Vec2(1, 0), rotation);
-  auto ybasis = rotate(Vec2(0, 1), rotation);
+  auto xbasis = rotate(Vec2(size * sprite->aspect, 0), rotation);
+  auto ybasis = rotate(Vec2(0, size), rotation);
 
-  push_sprite(state, xbasis, ybasis, position, size, sprite, 0, tint);
+  push_sprite(state, position, xbasis, ybasis, sprite, 0, tint);
 }
 
 
 ///////////////////////// SpriteList::push_sprite ///////////////////////////
 void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size, float rotation, Sprite const *sprite, float layer, Color4 const &tint)
 {  
-  auto xbasis = rotate(Vec2(1, 0), rotation);
-  auto ybasis = rotate(Vec2(0, 1), rotation);
+  auto xbasis = rotate(Vec2(size * sprite->aspect, 0), rotation);
+  auto ybasis = rotate(Vec2(0, size), rotation);
 
-  push_sprite(state, xbasis, ybasis, position, size, sprite, layer, tint);
+  push_sprite(state, position, xbasis, ybasis, sprite, layer, tint);
 }
 
 
 ///////////////////////// SpriteList::push_text /////////////////////////////
-void SpriteList::push_text(BuildState &state, Vec2 const &xbasis, Vec2 const &ybasis, Vec2 const &position, float size, Font const *font, const char *str, Color4 const &tint)
+void SpriteList::push_text(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Font const *font, const char *str, Color4 const &tint)
 {
   assert(font && font->ready());
 
@@ -327,8 +361,6 @@ void SpriteList::push_text(BuildState &state, Vec2 const &xbasis, Vec2 const &yb
   {
     push_material(state, font->sheet->texture, tint);
   }
-
-  auto scale = size / font->height();
 
   auto cursor = position;
 
@@ -342,9 +374,9 @@ void SpriteList::push_text(BuildState &state, Vec2 const &xbasis, Vec2 const &yb
 
     codepoint = *ch;
 
-    cursor += scale * font->width(lastcodepoint, codepoint) * xbasis;
+    cursor += font->width(lastcodepoint, codepoint) * xbasis;
 
-    push_model(state, scale * font->dimension[codepoint].x * xbasis, scale * font->dimension[codepoint].y * ybasis, cursor - scale * font->alignment[codepoint].x * xbasis - scale * font->alignment[codepoint].y * ybasis, font->texcoords[codepoint], 0);
+    push_model(state, cursor - font->alignment[codepoint].x * xbasis - font->alignment[codepoint].y * ybasis, font->dimension[codepoint].x * xbasis, font->dimension[codepoint].y * ybasis, font->texcoords[codepoint], 0);
 
     lastcodepoint = codepoint;
   }
@@ -354,20 +386,20 @@ void SpriteList::push_text(BuildState &state, Vec2 const &xbasis, Vec2 const &yb
 ///////////////////////// SpriteList::push_text /////////////////////////////
 void SpriteList::push_text(BuildState &state, Vec2 const &position, float size, Font const *font, const char *str, Color4 const &tint)
 {
-  auto xbasis = Vec2(1, 0);
-  auto ybasis = Vec2(0, 1);
+  auto xbasis = Vec2(size / font->height(), 0);
+  auto ybasis = Vec2(0, size / font->height());
 
-  push_text(state, xbasis, ybasis, position, size, font, str, tint);
+  push_text(state, position, xbasis, ybasis, font, str, tint);
 }
 
 
 ///////////////////////// SpriteList::push_text /////////////////////////////
 void SpriteList::push_text(BuildState &state, Vec2 const &position, float size, float rotation, Font const *font, const char *str, Color4 const &tint)
 {
-  auto xbasis = rotate(Vec2(1, 0), rotation);
-  auto ybasis = rotate(Vec2(0, 1), rotation);
+  auto xbasis = rotate(Vec2(size / font->height(), 0), rotation);
+  auto ybasis = rotate(Vec2(0, size / font->height()), rotation);
 
-  push_text(state, xbasis, ybasis, position, size, font, str, tint);
+  push_text(state, position, xbasis, ybasis, font, str, tint);
 }
 
 
@@ -379,7 +411,7 @@ void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 con
 
   push_material(state, texture, tint);
 
-  push_model(state, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, position + rect.min.x*xbasis + rect.min.y*ybasis, Vec4(0, 0, 1, 1), layer);
+  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), layer);
 }
 
 
@@ -388,7 +420,12 @@ void SpriteList::push_scissor(BuildState &state, Rect2 const &cliprect)
 {
   assert(state.commandlump);
 
-  scissor(spritecommands, (int)cliprect.min.x, (int)cliprect.min.y, (int)(cliprect.max.x - cliprect.min.x), (int)(cliprect.max.y - cliprect.min.y));
+  state.clipx = (int)(cliprect.min.x);
+  state.clipy = (int)(cliprect.min.y);
+  state.clipwidth = (int)(cliprect.max.x - cliprect.min.x);
+  state.clipheight = (int)(cliprect.max.y - cliprect.min.y);
+
+  scissor(spritecommands, state.clipx, state.clipy, state.clipwidth, state.clipheight);
 }
 
 

@@ -369,6 +369,16 @@ void deallocate(StackAllocatorWithFreelist<> const &allocator, T *ptr, std::size
   }
 }
 
+inline void deallocate(FreeList *freelist, void *ptr, std::size_t bytes)
+{
+  if (ptr)
+  {
+    auto mask = FreeList::bucket_mask(bytes);
+
+    freelist->release(ptr, (bytes + mask) & ~mask);
+  }
+}
+
 
 ///////////////////////// allocate //////////////////////////////////////////
 inline Arena allocate(StackAllocator<> const &allocator, std::size_t slabsize)

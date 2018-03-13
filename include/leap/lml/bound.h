@@ -294,6 +294,7 @@ namespace leap { namespace lml
 
     bool ray() const { return tmax > std::max(tmin, coord_type_t<Point>(0)); }
     bool seg() const { return tmax > std::max(tmin, coord_type_t<Point>(0)) && tmin < coord_type_t<Point>(1); }
+    bool inside() const { return tmax > coord_type_t<Point>(0) && tmin < coord_type_t<Point>(0); }
   };
 
   template<typename Bound, typename Point, size_t... Indices>
@@ -306,14 +307,8 @@ namespace leap { namespace lml
     auto t1 = std::array<T, sizeof...(Indices)>{ ((low<Indices>(bound) - get<Indices>(a)) / (get<Indices>(b) - get<Indices>(a)))... };
     auto t2 = std::array<T, sizeof...(Indices)>{ ((high<Indices>(bound) - get<Indices>(a)) / (get<Indices>(b) - get<Indices>(a)))... };
 
-    result.tmin = std::min(t1[0], t2[0]);
-    result.tmax = std::max(t1[0], t2[0]);
-
-    for(size_t i = 1; i < bound.size(); ++i)
-    {
-      result.tmin = std::max(result.tmin, std::min(std::min(t1[i], t2[i]), result.tmax));
-      result.tmax = std::min(result.tmax, std::max(std::max(t1[i], t2[i]), result.tmin));
-    }
+    result.tmin = std::max({ std::min(t1[Indices], t2[Indices])... });
+    result.tmax = std::min({ std::max(t1[Indices], t2[Indices])... });
 
     if (result.tmax > result.tmin)
     {

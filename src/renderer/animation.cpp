@@ -15,21 +15,6 @@ using namespace lml;
 using leap::alignto;
 using leap::indexof;
 
-namespace
-{
-  size_t anim_datasize(int jointcount, int transformcount)
-  {
-    return jointcount * sizeof(Animation::Joint) + transformcount * sizeof(Animation::Transform);
-  }
-
-  Transform blend(Transform const &t1, Transform const &t2, float weight)
-  {
-    auto flip = std::copysign(1.0f, dot(t1.real, t2.real));
-
-    return { t1.real + weight * flip * t2.real, t1.dual + weight * flip * t2.dual };
-  }
-}
-
 //|---------------------- Pose ----------------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -93,7 +78,7 @@ Pose::~Pose()
 {
   if (m_freelist)
   {
-    m_freelist->release(bones, bonecount * sizeof(Transform));
+    deallocate(m_freelist, bones, bonecount * sizeof(Transform));
   }
 }
 
@@ -109,7 +94,7 @@ Animation const *ResourceManager::create<Animation>(Asset const *asset)
   if (!asset)
     return nullptr;
 
-  auto slot = acquire_slot(sizeof(Animation) + anim_datasize(asset->jointcount, asset->transformcount));
+  auto slot = acquire_slot(sizeof(Animation));
 
   if (!slot)
     return nullptr;
@@ -118,8 +103,8 @@ Animation const *ResourceManager::create<Animation>(Asset const *asset)
 
   anim->duration = asset->duration;
   anim->jointcount = asset->jointcount;
-  anim->joints = nullptr;
   anim->transformcount = asset->transformcount;
+  anim->joints = nullptr;
   anim->transforms = nullptr;
   anim->asset = asset;
   anim->state = Animation::State::Empty;
@@ -150,7 +135,7 @@ void ResourceManager::request<Animation>(DatumPlatform::PlatformInterface &platf
 
         auto jointtable = PackAnimationPayload::jointtable(payload, asset->jointcount, asset->transformcount);
 
-        auto jointdata = reinterpret_cast<Animation::Joint*>(slot->data);
+        auto jointdata = system_allocator_type<Animation::Joint>{}.allocate(asset->jointcount);
 
         for(int i = 0; i < slot->jointcount; ++i)
         {
@@ -164,7 +149,7 @@ void ResourceManager::request<Animation>(DatumPlatform::PlatformInterface &platf
 
         auto transformtable = PackAnimationPayload::transformtable(payload, asset->jointcount, asset->transformcount);
 
-        auto transformdata = reinterpret_cast<Animation::Transform*>(slot->data + slot->jointcount*sizeof(Animation::Joint));
+        auto transformdata = system_allocator_type<Animation::Transform>{}.allocate(asset->transformcount);
 
         for(int i = 0; i < slot->transformcount; ++i)
         {
@@ -176,7 +161,7 @@ void ResourceManager::request<Animation>(DatumPlatform::PlatformInterface &platf
       }
     }
 
-    slot->state = (slot->joints) ? Animation::State::Ready : Animation::State::Empty;
+    slot->state = (slot->joints && slot->transforms) ? Animation::State::Ready : Animation::State::Empty;
   }
 }
 
@@ -195,9 +180,15 @@ void ResourceManager::destroy<Animation>(Animation const *anim)
 {
   if (anim)
   {
+    if (anim->joints)
+      system_allocator_type<Animation::Joint>{}.deallocate(const_cast<Animation::Joint*>(anim->joints), anim->jointcount);
+
+    if (anim->transforms)
+      system_allocator_type<Animation::Transform>{}.deallocate(const_cast<Animation::Transform*>(anim->transforms), anim->transformcount);
+
     anim->~Animation();
 
-    release_slot(const_cast<Animation*>(anim), sizeof(Animation) + anim_datasize(anim->jointcount, anim->transformcount));
+    release_slot(const_cast<Animation*>(anim), sizeof(Animation));
   }
 }
 

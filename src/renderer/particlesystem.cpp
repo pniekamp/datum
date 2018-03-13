@@ -387,7 +387,7 @@ void ParticleSystem::destroy(Instance *instance) const
 
   if (instanceex->freelist)
   {
-    instanceex->freelist->release(instanceex, instanceex->size);
+    deallocate(instanceex->freelist, instanceex, instanceex->size);
   }
 }
 

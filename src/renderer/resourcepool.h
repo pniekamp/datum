@@ -17,6 +17,13 @@
 
 class ResourcePool
 {
+  public:
+
+    static constexpr int StorageBufferSlots = 256;
+    static constexpr int CommandBufferSlots = 128;
+    static constexpr int DescriptorSetSlots = 512;
+    static constexpr int ResourceLumpCount = 64;
+
   private:
 
     struct StorageSlot
@@ -37,7 +44,23 @@ class ResourcePool
       StorageSlot const *buffers[128];
     };
 
-    void reset_storagepool(StoragePool &pool);
+    void reset(StoragePool &pool);
+
+    struct CommandPool
+    {
+      size_t used;
+      Vulkan::CommandPool pool;
+      Vulkan::CommandBuffer buffers[CommandBufferSlots / ResourceLumpCount];
+    };
+
+    void reset(CommandPool &pool);
+
+    struct DescriptorPool
+    {
+      Vulkan::DescriptorPool pool;
+    };
+
+    void reset(DescriptorPool &pool);
 
   public:
 
@@ -73,16 +96,11 @@ class ResourcePool
     struct ResourceLump
     {
       StoragePool storagepool;
-      Vulkan::CommandPool commandpool;
-      Vulkan::DescriptorPool descriptorpool;
+      CommandPool commandpool;
+      DescriptorPool descriptorpool;
 
       std::atomic_flag lock = ATOMIC_FLAG_INIT;
     };
-
-    static constexpr int StorageBufferSlots = 256;
-    static constexpr int CommandBufferSlots = 128;
-    static constexpr int DescriptorSetSlots = 512;
-    static constexpr int ResourceLumpCount = 64;
 
   public:
 
