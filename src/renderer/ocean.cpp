@@ -3,10 +3,10 @@
 //
 
 #include "ocean.h"
-#include "datum/debug.h"
 #include <random>
 #include <complex>
 #include <numeric>
+#include "debug.h"
 
 using namespace std;
 using namespace lml;

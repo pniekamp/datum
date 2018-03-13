@@ -95,7 +95,8 @@ void ActorComponentStorage::remove(EntityId entity)
   auto index = m_index[entity.index()];
 
   data<animator>(index)->~Animator();
-  deallocate<Animator>(m_allocator, data<animator>(index));
+
+  deallocate(m_allocator, data<animator>(index));
 
   if (index < m_staticpartition)
   {

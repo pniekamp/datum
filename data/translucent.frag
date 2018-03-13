@@ -253,6 +253,8 @@ void main()
   // Global Fog
 
   vec4 fog = global_fog(xy, viewport, view_depth(scene.proj, depth), fogmap);
+  
+  // Final Color
 
   vec4 color = vec4(((diffuse + material.emissive) * material.diffuse + specular) * fog.a + fog.rgb, 1) * albedo.a * params.color.a; 
 

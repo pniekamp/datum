@@ -504,7 +504,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   //
 
   bool vsync = true;
-  uint32_t desiredimages = 3;
+  uint32_t desiredimages = 2;
 
   VkSurfaceCapabilitiesKHR surfacecapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
@@ -521,9 +521,10 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   VkPresentModeKHR presentmode = VK_PRESENT_MODE_FIFO_KHR;
   for(size_t i = 0; i < presentmodescount; ++i)
   {
-    if (!vsync && presentmodes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+    if (presentmodes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
     {
       presentmode = presentmodes[i];
+      desiredimages = 3;
       break;
     }
 
@@ -855,6 +856,7 @@ void Window::init(Game *gameptr)
   keysym[50] = KB_KEY_LEFT_SHIFT;  keysym[62] = KB_KEY_RIGHT_SHIFT;
   keysym[37] = KB_KEY_LEFT_CONTROL;  keysym[105] = KB_KEY_RIGHT_CONTROL;
   keysym[113] = KB_KEY_LEFT; keysym[116] = KB_KEY_DOWN; keysym[114] = KB_KEY_RIGHT; keysym[111] = KB_KEY_UP;
+  keysym[110] = KB_KEY_HOME; keysym[115] = KB_KEY_END; keysym[118] = KB_KEY_INSERT; keysym[119] = KB_KEY_DELETE;
   keysym[67] = KB_KEY_F1;  keysym[68] = KB_KEY_F2;  keysym[69] = KB_KEY_F3;  keysym[70] = KB_KEY_F4;  keysym[71] = KB_KEY_F5;  keysym[72] = KB_KEY_F6;  keysym[73] = KB_KEY_F7;  keysym[74] = KB_KEY_F8;  keysym[75] = KB_KEY_F9;  keysym[76] = KB_KEY_F10;
   keysym[10] = '1';  keysym[11] = '2';  keysym[12] = '3';  keysym[13] = '4';  keysym[14] = '5';  keysym[15] = '6';  keysym[16] = '7';  keysym[17] = '8';  keysym[18] = '9';  keysym[19] = '0';  keysym[20] = '-';  keysym[21] = '=';  keysym[22] = KB_KEY_BACKSPACE;
   keysym[24] = 'Q';  keysym[25] = 'W';  keysym[26] = 'E';  keysym[27] = 'R';  keysym[28] = 'T';  keysym[29] = 'Y';  keysym[30] = 'U';  keysym[31] = 'I';  keysym[32] = 'O';  keysym[33] = 'P';  keysym[34] = '[';  keysym[35] = ']';  keysym[36] = '\\';

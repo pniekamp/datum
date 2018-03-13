@@ -66,7 +66,7 @@ class SpotCasterList
 
     VkCommandBuffer castercommands;
 
-    operator bool() const { return m_commandlump; }
+    explicit operator bool() const { return *m_commandlump; }
 
   public:
 

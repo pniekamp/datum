@@ -172,7 +172,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 {
   assert(lump);
   assert(texture);
-  assert(texture->state == Texture::State::Ready);
+  assert(texture->ready());
 
   auto slot = const_cast<Texture*>(texture);
 
@@ -197,7 +197,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 {
   assert(lump);
   assert(texture);
-  assert(texture->state == Texture::State::Ready);
+  assert(texture->ready());
 
   auto slot = const_cast<Texture*>(texture);
 

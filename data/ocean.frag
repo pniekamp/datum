@@ -78,9 +78,9 @@ void main()
   float scale = 0.05 * dist;
   float facing = clamp(1 - dot(eyevec, tbnworld[2]), 0, 1);
   
-  float roughness = mix(0, params.roughness, clamp(FresnelBias + pow(facing, FresnelPower), 0, 1));
-  
   vec4 albedo = textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
+  
+  float roughness = mix(0, params.roughness, clamp(FresnelBias + pow(facing, FresnelPower), 0, 1));
 
   normal = mix(tbnworld[2], normal, clamp(dot(normal, eyevec), 0, 1));
   

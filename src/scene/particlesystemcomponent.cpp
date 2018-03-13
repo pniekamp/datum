@@ -54,7 +54,7 @@ void ParticleSystemComponentStorage::update_particlesystem_bounds()
 
   for(size_t index = 1; index < size(); ++index)
   {
-    if (data<entityid>(index) != 0)
+    if (data<entityid>(index))
     {
       assert(transformstorage->has(data<entityid>(index)));
 

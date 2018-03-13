@@ -22,7 +22,6 @@ class Pose
     Pose(int bonecount, StackAllocator<> const &allocator);
     Pose(int bonecount, StackAllocatorWithFreelist<> const &allocator);
     Pose(Pose const &) = delete;
-    Pose &operator =(Pose const &) = delete;
     Pose(Pose &&that);
     Pose &operator =(Pose &&that);
     ~Pose();
@@ -69,9 +68,9 @@ class Animation
     float duration;
 
     int jointcount;
-    Joint const *joints;
-
     int transformcount;
+
+    Joint const *joints;
     Transform const *transforms;
 
   public:
@@ -80,16 +79,12 @@ class Animation
     {
       Empty,
       Loading,
-      Waiting,
-      Testing,
       Ready,
     };
 
     Asset const *asset;
 
     std::atomic<State> state;
-
-    alignas(16) uint8_t data[1];
 
   protected:
     Animation() = default;

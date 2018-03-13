@@ -41,13 +41,14 @@ class Scene
     {
       size_t id = 0;
 
-      operator bool() const { return id != 0; }
+      explicit operator bool() const { return id != 0; }
 
       size_t index() const { return id & ((1 << kIndexBits) - 1); }
       size_t generation() const { return id >> kIndexBits; }
 
       bool operator ==(EntityId const &other) const { return id == other.id; }
       bool operator !=(EntityId const &other) const { return id != other.id; }
+      bool operator <(EntityId const &other) const { return id < other.id; }
     };
 
     // create entity

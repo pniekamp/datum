@@ -74,7 +74,7 @@ class DefaultStorage : public Storage
         explicit iterator(DefaultStorage const *storage, size_t index)
           : index(index), storage(storage)
         {
-          if (index != storage->size() && storage->data<0>(index) == 0)
+          if (index != storage->size() && !storage->data<0>(index))
             ++*this;
         }
 
@@ -88,7 +88,7 @@ class DefaultStorage : public Storage
         {
           ++index;
 
-          while (index != storage->size() && storage->data<0>(index) == 0)
+          while (index != storage->size() && !storage->data<0>(index))
             ++index;
 
           return *this;

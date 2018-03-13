@@ -23,6 +23,8 @@ class ResourceManager
 
     typedef StackAllocator<> allocator_type;
 
+    template<typename T> using system_allocator_type = std::allocator<T>;
+
     ResourceManager(AssetManager &assets, allocator_type const &allocator);
 
     ResourceManager(ResourceManager const &) = delete;
@@ -62,6 +64,14 @@ class ResourceManager
 
     // release resources
     void release(size_t token);
+
+  public:
+
+    template<typename ResourcePtr, typename ...Args, typename enabled = decltype(std::declval<ResourcePtr&>().get())>
+    void update(ResourcePtr const &resource, Args... args) { update(resource.get(), args...); }
+
+    template<typename ResourcePtr, typename enabled = decltype(std::declval<ResourcePtr&>().get())>
+    void request(DatumPlatform::PlatformInterface &platform, ResourcePtr const &resource) { request(platform, resource.get()); }
 
   public:
 
@@ -198,17 +208,22 @@ template<typename Resource>
 class unique_resource
 {
   public:
-    unique_resource()
+    constexpr unique_resource() noexcept
       : m_resource(nullptr), m_resources(nullptr)
     {
     }
 
-    unique_resource(ResourceManager *resources, Resource const *resource)
+    constexpr unique_resource(std::nullptr_t) noexcept
+      : m_resource(nullptr), m_resources(nullptr)
+    {
+    }
+
+    unique_resource(ResourceManager *resources, Resource const *resource) noexcept
       : m_resource(resource), m_resources(resources)
     {
     }
 
-    unique_resource(ResourceManager &resources, Resource const *resource)
+    unique_resource(ResourceManager &resources, Resource const *resource) noexcept
       : m_resource(resource), m_resources(&resources)
     {
     }
@@ -216,12 +231,13 @@ class unique_resource
     unique_resource(unique_resource const &) = delete;
 
     unique_resource(unique_resource &&other) noexcept
-      : unique_resource()
+      : m_resource(other.m_resource), m_resources(other.m_resources)
     {
-      *this = std::move(other);
+      other.m_resource = nullptr;
+      other.m_resources = nullptr;
     }
 
-    ~unique_resource()
+    ~unique_resource() noexcept
     {
       if (m_resource)
         m_resources->release(m_resource);
@@ -235,17 +251,81 @@ class unique_resource
       return *this;
     }
 
+    Resource const *get() const noexcept { return m_resource; }
+    Resource const *operator *() const noexcept { return m_resource; }
+    Resource const *operator ->() const noexcept { return m_resource; }
+
     Resource const *release() { auto resource = m_resource; m_resource = 0; return resource; }
 
-    operator Resource const *() const { return m_resource; }
-
-    Resource const *operator *() const { return m_resource; }
-    Resource const *operator ->() const { return m_resource; }
+    operator Resource const *() const noexcept { return m_resource; }
 
   private:
 
     Resource const *m_resource;
     ResourceManager *m_resources;
+};
+
+
+// shared_resource
+
+template<typename Resource>
+class shared_resource
+{
+  public:
+    constexpr shared_resource() noexcept
+      : m_resource(nullptr), m_refcount(nullptr)
+    {
+    }
+
+    constexpr shared_resource(std::nullptr_t) noexcept
+      : m_resource(nullptr), m_refcount(nullptr)
+    {
+    }
+
+    shared_resource(Resource const *resource, std::atomic<int> *refcount) noexcept
+      : m_resource(resource), m_refcount(refcount)
+    {
+      *m_refcount += 1;
+    }
+
+    shared_resource(shared_resource const &other) noexcept
+      : m_resource(other.m_resource), m_refcount(other.m_refcount)
+    {
+      if (m_refcount)
+        *m_refcount += 1;
+    }
+
+    shared_resource(shared_resource &&other) noexcept
+      : m_resource(other.m_resource), m_refcount(other.m_refcount)
+    {
+      other.m_resource = nullptr;
+      other.m_refcount = nullptr;
+    }
+
+    ~shared_resource() noexcept
+    {
+      if (m_resource)
+        *m_refcount -= 1;
+    }
+
+    shared_resource &operator=(shared_resource other) noexcept
+    {
+      std::swap(m_resource, other.m_resource);
+      std::swap(m_refcount, other.m_refcount);
+
+      return *this;
+    }
+
+    Resource const *get() const noexcept { return m_resource; }
+    Resource const *operator *() const noexcept { return m_resource; }
+    Resource const *operator ->() const noexcept { return m_resource; }
+
+    operator Resource const *() const noexcept { return m_resource; }
+
+  private:
+
+    Resource const *m_resource;
+    std::atomic<int> *m_refcount;
 };
 
 // Request Utility
@@ -263,6 +343,18 @@ void request(DatumPlatform::PlatformInterface &platform, ResourceManager &resour
       *ready += 1;
     }
   }
+}
+
+template<typename Resource>
+void request(DatumPlatform::PlatformInterface &platform, ResourceManager &resources, unique_resource<Resource> const &resource, int *ready, int *total)
+{
+  request(platform, resources, resource.get(), ready, total);
+}
+
+template<typename Resource>
+void request(DatumPlatform::PlatformInterface &platform, ResourceManager &resources, shared_resource<Resource> const &resource, int *ready, int *total)
+{
+  request(platform, resources, resource.get(), ready, total);
 }
 
 // Initialise

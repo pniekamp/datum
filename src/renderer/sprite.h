@@ -19,7 +19,7 @@ class Sprite
   public:
     friend Sprite const *ResourceManager::create<Sprite>(Asset const *asset);
     friend Sprite const *ResourceManager::create<Sprite>(Asset const *asset, lml::Vec2 align);
-    friend Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, lml::Rect2 extent, lml::Vec2 align);
+    friend Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, lml::Rect2 region, lml::Vec2 align);
 
     bool ready() const { return (state == State::Ready); }
 

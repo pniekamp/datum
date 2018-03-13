@@ -748,9 +748,7 @@ namespace
 
       overlay.finalise(buildstate);
 
-      auto entry = pushbuffer.push<Renderable::Sprites>();
-
-      if (entry)
+      if (auto entry = pushbuffer.push<Renderable::Sprites>())
       {
         entry->spritecommands = overlay.spritecommands;
       }
@@ -1013,7 +1011,10 @@ void update_debug_overlay(GameInput const &input, bool *accepted)
   }
   else
   {
-    g_interaction.hot.store(g_interaction.nexthot);
+    if (!*accepted)
+    {
+      g_interaction.hot.store(g_interaction.nexthot);
+    }
   }
 
   g_interaction.mousepos = Vec2(input.mousex, input.mousey);

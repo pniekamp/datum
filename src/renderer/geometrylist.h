@@ -26,7 +26,7 @@ class GeometryList
     VkCommandBuffer prepasscommands;
     VkCommandBuffer geometrycommands;
 
-    operator bool() const { return m_commandlump; }
+    explicit operator bool() const { return *m_commandlump; }
 
   public:
 

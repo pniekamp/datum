@@ -38,6 +38,7 @@ namespace DatumPlatform
 
       inline bool down() const { return (state); }
       inline bool pressed() const { return (state && transitions == 1) || (transitions > 1); }
+      inline int presscount(bool autoelapsed = false) const { return (transitions + state) / 2 + (state && transitions == 0)*autoelapsed; }
     };
 
     struct GameController
@@ -84,6 +85,8 @@ namespace DatumPlatform
       GameButton mousebuttons[3];
 
       GameController controllers[5];
+
+      char text[128];
     };
 
 

@@ -45,6 +45,7 @@ layout(set=0, binding=14) uniform sampler2DArray envbrdfmap;
 layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
 layout(set=0, binding=16) uniform sampler2DShadow spotmaps[MaxSpotLights];
 layout(set=0, binding=17) uniform sampler2DArray decalmaps[MaxDecalMaps];
+layout(set=0, binding=18) uniform sampler3D fogmap;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -111,8 +112,10 @@ void main()
   ivec2 xy = ivec2(gl_FragCoord.xy);
   ivec2 viewport = textureSize(colormap, 0).xy;
 
+  float depth = gl_FragCoord.z;
+
   uint tile = cluster_tile(xy, viewport);
-  uint tilez = cluster_tilez(gl_FragCoord.z);
+  uint tilez = cluster_tilez(depth);
 
   vec4 bump0 = texture(normalmap, vec3(params.bumpscale.xy*(texcoord + params.flow), 0));
   vec4 bump1 = texture(normalmap, vec3(params.bumpscale.xy*(2.0*texcoord + 4.0*params.flow), 0));
@@ -206,9 +209,19 @@ void main()
     }
   }
 
-  float fogfactor = clamp(exp2(-pow(params.color.a * dist, 2)), 0, 1); 
+  // Global Fog
+
+  vec4 fog = global_fog(xy, viewport, view_depth(scene.proj, depth), fogmap);
+
+  // Transmission Fog
+
+  float factor = clamp(exp2(-pow(params.color.a * dist, 2)), 0, 1); 
+    
+  // Final Color
+
+  vec4 color = vec4(((diffuse + material.emissive) * material.diffuse + specular) * fog.a + fog.rgb, 1) * mix(1, 1 - 0.8*envbrdf.x, factor); 
   
-  vec4 color = vec4((diffuse + material.emissive) * material.diffuse + specular, 1) * mix(1, 1 - 0.8*envbrdf.x, fogfactor);
+  // Output
 
   fragcolor = vec4(scene.camera.exposure * color.rgb, color.a);
 }

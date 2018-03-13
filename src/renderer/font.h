@@ -25,7 +25,7 @@ class Font
     int descent;
     int leading;
 
-    int width(const char *str) const;
+    int width(const char *str, size_t n = size_t(-1)) const;
     int width(uint32_t codepoint, uint32_t nextcodepoint) const;
     int height() const;
     int lineheight() const;
@@ -61,16 +61,16 @@ class Font
 
 
 ///////////////////////// Font::width ///////////////////////////////////////
-inline int Font::width(const char *str) const
+inline int Font::width(const char *str, size_t n) const
 {
   int sum = 0;
 
   uint32_t codepoint;
   uint32_t lastcodepoint = 0;
 
-  for(uint8_t const *ch = (uint8_t const *)str; *ch; ++ch)
+  for(const char *ch = str; *ch && n; ++ch, --n)
   {
-    if (*ch >= glyphcount)
+    if (*ch < 0 || *ch >= glyphcount)
       continue;
 
     codepoint = *ch;

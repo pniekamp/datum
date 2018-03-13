@@ -58,7 +58,7 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 extent, Vec2 align)
+Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 region, Vec2 align)
 {
   auto slot = acquire_slot(sizeof(Sprite));
 
@@ -68,12 +68,12 @@ Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 extent
   auto sprite = new(slot) Sprite;
 
   sprite->flags = 0;
-  sprite->width = (int)((extent.max.x - extent.min.x) * atlas->width);
-  sprite->height = (int)((extent.max.y - extent.min.y) * atlas->height);
+  sprite->width = (int)((region.max.x - region.min.x) * atlas->width);
+  sprite->height = (int)((region.max.y - region.min.y) * atlas->height);
   sprite->layers = atlas->layers;
   sprite->aspect = (float)sprite->width / (float)sprite->height;
   sprite->align = align;
-  sprite->extent = Vec4(extent.min.x, extent.min.y, extent.max.x - extent.min.x, extent.max.y - extent.min.y);
+  sprite->extent = Vec4(region.min.x, region.min.y, region.max.x - region.min.x, region.max.y - region.min.y);
   sprite->atlas = atlas;
   sprite->asset = nullptr;
   sprite->state = Sprite::State::Waiting;
