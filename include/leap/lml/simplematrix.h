@@ -8,14 +8,12 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLSIMPLEMATRIX_HH
-#define LMLSIMPLEMATRIX_HH
+#pragma once
 
 #include <array>
 
 namespace leap { namespace lml
 {
-
   //|-------------------- SimpleMatrix --------------------------------------
   //|------------------------------------------------------------------------
   /**
@@ -37,7 +35,7 @@ namespace leap { namespace lml
   {
     public:
 
-      typedef std::array<std::array<T, N>, M> data_type;
+      using data_type = std::array<std::array<T, N>, M>;
 
     public:
 
@@ -56,5 +54,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

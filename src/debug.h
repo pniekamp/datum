@@ -10,6 +10,8 @@
 
 #include "platform.h"
 #include "memory.h"
+#include "math/color.h"
+#include <thread>
 #include <cassert>
 #include <iostream>
 
@@ -146,7 +148,7 @@ double clock_frequency();
     g_debuglog[entry].info = &blockinfo;                                                   \
     g_debuglog[entry].type = DebugLogEntry::GpuBlock;                                      \
     g_debuglog[entry].thread = std::this_thread::get_id();                                 \
-    g_debuglog[entry].timestamp = finish - start;                                          \
+    g_debuglog[entry].timestamp = (finish) - (start);                                      \
   }
 
 //
@@ -181,7 +183,7 @@ double clock_frequency();
     static bool logged = false;                                                            \
     if (!logged)                                                                           \
     {                                                                                      \
-      std::cout << msg << std::endl;                                                       \
+      std::cout << (msg) << std::endl;                                                     \
       logged = true;                                                                       \
     }                                                                                      \
   }
@@ -208,7 +210,7 @@ T debug_menu_value(const char *name, T const &value, T const &min, T const &max)
   debug_menu_entry(name, value);
 
 #define DEBUG_MENU_VALUE(name, value, min, max) \
-  debug_menu_entry(name, *value = debug_menu_value(name, *value, min, max));
+  debug_menu_entry(name, *(value) = debug_menu_value(name, *(value), min, max));
 
 
 //

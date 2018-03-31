@@ -340,7 +340,7 @@ AssetManager::Slot *AssetManager::acquire_slot(size_t size)
       {
         // split
 
-        Slot *newslot = new(reinterpret_cast<char*>(slot) + bytes) Slot;
+        auto newslot = new(reinterpret_cast<char*>(slot) + bytes) Slot;
 
         newslot->size = slot->size - bytes;
         newslot->after = slot->after;

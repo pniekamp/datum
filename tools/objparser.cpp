@@ -28,7 +28,6 @@ float gScale = 1.0f;
 
 namespace
 {
-
   vector<string_view> seperate(string_view str, const char *delimiters = " \t\r\n")
   {
     vector<string_view> result;
@@ -288,10 +287,8 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
 }
 
 
-void write_model(string const &filename)
+void write_model(pathstring const &src, pathstring const &dst)
 {
-  string mtllib;
-
   vector<Vec3> points;
   vector<Vec3> normals;
   vector<Vec2> texcoords;
@@ -352,14 +349,16 @@ void write_model(string const &filename)
 
   Mesh *mesh = nullptr;
 
-  string basepath = pathstring(".", filename).base();
+  pathstring mtllib;
 
-  ifstream fin(filename);
+  string basepath = src.base();
+
+  ifstream fin(src);
 
   if (!fin)
-    throw runtime_error("unable to read obj file - " + filename);
+    throw runtime_error("Unable to read obj file - " + src.name());
 
-  cout << "  Reading: " << filename << endl;
+  cout << "  Reading: " << src.name() << endl;
 
   string buffer;
 
@@ -442,16 +441,16 @@ void write_model(string const &filename)
     }
   }
 
-  cout << "  Parsing: " << filename << " (" << points.size() << " points, " << texcoords.size() << " texcoords, " << points.size() << " normals)" << endl;
+  cout << "  Parsing: " << src.name() << " (" << points.size() << " points, " << texcoords.size() << " texcoords, " << points.size() << " normals)" << endl;
 
   if (mtllib != "")
   {
     ifstream fin(mtllib);
 
     if (!fin)
-      throw runtime_error("unable to read mtl file - " + mtllib);
+      throw runtime_error("Unable to read mtl file - " + mtllib.name());
 
-    cout << "  Reading: " << mtllib << endl;
+    cout << "  Reading: " << mtllib.name() << endl;
 
     string buffer;
 
@@ -480,21 +479,21 @@ void write_model(string const &filename)
         }
       }
 
-      if (fields[0] == "kd")
+      if (fields[0] == "Kd")
       {
         material->color[0] = ato<float>(fields[1]);
         material->color[1] = ato<float>(fields[2]);
         material->color[2] = ato<float>(fields[3]);
       }
 
-      if (fields[0] == "ks")
+      if (fields[0] == "Ks")
       {
         material->specularintensity.r = ato<float>(fields[1]);
         material->specularintensity.g = ato<float>(fields[2]);
         material->specularintensity.b = ato<float>(fields[3]);
       }
 
-      if (fields[0] == "ns")
+      if (fields[0] == "Ns")
       {
         material->specularexponent = ato<float>(fields[1]);
       }
@@ -509,17 +508,17 @@ void write_model(string const &filename)
         material->albedomask = ato<string>(fields[1]);
       }
 
-      if (fields[0] == "map_ka")
+      if (fields[0] == "map_Ka")
       {
         material->metalmap = ato<string>(fields[1]);
       }
 
-      if (fields[0] == "map_kd")
+      if (fields[0] == "map_Kd")
       {
         material->albedobase = ato<string>(fields[1]);
       }
 
-      if (fields[0] == "map_ns")
+      if (fields[0] == "map_Ns")
       {
         material->roughmap = ato<string>(fields[1]);
       }
@@ -530,7 +529,7 @@ void write_model(string const &filename)
       }
     }
 
-    cout << "  Parsing: " << mtllib << " (" << materials.size()-1 << " materials, " << textures.size()-1 << " textures)" << endl;
+    cout << "  Parsing: " << mtllib.name() << " (" << materials.size()-1 << " materials, " << textures.size()-1 << " textures)" << endl;
   }
 
   // Post Process
@@ -560,6 +559,7 @@ void write_model(string const &filename)
       if (j == textures.end())
       {
         textures.push_back({ PackModelPayload::Texture::albedomap, material.albedobase, material.albedomask });
+
         j = textures.end() - 1;
       }
 
@@ -573,6 +573,7 @@ void write_model(string const &filename)
       if (j == textures.end())
       {
         textures.push_back({ PackModelPayload::Texture::surfacemap, material.roughmap, material.metalmap });
+
         j = textures.end() - 1;
       }
 
@@ -586,6 +587,7 @@ void write_model(string const &filename)
       if (j == textures.end())
       {
         textures.push_back({ PackModelPayload::Texture::normalmap, material.bumpmap });
+
         j = textures.end() - 1;
       }
 
@@ -603,13 +605,15 @@ void write_model(string const &filename)
   //
 
   uint32_t id = 0;
-  string output = (QFileInfo(filename.c_str()).baseName() + ".pack").toStdString();
 
-  ofstream fout(output, ios::binary | ios::trunc);
+  ofstream fout(dst, ios::binary | ios::trunc);
+
+  if (!fout)
+    throw runtime_error("Error creating output file - " + src.name());
 
   write_header(fout);
 
-  cout << "  Writing: (" << id << ") model " << output << endl;
+  cout << "  Writing: (" << id << ") model " << dst.name() << endl;
 
   vector<PackModelPayload::Texture> texturetable;
 
@@ -741,6 +745,10 @@ int main(int argc, char **argv)
     ++j;
   }
 
+#ifdef _WIN32
+  replace(begin(objfile), end(objfile), '\\', '/');
+#endif
+
   if (objfile == "")
   {
     usage();
@@ -756,7 +764,10 @@ int main(int argc, char **argv)
 
   try
   {
-    write_model(objfile);
+    auto src = pathstring(".", objfile);
+    auto dst = pathstring(".", src.basename() + ".pack");
+
+    write_model(src, dst);
   }
   catch(exception &e)
   {

@@ -8,8 +8,9 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLOPTIONAL_HH
-#define LMLOPTIONAL_HH
+#pragma once
+
+#include <utility>
 
 /**
  * \namespace leap
@@ -25,7 +26,6 @@
 
 namespace leap
 {
-
   //|-------------------- optional ------------------------------------------
   //|------------------------------------------------------------------------
   /**
@@ -40,7 +40,7 @@ namespace leap
   {
     public:
 
-      typedef T value_type;
+      using value_type = T;
 
     public:
       optional() = default;
@@ -73,5 +73,3 @@ namespace leap
   }
 
 } // namespace
-
-#endif

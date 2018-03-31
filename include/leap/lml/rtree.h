@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef RTREE_HH
-#define RTREE_HH
+#pragma once
 
 #include <leap/util.h>
 #include <leap/lml/bound.h>
@@ -21,7 +20,7 @@
 #include <algorithm>
 #include <iterator>
 #include <utility>
-#include <iostream>
+
 /**
  * \namespace leap::lml
  * \brief Leap Math Library containing mathmatical routines
@@ -75,14 +74,14 @@ namespace leap { namespace lml
         {
           public:
 
-            typedef Item item_type;
-            typedef std::decay_t<decltype(box()(std::declval<Item&>()))> bound_type;
+            using item_type = Item;
+            using bound_type = std::decay_t<decltype(box()(std::declval<Item&>()))>;
 
-            typedef item_type value_type;
-            typedef item_type *pointer;
-            typedef item_type &reference;
-            typedef std::ptrdiff_t difference_type;
-            typedef std::forward_iterator_tag iterator_category;
+            using value_type = item_type;
+            using pointer = item_type *;
+            using reference = item_type &;
+            using difference_type = std::ptrdiff_t;
+            using iterator_category = std::forward_iterator_tag;
 
           public:
             normal_iterator();
@@ -118,15 +117,15 @@ namespace leap { namespace lml
 
       public:
 
-        typedef Item item_type;
-        typedef Item value_type;
-        typedef Alloc allocator_type;
-        typedef typename std::allocator_traits<Alloc>::template rebind_alloc<Item> item_allocator_type;
-        typedef typename std::allocator_traits<Alloc>::template rebind_alloc<Node> node_allocator_type;
-        typedef std::decay_t<decltype(box()(std::declval<Item&>()))> bound_type;
+        using item_type = Item;
+        using value_type = Item;
+        using allocator_type = Alloc;
+        using item_allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<Item>;
+        using node_allocator_type = typename std::allocator_traits<Alloc>::template rebind_alloc<Node>;
+        using bound_type = std::decay_t<decltype(box()(std::declval<Item &>()))>;
 
-        typedef normal_iterator<Node *> iterator;
-        typedef normal_iterator<Node const *> const_iterator;
+        using iterator = normal_iterator<Node *>;
+        using const_iterator = normal_iterator<Node const *>;
 
       public:
         basic_rtree(Alloc const &allocator = Alloc()) noexcept;
@@ -340,7 +339,7 @@ namespace leap { namespace lml
               ba += volume(*bi);
           }
 
-          return (aa == ba) ? (a.items.size() < b.items.size()) : (aa < ba);
+          return fcmp(aa, ba) ? (a.items.size() < b.items.size()) : (aa < ba);
         }
 
         bound_type m_bound;
@@ -364,7 +363,7 @@ namespace leap { namespace lml
           double aa = volume(expand(a.bound, m_bound)) - volume(a.bound);
           double ba = volume(expand(b.bound, m_bound)) - volume(b.bound);
 
-          return (aa == ba) ? (a.items.size() < b.items.size()) : (aa < ba);
+          return fcmp(aa, ba) ? (a.items.size() < b.items.size()) : (aa < ba);
         }
 
         bound_type m_bound;
@@ -480,5 +479,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

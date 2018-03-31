@@ -234,11 +234,11 @@ class PushBuffer
     {
       public:
       
-        typedef Header value_type;
-        typedef Header const *pointer;
-        typedef Header const &reference;
-        typedef std::ptrdiff_t difference_type;
-        typedef std::forward_iterator_tag iterator_category;
+        using value_type = Header;
+        using pointer = Header const *;
+        using reference = Header const &;
+        using difference_type = std::ptrdiff_t;
+        using iterator_category = std::forward_iterator_tag;
 
       public:
         explicit const_iterator(Header const *position) : m_header(position) { }
@@ -263,7 +263,7 @@ class PushBuffer
 
   public:
 
-    typedef StackAllocator<> allocator_type;
+    using allocator_type = StackAllocator<>;
 
     PushBuffer(allocator_type const &allocator, size_t slabsize);
 

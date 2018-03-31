@@ -53,7 +53,7 @@ void main()
   float alpha = (particle.alphaemissive & 0xFFFF) * (1.0/65535);
   float emissive = ((particle.alphaemissive >> 16) & 0xFFFF) * (1.0/65535);
 
-  texcoord = vec3(vertex_texcoord.s, 1 - vertex_texcoord.t, particle.position.w);
+  texcoord = vec3(vertex_texcoord.s, 1 - vertex_texcoord.t, floor(particle.position.w));
   
   vec4 position = modelworld * vec4(particle.transform * vertex_position.xy, 0, 1);
 

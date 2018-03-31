@@ -12,8 +12,6 @@
 #include "debug.h"
 
 using namespace std;
-using leap::alignto;
-using leap::extentof;
 
 //|---------------------- CommandLump ---------------------------------------
 //|--------------------------------------------------------------------------

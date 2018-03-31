@@ -41,7 +41,7 @@ class OverlayList
 
       int clipx, clipy, clipwidth, clipheight;
 
-      lml::Rect2 cliprect() const { return lml::Rect2(lml::Vec2(clipx, clipy), lml::Vec2(clipx + clipwidth, clipy + clipheight)); }
+      lml::Rect2 cliprect() const { return { lml::Vec2(clipx, clipy), lml::Vec2(clipx + clipwidth, clipy + clipheight) }; }
 
       CommandLump *commandlump = nullptr;
     };

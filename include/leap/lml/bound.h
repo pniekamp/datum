@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef BOUND_HH
-#define BOUND_HH
+#pragma once
 
 #include "lml.h"
 #include "point.h"
@@ -44,9 +43,9 @@ namespace leap { namespace lml
   {
     public:
 
-      typedef T value_type;
-      typedef index_sequence<Indices...> indices_type;
-      typedef Bound bound_type;
+      using value_type = T;
+      using indices_type = index_sequence<Indices...>;
+      using bound_type = Bound;
 
       static constexpr size_t size() { return sizeof...(Indices); }
       static constexpr size_t stride() { return Stride; }
@@ -55,12 +54,16 @@ namespace leap { namespace lml
 
       BoundView &operator =(Bound const &b) { for(int i = 0; i < 2; ++ i) std::tie((*this)[i][Indices]...) = tie(b[i], make_index_sequence<0, sizeof...(Indices)>()); return *this; }
 
-      constexpr T const *operator[](size_t j) const { return ((T*)this + j*Stride); }
+      constexpr T const *operator[](size_t j) const { return ((T const *)this + j*Stride); }
       T *operator[](size_t j) { return ((T*)this + j*Stride); }
 
     protected:
       BoundView() = default;
+      BoundView(BoundView const &) = default;
+      BoundView(BoundView &&) noexcept = default;
       BoundView &operator =(BoundView const &) = default;
+      BoundView &operator =(BoundView &&) noexcept = default;
+      ~BoundView() = default;
   };
 
   //|///////////////////// BoundView low ////////////////////////////////////
@@ -112,7 +115,7 @@ namespace leap { namespace lml
   {
     public:
 
-      typedef T value_type;
+      using value_type = T;
 
     public:
       Bound() = default;
@@ -158,25 +161,25 @@ namespace leap { namespace lml
 
   //|///////////////////// make_bound ///////////////////////////////////////
   template<typename Bound, typename Point, size_t... Indices>
-  auto make_bound(Point const &lo, Point const &hi, index_sequence<Indices...>)
+  auto make_bound(Point const &lo, Point const &hi, index_sequence<Indices...>) noexcept
   {
     return Bound({ get<Indices>(lo)... }, { get<Indices>(hi)... });
   }
 
   template<typename Bound, typename Point, size_t dimension = dim<Point>()>
-  auto make_bound(Point const &lo, Point const &hi)
+  auto make_bound(Point const &lo, Point const &hi) noexcept
   {
     return make_bound<Bound>(lo, hi, make_index_sequence<0, dimension>());
   }
 
   template<typename Point, size_t dimension = dim<Point>()>
-  auto make_bound(Point const &lo, Point const &hi)
+  auto make_bound(Point const &lo, Point const &hi) noexcept
   {
     return make_bound<Bound<coord_type_t<Point>, dimension>>(lo, hi, make_index_sequence<0, dimension>());
   }
 
   template<typename Bound, typename Point, size_t dimension = dim<Point>()>
-  auto make_bound(Point const &centre, std::decay_t<decltype(get<0>(std::declval<Point&>()))> halfdim)
+  auto make_bound(Point const &centre, std::decay_t<decltype(get<0>(std::declval<Point&>()))> halfdim) noexcept
   {
     auto lo = translate(centre, Vector<coord_type_t<Point>, dimension>(-halfdim));
     auto hi = translate(centre, Vector<coord_type_t<Point>, dimension>(+halfdim));
@@ -185,7 +188,7 @@ namespace leap { namespace lml
   }
 
   template<typename Point, size_t dimension = dim<Point>()>
-  auto make_bound(Point const &centre, std::decay_t<decltype(get<0>(std::declval<Point&>()))> halfdim)
+  auto make_bound(Point const &centre, std::decay_t<decltype(get<0>(std::declval<Point&>()))> halfdim) noexcept
   {
     return make_bound<Bound<coord_type_t<Point>, dimension>>(centre, halfdim);
   }
@@ -195,17 +198,17 @@ namespace leap { namespace lml
   template<typename Bound>
   struct bound_limits
   {
-    typedef typename Bound::value_type T;
+    using T = typename Bound::value_type;
     static constexpr size_t N = Bound::size();
 
     //|///////////////////// min ////////////////////////////////////////////
-    static constexpr Bound min()
+    static constexpr Bound min() noexcept
     {
       return make_bound<Bound>(fill(std::numeric_limits<T>::max(), make_index_sequence<0, N>()), fill(std::numeric_limits<T>::lowest(), make_index_sequence<0, N>()));
     }
 
     //|///////////////////// max ////////////////////////////////////////////
-    static constexpr Bound max()
+    static constexpr Bound max() noexcept
     {
       return make_bound<Bound>(fill(std::numeric_limits<T>::lowest(), make_index_sequence<0, N>()), fill(std::numeric_limits<T>::max(), make_index_sequence<0, N>()));
     }
@@ -407,11 +410,10 @@ namespace leap { namespace lml
    * @{
   **/
 
-  typedef Bound<float, 2> Bound2f;
-  typedef Bound<float, 3> Bound3f;
-  typedef Bound<double, 2> Bound2d;
-  typedef Bound<double, 3> Bound3d;
-
+  using Bound2f = Bound<float, 2>;
+  using Bound3f = Bound<float, 3>;
+  using Bound2d = Bound<double, 2>;
+  using Bound3d = Bound<double, 3>;
 
   /**
    *  @}
@@ -419,5 +421,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

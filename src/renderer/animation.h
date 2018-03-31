@@ -22,8 +22,8 @@ class Pose
     Pose(int bonecount, StackAllocator<> const &allocator);
     Pose(int bonecount, StackAllocatorWithFreelist<> const &allocator);
     Pose(Pose const &) = delete;
-    Pose(Pose &&that);
-    Pose &operator =(Pose &&that);
+    Pose(Pose &&that) noexcept;
+    Pose &operator =(Pose &&that) noexcept;
     ~Pose();
 
     friend void swap(Pose &a, Pose &b);
@@ -98,7 +98,7 @@ class Animator
 {
   public:
 
-    typedef StackAllocatorWithFreelist<> allocator_type;
+    using allocator_type = StackAllocatorWithFreelist<>;
 
     Animator(allocator_type const &allocator);
 

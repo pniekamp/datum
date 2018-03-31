@@ -22,7 +22,6 @@ struct SpotMapContext;
 
 class SpotMap
 {
-
   public:
     friend SpotMap const *ResourceManager::create<SpotMap>(Asset const *asset);    
     friend SpotMap const *ResourceManager::create<SpotMap>(int width, int height);

@@ -12,8 +12,7 @@
 // this copyright notice is retained
 //
 
-#ifndef THREADCONTROL_HH
-#define THREADCONTROL_HH
+#pragma once
 
 #include <vector>
 #include <memory>
@@ -51,7 +50,7 @@ namespace leap { namespace threadlib
     public:
       Mutex();
       Mutex(Mutex const &) = delete;
-      Mutex(Mutex &&) = delete;
+      Mutex(Mutex &&) noexcept = delete;
       ~Mutex();
 
       bool wait(int timeout = -1);
@@ -78,7 +77,7 @@ namespace leap { namespace threadlib
     public:
       CriticalSection();
       CriticalSection(CriticalSection const &) = delete;
-      CriticalSection(CriticalSection &&) = delete;
+      CriticalSection(CriticalSection &&) noexcept = delete;
       ~CriticalSection();
 
       void wait();
@@ -105,7 +104,7 @@ namespace leap { namespace threadlib
     public:
       SpinLock() = default;
       SpinLock(SpinLock const &) = delete;
-      SpinLock(SpinLock &&) = delete;
+      SpinLock(SpinLock &&) noexcept = delete;
 
       void wait();
       void release();
@@ -142,7 +141,7 @@ namespace leap { namespace threadlib
       SyncLock(CriticalSection &lock);
       SyncLock(SpinLock &lock);
       SyncLock(SyncLock const &) = delete;
-      SyncLock(SyncLock &&) = delete;
+      SyncLock(SyncLock &&) noexcept = delete;
       ~SyncLock();
 
     private:
@@ -230,7 +229,7 @@ namespace leap { namespace threadlib
     public:
       Event();
       Event(Event const &) = delete;
-      Event(Event &&) = delete;
+      Event(Event &&) noexcept = delete;
       ~Event();
 
       bool set();
@@ -252,7 +251,7 @@ namespace leap { namespace threadlib
     public:
       Latch(int count);
       Latch(Latch const &) = delete;
-      Latch(Latch &&) = delete;
+      Latch(Latch &&) noexcept = delete;
       ~Latch();
 
       bool release(int count = 1);
@@ -273,7 +272,7 @@ namespace leap { namespace threadlib
     public:
       Semaphore(int maxcount);
       Semaphore(Semaphore const &) = delete;
-      Semaphore(Semaphore &&) = delete;
+      Semaphore(Semaphore &&) noexcept = delete;
       ~Semaphore();
 
       bool release(int count = 1);
@@ -297,7 +296,7 @@ namespace leap { namespace threadlib
     public:
       WaitGroup();
       WaitGroup(WaitGroup const &) = delete;
-      WaitGroup(WaitGroup &&) = delete;
+      WaitGroup(WaitGroup &&) noexcept = delete;
       ~WaitGroup();
 
       size_t size() const;
@@ -357,7 +356,7 @@ namespace leap { namespace threadlib
     public:
       ReaderSyncLock(ReadWriteLock &lock);
       ReaderSyncLock(ReaderSyncLock const &) = delete;
-      ReaderSyncLock(ReaderSyncLock &&) = delete;
+      ReaderSyncLock(ReaderSyncLock &&) noexcept = delete;
       ~ReaderSyncLock();
 
     private:
@@ -381,7 +380,7 @@ namespace leap { namespace threadlib
     public:
       WriterSyncLock(ReadWriteLock &lock);
       WriterSyncLock(WriterSyncLock const &) = delete;
-      WriterSyncLock(WriterSyncLock &&) = delete;
+      WriterSyncLock(WriterSyncLock &&) noexcept = delete;
       ~WriterSyncLock();
 
     private:
@@ -406,7 +405,7 @@ namespace leap { namespace threadlib
   {
     public:
 
-      typedef long (*Thread)(void *);
+      using Thread = long (*)(void *);
 
       enum class Priority
       {
@@ -442,9 +441,6 @@ namespace leap { namespace threadlib
 
     private:
 
-      //-------------------------- MemberThreads -------------------------
-      //------------------------------------------------------------------
-
       template<typename Function>
       struct Helper
       {
@@ -463,9 +459,7 @@ namespace leap { namespace threadlib
       template<typename Function>
       bool create_thread(Function func, Priority priority = Priority::Normal)
       {
-        Helper<Function> *data = new Helper<Function>{ func };
-
-        return create_thread(&Helper<Function>::Thread, data, priority);
+        return create_thread(&Helper<Function>::Thread, new Helper<Function>{ func }, priority);
       }
 
       template<typename Object>
@@ -487,5 +481,3 @@ namespace leap { namespace threadlib
   void sleep_yield();
 
 } } // namespace tc
-
-#endif // THREADCONTROL_HH

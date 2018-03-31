@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLMATRIX_HH
-#define LMLMATRIX_HH
+#pragma once
 
 #include "lml.h"
 #include <leap/lml/vector.h>
@@ -62,7 +61,7 @@ namespace leap { namespace lml
    *   }
    * \endcode
    *
-   * \b Backends \n
+   * \b Backends
    * The Matrix class is derived from a backend type (defined at instantiation, defaults to SimpleMatrix)
    * that is designed to act as a storage mechanism. The default SimpleMatrix uses a std::vector array
    * to store the elements. A backend that provides only storage will still provide a fully functional
@@ -78,9 +77,9 @@ namespace leap { namespace lml
   {
     public:
 
-      typedef T value_type;
-      typedef Backend<T, M, N> base_type;
-      typedef typename base_type::data_type data_type;
+      using value_type = T;
+      using base_type = Backend<T, M, N>;
+      using data_type = typename Backend<T, M, N>::data_type;
 
     public:
       Matrix() = default;
@@ -486,13 +485,12 @@ namespace leap { namespace lml
    * @{
   **/
 
-  typedef Matrix<float, 2, 2> Matrix2f;
-  typedef Matrix<float, 3, 3> Matrix3f;
-  typedef Matrix<float, 4, 4> Matrix4f;
-  typedef Matrix<double, 2, 2> Matrix2d;
-  typedef Matrix<double, 3, 3> Matrix3d;
-  typedef Matrix<double, 4, 4> Matrix4d;
-
+  using Matrix2f = Matrix<float, 2, 2>;
+  using Matrix3f = Matrix<float, 3, 3>;
+  using Matrix4f = Matrix<float, 4, 4>;
+  using Matrix2d = Matrix<double, 2, 2>;
+  using Matrix3d = Matrix<double, 3, 3>;
+  using Matrix4d = Matrix<double, 4, 4>;
 
   /**
    *  @}
@@ -500,5 +498,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

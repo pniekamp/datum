@@ -13,7 +13,6 @@
 
 using namespace std;
 using namespace lml;
-using leap::indexof;
 using leap::extentof;
 
 enum ParticleSystemFlags
@@ -547,7 +546,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
   {
     instance->life[i] += instance->growth[i] * dt;
 
-    if (instance->life[i] > 1.0f - 1e-6 || instance->emitter[i] >= emittercount)
+    if (instance->life[i] > 1.0f - 1e-6f || instance->emitter[i] >= emittercount)
     {
       instance->emitter[i] = instance->emitter[instance->count-1];
       instance->life[i] = instance->life[instance->count-1];

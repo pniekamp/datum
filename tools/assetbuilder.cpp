@@ -575,7 +575,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, string const &path, float 
   ifstream fin(path);
 
   if (!fin)
-    throw runtime_error("unable to read obj file - " + path);
+    throw runtime_error("Unable to Read Obj File - " + path);
 
   cout << "  " << path << endl;
 

@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLPOINT_HH
-#define LMLPOINT_HH
+#pragma once
 
 #include <leap/lml/vector.h>
 
@@ -146,5 +145,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

@@ -11,7 +11,6 @@
 
 using namespace std;
 using namespace lml;
-using leap::alignto;
 using leap::extentof;
 
 //|---------------------- DecalList -----------------------------------------

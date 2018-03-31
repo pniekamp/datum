@@ -14,7 +14,6 @@
 
 namespace Vulkan
 {
-
   //|---------------------- VulkanDevice --------------------------------------
   //|--------------------------------------------------------------------------
 
@@ -317,7 +316,7 @@ namespace Vulkan
     operator VkDeviceMemory() const { return memory; }
   };
 
-  typedef VkVertexInputAttributeDescription VertexAttribute;
+  using VertexAttribute = VkVertexInputAttributeDescription;
 
   struct Texture
   {

@@ -3,25 +3,24 @@
 //
 
 #include "glslang.h"
+#include <leap/pathstring.h>
 #include <iostream>
 #include <fstream>
 
 using namespace std;
-
+using namespace leap;
 
 ///////////////////////// load_shader ///////////////////////////////////////
-string load_shader(string const &path, string const &defines)
+string load_shader(pathstring const &path, string const &defines)
 {
   ifstream fin(path);
-  if (!fin)
-    throw runtime_error("Error opening - " + path);
 
-  string name = path.substr(path.find_last_of("/\\")+1);
-  string base = path.substr(0, path.find_last_of("/\\"));
+  if (!fin)
+    throw runtime_error("Error opening - " + path.name());
 
   int line = 1;
 
-  string shader = "#line " + to_string(line) + "\"" + name + "\"\n";
+  string shader = "#line " + to_string(line) + "\"" + path.name() + "\"\n";
 
   string buffer;
 
@@ -34,14 +33,14 @@ string load_shader(string const &path, string const &defines)
       shader = "";
       buffer += "\n#extension GL_GOOGLE_cpp_style_line_directive : enable\n";
       buffer += "\n" + defines + "\n";
-      buffer += "\n#line " + to_string(line) + "\"" + name + "\"";
+      buffer += "\n#line " + to_string(line) + "\"" + path.name() + "\"";
     }
 
     if (buffer.substr(0, 8) == "#include")
     {
-      buffer = load_shader(base + "/" + string(buffer.begin() + buffer.find_first_of("\"") + 1, buffer.begin() + buffer.find_last_of("\"")));
+      buffer = load_shader(pathstring(path.base(), string(buffer.begin() + buffer.find_first_of("\"") + 1, buffer.begin() + buffer.find_last_of("\""))));
 
-      buffer += "\n#line " + to_string(line) + "\"" + name + "\"";
+      buffer += "\n#line " + to_string(line) + "\"" + path.name() + "\"";
     }
 
     shader += buffer + '\n';
@@ -76,7 +75,6 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
   }
 
   ofstream(tmpname) << text << '\n';
-
 
 #ifdef _WIN32
 //    if (system(string("glslangValidator.exe -V -o tmp.spv " + tmpname).c_str()) != 0)

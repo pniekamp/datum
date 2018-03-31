@@ -145,6 +145,15 @@ namespace DatumPlatform
   }
 
 
+  ///////////////////////// InputBuffer::register_mousewheel ////////////////
+  void InputBuffer::register_mousewheel(float z)
+  {
+    lock_guard<mutex> lock(m_mutex);
+
+    m_events.push_back({ EventType::MouseMoveZ, (int)(z * 120) });
+  }
+
+
   ///////////////////////// InputBuffer::register_keydown ///////////////////
   void InputBuffer::register_keypress(int key)
   {
@@ -192,10 +201,11 @@ namespace DatumPlatform
     m_input.mousebuttons[GameInput::Left].transitions = 0;
     m_input.mousebuttons[GameInput::Right].transitions = 0;
     m_input.mousebuttons[GameInput::Middle].transitions = 0;
+    m_input.mousez = 0;
 
     // Keyboard
-    for(size_t i = 0; i < std::extent<decltype(m_input.keys)>::value; ++i)
-      m_input.keys[i].transitions = 0;
+    for(auto &key : m_input.keys)
+      key.transitions = 0;
 
     // Text
     m_input.text[0] = 0;
@@ -225,7 +235,7 @@ namespace DatumPlatform
           break;
 
         case EventType::MouseMoveZ:
-          m_input.mousez = evt.data / 120.0f;
+          m_input.mousez += evt.data / 120.0f;
           break;
 
         case EventType::MousePress:
@@ -267,7 +277,7 @@ namespace DatumPlatform
 
     for(int i = 0; i < threads; ++i)
     {
-      m_threads.push_back(std::thread([=]() {
+      m_threads.emplace_back([=]() {
 
         while (!m_done)
         {
@@ -289,7 +299,7 @@ namespace DatumPlatform
           work();
         }
 
-      }));
+      });
     }
   }
 

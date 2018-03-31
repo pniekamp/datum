@@ -14,7 +14,6 @@ using namespace lml;
 
 namespace Vulkan
 {
-
   //|---------------------- VulkanDevice ------------------------------------
   //|------------------------------------------------------------------------
 
@@ -364,7 +363,7 @@ namespace Vulkan
       {
         auto bytes = min(remaining, size_t(65536));
 
-        update(setupbuffer, storagebuffer, offset, bytes, (uint8_t*)data + offset);
+        update(setupbuffer, storagebuffer, offset, bytes, (uint8_t const *)data + offset);
 
         offset += bytes;
         remaining -= bytes;
@@ -1122,7 +1121,7 @@ namespace Vulkan
   ///////////////////////// clear ///////////////////////////////////////////
   void clear(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout layout, Color4 const &clearcolor, VkImageSubresourceRange subresourcerange)
   {
-    VkClearColorValue clearvalues = { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a };
+    VkClearColorValue clearvalues = { { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a } };
 
     setimagelayout(commandbuffer, image, layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourcerange);
 
@@ -1463,7 +1462,7 @@ namespace Vulkan
     VkClearAttachment attachments = {};
     attachments.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     attachments.colorAttachment = attachment;
-    attachments.clearValue.color = { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a };
+    attachments.clearValue.color = { { clearcolor.r, clearcolor.g, clearcolor.b, clearcolor.a } };
 
     VkClearRect clearrect = {};
     clearrect.rect.offset.x = x;

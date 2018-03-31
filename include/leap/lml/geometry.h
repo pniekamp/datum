@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef GEOMETRY_HH
-#define GEOMETRY_HH
+#pragma once
 
 #include "lml.h"
 #include "point.h"
@@ -35,7 +34,6 @@
 
 namespace leap { namespace lml
 {
-
   //|///////////////////// pi ///////////////////////////////////////////////
   template<typename T>
   constexpr T pi() { return T(3.141592653589793238462643383279502884); }
@@ -548,5 +546,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

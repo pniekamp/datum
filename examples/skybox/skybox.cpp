@@ -52,8 +52,6 @@ void example_init(PlatformInterface &platform)
 
   state.skybox = state.resources.create<SkyBox>(512, 512, EnvMap::Format::FLOAT16);
 
-  prefetch_core_assets(platform, state.assets);
-
   state.mode = GameState::Startup;
 }
 

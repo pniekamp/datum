@@ -32,7 +32,7 @@ string process_basepath()
   char path[FILENAME_MAX];
 
 #ifdef _WIN32
-  GetModuleFileName(NULL, path, sizeof(path));
+  GetModuleFileName(nullptr, path, sizeof(path));
 #else
   if (readlink("/proc/self/exe", path, sizeof(path)) < 0)
     path[0] = 0;
@@ -112,8 +112,19 @@ string pathstring::name() const
 }
 
 
-//|///////////////////// pathstring::ext ////////////////////////////////////
-string pathstring::ext() const
+//|///////////////////// pathstring::basename ///////////////////////////////
+string pathstring::basename() const
 {
-  return (m_path.find('.') != string::npos) ? m_path.substr(m_path.rfind('.') + 1) : "";
+  auto str = name();
+
+  return (str.find('.') != string::npos) ? str.substr(0, str.rfind('.')) : str;
+}
+
+
+//|///////////////////// pathstring::extension //////////////////////////////
+string pathstring::extension() const
+{
+  auto str = name();
+
+  return (str.find('.') != string::npos) ? str.substr(str.rfind('.') + 1) : "";
 }

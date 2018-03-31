@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef LEAPUTIL_HH
-#define LEAPUTIL_HH
+#pragma once
 
 #include <leap/stringview.h>
 #include <cstdlib>
@@ -305,8 +304,8 @@ namespace leap
   {
     auto result = std::move(str);
 
-    for(size_t i = 0; i < result.length(); ++i)
-      result[i] = std::tolower(result[i]);
+    for(auto &ch : result)
+      ch = std::tolower(ch);
 
     return result;
   }
@@ -322,8 +321,8 @@ namespace leap
   {
     auto result = std::move(str);
 
-    for(size_t i = 0; i < result.length(); ++i)
-      result[i] = std::toupper(result[i]);
+    for(auto &ch : result)
+      ch = std::toupper(ch);
 
     return result;
   }
@@ -386,7 +385,7 @@ namespace leap
 
   template<size_t... Indices> struct index_sequence
   {
-    typedef size_t value_type;
+    using value_type = size_t;
 
     static constexpr size_t size() noexcept { return sizeof...(Indices); }
   };
@@ -532,7 +531,7 @@ namespace leap
   **/
 
   template<typename T, size_t... Indices>
-  constexpr auto tie(T *data, index_sequence<Indices...>)
+  constexpr auto tie(T *data, index_sequence<Indices...>) noexcept
   {
     return std::tie(data[Indices]...);
   }
@@ -551,7 +550,7 @@ namespace leap
   **/
 
   template<typename T, size_t... Indices>
-  static constexpr auto fill(T const &value, index_sequence<Indices...>)
+  constexpr auto fill(T const &value, index_sequence<Indices...>)
   {
     return std::array<T, sizeof...(Indices)>{ ((void)Indices,value)... };
   }
@@ -886,7 +885,7 @@ namespace leap
   {
     auto envstr = envname + "=" + envval;
 
-    char *env = new char[envstr.length()+1];
+    auto env = new char[envstr.length()+1];
 
     for(size_t i = 0; i < envstr.length(); ++i)
       env[i] = envstr[i];
@@ -969,5 +968,3 @@ namespace leap
   }
 
 } // namespace
-
-#endif

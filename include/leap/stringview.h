@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLSTRINGVIEW_HH
-#define LMLSTRINGVIEW_HH
+#pragma once
 
 #include <string>
 #include <stdexcept>
@@ -44,10 +43,10 @@ namespace leap
   {
     public:
 
-      typedef T value_type;
-      typedef T char_type;
-      typedef traits traits_type;
-      typedef T const *const_iterator;
+      using char_type = T;
+      using value_type = T;
+      using traits_type = traits;
+      using const_iterator = T const *;
 
     public:
       basic_string_view() = default;
@@ -175,7 +174,7 @@ namespace leap
   {
     if (m_size != 0)
     {
-      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      for(size_t i = std::min(m_size - 1, pos); true; --i)
       {
         if (m_ptr[i] == c)
           return i;
@@ -193,7 +192,7 @@ namespace leap
   {
     if (m_size != 0 && m_size >= traits::length(s))
     {
-      for(size_t i = std::min(m_size - 1, pos) - (std::max(size_t(1), traits::length(s)) - 1); i >= 0; --i)
+      for(size_t i = std::min(m_size - 1, pos) - (std::max(size_t(1), traits::length(s)) - 1); true; --i)
       {
         bool found = true;
         for(auto j = 0; found && s[j] != 0; ++j)
@@ -276,7 +275,7 @@ namespace leap
   {
     if (m_size != 0)
     {
-      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      for(size_t i = std::min(m_size - 1, pos); true; --i)
       {
         if (m_ptr[i] == c)
           return i;
@@ -294,7 +293,7 @@ namespace leap
   {
     if (m_size != 0)
     {
-      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      for(size_t i = std::min(m_size - 1, pos); true; --i)
       {
         for(auto c = s; *c != 0; ++c)
         {
@@ -315,7 +314,7 @@ namespace leap
   {
     if (m_size != 0)
     {
-      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      for(size_t i = std::min(m_size - 1, pos); true; --i)
       {
         bool found = (m_ptr[i] == c);
 
@@ -335,7 +334,7 @@ namespace leap
   {
     if (m_size != 0)
     {
-      for(size_t i = std::min(m_size - 1, pos); i >= 0; --i)
+      for(size_t i = std::min(m_size - 1, pos); true; --i)
       {
         bool found = false;
         for(auto c = s; !found && *c != 0; ++c)
@@ -432,9 +431,7 @@ namespace leap
     return lhs.compare(rhs) < 0;
   }
 
-  typedef basic_string_view<char> string_view;
-  typedef basic_string_view<wchar_t> wstring_view;
+  using string_view = basic_string_view<char>;
+  using wstring_view = basic_string_view<wchar_t>;
 
 } // namespace
-
-#endif

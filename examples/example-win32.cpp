@@ -813,8 +813,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       window.keyrelease(uMsg, wParam, lParam);
       return 0;
 
-    case WM_UNICHAR:
-      if (wParam == UNICODE_NOCHAR) return 1;
     case WM_CHAR:
       window.textinput(uMsg, wParam, lParam);
       break;
@@ -1088,7 +1086,7 @@ void Window::show()
 {
   ShowWindow(hwnd, SW_SHOW);
 
-  visible = (vulkan.surface && width != 0 && height != 0);
+  visible = true;
 }
 
 

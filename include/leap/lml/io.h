@@ -8,10 +8,9 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLIO_HH
-#define LMLIO_HH
+#pragma once
 
-#include <iosfwd>
+#include <iostream>
 #include <vector>
 #include <array>
 
@@ -292,5 +291,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

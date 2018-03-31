@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef LEAPLML_HH
-#define LEAPLML_HH
+#pragma once
 
 #include <leap/util.h>
 
@@ -24,7 +23,6 @@
 
 namespace leap { namespace lml
 {
-
   // bring in some of the math utils
 
   using leap::fcmp;
@@ -34,6 +32,20 @@ namespace leap { namespace lml
   using leap::lerp;
   using leap::remap;
 
-} }
+  template<typename... T, std::enable_if_t<std::is_arithmetic<std::common_type_t<T...>>::value>* = nullptr>
+  auto min(T&&... args)
+  {
+    using std::min;
 
-#endif
+    return min(args...);
+  }
+
+  template<typename... T, std::enable_if_t<std::is_arithmetic<std::common_type_t<T...>>::value>* = nullptr>
+  auto max(T&&... args)
+  {
+    using std::max;
+
+    return max(args...);
+  }
+
+} }

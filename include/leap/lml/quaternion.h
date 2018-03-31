@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef QUATERNION_HH
-#define QUATERNION_HH
+#pragma once
 
 #include <leap/util.h>
 #include <leap/lml/vector.h>
@@ -44,8 +43,8 @@ namespace leap { namespace lml
   {
     public:
 
-      typedef T scalar_t;
-      typedef Vector<T, 3> vector_t;
+      using scalar_t = T;
+      using vector_t = Vector<T, 3>;
 
     public:
       Quaternion() = default;
@@ -246,11 +245,9 @@ namespace leap { namespace lml
     return (std::sin(theta*(1-alpha))*lower + std::sin(theta*alpha)*flip*upper) / std::sin(theta);
   }
 
-
   /**
    *  @}
   **/
-
 
   /**
    * \name Misc Quaternion
@@ -259,9 +256,8 @@ namespace leap { namespace lml
    * @{
   **/
 
-  typedef Quaternion<float> Quaternion3f;
-  typedef Quaternion<double> Quaternion3d;
-
+  using Quaternion3f = Quaternion<float>;
+  using Quaternion3d = Quaternion<double>;
 
   /**
    *  @}
@@ -269,5 +265,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

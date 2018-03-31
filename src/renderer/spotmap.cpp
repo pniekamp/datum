@@ -16,7 +16,6 @@
 using namespace std;
 using namespace lml;
 using namespace Vulkan;
-using leap::alignto;
 using leap::extentof;
 
 enum VertexLayout

@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include <leap/pathstring.h>
 #include <vector>
-#include <string>
 
 enum class ShaderStage
 {
@@ -15,6 +15,7 @@ enum class ShaderStage
   Compute
 };
 
-std::string load_shader(std::string const &path, std::string const &defines = "");
-std::vector<uint8_t> compile_shader(std::string const &text, ShaderStage stage);
+std::string load_shader(leap::pathstring const &path, std::string const &defines = "");
 
+///////////////////////// compile_shader ////////////////////////////////////
+std::vector<uint8_t> compile_shader(std::string const &text, ShaderStage stage);

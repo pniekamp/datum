@@ -141,7 +141,7 @@ namespace DatumPlatform
 
       // data access
 
-      typedef void *handle_t;
+      using handle_t = void *;
 
       virtual handle_t open_handle(const char *identifier) = 0;
 
@@ -165,11 +165,11 @@ namespace DatumPlatform
 
 // Game Interface
 
-typedef void (*game_init_t)(DatumPlatform::PlatformInterface &platform);
-typedef void (*game_reinit_t)(DatumPlatform::PlatformInterface &platform);
-typedef void (*game_resize_t)(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
-typedef void (*game_update_t)(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt);
-typedef void (*game_render_t)(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
+using game_init_t = void (*)(DatumPlatform::PlatformInterface &);
+using game_reinit_t = void (*)(DatumPlatform::PlatformInterface &);
+using game_resize_t = void (*)(DatumPlatform::PlatformInterface &, DatumPlatform::Viewport const &);
+using game_update_t = void (*)(DatumPlatform::PlatformInterface &, DatumPlatform::GameInput const &, float);
+using game_render_t = void (*)(DatumPlatform::PlatformInterface &, DatumPlatform::Viewport const &);
 
 
 // Keyboard Key Codes

@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLMATRIXCONSTANTS_HH
-#define LMLMATRIXCONSTANTS_HH
+#pragma once
 
 #include <leap/lml/matrix.h>
 #include <leap/lml/quaternion.h>
@@ -391,5 +390,3 @@ namespace leap { namespace lml
 
 } // namespace lml
 } // namespace leap
-
-#endif

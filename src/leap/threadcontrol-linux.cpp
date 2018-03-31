@@ -30,7 +30,7 @@ using namespace std;
 #define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP PTHREAD_MUTEX_INITIALIZER
 #define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP PTHREAD_RECURSIVE_MUTEX_INITIALIZER
 
-static int pthread_mutex_timedlock(pthread_mutex_t *mutex, struct timespec *timeout)
+static int pthread_mutex_timedlock(auto mutex, struct timespec *timeout)
 {
   timeval now;
   timespec sleepytime;
@@ -62,10 +62,8 @@ static int pthread_tryjoin_np(pthread_t thid, void **ret_val)
 
 namespace leap { namespace threadlib
 {
-
   //|--------------------- Mutex --------------------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// Mutex::Constructor ///////////////////////////////
   Mutex::Mutex()
@@ -77,7 +75,7 @@ namespace leap { namespace threadlib
   //|///////////////////// Mutex::Destructor ////////////////////////////////
   Mutex::~Mutex()
   {
-    pthread_mutex_t *mtx = static_cast<pthread_mutex_t*>(m_mutex);
+    auto mtx = static_cast<pthread_mutex_t*>(m_mutex);
 
     pthread_mutex_destroy(mtx);
 
@@ -93,7 +91,7 @@ namespace leap { namespace threadlib
   ///
   bool Mutex::wait(int timeout)
   {
-    pthread_mutex_t *mtx = static_cast<pthread_mutex_t*>(m_mutex);
+    auto mtx = static_cast<pthread_mutex_t*>(m_mutex);
 
     if (timeout >= 0)
     {
@@ -122,8 +120,6 @@ namespace leap { namespace threadlib
 
 
 
-
-
   //|--------------------- CriticalSection ----------------------------------
   //|------------------------------------------------------------------------
 
@@ -137,7 +133,7 @@ namespace leap { namespace threadlib
   //|///////////////////// CriticalSection::Constructor /////////////////////
   CriticalSection::~CriticalSection()
   {
-    pthread_mutex_t *mtx = static_cast<pthread_mutex_t*>(m_criticalsection);
+    auto mtx = static_cast<pthread_mutex_t*>(m_criticalsection);
 
     pthread_mutex_destroy(mtx);
 
@@ -213,11 +209,11 @@ namespace leap { namespace threadlib
   ///
   bool Waitable::wait(int timeout)
   {
-    cond_impl *impl = static_cast<cond_impl*>(m_handle);
+    auto impl = static_cast<cond_impl*>(m_handle);
 
     while (true)
     {
-      int value = impl->value.load(std::memory_order_relaxed);
+      auto value = impl->value.load(std::memory_order_relaxed);
 
       if (impl->type == cond_impl::WaitType::Event)
       {
@@ -273,10 +269,8 @@ namespace leap { namespace threadlib
 
 
 
-
   //|--------------------- Event --------------------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// Event::Constructor ///////////////////////////////
   Event::Event()
@@ -298,7 +292,7 @@ namespace leap { namespace threadlib
   ///
   bool Event::set()
   {
-    cond_impl *impl = static_cast<cond_impl*>(m_handle);
+    auto impl = static_cast<cond_impl*>(m_handle);
 
     pthread_mutex_lock(&impl->mtx);
 
@@ -321,7 +315,7 @@ namespace leap { namespace threadlib
   ///
   bool Event::reset()
   {
-    cond_impl *impl = static_cast<cond_impl*>(m_handle);
+    auto impl = static_cast<cond_impl*>(m_handle);
 
     impl->value.store(0);
 
@@ -330,10 +324,8 @@ namespace leap { namespace threadlib
 
 
 
-
   //|--------------------- Latch --------------------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// Latch::Constructor ///////////////////////////////
   Latch::Latch(int count)
@@ -357,11 +349,11 @@ namespace leap { namespace threadlib
   ///
   bool Latch::release(int count)
   {
-    cond_impl *impl = static_cast<cond_impl*>(m_handle);
+    auto impl = static_cast<cond_impl*>(m_handle);
 
     pthread_mutex_lock(&impl->mtx);
 
-    int value = impl->value.load(std::memory_order_relaxed);
+    auto value = impl->value.load(std::memory_order_relaxed);
 
     while (!impl->value.compare_exchange_weak(value, value - count))
       ;
@@ -381,10 +373,8 @@ namespace leap { namespace threadlib
 
 
 
-
   //|--------------------- Semaphore ----------------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// Semaphore::Constructor ///////////////////////////
   Semaphore::Semaphore(int maxcount)
@@ -407,11 +397,11 @@ namespace leap { namespace threadlib
   ///
   bool Semaphore::release(int count)
   {
-    cond_impl *impl = static_cast<cond_impl*>(m_handle);
+    auto impl = static_cast<cond_impl*>(m_handle);
 
     pthread_mutex_lock(&impl->mtx);
 
-    int value = impl->value.load(std::memory_order_relaxed);
+    auto value = impl->value.load(std::memory_order_relaxed);
 
     while (!impl->value.compare_exchange_weak(value, clamp(value + count, value, m_maxcount)))
       ;
@@ -426,7 +416,6 @@ namespace leap { namespace threadlib
 
     return true;
   }
-
 
 
 
@@ -451,7 +440,7 @@ namespace leap { namespace threadlib
   //|///////////////////// WaitGroup::Destructor ////////////////////////////
   WaitGroup::~WaitGroup()
   {
-    group_impl *impl = static_cast<group_impl*>(m_events);
+    auto impl = static_cast<group_impl*>(m_events);
 
     while (impl->events.size() != 0)
       remove(*impl->events.front());
@@ -473,11 +462,11 @@ namespace leap { namespace threadlib
   ///
   void WaitGroup::add(Waitable &event)
   {
-    group_impl *impl = static_cast<group_impl*>(m_events);
+    auto impl = static_cast<group_impl*>(m_events);
 
     impl->events.push_back(&event);
 
-    cond_impl *cond = static_cast<cond_impl*>(event.m_handle);
+    auto cond = static_cast<cond_impl*>(event.m_handle);
 
     pthread_mutex_lock(&cond->mtx);
 
@@ -493,11 +482,11 @@ namespace leap { namespace threadlib
   ///
   void WaitGroup::remove(Waitable &event)
   {
-    group_impl *impl = static_cast<group_impl*>(m_events);
+    auto impl = static_cast<group_impl*>(m_events);
 
     impl->events.erase(find(impl->events.begin(), impl->events.end(), &event));
 
-    cond_impl *cond = static_cast<cond_impl*>(event.m_handle);
+    auto cond = static_cast<cond_impl*>(event.m_handle);
 
     pthread_mutex_lock(&cond->mtx);
 
@@ -515,7 +504,7 @@ namespace leap { namespace threadlib
   ///
   bool WaitGroup::wait_any(int timeout)
   {
-    group_impl *impl = static_cast<group_impl*>(m_events);
+    auto impl = static_cast<group_impl*>(m_events);
 
     while (true)
     {
@@ -538,7 +527,7 @@ namespace leap { namespace threadlib
   ///
   bool WaitGroup::wait_all(int timeout)
   {
-    group_impl *impl = static_cast<group_impl*>(m_events);
+    auto impl = static_cast<group_impl*>(m_events);
 
     while (true)
     {
@@ -556,7 +545,6 @@ namespace leap { namespace threadlib
 
   //|--------------------- ReadWriteLock ------------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// ReadWriteLock::Constructor ///////////////////////
   ///
@@ -633,11 +621,8 @@ namespace leap { namespace threadlib
 
 
 
-
-
   //|--------------------- ReaderSyncLock -----------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// ReaderSyncLock::Constructor //////////////////////
   ///
@@ -664,10 +649,8 @@ namespace leap { namespace threadlib
 
 
 
-
   //|--------------------- WriterSyncLock -----------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// WriterSyncLock::Constructor //////////////////////
   ///
@@ -694,11 +677,8 @@ namespace leap { namespace threadlib
 
 
 
-
-
   //|--------------------- ThreadControl ------------------------------------
   //|------------------------------------------------------------------------
-
 
   //|///////////////////// ThreadControl::Constructor ///////////////////////
   ThreadControl::ThreadControl()

@@ -8,8 +8,7 @@
 // this copyright notice is retained
 //
 
-#ifndef LMLVECTOR_HH
-#define LMLVECTOR_HH
+#pragma once
 
 #include "lml.h"
 #include <functional>
@@ -34,7 +33,6 @@
 
 namespace leap { namespace lml
 {
-
   //|-------------------- VectorView  ---------------------------------------
   //|------------------------------------------------------------------------
 
@@ -43,9 +41,9 @@ namespace leap { namespace lml
   {
     public:
 
-      typedef T value_type;
-      typedef Vector vector_type;
-      typedef index_sequence<Indices...> indices_type;
+      using value_type = T;
+      using vector_type = Vector;
+      using indices_type = index_sequence<Indices...>;
 
       static constexpr size_t size() { return sizeof...(Indices); }
 
@@ -69,9 +67,10 @@ namespace leap { namespace lml
     protected:
       VectorView() = default;
       VectorView(VectorView const &) = default;
-      VectorView(VectorView &&) = default;
+      VectorView(VectorView &&) noexcept = default;
       VectorView &operator =(VectorView const &) = default;
-      VectorView &operator =(VectorView &&) = default;
+      VectorView &operator =(VectorView &&) noexcept = default;
+      ~VectorView() = default;
   };
 
 
@@ -165,8 +164,8 @@ namespace leap { namespace lml
   {
     public:
 
-      typedef T value_type;
-      typedef std::array<T, N> data_type;
+      using value_type = T;
+      using data_type = std::array<T, N>;
 
     public:
       Vector() = default;
@@ -175,7 +174,7 @@ namespace leap { namespace lml
       explicit constexpr Vector(std::array<T, N> const &v);
 
       // Element Access
-      constexpr T const &operator()(size_t i) const { return m_data[i]; }
+      T const &operator()(size_t i) const { return m_data[i]; }
       T &operator()(size_t i) { return m_data[i]; }
 
       // Storage Access
@@ -475,9 +474,9 @@ namespace leap { namespace lml
   template<typename Vector, typename T, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
   Vector orthogonal(VectorView<Vector, T, Indices...> const &u)
   {
-    float x = std::abs(get<0>(u));
-    float y = std::abs(get<1>(u));
-    float z = std::abs(get<2>(u));
+    auto x = std::abs(get<0>(u));
+    auto y = std::abs(get<1>(u));
+    auto z = std::abs(get<2>(u));
 
     return cross(u, x < y ? (x < z ? Vector{T(1), T(0), T(0)} : Vector{T(0), T(0), T(1)}) : (y < z ? Vector{T(0), T(1), T(0)} : Vector{T(0), T(0), T(1)}));
   }
@@ -630,25 +629,25 @@ namespace leap { namespace lml
    * @{
   **/
 
-  typedef Vector<float, 2> Vector2f;
-  typedef Vector<float, 3> Vector3f;
-  typedef Vector<float, 4> Vector4f;
-  typedef Vector<double, 2> Vector2d;
-  typedef Vector<double, 3> Vector3d;
-  typedef Vector<double, 4> Vector4d;
+  using Vector2f = Vector<float, 2>;
+  using Vector3f = Vector<float, 3>;
+  using Vector4f = Vector<float, 4>;
+  using Vector2d = Vector<double, 2>;
+  using Vector3d = Vector<double, 3>;
+  using Vector4d = Vector<double, 4>;
 
 
   //|///////////////////// Vector2 //////////////////////////////////////////
   /// Creates a simple 2 element vector
 
   template<typename T>
-  constexpr Vector<T, 2> Vector2(T k)
+  constexpr Vector<T, 2> Vector2(T k) noexcept
   {
     return { k, k };
   }
 
   template<typename T>
-  constexpr Vector<T, 2> Vector2(T x, T y)
+  constexpr Vector<T, 2> Vector2(T x, T y) noexcept
   {
     return { x, y };
   }
@@ -657,7 +656,7 @@ namespace leap { namespace lml
   //|///////////////////// Polar2 ///////////////////////////////////////////
   /// Creates a simple 2 element vector (polar)
   template<typename T>
-  constexpr Vector<T, 2> Polar2(T angle, T length)
+  constexpr Vector<T, 2> Polar2(T angle, T length) noexcept
   {
     return { std::cos(angle)*length, std::sin(angle)*length };
   }
@@ -667,19 +666,19 @@ namespace leap { namespace lml
   /// Creates a simple 3 element vector
 
   template<typename T>
-  constexpr Vector<T, 3> Vector3(T k)
+  constexpr Vector<T, 3> Vector3(T k) noexcept
   {
     return { k, k, k };
   }
 
   template<typename T>
-  constexpr Vector<T, 3> Vector3(T x, T y, T z)
+  constexpr Vector<T, 3> Vector3(T x, T y, T z) noexcept
   {
     return { x, y, z };
   }
 
   template<typename T>
-  constexpr Vector<T, 3> Vector3(Vector<T, 2> const &v, T z)
+  constexpr Vector<T, 3> Vector3(Vector<T, 2> const &v, T z) noexcept
   {
     return { v(0), v(1), z };
   }
@@ -689,23 +688,22 @@ namespace leap { namespace lml
   /// Creates a simple 4 element vector
 
   template<typename T>
-  constexpr Vector<T, 4> Vector4(T k)
+  constexpr Vector<T, 4> Vector4(T k) noexcept
   {
     return { k, k, k, k };
   }
 
   template<typename T>
-  constexpr Vector<T, 4> Vector4(T x, T y, T z, T w)
+  constexpr Vector<T, 4> Vector4(T x, T y, T z, T w) noexcept
   {
     return { x, y, z, w };
   }
 
   template<typename T>
-  constexpr Vector<T, 4> Vector4(Vector<T, 3> const &v, T w)
+  constexpr Vector<T, 4> Vector4(Vector<T, 3> const &v, T w) noexcept
   {
     return { v(0), v(1), v(2), w };
   }
-
 
 
   //|///////////////////// Vector Constants /////////////////////////////////
@@ -724,13 +722,9 @@ namespace leap { namespace lml
   Vector3d const yUnit3d = Vector3(0.0, 1.0, 0.0);
   Vector3d const zUnit3d = Vector3(0.0, 0.0, 1.0);
 
-
   /**
    *  @}
   **/
 
-
 } // namespace lml
 } // namespace leap
-
-#endif

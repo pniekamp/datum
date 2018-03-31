@@ -98,7 +98,7 @@ class AssetManager
 {
   public:
 
-    typedef StackAllocator<> allocator_type;
+    using allocator_type = StackAllocator<>;
 
     AssetManager(allocator_type const &allocator);
 

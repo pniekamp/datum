@@ -12,8 +12,7 @@
 // this copyright notice is retained
 //
 
-#ifndef PATHSTRING_HH
-#define PATHSTRING_HH
+#pragma once
 
 #include <leap/stringview.h>
 
@@ -25,7 +24,6 @@
 
 namespace leap
 {
-
   //|------------------------ pathstring ------------------------------------
   //|------------------------------------------------------------------------
   /**
@@ -53,11 +51,10 @@ namespace leap
 
       std::string base() const;
       std::string name() const;
-      std::string ext() const;
+      std::string basename() const;
+      std::string extension() const;
 
     private:
-
-      void set(string_view base, string_view path);
 
       std::string m_path;
   };
@@ -86,30 +83,4 @@ namespace leap
     return os;
   }
 
-/*
-
-  //|------------------------ RetainCurrentDirectory ------------------------
-  //|------------------------------------------------------------------------
-
-  class RetainCurrentDirectory
-  {
-    public:
-      RetainCurrentDirectory();
-      ~RetainCurrentDirectory();
-
-      void restore();
-
-    private:
-
-      char m_currentdirectory[512];
-  };
-
-
-
-  ///////////////////// Executeable BasePath ////////////////
-  SmartPath GetExecutablePath();
-*/
-
 } // namespace
-
-#endif // PATHSTRING_HH
