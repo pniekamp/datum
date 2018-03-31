@@ -26,7 +26,7 @@ class StackAllocator
 {
   public:
 
-    typedef T value_type;
+    using value_type = T;
 
   public:
 
@@ -179,7 +179,7 @@ inline void *FreeList::acquire(std::size_t bytes, std::size_t alignment)
 
   while (entry != nullptr)
   {
-    Node *node = aligned<Node>(entry);
+    auto node = aligned<Node>(entry);
 
     if (node->bytes == bytes && ((size_t)entry & (alignment-1)) == 0)
     {
@@ -199,7 +199,7 @@ inline void *FreeList::acquire(std::size_t bytes, std::size_t alignment)
 ///////////////////////// Freelist::release /////////////////////////////////
 inline void FreeList::release(void *ptr, std::size_t bytes) noexcept
 {
-  Node *node = aligned<Node>(ptr);
+  auto node = aligned<Node>(ptr);
 
   if ((size_t)node + sizeof(Node) < (size_t)ptr + bytes)
   {
@@ -220,8 +220,8 @@ inline void FreeList::siphon(FreeList *other)
   {
     if (other->m_freelist[index] != nullptr)
     {
-      void *entry = other->m_freelist[index];
-      Node *node = aligned<Node>(entry);
+      auto entry = other->m_freelist[index];
+      auto node = aligned<Node>(entry);
 
       while (node->next != nullptr)
       {
@@ -246,7 +246,7 @@ class StackAllocatorWithFreelist : public StackAllocator<T>
 {
   public:
 
-    typedef T value_type;
+    using value_type = T;
 
   public:
 

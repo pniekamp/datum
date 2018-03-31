@@ -43,10 +43,21 @@ namespace lml
   {
   }
 
+
   //|///////////////////// Vec2::Constructor ////////////////////////////////
   constexpr Vec2::Vec2(float x, float y)
     : x(x), y(y)
   {
+  }
+
+
+  //|///////////////////// Matrix Multiply //////////////////////////////////
+  constexpr Vec2 operator *(Matrix2f const &m, Vec2 const &v)
+  {
+    auto x = m(0,0)*v.x + m(0,1)*v.y;
+    auto y = m(1,0)*v.x + m(1,1)*v.y;
+
+    return { x, y };
   }
 
 
@@ -103,7 +114,7 @@ namespace lml
     auto y = m(1,0)*v.x + m(1,1)*v.y + m(1,2)*v.z;
     auto z = m(2,0)*v.x + m(2,1)*v.y + m(2,2)*v.z;
 
-    return Vec3(x, y, z);
+    return { x, y, z };
   }
 
 
@@ -172,6 +183,6 @@ namespace lml
     auto z = m(2,0)*v.x + m(2,1)*v.y + m(2,2)*v.z + m(2,3)*v.w;
     auto w = m(3,0)*v.x + m(3,1)*v.y + m(3,2)*v.z + m(3,3)*v.w;
 
-    return Vec4(x, y, z, w);
+    return { x, y, z, w };
   }
 }

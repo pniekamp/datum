@@ -47,7 +47,7 @@ Decal const *ResourceManager::create<Decal>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Decal const *ResourceManager::create<Decal>(Material const *material, Rect2 extent)
+Decal const *ResourceManager::create<Decal>(Material const *material, Rect2 region)
 {
   auto slot = acquire_slot(sizeof(Decal));
 
@@ -57,7 +57,7 @@ Decal const *ResourceManager::create<Decal>(Material const *material, Rect2 exte
   auto decal = new(slot) Decal;
 
   decal->flags = 0;
-  decal->extent = Vec4(extent.min.x, extent.min.y, extent.max.x - extent.min.x, extent.max.y - extent.min.y);
+  decal->extent = Vec4(region.min.x, region.min.y, region.max.x - region.min.x, region.max.y - region.min.y);
   decal->material = material;
   decal->asset = nullptr;
   decal->state = Decal::State::Waiting;

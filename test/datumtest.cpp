@@ -9,11 +9,9 @@
 using namespace std;
 using namespace lml;
 using namespace DatumPlatform;
-using leap::extentof;
 
 namespace
 {
-
   ///////////////////////// random_lights ///////////////////////////////////
   void random_lights(Scene &scene, int count)
   {
@@ -151,7 +149,7 @@ void datumtest_init(PlatformInterface &platform)
   emitter.modules |= ParticleEmitter::ShapeEmitter;
   emitter.shape = ParticleEmitter::Shape::Hemisphere;
   emitter.shaperadius = 0.5f;
-  emitter.shapeangle = 15.0f / 180.0 * pi<float>();
+  emitter.shapeangle = 15.0f / 180.0f * pi<float>();
   emitter.modules |= ParticleEmitter::StretchWithVelocity;
   emitter.modules |= ParticleEmitter::ColorOverLife;
   emitter.coloroverlife = make_colorfade_distribution(Color4(1.0f, 1.0f, 1.0f, 1.0f), 0.85f);
@@ -251,7 +249,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
     state.resources.request(platform, state.debugfont);
 
-    if (state.rendercontext.ready && state.debugfont->ready())
+    if (state.rendercontext.ready && state.spotmapcontext.ready && state.debugfont->ready())
     {
       state.mode = GameState::Load;
     }
@@ -560,6 +558,8 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       prepare_render_pipeline(state.rendercontext, renderparams);
     }
 
+    prepare_spotmap_context(platform, state.spotmapcontext, state.rendercontext, state.assets);
+
     render_fallback(state.rendercontext, viewport, embeded::logo.data, embeded::logo.width, embeded::logo.height);
   }
 
@@ -690,50 +690,47 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
 #if 1
     {
-      if (prepare_spotmap_context(platform, state.spotmapcontext, state.rendercontext, state.assets))
+      BEGIN_TIMED_BLOCK(SpotMap, Color3(0.1f, 0.4f, 0.1f))
+
+      SpotCasterList casters;
+      SpotCasterList::BuildState buildstate;
+
+      if (casters.begin(buildstate, state.spotmapcontext, state.resources))
       {
-        BEGIN_TIMED_BLOCK(SpotMap, Color3(0.1f, 0.4f, 0.1f))
+        buildstate.width = state.testspotcaster->width;
+        buildstate.height = state.testspotcaster->height;
 
-        SpotCasterList casters;
-        SpotCasterList::BuildState buildstate;
+        casters.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
-        if (casters.begin(buildstate, state.spotmapcontext, state.resources))
+        for(auto &entity : state.scene.entities<MeshComponent>())
         {
-          buildstate.width = state.testspotcaster->width;
-          buildstate.height = state.testspotcaster->height;
+          auto instance = state.scene.get_component<MeshComponent>(entity);
+          auto transform = state.scene.get_component<TransformComponent>(entity);
 
-          casters.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
-
-          for(auto &entity : state.scene.entities<MeshComponent>())
-          {
-            auto instance = state.scene.get_component<MeshComponent>(entity);
-            auto transform = state.scene.get_component<TransformComponent>(entity);
-
-            casters.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
-          }
-
-          for(auto &entity : state.scene.entities<ActorComponent>())
-          {
-            auto instance = state.scene.get_component<ActorComponent>(entity);
-            auto transform = state.scene.get_component<TransformComponent>(entity);
-
-            casters.push_mesh(buildstate, transform.world(), instance.pose(), instance.mesh(), instance.material());
-          }
-
-          casters.finalise(buildstate);
+          casters.push_mesh(buildstate, transform.world(), instance.mesh(), instance.material());
         }
 
-        SpotMapInfo spotmaps[1];
-        spotmaps[0].target = state.testspotcaster;
-        spotmaps[0].spotview = state.testspotview;
-        spotmaps[0].casters = &casters;
+        for(auto &entity : state.scene.entities<ActorComponent>())
+        {
+          auto instance = state.scene.get_component<ActorComponent>(entity);
+          auto transform = state.scene.get_component<TransformComponent>(entity);
 
-        SpotMapParams spotparams;
+          casters.push_mesh(buildstate, transform.world(), instance.pose(), instance.mesh(), instance.material());
+        }
 
-        render_spotmaps(state.spotmapcontext, spotmaps, 1, spotparams);
-
-        END_TIMED_BLOCK(SpotMap)
+        casters.finalise(buildstate);
       }
+
+      SpotMapInfo spotmaps[1];
+      spotmaps[0].target = state.testspotcaster;
+      spotmaps[0].spotview = state.testspotview;
+      spotmaps[0].casters = &casters;
+
+      SpotMapParams spotparams;
+
+      render_spotmaps(state.spotmapcontext, spotmaps, 1, spotparams);
+
+      END_TIMED_BLOCK(SpotMap)
     }
 #endif
 

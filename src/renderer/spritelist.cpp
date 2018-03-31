@@ -15,8 +15,6 @@ using namespace std;
 using namespace lml;
 using namespace Vulkan;
 using namespace DatumPlatform;
-using leap::alignto;
-using leap::extentof;
 
 enum ShaderLocation
 {
@@ -172,7 +170,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
 
 ///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Vec4 const &texcoords, float layer)
+void SpriteList::push_model(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Vec4 const &texcoords, float layer0, float layer1)
 {
   assert(state.commandlump);
 
@@ -192,7 +190,7 @@ void SpriteList::push_model(BuildState &state, Vec2 const &position, Vec2 const 
 
     modelset->xbasis = xbasis;
     modelset->ybasis = ybasis;
-    modelset->position = Vec4(position, layer - 0.5f + 1e-3f, 1);
+    modelset->position = Vec4(position, layer0, layer1);
     modelset->texcoords = texcoords;
 
     bind_descriptor(spritecommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -220,7 +218,7 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
   auto xbasis = Vec2(1, 0);
   auto ybasis = Vec2(0, 1);
 
-  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), 0);
+  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), 0, 0);
 }
 
 
@@ -235,7 +233,7 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
   auto xbasis = rotate(Vec2(1, 0), rotation);
   auto ybasis = rotate(Vec2(0, 1), rotation);
 
-  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), 0);
+  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), 0, 0);
 }
 
 
@@ -281,7 +279,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const
     push_material(state, sprite->atlas->texture, tint);
   }
 
-  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, sprite->extent, layer);
+  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, sprite->extent, layer, fmod(floor(layer) + 1, (float)sprite->layers));
 }
 
 
@@ -308,7 +306,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const
   extent.z = sprite->extent.z * (region.max.x - region.min.x);
   extent.w = sprite->extent.w * (region.max.y - region.min.y);
 
-  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, extent, layer);
+  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, extent, layer, fmod(floor(layer) + 1, (float)sprite->layers));
 }
 
 
@@ -352,6 +350,46 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, float size
 }
 
 
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Rect2 const &rect, Sprite const *sprite, Color4 const &tint)
+{
+  auto xbasis = Vec2(1, 0);
+  auto ybasis = Vec2(0, 1);
+
+  push_sprite(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, sprite, 0, tint);
+}
+
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Rect2 const &rect, Sprite const *sprite, float layer, Color4 const &tint)
+{
+  auto xbasis = Vec2(1, 0);
+  auto ybasis = Vec2(0, 1);
+
+  push_sprite(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, sprite, layer, tint);
+}
+
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, Sprite const *sprite, Color4 const &tint)
+{
+  auto xbasis = rotate(Vec2(1, 0), rotation);
+  auto ybasis = rotate(Vec2(0, 1), rotation);
+
+  push_sprite(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, sprite, 0, tint);
+}
+
+
+///////////////////////// SpriteList::push_sprite ///////////////////////////
+void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, Sprite const *sprite, float layer, Color4 const &tint)
+{
+  auto xbasis = rotate(Vec2(1, 0), rotation);
+  auto ybasis = rotate(Vec2(0, 1), rotation);
+
+  push_sprite(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, sprite, layer, tint);
+}
+
+
 ///////////////////////// SpriteList::push_text /////////////////////////////
 void SpriteList::push_text(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Font const *font, const char *str, Color4 const &tint)
 {
@@ -367,7 +405,7 @@ void SpriteList::push_text(BuildState &state, Vec2 const &position, Vec2 const &
   uint32_t codepoint;;
   uint32_t lastcodepoint = 0;
 
-  for(uint8_t const *ch = (uint8_t const *)str; *ch; ++ch)
+  for(auto ch = (uint8_t const *)str; *ch; ++ch)
   {
     if (*ch >= font->glyphcount)
       continue;
@@ -376,7 +414,7 @@ void SpriteList::push_text(BuildState &state, Vec2 const &position, Vec2 const &
 
     cursor += font->width(lastcodepoint, codepoint) * xbasis;
 
-    push_model(state, cursor - font->alignment[codepoint].x * xbasis - font->alignment[codepoint].y * ybasis, font->dimension[codepoint].x * xbasis, font->dimension[codepoint].y * ybasis, font->texcoords[codepoint], 0);
+    push_model(state, cursor - font->alignment[codepoint].x * xbasis - font->alignment[codepoint].y * ybasis, font->dimension[codepoint].x * xbasis, font->dimension[codepoint].y * ybasis, font->texcoords[codepoint], 0, 0);
 
     lastcodepoint = codepoint;
   }
@@ -411,7 +449,7 @@ void SpriteList::push_texture(BuildState &state, Vec2 const &position, Rect2 con
 
   push_material(state, texture, tint);
 
-  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), layer);
+  push_model(state, position + rect.min.x*xbasis + rect.min.y*ybasis, (rect.max.x - rect.min.x) * xbasis, (rect.max.y - rect.min.y) * ybasis, Vec4(0, 0, 1, 1), layer, layer);
 }
 
 

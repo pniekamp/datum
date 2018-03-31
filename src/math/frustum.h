@@ -16,7 +16,6 @@
 
 namespace lml
 {
-
   //|---------------------- Frustum -----------------------------------------
   //|------------------------------------------------------------------------
 
@@ -24,11 +23,11 @@ namespace lml
   {
     public:
       Frustum() = default;
-      constexpr Frustum(Vec3 const (&corners)[8]);
+      Frustum(Vec3 const (&corners)[8]);
 
       static Frustum perspective(float fov, float aspect, float znear, float zfar);
-      static constexpr Frustum perspective(float left, float bottom, float right, float top, float znear, float zfar);
-      static constexpr Frustum orthographic(float left, float bottom, float right, float top, float znear, float zfar);
+      static Frustum perspective(float left, float bottom, float right, float top, float znear, float zfar);
+      static Frustum orthographic(float left, float bottom, float right, float top, float znear, float zfar);
 
       Vec3 centre() const;
 
@@ -38,9 +37,8 @@ namespace lml
 
 
   ///////////////////////// Frustum::Constructor ////////////////////////////
-  constexpr Frustum::Frustum(Vec3 const (&corners)[8])
-    : planes{},
-      corners{corners[0], corners[1], corners[2], corners[3], corners[4], corners[5], corners[6], corners[7]}
+  inline Frustum::Frustum(Vec3 const (&corners)[8])
+    : corners{corners[0], corners[1], corners[2], corners[3], corners[4], corners[5], corners[6], corners[7]}
   {
     planes[0] = Plane(corners[2], corners[1], corners[0]); // Near
     planes[1] = Plane(corners[0], corners[4], corners[7]); // Left
@@ -73,7 +71,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::perspective ////////////////////////////
-  constexpr Frustum Frustum::perspective(float left, float bottom, float right, float top, float znear, float zfar)
+  inline Frustum Frustum::perspective(float left, float bottom, float right, float top, float znear, float zfar)
   {
     Vec3 corners[8] = {};
 
@@ -92,7 +90,7 @@ namespace lml
 
 
   ///////////////////////// Frustum::orthographic ///////////////////////////
-  constexpr Frustum Frustum::orthographic(float left, float bottom, float right, float top, float znear, float zfar)
+  inline Frustum Frustum::orthographic(float left, float bottom, float right, float top, float znear, float zfar)
   {
     Vec3 corners[8] = {};
 
@@ -173,9 +171,9 @@ namespace lml
   //////////////////////// contains /////////////////////////////////////////
   inline bool contains(Frustum const &frustum, Vec3 const &pt)
   {
-    for(int i = 0; i < 6; ++i)
+    for(auto &plane : frustum.planes)
     {
-      if (orientation(frustum.planes[i], pt) < 0.0f)
+      if (orientation(plane, pt) < 0.0f)
         return false;
     }
 
@@ -186,9 +184,9 @@ namespace lml
   //////////////////////// contains /////////////////////////////////////////
   inline bool contains(Frustum const &frustum, Sphere const &sphere)
   {
-    for(int i = 0; i < 6; ++i)
+    for(auto &plane : frustum.planes)
     {
-      if (orientation(frustum.planes[i], sphere.centre) < sphere.radius)
+      if (orientation(plane, sphere.centre) < sphere.radius)
         return false;
     }
 
@@ -202,9 +200,9 @@ namespace lml
     auto centre = box.centre();
     auto halfdim = box.halfdim();
 
-    for(int i = 0; i < 6; ++i)
+    for(auto &plane : frustum.planes)
     {
-      if (orientation(frustum.planes[i], centre) < dot(abs(frustum.planes[i].normal), halfdim))
+      if (orientation(plane, centre) < dot(abs(plane.normal), halfdim))
         return false;
     }
 
@@ -215,9 +213,9 @@ namespace lml
   //////////////////////// intersects ///////////////////////////////////////
   inline bool intersects(Frustum const &frustum, Sphere const &sphere)
   {
-    for(int i = 0; i < 6; ++i)
+    for(auto &plane : frustum.planes)
     {
-      if (orientation(frustum.planes[i], sphere.centre) < -sphere.radius)
+      if (orientation(plane, sphere.centre) < -sphere.radius)
         return false;
     }
 
@@ -232,21 +230,21 @@ namespace lml
     auto centre = box.centre();
     auto halfdim = box.halfdim();
 
-    for(int i = 0; i < 6; ++i)
+    for(auto &plane : frustum.planes)
     {
-      if (dot(frustum.planes[i].normal, centre) + frustum.planes[i].distance < -dot(abs(frustum.planes[i].normal), halfdim))
+      if (dot(plane.normal, centre) + plane.distance < -dot(abs(plane.normal), halfdim))
         return false;
     }
 #else
-    for(int i = 0; i < 6; ++i)
+    for(auto &plane : frustum.planes)
     {
       auto test = box.min;
 
-      if (frustum.planes[i].normal.x >= 0) test.x = box.max.x;
-      if (frustum.planes[i].normal.y >= 0) test.y = box.max.y;
-      if (frustum.planes[i].normal.z >= 0) test.z = box.max.z;
+      if (plane.normal.x >= 0) test.x = box.max.x;
+      if (plane.normal.y >= 0) test.y = box.max.y;
+      if (plane.normal.z >= 0) test.z = box.max.z;
 
-      if (dot(frustum.planes[i].normal, test) + frustum.planes[i].distance < 0.0f)
+      if (dot(plane.normal, test) + plane.distance < 0.0f)
         return false;
     }
 #endif

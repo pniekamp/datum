@@ -21,7 +21,7 @@ class ResourceManager
 {
   public:
 
-    typedef StackAllocator<> allocator_type;
+    using allocator_type = StackAllocator<>;
 
     template<typename T> using system_allocator_type = std::allocator<T>;
 
@@ -160,7 +160,7 @@ class ResourceManager
     template<typename Resource>
     class deleter : public deleterbase
     {
-      virtual void destroy(ResourceManager *manager, void const *resource) override
+      void destroy(ResourceManager *manager, void const *resource) override
       {
         manager->destroy<Resource>(reinterpret_cast<Resource const *>(resource));
       }

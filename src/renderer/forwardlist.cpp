@@ -14,8 +14,6 @@
 using namespace std;
 using namespace lml;
 using namespace Vulkan;
-using leap::alignto;
-using leap::extentof;
 
 enum ShaderLocation
 {
@@ -443,7 +441,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, ParticleSy
 
     for(int i = 0; i < particles->count; ++i)
     {
-      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
+      modelset[i].position = Vec4(particles->position[i], particles->layer[i]);
       modelset[i].transform = particles->transform[i];
       modelset[i].color = particles->color[i].rgb;
       modelset[i].alpha = uint16_t(particles->color[i].a * 65535);
@@ -500,7 +498,7 @@ void ForwardList::push_particlesystem_wb(ForwardList::BuildState &state, Particl
 
     for(int i = 0; i < particles->count; ++i)
     {
-      modelset[i].position = Vec4(particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
+      modelset[i].position = Vec4(particles->position[i], particles->layer[i]);
       modelset[i].transform = particles->transform[i];
       modelset[i].color = particles->color[i].rgb;
       modelset[i].alpha = uint16_t(particles->color[i].a * 65535);
@@ -555,7 +553,7 @@ void ForwardList::push_particlesystem(ForwardList::BuildState &state, Transform 
 
     for(int i = 0; i < particles->count; ++i)
     {
-      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
+      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i]);
       modelset[i].transform = particles->transform[i];
       modelset[i].color = particles->color[i].rgb;
       modelset[i].alpha = uint16_t(particles->color[i].a * 65535);
@@ -610,7 +608,7 @@ void ForwardList::push_particlesystem_wb(ForwardList::BuildState &state, Transfo
 
     for(int i = 0; i < particles->count; ++i)
     {
-      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i] - 0.5f + 1e-3f);
+      modelset[i].position = Vec4(transform * particles->position[i], particles->layer[i]);
       modelset[i].transform = particles->transform[i];
       modelset[i].color = particles->color[i].rgb;
       modelset[i].alpha = uint16_t(particles->color[i].a * 65535);

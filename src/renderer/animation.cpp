@@ -48,7 +48,7 @@ Pose::Pose(int bonecount, StackAllocatorWithFreelist<> const &allocator)
 
 
 ///////////////////////// Pose::Constructor /////////////////////////////////
-Pose::Pose(Pose &&that)
+Pose::Pose(Pose &&that) noexcept
   : Pose()
 {
   swap(*this, that);
@@ -56,7 +56,7 @@ Pose::Pose(Pose &&that)
 
 
 ///////////////////////// Pose::Assignment //////////////////////////////////
-Pose &Pose::operator =(Pose &&that)
+Pose &Pose::operator =(Pose &&that) noexcept
 {
   swap(*this, that);
 
@@ -270,7 +270,7 @@ void Animator::set_weight(size_t channel, float weight, float maxdelta)
 {
   assert(channel < m_channels.size());
 
-  m_channels[channel].weight += clamp(-maxdelta, weight - m_channels[channel].weight, maxdelta);
+  m_channels[channel].weight += clamp(weight - m_channels[channel].weight, -maxdelta, maxdelta);
 }
 
 

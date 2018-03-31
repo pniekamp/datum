@@ -16,7 +16,6 @@
 
 using namespace std;
 using leap::alignto;
-using leap::extentof;
 
 static constexpr size_t BufferAlignment = 4096;
 

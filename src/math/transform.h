@@ -14,6 +14,7 @@
 namespace lml
 {
   using namespace leap::lml;
+
   using leap::lml::lerp;
   using leap::lml::slerp;
 

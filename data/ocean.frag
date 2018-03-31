@@ -81,8 +81,8 @@ void main()
   vec4 albedo = textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
   
   float roughness = mix(0, params.roughness, clamp(FresnelBias + pow(facing, FresnelPower), 0, 1));
-
-  normal = mix(tbnworld[2], normal, clamp(dot(normal, eyevec), 0, 1));
+  
+  normal = mix(tbnworld[2], normal, clamp(2 * dot(normal, eyevec), 0, 1));
   
   float height = dot(params.foamplane.xyz, position) + params.foamplane.w; 
 

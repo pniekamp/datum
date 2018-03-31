@@ -45,8 +45,6 @@ void example_init(PlatformInterface &platform)
   state.mesh = state.resources.create<Mesh>(state.assets.load(platform, "teapot.pack"));
   state.material = state.resources.create<Material>(Color4(1.0f, 0.0f, 0.0f, 1.0f), 0.0f, 0.3f);
 
-  prefetch_core_assets(platform, state.assets);
-
   state.mode = GameState::Startup;
 }
 

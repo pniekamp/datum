@@ -1,5 +1,5 @@
 //
-// Datum - coattenuationlor
+// Datum - attenuation
 //
 
 //
@@ -9,6 +9,7 @@
 #pragma once
 
 #include <leap/lml/vector.h>
+#include <leap/lml/geometry.h>
 
 namespace lml
 {

@@ -15,7 +15,6 @@
 
 namespace lml
 {
-
   //|---------------------- perlin_engine -------------------------------------
   //|--------------------------------------------------------------------------
 
@@ -274,10 +273,10 @@ namespace lml
     return result;
   }
 
-  typedef perlin_engine<float, 1, 256> Perlin1f;
-  typedef perlin_engine<float, 2, 256> Perlin2f;
-  typedef perlin_engine<float, 3, 256> Perlin3f;
-  typedef perlin_engine<double, 1, 256> Perlin1d;
-  typedef perlin_engine<double, 2, 256> Perlin2d;
-  typedef perlin_engine<double, 3, 256> Perlin3d;
+  using Perlin1f = perlin_engine<float, 1, 256>;
+  using Perlin2f = perlin_engine<float, 2, 256>;
+  using Perlin3f = perlin_engine<float, 3, 256>;
+  using Perlin1d = perlin_engine<double, 1, 256>;
+  using Perlin2d = perlin_engine<double, 2, 256>;
+  using Perlin3d = perlin_engine<double, 3, 256>;
 }

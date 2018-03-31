@@ -18,7 +18,7 @@ class Decal
 {
   public:
     friend Decal const *ResourceManager::create<Decal>(Asset const *asset);
-    friend Decal const *ResourceManager::create<Decal>(Material const *material, lml::Rect2 extent);
+    friend Decal const *ResourceManager::create<Decal>(Material const *material, lml::Rect2 region);
 
     bool ready() const { return (state == State::Ready); }
 

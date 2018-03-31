@@ -62,8 +62,6 @@ void example_init(PlatformInterface &platform)
 
   state.camera.lookat(Vec3(0, 0, 8), Vec3(1, 0, 8), Vec3(0, 0, 1));
 
-  prefetch_core_assets(platform, state.assets);
-
   state.mode = GameState::Startup;
 }
 
@@ -172,7 +170,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
 
       if (geometry.begin(buildstate, state.rendercontext, state.resources))
       {
-        Vec3 bumpscale = Vec3(0.1f, 0.1f, 0.2f);
+        Vec3 bumpscale = Vec3(0.1f, 0.1f, 0.15f);
         float foamwaveheight = 0.55f;
         float foamwavescale = 0.2f;
         float foamshoreheight = 0.1f;

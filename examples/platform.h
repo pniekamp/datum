@@ -27,7 +27,6 @@ namespace DatumPlatform
   void gamememory_initialise(GameMemory &pool, void *data, size_t capacity);
 
 
-
   //|---------------------- Input Buffer --------------------------------------
   //|--------------------------------------------------------------------------
 
@@ -62,6 +61,7 @@ namespace DatumPlatform
       void register_mousemove(int x, int y);
       void register_mousepress(GameInput::MouseButton button);
       void register_mouserelease(GameInput::MouseButton button);
+      void register_mousewheel(float z);
 
       void register_keypress(int key);
       void register_keyrelease(int key);
@@ -84,7 +84,6 @@ namespace DatumPlatform
 
       mutable std::mutex m_mutex;
   };
-
 
 
   //|---------------------- WorkQueue -----------------------------------------
@@ -118,7 +117,6 @@ namespace DatumPlatform
 
       std::vector<std::thread> m_threads;
   };
-
 
 
   //|---------------------- FileHandle ----------------------------------------

@@ -20,7 +20,6 @@
 using namespace std;
 using namespace lml;
 using namespace Vulkan;
-using leap::alignto;
 using leap::extentof;
 
 enum VertexLayout
@@ -1042,7 +1041,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dependencies[1].dstSubpass = 1;
     dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+    dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
     dependencies[2].srcSubpass = 1;
@@ -6301,9 +6300,9 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   prepare_sceneset(context, renderables, params);
 
   VkClearValue clearvalues[4];
-  clearvalues[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
-  clearvalues[1].color = { 0.0f, 0.0f, 0.0f, 0.0f };
-  clearvalues[2].color = { 0.0f, 0.0f, 0.0f, 0.0f };
+  clearvalues[0].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+  clearvalues[1].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+  clearvalues[2].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
   clearvalues[3].depthStencil = { 1, 0 };
 
   auto &framedescriptor = context.framedescriptors[context.frame & 1];

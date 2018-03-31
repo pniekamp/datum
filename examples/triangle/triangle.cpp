@@ -76,8 +76,6 @@ void example_init(PlatformInterface &platform)
 
   state.material = state.resources.create<Material>(Color4(1.0f, 0.0f, 0.0f, 1.0f));
 
-  prefetch_core_assets(platform, state.assets);
-
   state.mode = GameState::Startup;
 }
 
