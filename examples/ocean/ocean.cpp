@@ -52,8 +52,8 @@ void example_init(PlatformInterface &platform)
   seed_ocean(state.ocean);
 
   auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
-  auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
   auto watersurface = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_foam), Texture::Format::RGBA);
+  auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
   state.oceanmaterial = state.resources.create<Material>(Color4(0.468f, 0.686f, 0.74f, 1), 0.0f, 0.32f, 0.02f, 0.0f, watercolor, watersurface, waternormal);
 
   state.oceanmesh = make_plane(state.resources, 1024, 1024);
@@ -105,13 +105,9 @@ void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::G
 
     if (input.mousebuttons[GameInput::Left].down())
     {
-      state.camera.yaw(1.5f * (state.lastmousex - input.mousex), Vec3(0, 0, 1));
-      state.camera.pitch(1.5f * (state.lastmousey - input.mousey));
+      state.camera.yaw(-1.5f * input.deltamousex, Vec3(0, 0, 1));
+      state.camera.pitch(-1.5f * input.deltamousey);
     }
-
-    state.lastmousex = input.mousex;
-    state.lastmousey = input.mousey;
-    state.lastmousez = input.mousez;
 
     state.camera = adapt(state.camera, state.rendercontext.luminance, 0.25f, 0.5f*dt);
 
@@ -134,6 +130,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.height = viewport.height;
   renderparams.aspect = state.aspect;
   renderparams.skybox = state.skybox;
+  renderparams.sundirection = Vec3(-0.57735f, -0.57735f, -0.57735f);
   renderparams.skyboxorientation = Transform::rotation(Vec3(1, 0, 0), pi<float>()/2);
   renderparams.ssaoscale = 0.0f;
   renderparams.fogdensity = 0.0f;
@@ -170,7 +167,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
 
       if (geometry.begin(buildstate, state.rendercontext, state.resources))
       {
-        Vec3 bumpscale = Vec3(0.1f, 0.1f, 0.15f);
+        Vec3 bumpscale = Vec3(0.2f, 0.2f, 0.2f);
         float foamwaveheight = 0.55f;
         float foamwavescale = 0.2f;
         float foamshoreheight = 0.1f;

@@ -44,9 +44,7 @@ endif(UNIX)
 
 if(WIN32)
   target_link_libraries(example-character mingw32)
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-static -static-libgcc -static-libstdc++")
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-static -static-libgcc -static-libstdc++")
-  set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "-static -static-libgcc -static-libstdc++")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
 endif(WIN32)
 
 #

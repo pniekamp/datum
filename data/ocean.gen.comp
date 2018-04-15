@@ -106,7 +106,7 @@ void main()
   mat3 tbn;
   tbn[2] = normalize(vec3(-normal.x, -normal.y, 1 - normal.z));
   tbn[0] = normalize(vec3(1 - tangent.x, -tangent.y, tangent.z));
-  tbn[1] = cross(tbn[2], tbn[0]);
+  tbn[1] = cross(tbn[0], tbn[2]);
 
   vec2 texcoord = position.xy * params.scale;
 
@@ -126,9 +126,9 @@ void main()
   vertexbuffer.vertices[index].normal[2] = tbn[2].z;
 
   vertexbuffer.vertices[index].tangent[0] = tbn[0].x;
-  vertexbuffer.vertices[index].tangent[0] = tbn[0].y;
-  vertexbuffer.vertices[index].tangent[0] = tbn[0].z;
-  vertexbuffer.vertices[index].tangent[0] = 1;
+  vertexbuffer.vertices[index].tangent[1] = tbn[0].y;
+  vertexbuffer.vertices[index].tangent[2] = tbn[0].z;
+  vertexbuffer.vertices[index].tangent[3] = -1;
 
   vertexbuffer.vertices[index].texcoord[0] = 0.1*position.x;
   vertexbuffer.vertices[index].texcoord[1] = 0.1*position.y;

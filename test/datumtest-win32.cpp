@@ -19,7 +19,6 @@ void datumtest_init(DatumPlatform::PlatformInterface &platform);
 void datumtest_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt);
 void datumtest_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 
-
 //|---------------------- Platform ------------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -37,20 +36,23 @@ class Platform : public PlatformInterface
 
     RenderDevice render_device() override;
 
-
     // data access
 
     handle_t open_handle(const char *identifier) override;
-
     size_t read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
-
     void close_handle(handle_t handle) override;
 
+    // cursor
+
+    void show_cursor(bool show) override;
+    cursor_t create_cursor(int hx, int hy, int width, int height, void const *bits) override;
+    void set_cursor_image(cursor_t cursor) override;
+    void destroy_cursor(cursor_t cursor) override;
+    void set_cursor_position(float x, float y) override;
 
     // work queue
 
     void submit_work(void (*func)(PlatformInterface &, void*, void*), void *ldata, void *rdata) override;
-
 
     // misc
 
@@ -123,6 +125,41 @@ size_t Platform::read_handle(PlatformInterface::handle_t handle, uint64_t positi
 void Platform::close_handle(PlatformInterface::handle_t handle)
 {
   delete static_cast<FileHandle*>(handle);
+}
+
+
+///////////////////////// Platform::show_cursor /////////////////////////////
+void Platform::show_cursor(bool show)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::create_cursor ///////////////////////////
+PlatformInterface::cursor_t Platform::create_cursor(int hx, int hy, int width, int height, void const *bits)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::set_cursor_image ////////////////////////
+void Platform::set_cursor_image(cursor_t handle)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::destroy_cursor //////////////////////////
+void Platform::destroy_cursor(cursor_t handle)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::set_cursor_position /////////////////////
+void Platform::set_cursor_position(float x, float y)
+{
+  throw runtime_error("Not Implemented");
 }
 
 
@@ -393,7 +430,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 
   for(auto &queue : queueproperties)
   {
-    if ((queue.queueFlags & (VK_QUEUE_GRAPHICS_BIT|VK_QUEUE_SPARSE_BINDING_BIT)) != 0)
+    if ((queue.queueFlags & (VK_QUEUE_GRAPHICS_BIT)) != 0)
       graphicsqueueindex = indexof(queueproperties, queue);
 
     if ((queue.queueFlags & (VK_QUEUE_GRAPHICS_BIT|VK_QUEUE_TRANSFER_BIT)) == VK_QUEUE_TRANSFER_BIT)
@@ -500,12 +537,6 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   bool vsync = true;
   uint32_t desiredimages = 2;
 
-  VkSurfaceCapabilitiesKHR surfacecapabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
-
-  if (surfacecapabilities.maxImageCount > 0 && desiredimages > surfacecapabilities.maxImageCount)
-    desiredimages = surfacecapabilities.maxImageCount;
-
   uint32_t presentmodescount = 0;
   vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentmodescount, nullptr);
 
@@ -527,6 +558,12 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
       presentmode = presentmodes[i];
     }
   }
+
+  VkSurfaceCapabilitiesKHR surfacecapabilities;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
+
+  if (surfacecapabilities.maxImageCount > 0 && desiredimages > surfacecapabilities.maxImageCount)
+    desiredimages = surfacecapabilities.maxImageCount;
 
   VkSurfaceTransformFlagBitsKHR pretransform = (surfacecapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : surfacecapabilities.currentTransform;
 
@@ -771,9 +808,8 @@ struct Window
   bool visible;
 
   bool mousewrap;
-  int mousex, mousey;
   int lastmousex, lastmousey;
-  int deltamousex, deltamousey;
+  int pressmousex, pressmousey;
 
   uint8_t keysym[256];
 
@@ -906,8 +942,9 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
   keysym['1'] = '1';  keysym['2'] = '2';  keysym['3'] = '3';  keysym['4'] = '4';  keysym['5'] = '5';  keysym['6'] = '6';  keysym['7'] = '7';  keysym['8'] = '8';  keysym['9'] = '9';  keysym['0'] = '0';  keysym[VK_OEM_MINUS] = '-';  keysym[VK_OEM_PLUS] = '=';  keysym[VK_BACK] = KB_KEY_BACKSPACE;
   keysym['Q'] = 'Q';  keysym['W'] = 'W';  keysym['E'] = 'E';  keysym['R'] = 'R';  keysym['T'] = 'T';  keysym['Y'] = 'Y';  keysym['U'] = 'U';  keysym['I'] = 'I';  keysym['O'] = 'O';  keysym['P'] = 'P';  keysym['['] = '[';  keysym[']'] = ']';  keysym['\\'] = '\\';
   keysym['A'] = 'A';  keysym['S'] = 'S';  keysym['D'] = 'D';  keysym['F'] = 'F';  keysym['G'] = 'G';  keysym['H'] = 'H';  keysym['J'] = 'J';  keysym['K'] = 'K';  keysym['L'] = 'L';  keysym[':'] = ':';  keysym['\''] = '\'';
-  keysym['Z'] = 'Z';  keysym['X'] = 'X';  keysym['C'] = 'C';  keysym['V'] = 'V';  keysym['B'] = 'B';  keysym['N'] = 'N';  keysym['M'] = 'M';  keysym[VK_OEM_COMMA] = ',';  keysym[VK_OEM_PERIOD] = '.';  keysym['/'] = '/';
+  keysym['Z'] = 'Z';  keysym['X'] = 'X';  keysym['C'] = 'C';  keysym['V'] = 'V';  keysym['B'] = 'B';  keysym['N'] = 'N';  keysym['M'] = 'M';  keysym[VK_OEM_COMMA] = ',';  keysym[VK_OEM_PERIOD] = '.';
   keysym[VK_NUMPAD0] = KB_KEY_NUMPAD0;  keysym[VK_NUMPAD1] = KB_KEY_NUMPAD1;  keysym[VK_NUMPAD2] = KB_KEY_NUMPAD2;  keysym[VK_NUMPAD3] = KB_KEY_NUMPAD3;  keysym[VK_NUMPAD4] = KB_KEY_NUMPAD4;  keysym[VK_NUMPAD5] = KB_KEY_NUMPAD5;  keysym[VK_NUMPAD6] = KB_KEY_NUMPAD6;  keysym[VK_NUMPAD7] = KB_KEY_NUMPAD7;  keysym[VK_NUMPAD8] = KB_KEY_NUMPAD8;  keysym[VK_NUMPAD9] = KB_KEY_NUMPAD9;
+  keysym[VK_OEM_2] = '/'; keysym[VK_OEM_3] = '~';
 }
 
 
@@ -1010,13 +1047,12 @@ void Window::mousepress(UINT msg, WPARAM wParam, LPARAM lParam)
   }
 
   mousewrap = true;
+  pressmousex = lastmousex = GET_X_LPARAM(lParam);
+  pressmousey = lastmousey = GET_Y_LPARAM(lParam);
 
-  mousex = GET_X_LPARAM(lParam);
-  mousey = GET_Y_LPARAM(lParam);
+  game->inputbuffer().register_mousemove(pressmousex, pressmousey, 0, 0);
 
-  game->inputbuffer().register_mousemove(mousex, mousey);
-
-  SetCursor(NULL);
+  ShowCursor(false);
 
   SetCapture(hwnd);
 }
@@ -1042,13 +1078,11 @@ void Window::mouserelease(UINT msg, WPARAM wParam, LPARAM lParam)
 
   mousewrap = false;
 
-  POINT pos = { mousex, mousey };
-
+  POINT pos = { pressmousex, pressmousey };
   ClientToScreen(hwnd, &pos);
-
   SetCursorPos(pos.x, pos.y);
 
-  SetCursor(LoadCursor(NULL, IDC_ARROW));
+  ShowCursor(true);
 
   ReleaseCapture();
 }
@@ -1057,34 +1091,28 @@ void Window::mouserelease(UINT msg, WPARAM wParam, LPARAM lParam)
 //|//////////////////// Window::mousemove ///////////////////////////////////
 void Window::mousemove(UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  int deltax = 0;
+  int deltay = 0;
+
+  int mousex = GET_X_LPARAM(lParam);
+  int mousey = GET_Y_LPARAM(lParam);
+
   if (mousewrap)
   {
-    if (GET_X_LPARAM(lParam) != width/2 || GET_Y_LPARAM(lParam) != height/2)
+    deltax = mousex - lastmousex;
+    deltay = mousey - lastmousey;
+
+    if (mousex != width/2 || mousey != height/2)
     {
-      deltamousex += GET_X_LPARAM(lParam) - lastmousex;
-      deltamousey += GET_Y_LPARAM(lParam) - lastmousey;
-
       POINT pos = { width/2, height/2 };
-
       ClientToScreen(hwnd, &pos);
-
       SetCursorPos(pos.x, pos.y);
-
-      lParam = MAKELPARAM(width/2, height/2);
+      lastmousex = width/2;
+      lastmousey = height/2;
     }
   }
-  else
-  {
-    deltamousex = 0;
-    deltamousey = 0;
-    mousex = GET_X_LPARAM(lParam);
-    mousey = GET_Y_LPARAM(lParam);
-  }
 
-  game->inputbuffer().register_mousemove(mousex + deltamousex, mousey + deltamousey);
-
-  lastmousex = GET_X_LPARAM(lParam);
-  lastmousey = GET_Y_LPARAM(lParam);
+  game->inputbuffer().register_mousemove(mousex, mousey, deltax, deltay);
 }
 
 

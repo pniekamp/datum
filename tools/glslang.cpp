@@ -38,7 +38,7 @@ string load_shader(pathstring const &path, string const &defines)
 
     if (buffer.substr(0, 8) == "#include")
     {
-      buffer = load_shader(pathstring(path.base(), string(buffer.begin() + buffer.find_first_of("\"") + 1, buffer.begin() + buffer.find_last_of("\""))));
+      buffer = load_shader(pathstring(path.base(), string(buffer.begin() + buffer.find_first_of('"') + 1, buffer.begin() + buffer.find_last_of('"'))));
 
       buffer += "\n#line " + to_string(line) + "\"" + path.name() + "\"";
     }
@@ -86,8 +86,26 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
 //  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp.spv " + tmpname).c_str()) != 0)
 //    throw runtime_error("Error Executing glslc");
 
-  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp " + tmpname + " && spirv-opt --inline-entry-points-exhaustive --compact-ids -o tmp.spv tmp").c_str()) != 0)
+  string opts;
+  opts += "--remove-duplicates ";
+  opts += "--merge-return ";
+  opts += "--inline-entry-points-exhaustive ";
+  opts += "--eliminate-dead-functions ";
+  opts += "--scalar-replacement ";
+  opts += "--convert-local-access-chains ";
+  opts += "--eliminate-local-single-block ";
+  opts += "--eliminate-local-single-store ";
+  opts += "--ccp ";
+  opts += "--redundancy-elimination ";
+  opts += "--eliminate-insert-extract ";
+  opts += "--eliminate-dead-inserts ";
+  opts += "--eliminate-dead-branches ";
+  opts += "--strip-debug";
+
+  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp " + tmpname + " && spirv-opt " + opts + " -o tmp.spv tmp").c_str()) != 0)
     throw runtime_error("Error Executing glslc");
+
+  system("spirv-val tmp.spv");
 
 #else
   if (system(string("glslangValidator -V -o tmp.spv " + tmpname).c_str()) != 0)

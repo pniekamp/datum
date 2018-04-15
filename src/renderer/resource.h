@@ -357,5 +357,16 @@ void request(DatumPlatform::PlatformInterface &platform, ResourceManager &resour
   request(platform, resources, resource.get(), ready, total);
 }
 
+template<typename Context>
+void request(DatumPlatform::PlatformInterface &platform, Context &context, int *ready, int *total)
+{
+  *total += 1;
+
+  if (context.ready)
+  {
+    *ready += 1;
+  }
+}
+
 // Initialise
 bool initialise_resource_system(DatumPlatform::PlatformInterface &platform, ResourceManager &resourcemanager, size_t slabsize, size_t buffersize, size_t maxbuffersize, uint32_t queueindex);

@@ -128,7 +128,7 @@ void datumtest_init(PlatformInterface &platform)
   auto watercolor = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_color), Texture::Format::RGBE);
   auto watersurface = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_foam), Texture::Format::RGBA);
   auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
-  state.oceanmaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.4f, 0.5f, 0.0f, watercolor, watersurface, waternormal);
+  state.oceanmaterial = state.resources.create<Material>(Color4(1, 1, 1, 1), 0.0f, 0.32f, 0.02f, 0.0f, watercolor, watersurface, waternormal);
 
   ParticleEmitter emitter;
   emitter.duration = 3.0f;
@@ -317,8 +317,8 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
     {
       if (input.mousebuttons[GameInput::Left].down())
       {
-        state.camera.yaw(1.5f * (state.lastmousex - input.mousex), Vec3(0, 1, 0));
-        state.camera.pitch(1.5f * (state.lastmousey - input.mousey));
+        state.camera.yaw(-1.5f * input.deltamousex, Vec3(0, 1, 0));
+        state.camera.pitch(-1.5f * input.deltamousey);
       }
 
       float speed = 0.02f;
@@ -344,10 +344,6 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
       if (input.controllers[0].move_right.down())
         state.camera.offset(speed*Vec3(1, 0, 0));
     }
-
-    state.lastmousex = input.mousex;
-    state.lastmousey = input.mousey;
-    state.lastmousez = input.mousez;
 
 #ifdef DEBUG
     state.luminancetarget = debug_menu_value("Camera/LumaTarget", state.luminancetarget, 0.0f, 8.0f);
@@ -424,7 +420,7 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
         state.writeframe->geometry.push_mesh(buildstate, Transform::translation(-3, 1, -3)*Transform::rotation(Vec3(0, 1, 0), state.time), state.suzanne, state.suzannematerial);
 
         state.writeframe->geometry.push_mesh(buildstate, Transform::identity(), state.testplane, state.floormaterial);
-//        state.writeframe->geometry.push_ocean(buildstate, Transform::translation(0, 0, 0), state.testplane, state.oceanmaterial, Vec2(0.1), Vec3(1.0f, 1.0f, 0.2f), Plane({ 0, 1, 0 }, -0));
+//        state.writeframe->geometry.push_ocean(buildstate, Transform::translation(0, 0, 0), state.testplane, state.oceanmaterial, Vec2(0.001f*state.time), Vec3(20.0f, 20.0f, 0.4f), Plane({ 0, 1, 0 }, -0));
 
         for(auto &entity : state.scene.entities<MeshComponent>())
         {
@@ -743,6 +739,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderparams.sundirection = state.readframe->sundirection;
     renderparams.sunintensity = state.readframe->sunintensity;
 //    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
+    renderparams.ssaoscale = 1.0f;
     renderparams.fogdensity = 0.0f;
     renderparams.ssrstrength = 1.0f;
 

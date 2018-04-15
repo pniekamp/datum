@@ -386,7 +386,7 @@ namespace
 
     if (overlay.begin(buildstate, context, resources))
     {
-      auto mousepos = viewport.width * g_interaction.mousepos;
+      auto mousepos = g_interaction.mousepos;
 
       auto cursor = Vec2(5.0f, 5.0f);
 
@@ -951,23 +951,19 @@ void update_debug_overlay(GameInput const &input, bool *accepted)
       switch(interaction.type)
       {
         case Ui::Interaction::SlideIntEntry:
-          if (abs(input.mousex - g_interaction.mousepresspos.x) > 0.05f)
-          {
-            g_menu.entries[interaction.id].value<int>() = clamp(g_menu.entries[interaction.id].value<int>() + (int)sign((input.mousex - g_interaction.mousepos.x)), g_menu.entries[interaction.id].min<int>(), g_menu.entries[interaction.id].max<int>());
-            g_interaction.mousepresspos.x = input.mousex;
-          }
+          g_menu.entries[interaction.id].value<int>() = clamp(g_menu.entries[interaction.id].value<int>() + (int)sign(input.deltamousex), g_menu.entries[interaction.id].min<int>(), g_menu.entries[interaction.id].max<int>());
           break;
 
         case Ui::Interaction::SlideFloat0Entry:
-          g_menu.entries[interaction.id].value<float[]>()[0] = clamp(g_menu.entries[interaction.id].value<float[]>()[0] + 0.5f * (g_menu.entries[interaction.id].max<float[]>()[0] - g_menu.entries[interaction.id].min<float[]>()[0]) * (input.mousex - g_interaction.mousepos.x), g_menu.entries[interaction.id].min<float[]>()[0], g_menu.entries[interaction.id].max<float[]>()[0]);
+          g_menu.entries[interaction.id].value<float[]>()[0] = clamp(g_menu.entries[interaction.id].value<float[]>()[0] + 0.5f * (g_menu.entries[interaction.id].max<float[]>()[0] - g_menu.entries[interaction.id].min<float[]>()[0]) * input.deltamousex, g_menu.entries[interaction.id].min<float[]>()[0], g_menu.entries[interaction.id].max<float[]>()[0]);
           break;
 
         case Ui::Interaction::SlideFloat1Entry:
-          g_menu.entries[interaction.id].value<float[]>()[1] = clamp(g_menu.entries[interaction.id].value<float[]>()[1] + 0.5f * (g_menu.entries[interaction.id].max<float[]>()[1] - g_menu.entries[interaction.id].min<float[]>()[1]) * (input.mousex - g_interaction.mousepos.x), g_menu.entries[interaction.id].min<float[]>()[1], g_menu.entries[interaction.id].max<float[]>()[1]);
+          g_menu.entries[interaction.id].value<float[]>()[1] = clamp(g_menu.entries[interaction.id].value<float[]>()[1] + 0.5f * (g_menu.entries[interaction.id].max<float[]>()[1] - g_menu.entries[interaction.id].min<float[]>()[1]) * input.deltamousex, g_menu.entries[interaction.id].min<float[]>()[1], g_menu.entries[interaction.id].max<float[]>()[1]);
           break;
 
         case Ui::Interaction::SlideFloat2Entry:
-          g_menu.entries[interaction.id].value<float[]>()[2] = clamp(g_menu.entries[interaction.id].value<float[]>()[2] + 0.5f * (g_menu.entries[interaction.id].max<float[]>()[2] - g_menu.entries[interaction.id].min<float[]>()[2]) * (input.mousex - g_interaction.mousepos.x), g_menu.entries[interaction.id].min<float[]>()[2], g_menu.entries[interaction.id].max<float[]>()[2]);
+          g_menu.entries[interaction.id].value<float[]>()[2] = clamp(g_menu.entries[interaction.id].value<float[]>()[2] + 0.5f * (g_menu.entries[interaction.id].max<float[]>()[2] - g_menu.entries[interaction.id].min<float[]>()[2]) * input.deltamousex, g_menu.entries[interaction.id].min<float[]>()[2], g_menu.entries[interaction.id].max<float[]>()[2]);
           break;
 
         default:

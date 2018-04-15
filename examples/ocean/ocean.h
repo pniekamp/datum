@@ -23,8 +23,6 @@ struct GameState
 
   Camera camera;
 
-  float lastmousex, lastmousey, lastmousez;
-
   Font const *debugfont;
   Material const *defaultmaterial;
 

@@ -40,7 +40,9 @@ namespace DatumPlatform
         KeyUp,
         MouseMoveX,
         MouseMoveY,
-        MouseMoveZ,
+        MouseDeltaX,
+        MouseDeltaY,
+        MouseDeltaZ,
         MousePress,
         MouseRelease,
         Text
@@ -58,7 +60,7 @@ namespace DatumPlatform
 
       void register_viewport(int x, int y, int width, int height);
 
-      void register_mousemove(int x, int y);
+      void register_mousemove(int x, int y, float deltax, float deltay);
       void register_mousepress(GameInput::MouseButton button);
       void register_mouserelease(GameInput::MouseButton button);
       void register_mousewheel(float z);
