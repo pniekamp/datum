@@ -24,6 +24,8 @@ find_package(Qt5Gui REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -86,7 +88,6 @@ target_link_libraries(debugviewer leap Qt5::Gui Qt5::Widgets)
 if(WIN32)
   set(CMAKE_SHARED_LIBRARY_PREFIX "")
 endif(WIN32)
-
 
 
 #

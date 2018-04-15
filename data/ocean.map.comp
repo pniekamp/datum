@@ -74,7 +74,7 @@ void main()
     vec3 t = displacements[ij.y-1][ij.x];
     vec3 b = displacements[ij.y+1][ij.x];
 
-    vec3 normal = normalize(vec3(l.z - r.z, t.z - b.z, 4 / (params.scale * WaveResolution)));
+    vec3 normal = normalize(vec3(l.z - r.z, b.z - t.z, 4 / (params.scale * WaveResolution)));
 
     imageStore(dest, ivec3(xy, 0), vec4(dx, dy, dz, 0));
     imageStore(dest, ivec3(xy, 1), vec4(normal, 0));

@@ -15,7 +15,7 @@ using namespace std;
 
 namespace
 {
-  ///////////////////////// map_key_to_modifier /////////////////////////////
+  ///////////////////////// map_key_to_modifier ///////////////////////////////
   long map_key_to_modifier(int key)
   {
     switch (key)
@@ -40,7 +40,7 @@ namespace
     }
   }
 
-  ///////////////////////// append_codepoint ////////////////////////////////
+  ///////////////////////// append_codepoint //////////////////////////////////
   void append_codepoint(char *str, size_t n, uint32_t codepoint)
   {
     while (*str && n--)
@@ -82,8 +82,8 @@ namespace
 namespace DatumPlatform
 {
 
-  //|---------------------- GameMemory --------------------------------------
-  //|------------------------------------------------------------------------
+  //|---------------------- GameMemory ----------------------------------------
+  //|--------------------------------------------------------------------------
 
   ///////////////////////// GameMemory::initialise ////////////////////////////
   void gamememory_initialise(GameMemory &pool, void *data, size_t capacity)
@@ -97,17 +97,17 @@ namespace DatumPlatform
 
 
 
-  //|---------------------- Input Buffer ------------------------------------
-  //|------------------------------------------------------------------------
+  //|---------------------- Input Buffer --------------------------------------
+  //|--------------------------------------------------------------------------
 
-  ///////////////////////// InputBuffer::Constructor ////////////////////////
+  ///////////////////////// InputBuffer::Constructor //////////////////////////
   InputBuffer::InputBuffer()
   {
     m_input = {};
   }
 
 
-  ///////////////////////// InputBuffer::register_viewport /////////////////
+  ///////////////////////// InputBuffer::register_viewport ///////////////////
   void InputBuffer::register_viewport(int x, int y, int width, int height)
   {
     m_x = x;
@@ -117,17 +117,19 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// InputBuffer::register_mousemove /////////////////
-  void InputBuffer::register_mousemove(int x, int y)
+  ///////////////////////// InputBuffer::register_mousemove ///////////////////
+  void InputBuffer::register_mousemove(int x, int y, float deltax, float deltay)
   {
     lock_guard<mutex> lock(m_mutex);
 
     m_events.push_back({ EventType::MouseMoveX, x });
     m_events.push_back({ EventType::MouseMoveY, y });
+    m_events.push_back({ EventType::MouseDeltaX, (int)(deltax) });
+    m_events.push_back({ EventType::MouseDeltaY, (int)(deltay) });
   }
 
 
-  ///////////////////////// InputBuffer::register_mousepress ////////////////
+  ///////////////////////// InputBuffer::register_mousepress //////////////////
   void InputBuffer::register_mousepress(GameInput::MouseButton button)
   {
     lock_guard<mutex> lock(m_mutex);
@@ -136,7 +138,7 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// InputBuffer::register_mouserelease //////////////
+  ///////////////////////// InputBuffer::register_mouserelease ////////////////
   void InputBuffer::register_mouserelease(GameInput::MouseButton button)
   {
     lock_guard<mutex> lock(m_mutex);
@@ -145,16 +147,16 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// InputBuffer::register_mousewheel ////////////////
+  ///////////////////////// InputBuffer::register_mousewheel //////////////////
   void InputBuffer::register_mousewheel(float z)
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::MouseMoveZ, (int)(z * 120) });
+    m_events.push_back({ EventType::MouseDeltaZ, (int)(z * 120) });
   }
 
 
-  ///////////////////////// InputBuffer::register_keydown ///////////////////
+  ///////////////////////// InputBuffer::register_keydown /////////////////////
   void InputBuffer::register_keypress(int key)
   {
     lock_guard<mutex> lock(m_mutex);
@@ -163,7 +165,7 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// InputBuffer::register_keyup /////////////////////
+  ///////////////////////// InputBuffer::register_keyup ///////////////////////
   void InputBuffer::register_keyrelease(int key)
   {
     lock_guard<mutex> lock(m_mutex);
@@ -172,7 +174,7 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// InputBuffer::register_textinput /////////////////
+  ///////////////////////// InputBuffer::register_textinput ///////////////////
   void InputBuffer::register_textinput(uint32_t codepoint)
   {
     lock_guard<mutex> lock(m_mutex);
@@ -181,7 +183,7 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// InputBuffer::release_all ////////////////////////
+  ///////////////////////// InputBuffer::release_all //////////////////////////
   void InputBuffer::release_all()
   {
     lock_guard<mutex> lock(m_mutex);
@@ -192,7 +194,7 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// InputBuffer::grab ///////////////////////////////
+  ///////////////////////// InputBuffer::grab /////////////////////////////////
   GameInput InputBuffer::grab()
   {
     lock_guard<mutex> lock(m_mutex);
@@ -201,7 +203,11 @@ namespace DatumPlatform
     m_input.mousebuttons[GameInput::Left].transitions = 0;
     m_input.mousebuttons[GameInput::Right].transitions = 0;
     m_input.mousebuttons[GameInput::Middle].transitions = 0;
-    m_input.mousez = 0;
+
+    // Mouse Deltas
+    m_input.deltamousex = 0;
+    m_input.deltamousey = 0;
+    m_input.deltamousez = 0;
 
     // Keyboard
     for(auto &key : m_input.keys)
@@ -227,15 +233,23 @@ namespace DatumPlatform
           break;
 
         case EventType::MouseMoveX:
-          m_input.mousex = (evt.data - m_x) / (m_width - 1.0f);
+          m_input.mousex = evt.data;
           break;
 
         case EventType::MouseMoveY:
-          m_input.mousey = (evt.data - m_y) / (m_width - 1.0f);
+          m_input.mousey = evt.data;
           break;
 
-        case EventType::MouseMoveZ:
-          m_input.mousez += evt.data / 120.0f;
+        case EventType::MouseDeltaX:
+          m_input.deltamousex += evt.data * (1.0f/m_width);
+          break;
+
+        case EventType::MouseDeltaY:
+          m_input.deltamousey += evt.data * (1.0f/m_width);
+          break;
+
+        case EventType::MouseDeltaZ:
+          m_input.deltamousez += evt.data * (1.0f/120.0f);
           break;
 
         case EventType::MousePress:
@@ -267,10 +281,10 @@ namespace DatumPlatform
 
 
 
-  //|---------------------- WorkQueue ---------------------------------------
-  //|------------------------------------------------------------------------
+  //|---------------------- WorkQueue -----------------------------------------
+  //|--------------------------------------------------------------------------
 
-  ///////////////////////// WorkQueue::Constructor //////////////////////////
+  ///////////////////////// WorkQueue::Constructor ////////////////////////////
   WorkQueue::WorkQueue(int threads)
   {
     m_done = false;
@@ -304,7 +318,7 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// WorkQueue::Destructor ///////////////////////////
+  ///////////////////////// WorkQueue::Destructor /////////////////////////////
   WorkQueue::~WorkQueue()
   {
     for(size_t i = 0; i < m_threads.size(); ++i)
@@ -315,10 +329,10 @@ namespace DatumPlatform
   }
 
 
-  //|---------------------- File Handle -------------------------------------
-  //|------------------------------------------------------------------------
+  //|---------------------- File Handle ---------------------------------------
+  //|--------------------------------------------------------------------------
 
-  ///////////////////////// FileHandle::Constructor /////////////////////////
+  ///////////////////////// FileHandle::Constructor ///////////////////////////
   FileHandle::FileHandle(const char *path)
   {
     m_fio.open(path, ios::in | ios::binary);
@@ -328,7 +342,7 @@ namespace DatumPlatform
   }
 
 
-  ///////////////////////// FileHandle::Read ////////////////////////////////
+  ///////////////////////// FileHandle::Read //////////////////////////////////
   size_t FileHandle::read(uint64_t position, void *buffer, size_t bytes)
   {  
     lock_guard<mutex> lock(m_lock);

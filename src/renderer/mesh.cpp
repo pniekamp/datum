@@ -307,7 +307,7 @@ Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float s
       {
         vertices->position = Vec3(2 * x/(sizex-1.0f) - 1, 2 * y/(sizey-1.0f) - 1, 0) * scale;
         vertices->normal = Vec3(0, 0, 1);
-        vertices->tangent = Vec4(1, 0, 0, 1);
+        vertices->tangent = Vec4(1, 0, 0, -1);
         vertices->texcoord = Vec2(tilex * x/(sizex-1.0f), tiley * y/(sizey-1.0f));
 
         ++vertices;

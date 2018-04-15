@@ -80,7 +80,7 @@ namespace DatumPlatform
 
       GameButton keys[256];
 
-      float mousex, mousey, mousez;
+      float mousex, mousey, deltamousex, deltamousey, deltamousez;
 
       GameButton mousebuttons[3];
 
@@ -138,22 +138,27 @@ namespace DatumPlatform
 
       virtual RenderDevice render_device() = 0;
 
-
       // data access
 
       using handle_t = void *;
 
       virtual handle_t open_handle(const char *identifier) = 0;
-
       virtual std::size_t read_handle(handle_t handle, uint64_t position, void *buffer, std::size_t bytes) = 0;
-
       virtual void close_handle(handle_t handle) = 0;
 
+      // cursor
+
+      using cursor_t = void *;
+
+      virtual void show_cursor(bool show) = 0;
+      virtual cursor_t create_cursor(int hx, int hy, int width, int height, void const *bits) = 0;
+      virtual void set_cursor_image(cursor_t cursor) = 0;
+      virtual void destroy_cursor(cursor_t cursor) = 0;
+      virtual void set_cursor_position(float x, float y) = 0;
 
       // work queue
 
       virtual void submit_work(void (*func)(PlatformInterface &, void*, void*), void *ldata, void *rdata) = 0;
-
 
       // misc
 

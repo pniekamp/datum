@@ -95,13 +95,9 @@ void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::G
 
     if (input.mousebuttons[GameInput::Left].down())
     {
-      state.camera.yaw(1.5f * (state.lastmousex - input.mousex), Vec3(0, 1, 0));
-      state.camera.pitch(1.5f * (state.lastmousey - input.mousey));
+      state.camera.yaw(-1.5f * input.deltamousex, Vec3(0, 1, 0));
+      state.camera.pitch(-1.5f * input.deltamousey);
     }
-
-    state.lastmousex = input.mousex;
-    state.lastmousey = input.mousey;
-    state.lastmousez = input.mousez;
 
     state.sundirection = Transform::rotation(Vec3(-1, 0, 0), 0.1f*dt) * state.sundirection;
 

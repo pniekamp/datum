@@ -17,7 +17,6 @@ void datumtest_init(DatumPlatform::PlatformInterface &platform);
 void datumtest_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt);
 void datumtest_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 
-
 //|---------------------- Platform ------------------------------------------
 //|--------------------------------------------------------------------------
 
@@ -35,20 +34,23 @@ class Platform : public PlatformInterface
 
     RenderDevice render_device() override;
 
-
     // data access
 
     handle_t open_handle(const char *identifier) override;
-
     size_t read_handle(handle_t handle, uint64_t position, void *buffer, size_t bytes) override;
-
     void close_handle(handle_t handle) override;
 
+    // cursor
+
+    void show_cursor(bool show) override;
+    cursor_t create_cursor(int hx, int hy, int width, int height, void const *bits) override;
+    void set_cursor_image(cursor_t cursor) override;
+    void destroy_cursor(cursor_t cursor) override;
+    void set_cursor_position(float x, float y) override;
 
     // work queue
 
     void submit_work(void (*func)(PlatformInterface &, void*, void*), void *ldata, void *rdata) override;
-
 
     // misc
 
@@ -121,6 +123,41 @@ size_t Platform::read_handle(PlatformInterface::handle_t handle, uint64_t positi
 void Platform::close_handle(PlatformInterface::handle_t handle)
 {
   delete static_cast<FileHandle*>(handle);
+}
+
+
+///////////////////////// Platform::show_cursor /////////////////////////////
+void Platform::show_cursor(bool show)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::create_cursor ///////////////////////////
+PlatformInterface::cursor_t Platform::create_cursor(int hx, int hy, int width, int height, void const *bits)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::set_cursor_image ////////////////////////
+void Platform::set_cursor_image(cursor_t handle)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::destroy_cursor //////////////////////////
+void Platform::destroy_cursor(cursor_t handle)
+{
+  throw runtime_error("Not Implemented");
+}
+
+
+///////////////////////// Platform::set_cursor_position /////////////////////
+void Platform::set_cursor_position(float x, float y)
+{
+  throw runtime_error("Not Implemented");
 }
 
 
@@ -498,12 +535,6 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   bool vsync = true;
   uint32_t desiredimages = 2;
 
-  VkSurfaceCapabilitiesKHR surfacecapabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
-
-  if (surfacecapabilities.maxImageCount > 0 && desiredimages > surfacecapabilities.maxImageCount)
-    desiredimages = surfacecapabilities.maxImageCount;
-
   uint32_t presentmodescount = 0;
   vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentmodescount, nullptr);
 
@@ -525,6 +556,12 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
       presentmode = presentmodes[i];
     }
   }
+
+  VkSurfaceCapabilitiesKHR surfacecapabilities;
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &surfacecapabilities);
+
+  if (surfacecapabilities.maxImageCount > 0 && desiredimages > surfacecapabilities.maxImageCount)
+    desiredimages = surfacecapabilities.maxImageCount;
 
   VkSurfaceTransformFlagBitsKHR pretransform = (surfacecapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : surfacecapabilities.currentTransform;
 
@@ -773,9 +810,8 @@ struct Window
   xcb_cursor_t blankcursor;
 
   bool mousewrap;
-  int mousex, mousey;
   int lastmousex, lastmousey;
-  int deltamousex, deltamousey;
+  int pressmousex, pressmousey;
 
   uint8_t keysym[256];
 
@@ -948,11 +984,10 @@ void Window::mousepress(xcb_button_press_event_t const *event)
   }
 
   mousewrap = true;
+  pressmousex = event->event_x;
+  pressmousey = event->event_y;
 
-  mousex = event->event_x;
-  mousey = event->event_y;
-
-  game->inputbuffer().register_mousemove(mousex, mousey);
+  game->inputbuffer().register_mousemove(pressmousex, pressmousey, 0, 0);
 
   xcb_change_window_attributes(connection, window, XCB_CW_CURSOR, &blankcursor);
 
@@ -980,9 +1015,7 @@ void Window::mouserelease(xcb_button_release_event_t const *event)
 
   mousewrap = false;
 
-  game->inputbuffer().register_mousemove(mousex, mousey);
-
-  xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, mousex, mousey);
+  xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, pressmousex, pressmousey);
 
   xcb_change_window_attributes(connection, window, XCB_CW_CURSOR, &normalcursor);
 
@@ -993,27 +1026,26 @@ void Window::mouserelease(xcb_button_release_event_t const *event)
 //|//////////////////// Window::mousemove ///////////////////////////////////
 void Window::mousemove(xcb_motion_notify_event_t const *event)
 {
+  int deltax = 0;
+  int deltay = 0;
+
+  int mousex = event->event_x;
+  int mousey = event->event_y;
+
   if (mousewrap)
   {
-    if (event->event_x != width/2 || event->event_y != height/2)
+    if (mousex != width/2 || mousey != height/2)
     {
-      deltamousex += event->event_x - lastmousex;
-      deltamousey += event->event_y - lastmousey;
+      deltax = mousex - lastmousex;
+      deltay = mousey - lastmousey;
 
       xcb_warp_pointer(connection, XCB_NONE, window, 0, 0, 0, 0, width/2, height/2);
 
       xcb_flush(connection);
     }
   }
-  else
-  {
-    deltamousex = 0;
-    deltamousey = 0;
-    mousex = event->event_x;
-    mousey = event->event_y;
-  }
 
-  game->inputbuffer().register_mousemove(mousex + deltamousex, mousey + deltamousey);
+  game->inputbuffer().register_mousemove(mousex, mousey, deltax, deltay);
 
   lastmousex = event->event_x;
   lastmousey = event->event_y;

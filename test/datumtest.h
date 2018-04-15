@@ -33,8 +33,6 @@ struct GameState
 
   float luminancetarget = 0.15f;
 
-  float lastmousex, lastmousey, lastmousez;
-
   Sprite const *loader;
   Font const *debugfont;
   Mesh const *unitquad;
