@@ -57,7 +57,7 @@ $ popd
 ```
 > mkdir datum\build
 > pushd datum\build
-> cmake -G "Visual Studio 15 2017 Win64" ..
+> cmake -G "Visual Studio 15 2017 Win64" -DEXAMPLES=ON ..
 > cmake --build . --target install --config RelWithDebInfo
 > popd
 ```
