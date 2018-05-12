@@ -53,7 +53,7 @@ void Scene::clear()
   m_slots.clear();
   m_freeslots.clear();
 
-  m_slots.push_back({ 0, (size_t)-1, nullptr });
+  m_slots.push_back({ 0, size_t(-1), nullptr });
 
   RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())
 }

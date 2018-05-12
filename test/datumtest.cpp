@@ -480,8 +480,6 @@ void datumtest_update(PlatformInterface &platform, GameInput const &input, float
 
       if (state.writeframe->sprites.begin(buildstate, state.rendercontext, state.resources))
       {
-        state.writeframe->sprites.viewport(buildstate, Rect2(Vec2(-1, -1), Vec2(1, 1)));
-
         float count = 15.0f;
         float radius = 0.4f;
 
@@ -671,8 +669,6 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
 
       if (sprites.begin(buildstate, state.rendercontext, state.resources))
       {
-        sprites.viewport(buildstate, viewport);
-
         sprites.push_sprite(buildstate, Vec2(viewport.width - 30, 30), 40, state.loader, fmod(10*state.readframe->time, (float)state.loader->layers));
 
 //        sprites.push_sprite(buildstate, Vec2(200, 100), 300, state.testimage);

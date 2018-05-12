@@ -98,7 +98,7 @@ void write_compressed_chunk(ostream &fout, const char type[4], uint32_t length, 
       payload.insert(payload.end(), (uint8_t*)&block, (uint8_t*)&block + sizeof(block));
 
     length -= bytes;
-    data = (void const *)((size_t)data + bytes);
+    data = (void const *)((char const *)data + bytes);
   }
 
   write_chunk(fout, type, payload.size(), payload.data());
@@ -140,7 +140,7 @@ uint32_t write_catl_asset(ostream &fout, uint32_t id, uint32_t magic, uint32_t v
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackCalalogHeader catl = { magic, version, (uint32_t)payload.size(), (size_t)fout.tellp() + sizeof(catl) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackCalalogHeader catl = { magic, version, (uint32_t)payload.size(), (uint64_t)fout.tellp() + sizeof(catl) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "CATL", sizeof(catl), &catl);
 
@@ -159,7 +159,7 @@ uint32_t write_text_asset(ostream &fout, uint32_t id, uint32_t length, void cons
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackTextHeader text = { length, (size_t)fout.tellp() + sizeof(text) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackTextHeader text = { length, (uint64_t)fout.tellp() + sizeof(text) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "TEXT", sizeof(text), &text);
 
@@ -202,7 +202,7 @@ uint32_t write_imag_asset(ostream &fout, uint32_t id, uint32_t width, uint32_t h
       assert(false);
   }
 
-  PackImageHeader imag = { width, height, layers, levels, format, datasize, (size_t)fout.tellp() + sizeof(imag) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackImageHeader imag = { width, height, layers, levels, format, datasize, (uint64_t)fout.tellp() + sizeof(imag) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "IMAG", sizeof(imag), &imag);
 
@@ -221,7 +221,7 @@ uint32_t write_font_asset(ostream &fout, uint32_t id, uint32_t ascent, uint32_t 
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackFontHeader font = { ascent, descent, leading, glyphcount, (size_t)fout.tellp() + sizeof(font) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackFontHeader font = { ascent, descent, leading, glyphcount, (uint64_t)fout.tellp() + sizeof(font) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "FONT", sizeof(font), &font);
 
@@ -269,7 +269,7 @@ uint32_t write_mesh_asset(ostream &fout, uint32_t id, uint32_t vertexcount, uint
     datasize += vertexcount*sizeof(PackMeshPayload::Rig) + bonecount*sizeof(PackMeshPayload::Bone);
   }
 
-  PackMeshHeader mesh = { vertexcount, indexcount, bonecount, bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, datasize, (size_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackMeshHeader mesh = { vertexcount, indexcount, bonecount, bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, datasize, (uint64_t)fout.tellp() + sizeof(mesh) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "MESH", sizeof(mesh), &mesh);
 
@@ -332,7 +332,7 @@ uint32_t write_matl_asset(ostream &fout, uint32_t id, void const *bits)
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackMaterialHeader matl = { (size_t)fout.tellp() + sizeof(matl) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackMaterialHeader matl = { (uint64_t)fout.tellp() + sizeof(matl) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "MATL", sizeof(matl), &matl);
 
@@ -374,7 +374,7 @@ uint32_t write_anim_asset(ostream &fout, uint32_t id, float duration, uint32_t j
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackAnimationHeader anim = { duration, jointcount, transformcount, (size_t)fout.tellp() + sizeof(anim) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackAnimationHeader anim = { duration, jointcount, transformcount, (uint64_t)fout.tellp() + sizeof(anim) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "ANIM", sizeof(anim), &anim);
 
@@ -407,7 +407,7 @@ uint32_t write_part_asset(ostream &fout, uint32_t id, Bound3 const &bound, uint3
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackParticleSystemHeader part = { bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, maxparticles, emittercount, emitterssize, (size_t)fout.tellp() + sizeof(part) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackParticleSystemHeader part = { bound.min.x, bound.min.y, bound.min.z, bound.max.x, bound.max.y, bound.max.z, maxparticles, emittercount, emitterssize, (uint64_t)fout.tellp() + sizeof(part) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "PART", sizeof(part), &part);
 
@@ -440,7 +440,7 @@ uint32_t write_modl_asset(ostream &fout, uint32_t id, uint32_t texturecount, uin
 
   write_chunk(fout, "ASET", sizeof(aset), &aset);
 
-  PackModelHeader modl = { texturecount, materialcount, meshcount, instancecount, (size_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
+  PackModelHeader modl = { texturecount, materialcount, meshcount, instancecount, (uint64_t)fout.tellp() + sizeof(modl) + sizeof(PackChunk) + sizeof(uint32_t) };
 
   write_chunk(fout, "MODL", sizeof(modl), &modl);
 

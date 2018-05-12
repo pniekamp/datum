@@ -39,11 +39,6 @@ struct ModelSet
   alignas(16) Vec4 texcoords;
 };
 
-struct ParamSet
-{
-  alignas(16) Matrix4f orthoview;
-};
-
 
 ///////////////////////// draw_sprites //////////////////////////////////////
 void draw_sprites(RenderContext &context, VkCommandBuffer commandbuffer, Renderable::Sprites const &sprites)
@@ -63,6 +58,11 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
   state = {};
   state.context = &context;
   state.resources = &resources;
+
+  state.clipx = 0;
+  state.clipy = 0;
+  state.clipwidth = context.width;
+  state.clipheight = context.height;
 
   if (!context.ready)
     return false;
@@ -95,42 +95,6 @@ bool SpriteList::begin(BuildState &state, RenderContext &context, ResourceManage
   state.commandlump = commandlump;
 
   return true;
-}
-
-
-///////////////////////// SpriteList::viewport //////////////////////////////
-void SpriteList::viewport(BuildState &state, Rect2 const &viewport) const
-{
-  assert(state.commandlump);
-
-  auto &context = *state.context;
-
-  state.clipx = 0;
-  state.clipy = 0;
-  state.clipwidth = (int)(viewport.max.x - viewport.min.x);
-  state.clipheight = (int)(viewport.max.y - viewport.min.y);
-
-  auto orthoview = OrthographicProjection(viewport.min.x, viewport.min.y, viewport.max.x, viewport.max.y, 0.0f, 1000.0f);
-
-  push(spritecommands, context.pipelinelayout, offsetof(ParamSet, orthoview), sizeof(orthoview), &orthoview, VK_SHADER_STAGE_VERTEX_BIT);
-}
-
-
-///////////////////////// SpriteList::viewport //////////////////////////////
-void SpriteList::viewport(BuildState &state, DatumPlatform::Viewport const &viewport) const
-{
-  assert(state.commandlump);
-
-  auto &context = *state.context;
-
-  state.clipx = 0;
-  state.clipy = 0;
-  state.clipwidth = viewport.width;
-  state.clipheight = viewport.height;
-
-  auto orthoview = OrthographicProjection(0.0f, 0.0f, (float)viewport.width, (float)viewport.height, 0.0f, 1000.0f);
-
-  push(spritecommands, context.pipelinelayout, offsetof(ParamSet, orthoview), sizeof(orthoview), &orthoview, VK_SHADER_STAGE_VERTEX_BIT);
 }
 
 

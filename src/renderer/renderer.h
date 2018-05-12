@@ -307,7 +307,7 @@ T const *renderable_cast(PushBuffer::Header const *header)
 {
   assert(T::type == header->type);
 
-  return reinterpret_cast<T const *>(((size_t)(header + 1) + alignof(T) - 1) & -alignof(T));
+  return reinterpret_cast<T const *>(leap::alignto(reinterpret_cast<uintptr_t>(header + 1), alignof(T)));
 }
 
 
@@ -489,7 +489,7 @@ struct RenderParams
   lml::Color3 sunintensity = { 8.0f, 7.65f, 6.71f };
 
   SkyBox const *skybox = nullptr;
-  lml::Transform skyboxorientation = lml::Transform::identity();
+  lml::Transform skyboxorientation = ::lml::Transform::identity();
   float skyboxlod = 0.0f;
 
   float ambientintensity = 1.0f;

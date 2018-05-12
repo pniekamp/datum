@@ -83,23 +83,23 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
 //    if (system(string("spirv-remap --do-everything --input tmp.spv -o .").c_str()) != 0)
 //      throw runtime_error("Error Executing glslangValidator");
 
-//  if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp.spv " + tmpname).c_str()) != 0)
-//    throw runtime_error("Error Executing glslc");
+//    if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp.spv " + tmpname).c_str()) != 0)
+//      throw runtime_error("Error Executing glslc");
 
   string opts;
-  opts += "--remove-duplicates ";
-  opts += "--merge-return ";
+//  opts += "--remove-duplicates ";
+//  opts += "--merge-return ";
   opts += "--inline-entry-points-exhaustive ";
-  opts += "--eliminate-dead-functions ";
-  opts += "--scalar-replacement ";
-  opts += "--convert-local-access-chains ";
-  opts += "--eliminate-local-single-block ";
-  opts += "--eliminate-local-single-store ";
-  opts += "--ccp ";
-  opts += "--redundancy-elimination ";
-  opts += "--eliminate-insert-extract ";
-  opts += "--eliminate-dead-inserts ";
-  opts += "--eliminate-dead-branches ";
+//  opts += "--eliminate-dead-functions ";
+//  opts += "--scalar-replacement ";
+//  opts += "--convert-local-access-chains ";
+//  opts += "--eliminate-local-single-block ";
+//  opts += "--eliminate-local-single-store ";
+//  opts += "--ccp ";
+//  opts += "--redundancy-elimination ";
+//  opts += "--eliminate-insert-extract ";
+//  opts += "--eliminate-dead-inserts ";
+//  opts += "--eliminate-dead-branches ";
   opts += "--strip-debug";
 
   if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp " + tmpname + " && spirv-opt " + opts + " -o tmp.spv tmp").c_str()) != 0)

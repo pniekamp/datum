@@ -124,7 +124,7 @@ class FreeList
 
   public:
 
-    static constexpr size_t bucket(size_t n)
+    static size_t bucket(size_t n)
     {
 #if defined(_MSC_VER) && defined(_WIN64)
       auto __builtin_clzll = [](unsigned long long mask)
@@ -143,18 +143,12 @@ class FreeList
       return std::min(((bits - 5) << 2) + ((n + mask) >> bits), std::extent<decltype(m_freelist)>::value) - 1;
     }
 
-    static constexpr size_t bucket_mask(size_t n)
+    static size_t bucket_mask(size_t n)
     {
       return (1 << ((bucket(n) >> 2) + 5)) - 1;
     }
 
   private:
-
-    template<typename U, std::size_t ulignment = alignof(U)>
-    U *aligned(void *ptr)
-    {
-      return reinterpret_cast<U*>((reinterpret_cast<std::size_t>(ptr) + ulignment - 1) & -ulignment);
-    }
 
     struct Node
     {
@@ -162,6 +156,12 @@ class FreeList
 
       void *next;
     };
+
+    template<typename U>
+    U *node_cast(void *ptr)
+    {
+      return reinterpret_cast<U*>((reinterpret_cast<uintptr_t>(ptr) + alignof(U) - 1) & -alignof(U));
+    }
 
     void *m_freelist[24] = {};
 
@@ -179,9 +179,9 @@ inline void *FreeList::acquire(std::size_t bytes, std::size_t alignment)
 
   while (entry != nullptr)
   {
-    auto node = aligned<Node>(entry);
+    auto node = node_cast<Node>(entry);
 
-    if (node->bytes == bytes && ((size_t)entry & (alignment-1)) == 0)
+    if (node->bytes == bytes && (reinterpret_cast<uintptr_t>(entry) & (alignment-1)) == 0)
     {
       *into = node->next;
 
@@ -199,9 +199,9 @@ inline void *FreeList::acquire(std::size_t bytes, std::size_t alignment)
 ///////////////////////// Freelist::release /////////////////////////////////
 inline void FreeList::release(void *ptr, std::size_t bytes) noexcept
 {
-  auto node = aligned<Node>(ptr);
+  auto node = node_cast<Node>(ptr);
 
-  if ((size_t)node + sizeof(Node) < (size_t)ptr + bytes)
+  if ((char*)node + sizeof(Node) < (char*)ptr + bytes)
   {
     auto index = bucket(bytes);
 
@@ -221,12 +221,12 @@ inline void FreeList::siphon(FreeList *other)
     if (other->m_freelist[index] != nullptr)
     {
       auto entry = other->m_freelist[index];
-      auto node = aligned<Node>(entry);
+      auto node = node_cast<Node>(entry);
 
       while (node->next != nullptr)
       {
         entry = node->next;
-        node = aligned<Node>(entry);
+        node = node_cast<Node>(entry);
       }
 
       node->next = m_freelist[index];
@@ -332,7 +332,7 @@ void StackAllocatorWithFreelist<T>::deallocate(T *ptr, std::size_t n) noexcept
 template<typename T>
 bool inarena(Arena &arena, T *ptr)
 {
-  return arena.data <= ptr && ptr < (void*)((char*)arena.data + arena.size);
+  return arena.data <= ptr && ptr < (void const *)((char const *)arena.data + arena.size);
 }
 
 

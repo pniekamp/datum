@@ -49,9 +49,6 @@ class SpriteList
 
     bool begin(BuildState &state, RenderContext &context, ResourceManager &resources);
 
-    void viewport(BuildState &state, lml::Rect2 const &viewport) const;
-    void viewport(BuildState &state, DatumPlatform::Viewport const &viewport) const;
-
     void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Color4 const &tint);
 
     void push_model(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec4 const &texcoords, float layer0, float layer1);

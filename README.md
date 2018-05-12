@@ -28,7 +28,40 @@
 ### Building
 Head branch is tested against gcc/clang on Linux and Mingw 5.3 on Windows.
 
-### Visual Studio
-There is a [datum-vs branch](https://github.com/pniekamp/datum/tree/datum-vs) for VS2015 x64 Update 3.
+Download [leap](https://github.com/pniekamp/leap) and [datum](https://github.com/pniekamp/datum) into a single directory (eg code/leap & code/datum)
+
+#### GCC, CLANG
+```
+$ mkdir leap/build
+$ pushd leap/build
+$ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+$ cmake --build . --target install/strip
+$ popd
+```
+```
+$ mkdir datum/build
+$ pushd datum/build
+$ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DEXAMPLES=ON ..
+$ cmake --build . --target install/strip
+$ popd
+```
+
+#### Visual Studio 15.7
+```
+$ mkdir leap/build
+$ pushd leap/build
+$ cmake -G "Visual Studio 15 2017 Win64" ..
+$ cmake --build . --target install --config RelWithDebInfo
+$ popd
+```
+```
+$ mkdir datum/build
+$ pushd datum/build
+$ cmake -G "Visual Studio 15 2017 Win64" ..
+$ cmake --build . --target install --config RelWithDebInfo
+$ popd
+```
+
+There is also a [datum-vs branch](https://github.com/pniekamp/datum/tree/datum-vs) for VS2015 x64 Update 3.
 
 ![Datum](/bin/datumsponza.png?raw=true "Datum Sponza")

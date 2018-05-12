@@ -40,10 +40,12 @@ void compress(const char *path)
       case "ASET"_packchunktype:
       case "CATL"_packchunktype:
       case "TEXT"_packchunktype:
-      case "FONT"_packchunktype:
       case "IMAG"_packchunktype:
+      case "FONT"_packchunktype:
       case "MESH"_packchunktype:
       case "MATL"_packchunktype:
+      case "ANIM"_packchunktype:
+      case "PART"_packchunktype:
       case "MODL"_packchunktype:
       case "AEND"_packchunktype:
         {
@@ -83,21 +85,23 @@ void compress(const char *path)
     if (chunk.type == "HEND"_packchunktype)
       break;
 
-    auto position = fout.tellg();
+    uint64_t position = fout.tellg();
 
     switch (chunk.type)
     {
-//      case "CATL"_packchunktype:
+      case "CATL"_packchunktype:
       case "TEXT"_packchunktype:
       case "IMAG"_packchunktype:
       case "FONT"_packchunktype:
       case "MESH"_packchunktype:
       case "MATL"_packchunktype:
+      case "ANIM"_packchunktype:
+      case "PART"_packchunktype:
       case "MODL"_packchunktype:
         {
           uint64_t dataoffset;
 
-          fout.seekg((size_t)position + chunk.length - sizeof(uint64_t), ios::beg);
+          fout.seekg(position + chunk.length - sizeof(uint64_t), ios::beg);
           fout.read((char*)&dataoffset, sizeof(dataoffset));
 
           // write compressed dat
@@ -132,7 +136,7 @@ void compress(const char *path)
 
           // rewrite hdr
 
-          fout.seekg((size_t)position + chunk.length - sizeof(uint64_t), ios::beg);
+          fout.seekg(position + chunk.length - sizeof(uint64_t), ios::beg);
           fout.write((char*)&dataoffset, sizeof(dataoffset));
         }
     }

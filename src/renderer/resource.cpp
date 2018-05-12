@@ -227,7 +227,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 
       auto memory = map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size).release();
 
-      assert(((size_t)memory & (alignof(Buffer)-1)) == 0);
+      assert((reinterpret_cast<uintptr_t>(memory) & (alignof(Buffer)-1)) == 0);
 
       buffer = new(memory) Buffer;
 

@@ -208,6 +208,7 @@ struct SceneSet
   alignas(16) Matrix4f view;
   alignas(16) Matrix4f invview;
   alignas(16) Matrix4f worldview;
+  alignas(16) Matrix4f orthoview;
   alignas(16) Matrix4f prevview;
   alignas(16) Matrix4f skyview;
   alignas(16) Vec4 viewport;
@@ -363,26 +364,26 @@ void PushBuffer::reset()
 ///////////////////////// PushBuffer::push //////////////////////////////////
 void *PushBuffer::push(Renderable::Type type, size_t size, size_t alignment)
 {
-  assert(((size_t)m_tail & (alignof(Header)-1)) == 0);
+  assert((reinterpret_cast<uintptr_t>(m_tail) & (alignof(Header)-1)) == 0);
   assert(size + alignment + sizeof(Header) + alignof(Header) < std::numeric_limits<decltype(Header::size)>::max());
 
   auto header = reinterpret_cast<Header*>(m_tail);
 
-  void *aligned = header + 1;
+  void *result = header + 1;
 
-  size_t space = m_slabsize - (reinterpret_cast<size_t>(aligned) - reinterpret_cast<size_t>(m_slab));
+  size_t space = m_slabsize - (reinterpret_cast<uintptr_t>(result) - reinterpret_cast<uintptr_t>(m_slab));
 
   size = ((size - 1)/alignof(Header) + 1) * alignof(Header);
 
-  if (!std::align(alignment, size, aligned, space))
+  if (!std::align(alignment, size, result, space))
     return nullptr;
 
   header->type = type;
-  header->size = reinterpret_cast<size_t>(aligned) + size - reinterpret_cast<size_t>(header);
+  header->size = reinterpret_cast<uintptr_t>(result) + size - reinterpret_cast<uintptr_t>(header);
 
-  m_tail = static_cast<char*>(aligned) + size;
+  m_tail = static_cast<char*>(result) + size;
 
-  return aligned;
+  return result;
 }
 
 
@@ -6080,6 +6081,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   sceneset.view = context.view;
   sceneset.invview = inverse(sceneset.view);
   sceneset.worldview = context.proj * context.view;
+  sceneset.orthoview = OrthographicProjection(0.0f, 0.0f, (float)context.width, (float)context.height, 0.0f, 1000.0f);
   sceneset.prevview = context.prevcamera.view();
   sceneset.skyview = (inverse(params.skyboxorientation) * Transform::rotation(context.camera.rotation())).matrix() * sceneset.invproj;
   sceneset.viewport = Vec4(context.fbox, context.fboy, context.width - 2*context.fbox, context.height - 2*context.fboy);
