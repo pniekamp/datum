@@ -48,15 +48,15 @@ $ popd
 
 #### Visual Studio 15.7
 ```
-$ mkdir leap/build
-$ pushd leap/build
+$ mkdir leap\build
+$ pushd leap\build
 $ cmake -G "Visual Studio 15 2017 Win64" ..
 $ cmake --build . --target install --config RelWithDebInfo
 $ popd
 ```
 ```
-$ mkdir datum/build
-$ pushd datum/build
+$ mkdir datum\build
+$ pushd datum\build
 $ cmake -G "Visual Studio 15 2017 Win64" ..
 $ cmake --build . --target install --config RelWithDebInfo
 $ popd
