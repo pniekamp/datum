@@ -10,6 +10,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 view;
   mat4 invview;
   mat4 worldview;
+  mat4 orthoview;
   
 } scene;
 
@@ -22,12 +23,6 @@ layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet
   float layers;
 
 } model;
-
-layout(push_constant, std140, row_major) uniform ParamSet
-{ 
-  mat4 orthoview;
-
-} params;
 
 layout(location = 0) out vec3 texcoord0;
 layout(location = 1) out vec3 texcoord1;
@@ -43,5 +38,5 @@ void main()
   
   texblend = fract(model.position.z);
   
-  gl_Position = params.orthoview * modelworld * vec4(0.5 * vertex_position + 0.5, 1);
+  gl_Position = scene.orthoview * modelworld * vec4(0.5 * vertex_position + 0.5, 1);
 }

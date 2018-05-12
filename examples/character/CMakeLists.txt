@@ -42,10 +42,10 @@ if(UNIX)
   target_link_libraries(example-character ${XCB_LIBRARIES})
 endif(UNIX)
 
-if(WIN32)
+if(MINGW)
   target_link_libraries(example-character mingw32)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
-endif(WIN32)
+endif(MINGW)
 
 #
 # install

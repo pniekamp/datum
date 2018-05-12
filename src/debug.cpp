@@ -381,16 +381,14 @@ namespace
   {
     BEGIN_TIMED_BLOCK(DebugOverlay, Color3(1.0f, 0.0f, 0.0f))
 
-    SpriteList overlay;
+    SpriteList spritelist;
     SpriteList::BuildState buildstate;
 
-    if (overlay.begin(buildstate, context, resources))
+    if (spritelist.begin(buildstate, context, resources))
     {
       auto mousepos = g_interaction.mousepos;
 
       auto cursor = Vec2(5.0f, 5.0f);
-
-      overlay.viewport(buildstate, viewport);
 
       //
       // Frame Timing
@@ -401,7 +399,7 @@ namespace
         char buffer[128];
         snprintf(buffer, sizeof(buffer), "%f (%.0f fps)", g_frametime / clock_frequency(), clock_frequency() / g_frametime + 0.5);
 
-        overlay.push_text(buildstate, cursor + Vec2(0, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleVisible) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+        spritelist.push_text(buildstate, cursor + Vec2(0, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleVisible) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
         if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
           *interaction = { Ui::Interaction::ToggleVisible };
@@ -426,7 +424,7 @@ namespace
           Vec2 labelorigin = cursor + Vec2(16.0f, 2.0f);
           Vec2 timingsorigin = cursor + Vec2(LabelWidth, 6.0f);
 
-          overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, TimingsHeight}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
+          spritelist.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, TimingsHeight}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
 
           float scale = (TimingsWidth - LabelWidth)/(g_blockend - g_blockbeg);
 
@@ -458,7 +456,7 @@ namespace
 
                 Rect2 barrect({ beg * scale, BarHeight*block.level }, { end * scale, BarHeight*block.level + 8.0f });
 
-                overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
+                spritelist.push_rect(buildstate, timingsorigin, barrect, block.info->color);
 
                 if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), mousepos))
                 {
@@ -470,7 +468,7 @@ namespace
               char buffer[128];
               snprintf(buffer, sizeof(buffer), "%s (%f)", g_threads[i].blocks[0].info->name, totaltime / max(totalcount, 1) / clock_frequency());
 
-              overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
+              spritelist.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
 
               labelorigin.y += BarDepth * BarHeight;
               timingsorigin.y += BarDepth * BarHeight;
@@ -482,7 +480,7 @@ namespace
             char buffer[128];
             snprintf(buffer, sizeof(buffer), "%s (%f)", tipblk->info->name, (tipblk->end - tipblk->beg) / clock_frequency());
 
-            overlay.push_text(buildstate, tippos, font->height(), font, buffer);
+            spritelist.push_text(buildstate, tippos, font->height(), font, buffer);
           }
 
           //
@@ -511,7 +509,7 @@ namespace
 
                 Rect2 barrect({ beg * scale, 0.0f }, { end * scale, 8.0 });
 
-                overlay.push_rect(buildstate, timingsorigin, barrect, block.info->color);
+                spritelist.push_rect(buildstate, timingsorigin, barrect, block.info->color);
 
                 if (contains(Rect2(timingsorigin + barrect.min, timingsorigin + barrect.max), mousepos))
                 {
@@ -523,7 +521,7 @@ namespace
               char buffer[128];
               snprintf(buffer, sizeof(buffer), "GPU (%f)", totaltime / Frames / clock_frequency());
 
-              overlay.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
+              spritelist.push_text(buildstate, labelorigin + Vec2(0.0f, font->ascent), font->height(), font, buffer);
 
               labelorigin.y += BarDepth * BarHeight;
               timingsorigin.y += BarDepth * BarHeight;
@@ -534,11 +532,11 @@ namespace
               char buffer[128];
               snprintf(buffer, sizeof(buffer), "%s (%f)", tipblk->info->name, (tipblk->end - tipblk->beg) / clock_frequency());
 
-              overlay.push_text(buildstate, tippos, font->height(), font, buffer);
+              spritelist.push_text(buildstate, tippos, font->height(), font, buffer);
             }
           }
 
-          overlay.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+          spritelist.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
           if (contains(Rect2(cursor, cursor + Vec2(15, font->lineheight())), mousepos))
             *interaction = { Ui::Interaction::ToggleBlockTiming };
@@ -549,7 +547,7 @@ namespace
         {
           char buffer[] = "Block Timing";
 
-          overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+          spritelist.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBlockTiming) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
           if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
             *interaction = { Ui::Interaction::ToggleBlockTiming };
@@ -566,7 +564,7 @@ namespace
           const float GraphHeight = 80.0f;
           const float FpsScale = GraphHeight / (1.0f/15.0f);
 
-          overlay.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, GraphHeight + 5.0f}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
+          spritelist.push_rect(buildstate, cursor, Rect2({0.0f, 0.0f}, {viewport.width - 10.0f, GraphHeight + 5.0f}), Color4(0.0f, 0.0f, 0.0f, 0.25f));
 
           size_t fpswidth = viewport.width - 75;
           size_t fpsbase = max(g_fpshistorytail, fpswidth) - fpswidth;
@@ -576,7 +574,7 @@ namespace
             auto a = g_fpshistory[(fpsbase + i - 1) % extentof(g_fpshistory)] * FpsScale;
             auto b = g_fpshistory[(fpsbase + i) % extentof(g_fpshistory)] * FpsScale;
 
-            overlay.push_line(buildstate, cursor + Vec2(j, max(GraphHeight-a, 0.0f)), cursor + Vec2(j+1, max(GraphHeight-b, 0.0f)), Color4(0.5f, 0.8f, 0.5f, 1.0f));
+            spritelist.push_line(buildstate, cursor + Vec2(j, max(GraphHeight-a, 0.0f)), cursor + Vec2(j+1, max(GraphHeight-b, 0.0f)), Color4(0.5f, 0.8f, 0.5f, 1.0f));
           }
 
           size_t resbase = viewport.width - 70;
@@ -584,7 +582,7 @@ namespace
           char tiptxt[128] = {};
 
           auto resourceslots = g_resources.resourceslotsused / (float)g_resources.resourceslotscapacity;
-          overlay.push_rect(buildstate, cursor + Vec2(resbase, 0), Rect2({0, GraphHeight * (1 - resourceslots)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+          spritelist.push_rect(buildstate, cursor + Vec2(resbase, 0), Rect2({0, GraphHeight * (1 - resourceslots)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
           if (contains(Rect2(cursor + Vec2(resbase, 0), cursor + Vec2(resbase + 12, GraphHeight)), mousepos))
           {
@@ -592,7 +590,7 @@ namespace
           }
 
           auto resourcebuffer = g_resources.resourcebufferused / (float)g_resources.resourcebuffercapacity;
-          overlay.push_rect(buildstate, cursor + Vec2(resbase + 15, 0), Rect2({0, GraphHeight * (1 - resourcebuffer)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+          spritelist.push_rect(buildstate, cursor + Vec2(resbase + 15, 0), Rect2({0, GraphHeight * (1 - resourcebuffer)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
           if (contains(Rect2(cursor + Vec2(resbase + 15, 0), cursor + Vec2(resbase + 27, GraphHeight)), mousepos))
           {
@@ -600,7 +598,7 @@ namespace
           }
 
           auto renderstorage = g_resources.renderstorageused / (float)g_resources.renderstoragecapacity;
-          overlay.push_rect(buildstate, cursor + Vec2(resbase + 30, 0), Rect2({0, GraphHeight * (1 - renderstorage)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+          spritelist.push_rect(buildstate, cursor + Vec2(resbase + 30, 0), Rect2({0, GraphHeight * (1 - renderstorage)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
           if (contains(Rect2(cursor + Vec2(resbase + 30, 0), cursor + Vec2(resbase + 42, GraphHeight)), mousepos))
           {
@@ -608,7 +606,7 @@ namespace
           }
 
           auto renderlumps = g_resources.renderlumpsused / (float)g_resources.renderlumpscapacity;
-          overlay.push_rect(buildstate, cursor + Vec2(resbase + 45, 0), Rect2({0, GraphHeight * (1 - renderlumps)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
+          spritelist.push_rect(buildstate, cursor + Vec2(resbase + 45, 0), Rect2({0, GraphHeight * (1 - renderlumps)}, {12, GraphHeight}), Color4(0.2f, 0.2f, 0.7f, 1.0f));
 
           if (contains(Rect2(cursor + Vec2(resbase + 45, 0), cursor + Vec2(resbase + 57, GraphHeight)), mousepos))
           {
@@ -617,10 +615,10 @@ namespace
 
           if (tiptxt[0] != 0)
           {
-            overlay.push_text(buildstate, Vec2(mousepos.x - font->width(tiptxt), mousepos.y), font->height(), font, tiptxt);
+            spritelist.push_text(buildstate, Vec2(mousepos.x - font->width(tiptxt), mousepos.y), font->height(), font, tiptxt);
           }
 
-          overlay.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+          spritelist.push_text(buildstate, cursor + Vec2(7, font->ascent), font->height(), font, "-", ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
           if (contains(Rect2(cursor, cursor + Vec2(15, font->lineheight())), mousepos))
             *interaction = { Ui::Interaction::ToggleFrameGraph };
@@ -631,7 +629,7 @@ namespace
         {
           char buffer[] = "Frame Graph";
 
-          overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+          spritelist.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleFrameGraph) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
           if (contains(Rect2(cursor, cursor + Vec2(font->width(buffer), font->lineheight())), mousepos))
             *interaction = { Ui::Interaction::ToggleFrameGraph };
@@ -654,7 +652,7 @@ namespace
             char buffer[128] = "";
             strncat(buffer, group.name, group.namelen);
 
-            overlay.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleGroup, i) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+            spritelist.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleGroup, i) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
             if (contains(Rect2(cursor, cursor + Vec2(5 + font->width(buffer), font->lineheight())), mousepos))
               *interaction = { Ui::Interaction::ToggleGroup, i };
@@ -673,7 +671,7 @@ namespace
 
                 snprintf(buffer, sizeof(buffer), "%s: ", entry.label);
 
-                overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer);
+                spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer);
 
                 x += font->width(buffer);
 
@@ -681,7 +679,7 @@ namespace
                 {
                   snprintf(buffer, sizeof(buffer), "%s", entry.value<bool>() ? "true" : "false");
 
-                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBoolEntry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+                  spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleBoolEntry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
                   if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
                     *interaction = { Ui::Interaction::ToggleBoolEntry, k };
@@ -693,7 +691,7 @@ namespace
                 {
                   snprintf(buffer, sizeof(buffer), "%d", entry.value<int>());
 
-                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideIntEntry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+                  spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideIntEntry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
                   if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
                     *interaction = { Ui::Interaction::SlideIntEntry, k };
@@ -705,7 +703,7 @@ namespace
                 {
                   snprintf(buffer, sizeof(buffer), "%f", entry.value<float[]>()[0]);
 
-                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat0Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+                  spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat0Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
                   if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
                     *interaction = { Ui::Interaction::SlideFloat0Entry, k };
@@ -717,8 +715,8 @@ namespace
                 {
                   snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[1]);
 
-                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
-                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat1Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+                  spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
+                  spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat1Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
                   if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
                     *interaction = { Ui::Interaction::SlideFloat1Entry, k };
@@ -730,8 +728,8 @@ namespace
                 {
                   snprintf(buffer, sizeof(buffer), " %f", entry.value<float[]>()[2]);
 
-                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
-                  overlay.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat2Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
+                  spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, ",");
+                  spritelist.push_text(buildstate, cursor + Vec2(x, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::SlideFloat2Entry, k) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
                   if (entry.editable && contains(Rect2(cursor + Vec2(x, 0), cursor + Vec2(x + font->width(buffer), font->lineheight())), mousepos))
                     *interaction = { Ui::Interaction::SlideFloat2Entry, k };
@@ -746,11 +744,11 @@ namespace
         }
       }
 
-      overlay.finalise(buildstate);
+      spritelist.finalise(buildstate);
 
       if (auto entry = pushbuffer.push<Renderable::Sprites>())
       {
-        entry->spritecommands = overlay.spritecommands;
+        entry->spritecommands = spritelist.spritecommands;
       }
     }
 

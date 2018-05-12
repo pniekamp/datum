@@ -12,7 +12,6 @@
 
 using namespace std;
 using namespace lml;
-using leap::alignto;
 using leap::indexof;
 
 //|---------------------- Pose ----------------------------------------------

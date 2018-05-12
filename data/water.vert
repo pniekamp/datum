@@ -12,7 +12,8 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 invproj;
   mat4 view;
   mat4 invview;
-  mat4 worldview;  
+  mat4 worldview;
+  mat4 orthoview;  
 
 } scene;
 

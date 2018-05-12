@@ -332,10 +332,10 @@ class shared_resource
 template<typename Resource>
 void request(DatumPlatform::PlatformInterface &platform, ResourceManager &resources, Resource const *resource, int *ready, int *total)
 {
-  *total += 1;
-
   if (resource)
   {
+    *total += 1;
+
     resources.request(platform, resource);
 
     if (resource->ready())
