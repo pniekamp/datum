@@ -118,6 +118,8 @@ bool SpotCasterList::begin(BuildState &state, SpotMapContext &context, ResourceM
 
   begin(context.vulkan, castercommands, 0, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
+  bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
   m_commandlump = { resources, commandlump };
 
   state.commandlump = commandlump;
@@ -377,19 +379,7 @@ SpotMap const *ResourceManager::create<SpotMap>(int width, int height)
   spotmap->transferlump = nullptr;
   spotmap->state = SpotMap::State::Empty;
 
-  spotmap->texture = create_texture(vulkan, 0, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-  VkSamplerCreateInfo depthsamplerinfo = {};
-  depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  depthsamplerinfo.magFilter = VK_FILTER_LINEAR;
-  depthsamplerinfo.minFilter = VK_FILTER_LINEAR;
-  depthsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  depthsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  depthsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  depthsamplerinfo.compareEnable = VK_TRUE;
-  depthsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
-
-  spotmap->texture.sampler = create_sampler(vulkan, depthsamplerinfo);
+  spotmap->texture = create_texture(vulkan, 0, width, height, 1, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
   spotmap->state = SpotMap::State::Ready;
 
@@ -427,7 +417,7 @@ void ResourceManager::request<SpotMap>(DatumPlatform::PlatformInterface &platfor
 
       if (auto bits = m_assets->request(platform, asset))
       {
-        assert(asset->format == PackImageHeader::depth);
+        assert(asset->format == PackImageHeader::f32);
 
         if (auto lump = acquire_lump(spotmap_datasize(asset->width, asset->height)))
         {
@@ -435,7 +425,7 @@ void ResourceManager::request<SpotMap>(DatumPlatform::PlatformInterface &platfor
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
           memcpy(lump->memory(), bits, lump->transferbuffer.size);
 
@@ -446,18 +436,6 @@ void ResourceManager::request<SpotMap>(DatumPlatform::PlatformInterface &platfor
           submit(lump);
 
           slot->transferlump = lump;
-
-          VkSamplerCreateInfo depthsamplerinfo = {};
-          depthsamplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-          depthsamplerinfo.magFilter = VK_FILTER_LINEAR;
-          depthsamplerinfo.minFilter = VK_FILTER_LINEAR;
-          depthsamplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-          depthsamplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-          depthsamplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-          depthsamplerinfo.compareEnable = VK_TRUE;
-          depthsamplerinfo.compareOp = VK_COMPARE_OP_LESS;
-
-          slot->texture.sampler = create_sampler(vulkan, depthsamplerinfo);
         }
       }
     }
@@ -545,6 +523,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     return false;
 
   context.pipelinelayout = rendercontext.pipelinelayout;
+  context.scenedescriptor = rendercontext.scenedescriptor;
   context.materialsetlayout = rendercontext.materialsetlayout;
   context.modelsetlayout = rendercontext.modelsetlayout;
 
@@ -555,7 +534,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     VkDescriptorPoolSize typecounts[2] = {};
     typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
     typecounts[0].descriptorCount = 16;
-    typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    typecounts[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     typecounts[1].descriptorCount = 48;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
@@ -711,22 +690,12 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     {
       context.srcblitdescriptors[i] = allocate_descriptorset(context.vulkan, context.descriptorpool, context.materialsetlayout);
     }
-
-    VkSamplerCreateInfo samplerinfo = {};
-    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerinfo.magFilter = VK_FILTER_LINEAR;
-    samplerinfo.minFilter = VK_FILTER_LINEAR;
-    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-
-    context.srcblitsampler = create_sampler(context.vulkan, samplerinfo);
   }
 
   if (context.modelspotmappipeline == 0)
   {
     //
-    // Model Shadow Pipeline
+    // Model SpotMap Pipeline
     //
 
     auto vs = assets.find(CoreAsset::model_spotmap_vert);
@@ -820,7 +789,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
   if (context.actorspotmappipeline == 0)
   {
     //
-    // Actor Shadow Pipeline
+    // Actor SpotMap Pipeline
     //
 
     auto vs = assets.find(CoreAsset::actor_spotmap_vert);
@@ -932,7 +901,7 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
   if (context.foilagespotmappipeline == 0)
   {
     //
-    // Foilage Shadow Pipeline
+    // Foilage SpotMap Pipeline
     //
 
     auto vs = assets.find(CoreAsset::foilage_spotmap_vert);
@@ -1094,7 +1063,8 @@ void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_
 
       begin(context.vulkan, srcblitcommands, target->framebuffer, context.renderpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
       bind_pipeline(srcblitcommands, context.srcblitpipeline, 0, 0, target->width, target->height, VK_PIPELINE_BIND_POINT_GRAPHICS);
-      bind_texture(context.vulkan, srcblitdescriptor, ShaderLocation::sourcemap, source->texture.imageview, context.srcblitsampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      bind_descriptor(srcblitcommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+      bind_texture(context.vulkan, srcblitdescriptor, ShaderLocation::sourcemap, source->texture.imageview, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
       bind_descriptor(srcblitcommands, context.pipelinelayout, ShaderLocation::materialset, srcblitdescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
       bind_vertexbuffer(srcblitcommands, 0, context.rendercontext->unitquad);
       draw(srcblitcommands, context.rendercontext->unitquad.vertexcount, 1, 0, 0);

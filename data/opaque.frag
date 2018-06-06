@@ -1,8 +1,8 @@
 #version 440 core
 #include "bound.glsl"
+#include "transform.glsl"
 #include "camera.glsl"
 #include "gbuffer.glsl"
-#include "transform.glsl"
 #include "lighting.glsl"
 
 layout(constant_id = 52) const uint DecalMask = 4;
@@ -42,13 +42,16 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D colormap;
-layout(set=0, binding=13) uniform sampler2DArrayShadow shadowmap;
-layout(set=0, binding=14) uniform sampler2DArray envbrdfmap;
-layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
-layout(set=0, binding=16) uniform sampler2DShadow spotmaps[MaxSpotLights];
-layout(set=0, binding=17) uniform sampler2DArray decalmaps[MaxDecalMaps];
-layout(set=0, binding=18) uniform sampler3D fogmap;
+layout(set=0, binding=1) uniform sampler repeatsampler;
+layout(set=0, binding=2) uniform sampler clampedsampler;
+
+layout(set=0, binding=5) uniform sampler2D colormap;
+layout(set=0, binding=17) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=18) uniform sampler2DArray envbrdfmap;
+layout(set=0, binding=19) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=20) uniform sampler2DShadow spotmaps[MaxSpotLights];
+layout(set=0, binding=21) uniform sampler2DArray decalmaps[MaxDecalMaps];
+layout(set=0, binding=22) uniform sampler3D fogmap;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -60,9 +63,9 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
 
 } params;
 
-layout(set=1, binding=1) uniform sampler2DArray albedomap;
-layout(set=1, binding=2) uniform sampler2DArray surfacemap;
-layout(set=1, binding=3) uniform sampler2DArray normalmap;
+layout(set=1, binding=1) uniform texture2DArray albedomap;
+layout(set=1, binding=2) uniform texture2DArray surfacemap;
+layout(set=1, binding=3) uniform texture2DArray normalmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in mat3 tbnworld;
@@ -109,20 +112,21 @@ float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2
 void main()
 {
   ivec2 xy = ivec2(gl_FragCoord.xy);
-  ivec2 viewport = textureSize(colormap, 0).xy;
+  ivec2 fbosize = textureSize(colormap, 0).xy;
 
   float depth = gl_FragCoord.z;
 
-  uint tile = cluster_tile(xy, viewport);
-  uint tilez = cluster_tilez(depth);
+  uint tile = cluster_tile(xy, fbosize);
+  uint tilez = cluster_tilez(1 - depth);
 
-  vec3 normal = normalize(tbnworld * (2 * texture(normalmap, vec3(texcoord, 0)).xyz - 1));
   vec3 eyevec = normalize(scene.camera.position - position);
 
   MainLight mainlight = scene.mainlight;
 
-  vec4 albedo = texture(albedomap, vec3(texcoord, 0));
-  vec4 surface = texture(surfacemap, vec3(texcoord, 0));
+  vec4 albedo = texture(sampler2DArray(albedomap, repeatsampler), vec3(texcoord, 0));
+  vec4 surface = texture(sampler2DArray(surfacemap, repeatsampler), vec3(texcoord, 0));
+
+  vec3 normal = normalize(tbnworld * (2 * texture(sampler2DArray(normalmap, repeatsampler), vec3(texcoord, 0)).xyz - 1));
 
   if (albedo.a < 1.0)
     discard;
@@ -148,7 +152,7 @@ void main()
         { 
           vec3 texcoord = vec3(decal.texcoords.xy + decal.texcoords.zw * (0.5 * localpos.xy + 0.5), decal.layer);
           
-          float lod = 0.25 * (decal.texcoords.z * textureSize(decalmaps[decal.albedomap], 0).x) / (decal.halfdim.x * viewport.x) * view_depth(scene.proj, depth) - 0.5;
+          float lod = 0.25 * (decal.texcoords.z * textureSize(decalmaps[decal.albedomap], 0).x) / (decal.halfdim.x * fbosize.x) * view_depth(scene.proj, depth) - 0.5;
 
           vec4 decalalbedo = textureLod(decalmaps[decal.albedomap], texcoord, lod);
           vec4 decalnormal = textureLod(decalmaps[decal.normalmap], texcoord, lod);
@@ -254,7 +258,7 @@ void main()
   
   // Global Fog
   
-  vec4 fog = global_fog(xy, viewport, view_depth(scene.proj, depth), fogmap);
+  vec4 fog = global_fog(xy, fbosize, view_depth(scene.proj, depth), fogmap);
   
   // Final Color
 

@@ -86,7 +86,7 @@ inline size_t pack_payload_size(PackTextHeader const &text)
 
 struct PackImageHeader
 {
-  enum { rgba = 0, rgba_bc3 = 3, rgbe = 5, depth = 11 };
+  enum { rgba = 0, rgba_bc3 = 3, rgbe = 5, f32 = 11 };
 
   uint32_t width;
   uint32_t height;

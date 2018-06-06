@@ -13,13 +13,14 @@
 namespace CoreAsset
 {
   const uint32_t magic = 0x65726F43;
-  const uint32_t version = 42;
+  const uint32_t version = 44;
 
   enum
   {
     catalog,
     white_diffuse,
     nominal_normal,
+    zero_depth,
     unit_quad,
     unit_cube,
     unit_cone,
@@ -45,8 +46,10 @@ namespace CoreAsset
     foilage_prepass_vert,
     foilage_geometry_vert,
     foilage_spotmap_vert,
-    terrain_vert,
+    terrain_prepass_vert,
+    terrain_geometry_vert,
     terrain_frag,
+    depth_blit_comp,
     depth_mip_comp,
     esm_gen_comp,
     esm_hblur_comp,

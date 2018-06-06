@@ -43,7 +43,7 @@ class SpriteList
 
       CommandLump *commandlump = nullptr;
 
-      VkSampler texture;
+      VkImageView texture;
       lml::Color4 color;
     };
 
@@ -51,7 +51,7 @@ class SpriteList
 
     void push_material(BuildState &state, Vulkan::Texture const &texture, lml::Color4 const &tint);
 
-    void push_model(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec4 const &texcoords, float layer0, float layer1);
+    void push_model(BuildState &state, lml::Vec2 const &position, lml::Vec2 const &xbasis, lml::Vec2 const &ybasis, lml::Vec4 const &extent, float layer0, float layer1);
 
     void push_line(BuildState &state, lml::Vec2 const &a, lml::Vec2 const &b, lml::Color4 const &color, float thickness = 1.0f);
 

@@ -217,6 +217,48 @@ bool prepare_skybox_context(DatumPlatform::PlatformInterface &platform, SkyBoxCo
     context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
   }
 
+  if (context.repeatsampler == 0)
+  {
+    // Repeat Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.repeatsampler = create_sampler(context.vulkan, samplerinfo);
+  }
+
+  if (context.clampedsampler == 0)
+  {
+    // Clamped Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.clampedsampler = create_sampler(context.vulkan, samplerinfo);
+  }
+
   if (context.descriptorsetlayout == 0)
   {
     // Skybox Set
@@ -356,8 +398,8 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
   {
     assert(params.clouds->ready());
 
-    bind_texture(context.vulkan, context.skyboxdescriptor, ShaderLocation::clouddensitymap, params.clouds->albedomap->texture);
-    bind_texture(context.vulkan, context.skyboxdescriptor, ShaderLocation::cloudnormalmap, params.clouds->normalmap->texture);
+    bind_texture(context.vulkan, context.skyboxdescriptor, ShaderLocation::clouddensitymap, params.clouds->albedomap->texture, context.repeatsampler);
+    bind_texture(context.vulkan, context.skyboxdescriptor, ShaderLocation::cloudnormalmap, params.clouds->normalmap->texture, context.repeatsampler);
 
     skyboxset.cloudlayers = 1;
     skyboxset.cloudheight = params.cloudheight;
@@ -403,7 +445,7 @@ void render_skybox(SkyBoxContext &context, SkyBox const *target, SkyBoxParams co
       convolveset.samples = params.convolesamples;
       convolveset.roughness = (float)level / (float)(levels - 1);
 
-      bind_texture(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvesrc, context.convolveimageviews[level-1], target->texture.sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      bind_texture(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvesrc, context.convolveimageviews[level-1], context.clampedsampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
       bind_image(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvedst, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 

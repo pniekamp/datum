@@ -60,7 +60,7 @@ Transform transform_inverse(Transform t)
   return result;
 }
 
-///////////////////////// transform_inverse /////////////////////////////////
+///////////////////////// transform_negate //////////////////////////////////
 Transform transform_negate(Transform t)
 {
   Transform result;

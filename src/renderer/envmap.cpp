@@ -147,7 +147,7 @@ EnvMap const *ResourceManager::create<EnvMap>(int width, int height, EnvMap::For
 
   begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  envmap->texture = create_texture(vulkan, setupbuffer, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+  envmap->texture = create_texture(vulkan, setupbuffer, width, height, 6, 8, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
   end(vulkan, setupbuffer);
 
@@ -224,7 +224,7 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
           memcpy(lump->memory(), bits, lump->transferbuffer.size);
 
@@ -346,6 +346,48 @@ bool prepare_convolve_context(DatumPlatform::PlatformInterface &platform, Convol
     context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
   }
 
+  if (context.repeatsampler == 0)
+  {
+    // Repeat Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.repeatsampler = create_sampler(context.vulkan, samplerinfo);
+  }
+
+  if (context.clampedsampler == 0)
+  {
+    // Clamped Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.clampedsampler = create_sampler(context.vulkan, samplerinfo);
+  }
+
   if (context.descriptorsetlayout == 0)
   {
     // Convolve Set
@@ -461,7 +503,7 @@ void convolve(ConvolveContext &context, EnvMap const *target, ConvolveParams con
     convolveset.samples = params.samples;
     convolveset.roughness = (float)level / (float)(levels - 1);
 
-    bind_texture(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvesrc, context.convolveimageviews[level-1], target->texture.sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    bind_texture(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvesrc, context.convolveimageviews[level-1], context.clampedsampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     bind_image(context.vulkan, context.convolvedescriptors[level], ShaderLocation::convolvedst, context.convolveimageviews[level], VK_IMAGE_LAYOUT_GENERAL);
 
@@ -546,6 +588,49 @@ bool prepare_project_context(DatumPlatform::PlatformInterface &platform, Project
     pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
     context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
+  }
+
+
+  if (context.repeatsampler == 0)
+  {
+    // Repeat Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.repeatsampler = create_sampler(context.vulkan, samplerinfo);
+  }
+
+  if (context.clampedsampler == 0)
+  {
+    // Clamped Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.clampedsampler = create_sampler(context.vulkan, samplerinfo);
   }
 
   if (context.descriptorsetlayout == 0)
@@ -644,7 +729,7 @@ void project(ProjectContext &context, EnvMap const *source, Irradiance &target, 
 
   bind_pipeline(commandbuffer, context.projectpipeline, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  bind_texture(context.vulkan, context.projectdescriptor, ShaderLocation::projectsrc, source->texture);
+  bind_texture(context.vulkan, context.projectdescriptor, ShaderLocation::projectsrc, source->texture, context.clampedsampler);
 
   bind_buffer(context.vulkan, context.projectdescriptor, ShaderLocation::projectdst, context.probebuffer, 0, context.probebuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 

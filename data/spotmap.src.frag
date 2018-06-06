@@ -1,11 +1,14 @@
 #version 440 core
 
-layout(set=1, binding=1) uniform sampler2D sourcemap;
+layout(set=0, binding=1) uniform sampler repeatsampler;
+layout(set=0, binding=2) uniform sampler clampedsampler;
+
+layout(set=1, binding=1) uniform texture2D sourcemap;
 
 out float gl_FragDepth;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  gl_FragDepth = texelFetch(sourcemap, ivec2(gl_FragCoord.xy), 0).r;
+  gl_FragDepth = texelFetch(sampler2D(sourcemap, clampedsampler), ivec2(gl_FragCoord.xy), 0).r;
 }

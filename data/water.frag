@@ -1,8 +1,8 @@
 #version 440 core
 #include "bound.glsl"
+#include "transform.glsl"
 #include "camera.glsl"
 #include "gbuffer.glsl"
-#include "transform.glsl"
 #include "lighting.glsl"
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
@@ -40,13 +40,16 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D colormap;
-layout(set=0, binding=13) uniform sampler2DArrayShadow shadowmap;
-layout(set=0, binding=14) uniform sampler2DArray envbrdfmap;
-layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
-layout(set=0, binding=16) uniform sampler2DShadow spotmaps[MaxSpotLights];
-layout(set=0, binding=17) uniform sampler2DArray decalmaps[MaxDecalMaps];
-layout(set=0, binding=18) uniform sampler3D fogmap;
+layout(set=0, binding=1) uniform sampler repeatsampler;
+layout(set=0, binding=2) uniform sampler clampedsampler;
+
+layout(set=0, binding=5) uniform sampler2D colormap;
+layout(set=0, binding=17) uniform sampler2DArrayShadow shadowmap;
+layout(set=0, binding=18) uniform sampler2DArray envbrdfmap;
+layout(set=0, binding=19) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=20) uniform sampler2DShadow spotmaps[MaxSpotLights];
+layout(set=0, binding=21) uniform sampler2D decalmaps[MaxDecalMaps];
+layout(set=0, binding=22) uniform sampler3D fogmap;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -62,11 +65,11 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
 
 } params;
 
-layout(set=1, binding=1) uniform sampler2DArray albedomap;
-layout(set=1, binding=2) uniform samplerCube specularmap;
-layout(set=1, binding=3) uniform sampler2DArray normalmap;
+layout(set=1, binding=1) uniform texture2DArray albedomap;
+layout(set=1, binding=2) uniform textureCube specularmap;
+layout(set=1, binding=3) uniform texture2DArray normalmap;
 
-layout(set=0, binding=11, input_attachment_index=0) uniform subpassInput depthmap;
+layout(set=0, binding=15, input_attachment_index=0) uniform subpassInput depthmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 texcoord;
@@ -111,16 +114,16 @@ float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2
 void main()
 {
   ivec2 xy = ivec2(gl_FragCoord.xy);
-  ivec2 viewport = textureSize(colormap, 0).xy;
+  ivec2 fbosize = textureSize(colormap, 0).xy;
 
   float depth = gl_FragCoord.z;
 
-  uint tile = cluster_tile(xy, viewport);
-  uint tilez = cluster_tilez(depth);
+  uint tile = cluster_tile(xy, fbosize);
+  uint tilez = cluster_tilez(1 - depth);
 
-  vec4 bump0 = texture(normalmap, vec3(params.bumpscale.xy*(texcoord + params.flow), 0));
-  vec4 bump1 = texture(normalmap, vec3(params.bumpscale.xy*(2.0*texcoord + 4.0*params.flow), 0));
-  vec4 bump2 = texture(normalmap, vec3(params.bumpscale.xy*(4.0*texcoord + 8.0*params.flow), 0));
+  vec4 bump0 = texture(sampler2DArray(normalmap, repeatsampler), vec3(params.bumpscale.xy*(texcoord + params.flow), 0));
+  vec4 bump1 = texture(sampler2DArray(normalmap, repeatsampler), vec3(params.bumpscale.xy*(2.0*texcoord + 4.0*params.flow), 0));
+  vec4 bump2 = texture(sampler2DArray(normalmap, repeatsampler), vec3(params.bumpscale.xy*(4.0*texcoord + 8.0*params.flow), 0));
 
   vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, params.bumpscale.z)); 
   vec3 eyevec = normalize(scene.camera.position - position);
@@ -130,7 +133,7 @@ void main()
   float scale = 0.05 * dist;
   float facing = 1 - dot(eyevec, normal);
 
-  vec4 albedo = textureLod(albedomap, vec3(clamp(vec2(scale, facing), 1/255.0, 254/255.0), 0), 0);
+  vec4 albedo = texture(sampler2DArray(albedomap, clampedsampler), vec3(vec2(scale, facing), 0));
   
   Material material = make_material(albedo.rgb * params.color.rgb, params.emissive, params.metalness, params.reflectivity, params.roughness);
 
@@ -159,8 +162,8 @@ void main()
 
   vec3 localray = localpos + hittest.y * localspecular;
   
-  envdiffuse = textureLod(specularmap, localdiffuse * vec3(1, -1, -1), 6.3).rgb;
-  envspecular = textureLod(specularmap, localray * vec3(1, -1, -1), material.roughness * 8.0).rgb;
+  envdiffuse = textureLod(samplerCube(specularmap, clampedsampler), localdiffuse * vec3(1, -1, -1), 6.3).rgb;
+  envspecular = textureLod(samplerCube(specularmap, clampedsampler), localray * vec3(1, -1, -1), material.roughness * 8.0).rgb;
 
   vec3 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), material.roughness, 0)).xyz;
 
@@ -212,7 +215,7 @@ void main()
 
   // Global Fog
 
-  vec4 fog = global_fog(xy, viewport, view_depth(scene.proj, depth), fogmap);
+  vec4 fog = global_fog(xy, fbosize, view_depth(scene.proj, depth), fogmap);
 
   // Transmission Fog
 

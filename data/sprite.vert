@@ -33,8 +33,8 @@ void main()
 {
   mat4 modelworld = { vec4(model.xbasis, 0, 0), vec4(model.ybasis, 0, 0), vec4(0), vec4(model.position.xy, 0, 1) };
 
-  texcoord0 = vec3(model.texcoords.xy + model.texcoords.zw * vertex_texcoord, floor(model.position.z));
-  texcoord1 = vec3(model.texcoords.xy + model.texcoords.zw * vertex_texcoord, floor(model.position.w));
+  texcoord0 = vec3(model.texcoords.zw * vertex_texcoord + model.texcoords.xy, floor(model.position.z));
+  texcoord1 = vec3(model.texcoords.zw * vertex_texcoord + model.texcoords.xy, floor(model.position.w));
   
   texblend = fract(model.position.z);
   

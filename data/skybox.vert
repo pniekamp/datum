@@ -25,5 +25,5 @@ void main()
 {
   texcoord = (scene.skyview * vec4(vertex_position.xy, -1, 1)).xyz * vec3(1, -1, -1);
 
-  gl_Position = vec4(vertex_position.xy, 1, 1);
+  gl_Position = vec4(vertex_position.xy, 0, 1);
 }

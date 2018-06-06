@@ -7,9 +7,9 @@ layout(constant_id = 84) const uint Radius = 16;
 
 const uint SizeX = gl_WorkGroupSize.x - Radius - Radius;
 
-layout(set=0, binding=19) uniform sampler2D src;
+layout(set=0, binding=23) uniform sampler2D src;
 
-layout(set=0, binding=34) writeonly uniform image2D dest;
+layout(set=0, binding=38) writeonly uniform image2D dest;
 
 shared vec3 texels[SizeX + Radius + Radius];
 
@@ -35,9 +35,9 @@ void main()
   gl_WorkGroupSize;
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   ivec2 tile = ivec2(gl_WorkGroupID.x * SizeX, gl_WorkGroupID.y); 
-  ivec2 viewport = imageSize(dest);
+  ivec2 srcsize = textureSize(src, 0).xy;
   
-  texels[ij.x] = texelFetch(src, ivec2(clamp(tile.x + ij.x - int(Radius), 0, viewport.x - 1), tile.y + ij.y), 0).rgb;
+  texels[ij.x] = texelFetch(src, ivec2(clamp(tile.x + ij.x - int(Radius), 0, srcsize.x - 1), tile.y + ij.y), 0).rgb;
   
   barrier();
   

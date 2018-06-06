@@ -46,14 +46,17 @@ struct SkyBoxContext
 
   Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::Pipeline skyboxpipeline;
-  Vulkan::Pipeline convolvepipeline;
+  Vulkan::Sampler repeatsampler;
+  Vulkan::Sampler clampedsampler;
 
   Vulkan::DescriptorSetLayout descriptorsetlayout;
 
   Vulkan::DescriptorSet skyboxdescriptor;
   Vulkan::DescriptorSet convolvedescriptors[8];
   Vulkan::ImageView convolveimageviews[8];
+
+  Vulkan::Pipeline skyboxpipeline;
+  Vulkan::Pipeline convolvepipeline;
 
   Vulkan::Fence fence;
 

@@ -69,7 +69,7 @@ void example_init(PlatformInterface &platform)
     indices[1] = 1;
     indices[2] = 2;
 
-    state.resources.update(state.mesh, lump);
+    state.resources.update(state.mesh, lump, Bound3(Vec3(-1.0f, -1.0f, -3.0f), Vec3(1.0f, 1.0f, -3.0f)));
 
     state.resources.release_lump(lump);
   }

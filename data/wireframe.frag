@@ -14,7 +14,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   
 } scene;
 
-layout(set=0, binding=5) uniform sampler2D depthmap;
+layout(set=0, binding=9) uniform sampler2D depthmap;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -37,7 +37,7 @@ void main()
 
   float depthfade = 1.0;
   
-  if (texture(depthmap, fbocoord).r <= gl_FragCoord.z - 1e-5)
+  if (texture(depthmap, fbocoord).r >= gl_FragCoord.z + 1e-5)
   {
     depthfade = params.depthfade;
   }

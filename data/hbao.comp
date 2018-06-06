@@ -23,19 +23,19 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=4) uniform sampler2D normalmap;
-layout(set=0, binding=5) uniform sampler2D depthmap;
+layout(set=0, binding=8) uniform sampler2D normalmap;
+layout(set=0, binding=9) uniform sampler2D depthmap;
 
-layout(set=0, binding=21, std430, row_major) readonly buffer SSAOParams 
+layout(set=0, binding=25, std430, row_major) readonly buffer SSAOParams 
 {
   vec3 noise[NoiseSize];
   vec3 kernel[KernelSize];
 
 } params;
 
-layout(set=0, binding=22) uniform sampler2D prevmap;
+layout(set=0, binding=26) uniform sampler2D prevmap;
 
-layout(set=0, binding=23) writeonly uniform image2D dest;
+layout(set=0, binding=27) writeonly uniform image2D dest;
 
 const uint Rays = 8;
 const uint Steps = 4;
@@ -86,40 +86,45 @@ void main()
   float depth = texture(depthmap, texcoord).r;
   
   vec3 position = view_position(scene.proj, scene.invproj, texcoord, depth);
-  vec3 normal = view_normal(scene.view, texture(normalmap, texcoord).xyz);
 
-  vec3 randomvec = params.noise[(xy.x + xy.y * 4) % NoiseSize];
+  float occlusion = 1;
 
-  vec2 basisx = normalize(randomvec.xy);
-	vec2 basisy = vec2(-basisx.y, basisx.x);
- 
-  float screenpixels = (0.25 * viewport.x * scene.proj[1][1]) / position.z;
-
-  float steppixels = screenpixels / (Steps + 1);
-
-  float occlusion = 0;
-
-  for(uint i = 0; i < Rays; ++i)
+  if (depth != 0)
   {
-    vec2 sampledir = rotate(params.kernel[i].xy, basisx, basisy);
+    vec3 randomvec = params.noise[(xy.x + xy.y * 4) % NoiseSize];
 
-    float topocclusion = Bias;
+    vec2 basisx = normalize(randomvec.xy);
+    vec2 basisy = vec2(-basisx.y, basisx.x);
+    vec3 normal = view_normal(scene.view, texture(normalmap, texcoord).xyz);
+   
+    float screenpixels = (0.25 * viewport.x * scene.proj[1][1]) / position.z;
 
-    float raypixels = (randomvec.z * steppixels + 1.0);
+    float steppixels = screenpixels / (Steps + 1);
+    
+    float sum = 0;
 
-    for (uint k = 0; k < Steps; ++k)
-    {  
-      vec2 uv = round(xy + raypixels * sampledir) / viewport;
+    for(uint i = 0; i < Rays; ++i)
+    {
+      vec2 sampledir = rotate(params.kernel[i].xy, basisx, basisy);
 
-      vec3 samplepos = view_position(scene.proj, scene.invproj, uv, texture(depthmap, uv).r);
+      float topocclusion = Bias;
 
-      occlusion += sampleocclusion(position, normal, samplepos, topocclusion);
+      float raypixels = (randomvec.z * steppixels + 1.0);
 
-      raypixels += steppixels;
+      for (uint k = 0; k < Steps; ++k)
+      {  
+        vec2 uv = round(xy + raypixels * sampledir) / viewport;
+
+        vec3 samplepos = view_position(scene.proj, scene.invproj, uv, texture(depthmap, uv).r);
+
+        sum += sampleocclusion(position, normal, samplepos, topocclusion);
+
+        raypixels += steppixels;
+      }
     }
-  }
   
-  occlusion = 1 - min(Strength * occlusion, 1);
+    occlusion = 1 - min(Strength * sum, 1);
+  }
 
   texels[ij.y*(SizeX + Radius + Radius) + ij.x] = occlusion;
   depths[ij.y*(SizeX + Radius + Radius) + ij.x] = depth;
@@ -128,31 +133,34 @@ void main()
   
   if (ij.x >= Radius && ij.x < SizeX+Radius && ij.y >= Radius && ij.y < SizeY+Radius)
   {
-    float avg = 0;
-    float spatialweight = 0;
-
-    for(uint j = ij.y - Radius; j < ij.y + Radius; ++j)
+    if (depth != 0)
     {
-      for(uint i = ij.x - Radius; i < ij.x + Radius; ++i)
+      float avg = 0;
+      float spatialweight = 0;
+
+      for(uint j = ij.y - Radius; j < ij.y + Radius; ++j)
       {
-        float weight = max(1 - 250*abs(depths[j*(SizeX + Radius + Radius) + i] - depth), 0);
-        
-        avg += weight * texels[j*(SizeX + Radius + Radius) + i];
-        spatialweight += weight;
+        for(uint i = ij.x - Radius; i < ij.x + Radius; ++i)
+        {
+          float weight = max(1 - 250*abs(depths[j*(SizeX + Radius + Radius) + i] - depth), 0);
+          
+          avg += weight * texels[j*(SizeX + Radius + Radius) + i];
+          spatialweight += weight;
+        }
       }
+      
+      occlusion = avg / spatialweight;
+
+      vec2 prevtexcoord = 0.5 * project(scene.proj, (scene.prevview * scene.invview * vec4(position, 1)).xyz) + 0.5;
+
+      vec4 prevocclusion = texture(prevmap, prevtexcoord);
+      
+      vec3 prevposition = view_position(scene.proj, scene.invproj, prevtexcoord, prevocclusion.y);
+      
+      float temporalweight = clamp(5.0 * abs(prevocclusion.x - occlusion) + 0.001 * distance(prevposition, position), 0.1, 1.0);
+
+      occlusion = mix(prevocclusion.x, occlusion, temporalweight);
     }
-    
-    occlusion = avg / spatialweight;
-
-    vec2 prevtexcoord = 0.5 * project(scene.proj, (scene.prevview * scene.invview * vec4(position, 1)).xyz) + 0.5;
-
-    vec4 prevocclusion = texture(prevmap, prevtexcoord);
-    
-    vec3 prevposition = view_position(scene.proj, scene.invproj, prevtexcoord, prevocclusion.y);
-    
-    float temporalweight = clamp(5.0 * abs(prevocclusion.x - occlusion) + 0.001 * distance(prevposition, position), 0.1, 1.0);
-
-    occlusion = mix(prevocclusion.x, occlusion, temporalweight);
 
     imageStore(dest, xy, vec4(occlusion, depth, 0, 0));
   }

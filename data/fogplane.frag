@@ -28,7 +28,7 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
 
 } params;
 
-layout(set=0, binding=11, input_attachment_index=0) uniform subpassInput depthmap;
+layout(set=0, binding=15, input_attachment_index=0) uniform subpassInput depthmap;
 
 layout(location=0) in vec2 texcoord;
 

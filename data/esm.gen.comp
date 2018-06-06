@@ -13,9 +13,9 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=13) uniform sampler2DArray shadowmap;
+layout(set=0, binding=17) uniform sampler2DArray shadowmap;
 
-layout(set=0, binding=20) writeonly uniform image2D dest;
+layout(set=0, binding=24) writeonly uniform image2D dest;
 
 const float Exponent = 30.0;
 

@@ -686,7 +686,7 @@ namespace leap
   T fmod2(T numerator, T denominator)
   {
     if (numerator < 0)
-      return std::fmod(numerator, denominator) + denominator;
+      return std::fmod(std::fmod(numerator, denominator) + denominator, denominator);
     else
       return std::fmod(numerator, denominator);
   }

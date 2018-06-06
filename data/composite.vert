@@ -12,5 +12,5 @@ void main()
 {
   texcoord = vertex_texcoord.xy;
   
-  gl_Position = vec4(vertex_position.xy, 0, 1);
+  gl_Position = vec4(vertex_position.xy, 1, 1);
 }

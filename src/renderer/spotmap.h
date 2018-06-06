@@ -124,6 +124,7 @@ struct SpotMapContext
   Vulkan::DescriptorPool descriptorpool;
 
   VkPipelineLayout pipelinelayout;
+  VkDescriptorSet scenedescriptor;
   VkDescriptorSetLayout materialsetlayout;
   VkDescriptorSetLayout modelsetlayout;
 
@@ -134,7 +135,6 @@ struct SpotMapContext
   Vulkan::Pipeline srcblitpipeline;
   Vulkan::CommandBuffer srcblitcommands[16];
   Vulkan::DescriptorSet srcblitdescriptors[16];
-  Vulkan::Sampler srcblitsampler;
 
   Vulkan::Pipeline modelspotmappipeline;
   Vulkan::Pipeline actorspotmappipeline;

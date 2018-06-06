@@ -25,6 +25,7 @@ class Texture
       RGBE,
       FLOAT16,
       FLOAT32,
+      HEIGHT,
     };
 
   public:

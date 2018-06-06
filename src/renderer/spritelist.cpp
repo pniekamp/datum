@@ -134,7 +134,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
 
 
 ///////////////////////// SpriteList::push_model ////////////////////////////
-void SpriteList::push_model(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Vec4 const &texcoords, float layer0, float layer1)
+void SpriteList::push_model(BuildState &state, Vec2 const &position, Vec2 const &xbasis, Vec2 const &ybasis, Vec4 const &extent, float layer0, float layer1)
 {
   assert(state.commandlump);
 
@@ -155,7 +155,7 @@ void SpriteList::push_model(BuildState &state, Vec2 const &position, Vec2 const 
     modelset->xbasis = xbasis;
     modelset->ybasis = ybasis;
     modelset->position = Vec4(position, layer0, layer1);
-    modelset->texcoords = texcoords;
+    modelset->texcoords = extent;
 
     bind_descriptor(spritecommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

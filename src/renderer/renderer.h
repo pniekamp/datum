@@ -348,6 +348,10 @@ struct RenderContext
 
   Vulkan::QueryPool timingquerypool;
 
+  Vulkan::Sampler repeatsampler;
+  Vulkan::Sampler clampedsampler;
+  Vulkan::Sampler shadowsampler;
+
   Vulkan::DescriptorSetLayout scenesetlayout;
   Vulkan::DescriptorSetLayout materialsetlayout;
   Vulkan::DescriptorSetLayout modelsetlayout;
@@ -411,6 +415,7 @@ struct RenderContext
   Vulkan::Pipeline foilagegeometrypipeline;
   Vulkan::Pipeline terrainprepasspipeline;
   Vulkan::Pipeline terraingeometrypipeline;
+  Vulkan::Pipeline depthblitpipeline;
   Vulkan::Pipeline depthmippipeline[6];
   Vulkan::Pipeline esmpipeline[3];
   Vulkan::Pipeline fogvolumepipeline[2];
@@ -449,7 +454,7 @@ struct RenderContext
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
 
-  std::tuple<size_t, VkSampler> decalmaps[2][16];
+  std::tuple<size_t, VkImageView> decalmaps[2][16];
 
   int width, height;
   float scale, aspect;

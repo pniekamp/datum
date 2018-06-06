@@ -75,7 +75,18 @@ Matrix4f Camera::view() const
 ///////////////////////// Camera::proj //////////////////////////////////////
 Matrix4f Camera::proj() const
 {
-  return PerspectiveProjection(m_fov, m_aspect, m_znear, m_zfar) * ScaleMatrix(1.0f, -1.0f, 1.0f, 1.0f);
+  Matrix4f proj = {};
+
+  // Y Flipped
+  // Reverse Z
+
+  proj(0, 0) = 1 / (m_aspect * std::tan(m_fov/2));
+  proj(1, 1) = -1 / std::tan(m_fov/2);
+  proj(2, 2) = m_zfar / (m_zfar - m_znear) - 1;
+  proj(3, 2) = -1;
+  proj(2, 3) = m_zfar * m_znear / (m_zfar - m_znear);
+
+  return proj;
 }
 
 

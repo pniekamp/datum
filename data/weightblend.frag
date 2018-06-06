@@ -1,6 +1,6 @@
 #version 440 core
-#include "camera.glsl"
 #include "transform.glsl"
+#include "camera.glsl"
 #include "lighting.glsl"
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
@@ -14,8 +14,8 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=29) uniform sampler2D colormap;
-layout(set=0, binding=30) uniform sampler2D weightmap;
+layout(set=0, binding=33) uniform sampler2D colormap;
+layout(set=0, binding=34) uniform sampler2D weightmap;
 
 layout(location=0) in vec2 texcoord;
 

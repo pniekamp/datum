@@ -87,10 +87,10 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
 //      throw runtime_error("Error Executing glslc");
 
   string opts;
-//  opts += "--remove-duplicates ";
+  opts += "--remove-duplicates ";
 //  opts += "--merge-return ";
   opts += "--inline-entry-points-exhaustive ";
-//  opts += "--eliminate-dead-functions ";
+  opts += "--eliminate-dead-functions ";
 //  opts += "--scalar-replacement ";
 //  opts += "--convert-local-access-chains ";
 //  opts += "--eliminate-local-single-block ";
@@ -99,7 +99,7 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
 //  opts += "--redundancy-elimination ";
 //  opts += "--eliminate-insert-extract ";
 //  opts += "--eliminate-dead-inserts ";
-//  opts += "--eliminate-dead-branches ";
+  opts += "--eliminate-dead-branches ";
   opts += "--strip-debug";
 
   if (system(string("glslc.exe -flimit=\"MaxDrawBuffers 4\" -o tmp " + tmpname + " && spirv-opt " + opts + " -o tmp.spv tmp").c_str()) != 0)

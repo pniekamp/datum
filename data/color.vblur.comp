@@ -8,10 +8,10 @@ layout(constant_id = 84) const uint Radius = 16;
 
 const uint SizeY = gl_WorkGroupSize.y - Radius - Radius;
 
-layout(set=0, binding=5) uniform sampler2D depthmap;
-layout(set=0, binding=29) uniform sampler2D colormap;
+layout(set=0, binding=9) uniform sampler2D depthmap;
+layout(set=0, binding=33) uniform sampler2D colormap;
 
-layout(set=0, binding=8) writeonly uniform image2D dest[1];
+layout(set=0, binding=12) writeonly uniform image2D dest[1];
 
 shared vec4 texels[SizeY + Radius + Radius];
 shared float depths[SizeY + Radius + Radius];
@@ -46,8 +46,9 @@ void main()
   gl_WorkGroupSize;
   ivec2 ij = ivec2(gl_LocalInvocationID.xy);
   ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * SizeY);
-
-  vec2 texcoord = vec2((tile.x + ij.x) + 0.5, 2 * (tile.y + ij.y - int(Radius)) + 1.0) / textureSize(colormap, 0).xy;
+  ivec2 srcsize = textureSize(colormap, 0).xy;
+  
+  vec2 texcoord = vec2((tile.x + ij.x) + 0.5, 2 * (tile.y + ij.y - int(Radius)) + 1.0) / srcsize;
 
   texels[ij.y] = texture(colormap, texcoord);
   depths[ij.y] = texture(depthmap, vec2(2*texcoord.x, texcoord.y)).r;
