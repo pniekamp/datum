@@ -28,7 +28,7 @@ class Platform : public PlatformInterface
 
     Platform();
 
-    void initialise(RenderDevice const &renderdevice, size_t gamememorysize);
+    void initialise(RenderDevice const &renderdevice, size_t gamememorysize, size_t scratchmemorysize);
 
   public:
 
@@ -66,10 +66,6 @@ class Platform : public PlatformInterface
 
     std::atomic<bool> m_terminaterequested;
 
-    std::vector<char> m_gamememory;
-    std::vector<char> m_gamescratchmemory;
-    std::vector<char> m_renderscratchmemory;
-
     RenderDevice m_renderdevice;
 
     WorkQueue m_workqueue;
@@ -84,19 +80,13 @@ Platform::Platform()
 
 
 ///////////////////////// Platform::initialise //////////////////////////////
-void Platform::initialise(RenderDevice const &renderdevice, size_t gamememorysize)
+void Platform::initialise(RenderDevice const &renderdevice, size_t gamememorysize, size_t scratchmemorysize)
 {
   m_renderdevice = renderdevice;
 
-  m_gamememory.reserve(gamememorysize);
-  m_gamescratchmemory.reserve(256*1024*1024);
-  m_renderscratchmemory.reserve(256*1024*1024);
-
-  gamememory_initialise(gamememory, m_gamememory.data(), m_gamememory.capacity());
-
-  gamememory_initialise(gamescratchmemory, m_gamescratchmemory.data(), m_gamescratchmemory.capacity());
-
-  gamememory_initialise(renderscratchmemory, m_renderscratchmemory.data(), m_renderscratchmemory.capacity());
+  gamememory_initialise(gamememory, new char[gamememorysize], gamememorysize);
+  gamememory_initialise(gamescratchmemory, new char[scratchmemorysize], scratchmemorysize);
+  gamememory_initialise(renderscratchmemory, new char[scratchmemorysize], scratchmemorysize);
 }
 
 
@@ -246,7 +236,7 @@ void Game::init(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue render
   renderdevice.queues[1] = { transferqueue, transferqueuefamily };
   renderdevice.queues[2] = { updatequeue, updatequeuefamily };
 
-  m_platform.initialise(renderdevice, 1*1024*1024*1024);
+  m_platform.initialise(renderdevice, 1*1024*1024*1024, 256*1024*1024);
 
   game_init(m_platform);
 
@@ -806,6 +796,7 @@ struct Window
   HWND hwnd;
 
   bool visible;
+  bool resizing;
 
   bool mousewrap;
   int lastmousex, lastmousey;
@@ -828,8 +819,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
       window.paint(uMsg, wParam, lParam);
       break;
 
+    case WM_ENTERSIZEMOVE:
+      window.resizing = true;
+      break;
+
     case WM_SIZE:
       window.resize(lParam & 0xffff, (lParam & 0xffff0000) >> 16);
+      break;
+
+    case WM_EXITSIZEMOVE:
+      window.resizing = false;
       break;
 
     case WM_KEYDOWN:
@@ -883,6 +882,7 @@ void Window::init(HINSTANCE hinstance, Game *gameptr)
   game = gameptr;
 
   visible = false;
+  resizing = false;
   mousewrap = false;
 
   WNDCLASSEX winclass = {};
@@ -971,7 +971,7 @@ void Window::resize(int width, int height)
 //|//////////////////// Window::paint ///////////////////////////////////////
 void Window::paint(UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  if (window.visible)
+  if (window.visible && !window.resizing)
   {
     vulkan.acquire();
     window.game->render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
@@ -1141,9 +1141,9 @@ int main(int argc, char *args[])
 
     vulkan.init(GetModuleHandle(NULL), window.hwnd);
 
-    window.show();
-
     game.init(vulkan.physicaldevice, vulkan.device, vulkan.renderqueue, vulkan.renderqueuefamily, vulkan.transferqueue, vulkan.transferqueuefamily, vulkan.updatequeue, vulkan.updatequeuefamily);
+
+    window.show();
 
     thread updatethread([&]() {
 

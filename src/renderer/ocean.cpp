@@ -19,7 +19,7 @@ enum ShaderLocation
   spectrum = 1,
   maptarget = 2,
   displacementmap = 3,
-  vertexbuffer_datasize = 4,
+  vertexbuffer = 4,
 
   // Constant Ids
 
@@ -127,28 +127,40 @@ namespace
 ///////////////////////// seed_ocean ////////////////////////////////////////
 void seed_ocean(OceanParams &params)
 {
-  int size = OceanContext::WaveResolution;
-
   params.swellphase = 0.0f;
 
   mt19937 entropy(random_device{}());
 
-  for(int m = 0; m < size; ++m)
+  for(int m = 0; m < OceanContext::WaveResolution; ++m)
   {
-    auto y = 2*pi<float>() * (m - 0.5f*size) / params.wavescale;
-
-    for(int n = 0; n < size; ++n)
+    for(int n = 0; n < OceanContext::WaveResolution; ++n)
     {
-      auto x = 2*pi<float>() * (n - 0.5f*size) / params.wavescale;
-
       auto s0 = guass_random_distribution(entropy);
-      auto h0 = s0 * sqrt(phillips({x,y}, params.waveamplitude, params.windspeed, params.winddirection) / 2.0f);
 
       params.seed[m][n][0] = s0.real();
       params.seed[m][n][1] = s0.imag();
-      params.height[m][n][0] = h0.real();
-      params.height[m][n][1] = h0.imag();
+      params.height[m][n][0] = 0.0f;
+      params.height[m][n][1] = 0.0f;
       params.phase[m][n] = 0.0f;
+    }
+  }
+
+  int size = OceanContext::WaveResolution;
+
+  float dk = 2*pi<float>() / params.wavescale;
+
+  for(int m = 0; m < size; ++m)
+  {
+    auto y = dk * (m - 0.5f*size);
+
+    for(int n = 0; n < size; ++n)
+    {
+      auto x = dk * (n - 0.5f*size);
+
+      auto h0 = dk * sqrt(phillips({x,y}, params.waveamplitude, params.windspeed, params.winddirection) / 2.0f);
+
+      params.height[m][n][0] = params.seed[m][n][0] * h0;
+      params.height[m][n][1] = params.seed[m][n][1] * h0;
     }
   }
 
@@ -159,35 +171,43 @@ void seed_ocean(OceanParams &params)
 ///////////////////////// lerp_ocean_swell /////////////////////////////////
 void lerp_ocean_swell(OceanParams &params, float swelllength, float swellamplitude, float swellspeed, Vec2 swelldirection, float t)
 {
-  params.swelllength = lerp(params.swelllength, swelllength, t);
-  params.swellamplitude = lerp(params.swellamplitude, swellamplitude, t);
-  params.swellspeed = lerp(params.swellspeed, swellspeed, t);
-  params.swelldirection = normalise(lerp(params.swelldirection, swelldirection, t));
+  if (params.swelllength != swelllength || params.swellamplitude != swellamplitude || params.swellspeed != swellspeed || params.swelldirection != swelldirection)
+  {
+    params.swelllength = lerp(params.swelllength, swelllength, t);
+    params.swellamplitude = lerp(params.swellamplitude, swellamplitude, t);
+    params.swellspeed = lerp(params.swellspeed, swellspeed, t);
+    params.swelldirection = normalise(lerp(params.swelldirection, swelldirection, t));
+  }
 }
 
 
 ///////////////////////// lerp_ocean_waves //////////////////////////////////
 void lerp_ocean_waves(OceanParams &params, float wavescale, float waveamplitude, float windspeed, Vec2 winddirection, float t)
 {
-  int size = OceanContext::WaveResolution;
-
-  params.wavescale = lerp(params.wavescale, wavescale, t);
-  params.waveamplitude = lerp(params.waveamplitude, waveamplitude, t);
-  params.windspeed = lerp(params.windspeed, windspeed, t);
-  params.winddirection = normalise(lerp(params.winddirection, winddirection, t));
-
-  for(int m = 0; m < size; ++m)
+  if (params.wavescale != wavescale || params.waveamplitude != waveamplitude || params.windspeed != windspeed || params.winddirection != winddirection)
   {
-    auto y = 2*pi<float>() * (m - 0.5f*size) / params.wavescale;
+    params.wavescale = lerp(params.wavescale, wavescale, t);
+    params.waveamplitude = lerp(params.waveamplitude, waveamplitude, t);
+    params.windspeed = lerp(params.windspeed, windspeed, t);
+    params.winddirection = normalise(lerp(params.winddirection, winddirection, t));
 
-    for(int n = 0; n < size; ++n)
+    int size = OceanContext::WaveResolution;
+
+    float dk = 2*pi<float>() / params.wavescale;
+
+    for(int m = 0; m < size; ++m)
     {
-      auto x = 2*pi<float>() * (n - 0.5f*size) / params.wavescale;
+      auto y = dk * (m - 0.5f*size);
 
-      auto h0 = sqrt(phillips({x,y}, params.waveamplitude, params.windspeed, params.winddirection) / 2.0f);
+      for(int n = 0; n < size; ++n)
+      {
+        auto x = dk * (n - 0.5f*size);
 
-      params.height[m][n][0] = params.seed[m][n][0] * h0;
-      params.height[m][n][1] = params.seed[m][n][1] * h0;
+        auto h0 = dk * sqrt(phillips({x,y}, params.waveamplitude, params.windspeed, params.winddirection) / 2.0f);
+
+        params.height[m][n][0] = params.seed[m][n][0] * h0;
+        params.height[m][n][1] = params.seed[m][n][1] * h0;
+      }
     }
   }
 }
@@ -216,7 +236,7 @@ void update_ocean(OceanParams &params, float dt)
 }
 
 
-///////////////////////// initialise_skybox_context //////////////////////////
+///////////////////////// initialise_ocean_context //////////////////////////
 void initialise_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, uint32_t queueindex)
 {
   //
@@ -275,6 +295,48 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
     pipelinecacheinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
     context.pipelinecache = create_pipelinecache(context.vulkan, pipelinecacheinfo);
+  }
+
+  if (context.repeatsampler == 0)
+  {
+    // Repeat Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.repeatsampler = create_sampler(context.vulkan, samplerinfo);
+  }
+
+  if (context.clampedsampler == 0)
+  {
+    // Clamped Sampler
+
+    VkSamplerCreateInfo samplerinfo = {};
+    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerinfo.magFilter = VK_FILTER_LINEAR;
+    samplerinfo.minFilter = VK_FILTER_LINEAR;
+    samplerinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerinfo.mipLodBias = 0.0f;
+    samplerinfo.minLod = 0.0f;
+    samplerinfo.maxLod = 8.0f;
+    samplerinfo.anisotropyEnable = VK_TRUE;
+    samplerinfo.maxAnisotropy = 8;
+
+    context.clampedsampler = create_sampler(context.vulkan, samplerinfo);
   }
 
   if (context.descriptorsetlayout == 0)
@@ -339,6 +401,8 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[0] == 0)
   {
+    // Sim
+
     auto cs = assets.find(CoreAsset::ocean_sim_comp);
 
     if (!cs)
@@ -376,6 +440,8 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[1] == 0)
   {
+    // FFT X
+
     auto cs = assets.find(CoreAsset::ocean_fftx_comp);
 
     if (!cs)
@@ -415,6 +481,8 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[2] == 0)
   {
+    // FFT Y
+
     auto cs = assets.find(CoreAsset::ocean_ffty_comp);
 
     if (!cs)
@@ -454,6 +522,8 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[3] == 0)
   {
+    // Displacement Map
+
     auto cs = assets.find(CoreAsset::ocean_map_comp);
 
     if (!cs)
@@ -491,6 +561,8 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
   if (context.pipeline[4] == 0)
   {
+    // Mesh
+
     auto cs = assets.find(CoreAsset::ocean_gen_comp);
 
     if (!cs)
@@ -546,7 +618,7 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
   {
     begin(context.vulkan, context.commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    context.displacementmap = create_texture(context.vulkan, context.commandbuffer, OceanContext::WaveResolution, OceanContext::WaveResolution, 2, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     end(context.vulkan, context.commandbuffer);
 
@@ -601,14 +673,10 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
   context.vertexbuffer = create_storagebuffer(context.vulkan, target->vertexbuffer.memory, target->vertexbuffer.verticesoffset, verticessize);
 
   bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.oceanset, 0, context.oceanset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
   bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-  bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap);
-
+  bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap, context.repeatsampler);
   bind_image(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap);
-
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer_datasize, context.vertexbuffer, 0, context.vertexbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer, context.vertexbuffer, 0, context.vertexbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 

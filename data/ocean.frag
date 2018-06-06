@@ -1,6 +1,6 @@
 #version 440 core
-#include "gbuffer.glsl"
 #include "camera.glsl"
+#include "gbuffer.glsl"
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {
@@ -18,8 +18,11 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D colormap;
-layout(set=0, binding=6) uniform sampler2D depthmipmap;
+layout(set=0, binding=1) uniform sampler repeatsampler;
+layout(set=0, binding=2) uniform sampler clampedsampler;
+
+layout(set=0, binding=5) uniform sampler2D colormap;
+layout(set=0, binding=34) uniform sampler2D depthsrcmap;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -41,9 +44,9 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
   
 } params;
 
-layout(set=1, binding=1) uniform sampler2DArray albedomap;
-layout(set=1, binding=2) uniform sampler2DArray surfacemap;
-layout(set=1, binding=3) uniform sampler2DArray normalmap;
+layout(set=1, binding=1) uniform texture2DArray albedomap;
+layout(set=1, binding=2) uniform texture2DArray surfacemap;
+layout(set=1, binding=3) uniform texture2DArray normalmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in mat3 tbnworld;
@@ -65,31 +68,31 @@ vec2 dither(vec2 uv)
 void main()
 {
   ivec2 xy = ivec2(gl_FragCoord.xy);
-  ivec2 viewport = textureSize(colormap, 0).xy;
+  ivec2 fbosize = textureSize(colormap, 0).xy;
 
-  vec4 bump0 = texture(normalmap, vec3(texcoord*params.bumpscale.xy + params.flow, 0));
-  vec4 bump1 = texture(normalmap, vec3(texcoord*params.bumpscale.xy*2.0 + 4.0*params.flow, 0));
-  vec4 bump2 = texture(normalmap, vec3(texcoord*params.bumpscale.xy*4.0 + 8.0*params.flow, 0));
+  vec4 bump0 = texture(sampler2DArray(normalmap, repeatsampler), vec3(texcoord*params.bumpscale.xy + params.flow, 0));
+  vec4 bump1 = texture(sampler2DArray(normalmap, repeatsampler), vec3(texcoord*params.bumpscale.xy*2.0 + 4.0*params.flow, 0));
+  vec4 bump2 = texture(sampler2DArray(normalmap, repeatsampler), vec3(texcoord*params.bumpscale.xy*4.0 + 8.0*params.flow, 0));
 
   vec3 normal = normalize(tbnworld * vec3((2*bump0.xy-1)*bump0.a + (2*bump1.xy-1)*bump1.a + (2*bump2.xy-1)*bump2.a, params.bumpscale.z));
   vec3 eyevec = normalize(scene.camera.position - position);
-   
-  float dist = texelFetch(depthmipmap, xy/2, 0).g - view_depth(scene.proj, gl_FragCoord.z);
+  
+  float dist = texelFetch(depthsrcmap, xy, 0).r - view_depth(scene.proj, gl_FragCoord.z);
 
-  float scale = 0.05 * dist;
+  float scale = clamp(0.05 * dist, 1e-3, 1);
   float facing = clamp(1 - dot(eyevec, tbnworld[2]), 0, 1);
   
-  vec4 albedo = textureLod(albedomap, vec3(clamp(dither(vec2(scale, facing)), 1/255.0, 254/255.0), 0), 0);
-  
+  vec4 albedo = texture(sampler2DArray(albedomap, clampedsampler), vec3(dither(vec2(scale, facing)), 0));
+
   float roughness = mix(0, params.roughness, clamp(FresnelBias + pow(facing, FresnelPower), 0, 1));
   
   normal = mix(tbnworld[2], normal, clamp(2 * dot(normal, eyevec), 0, 1));
   
   float height = dot(params.foamplane.xyz, position) + params.foamplane.w; 
 
-  vec3 wavefoam = texture(surfacemap, vec3(texcoord + 0.2*bump0.xy, 0)).rgb * clamp(pow(height - params.foamwaveheight, 3) * params.foamwavescale, 0, 1);
+  vec3 wavefoam = texture(sampler2DArray(surfacemap, repeatsampler), vec3(texcoord + 0.2*bump0.xy, 0)).rgb * clamp(pow(height - params.foamwaveheight, 3) * params.foamwavescale, 0, 1);
   
-  vec3 shorefoam = (0.25 * texture(surfacemap, vec3(texcoord + 2.0*params.flow, 0)).rgb + 0.02) * clamp(height - (dist - params.foamshoreheight) * params.foamshorescale, 0, 1);
+  vec3 shorefoam = (0.25 * texture(sampler2DArray(surfacemap, repeatsampler), vec3(texcoord + 2.0*params.flow, 0)).rgb + 0.02) * clamp(height - (dist - params.foamshoreheight) * params.foamshorescale, 0, 1);
 
   fragcolor = vec4(albedo.rgb * params.color.rgb + wavefoam + shorefoam, params.emissive);
   fragspecular = vec4(params.color.rgb * params.reflectivity, roughness);

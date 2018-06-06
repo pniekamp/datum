@@ -565,7 +565,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkImageViewType type, VkFilter filter, VkSamplerAddressMode addressmode, VkImageLayout layout, VkImageUsageFlags usage, VkImageCreateFlags flags)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkImageViewType type, VkImageLayout layout, VkImageUsageFlags usage, VkImageCreateFlags flags)
   {
     Texture texture = {};
 
@@ -604,24 +604,6 @@ namespace Vulkan
 
     texture.image = create_image(vulkan, imageinfo);
 
-    VkSamplerCreateInfo samplerinfo = {};
-    samplerinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerinfo.magFilter = filter;
-    samplerinfo.minFilter = filter;
-    samplerinfo.mipmapMode = (filter == VK_FILTER_LINEAR) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    samplerinfo.addressModeU = addressmode;
-    samplerinfo.addressModeV = addressmode;
-    samplerinfo.addressModeW = addressmode;
-    samplerinfo.mipLodBias = 0.0f;
-    samplerinfo.compareOp = VK_COMPARE_OP_NEVER;
-    samplerinfo.minLod = 0.0f;
-    samplerinfo.maxLod = levels;
-    samplerinfo.maxAnisotropy = 8;
-    samplerinfo.anisotropyEnable = VK_TRUE;
-    samplerinfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-
-    texture.sampler = create_sampler(vulkan, samplerinfo);
-
     VkImageViewCreateInfo viewinfo = {};
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewinfo.viewType = type;
@@ -647,18 +629,18 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkFilter filter, VkSamplerAddressMode addressmode)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format)
   {
-    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, filter, addressmode, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     return texture;
   }
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits, VkFilter filter, VkSamplerAddressMode addressmode)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits)
   {
-    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, filter, addressmode);
+    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format);
 
     update_texture(vulkan, commandbuffer, transferbuffer, texture, bits);
 
@@ -667,7 +649,7 @@ namespace Vulkan
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits, VkFilter filter, VkSamplerAddressMode addressmode)
+  Texture create_texture(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
@@ -675,7 +657,7 @@ namespace Vulkan
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    Texture texture = create_texture(vulkan, setupbuffer, transferbuffer, width, height, layers, levels, format, bits, filter, addressmode);
+    Texture texture = create_texture(vulkan, setupbuffer, transferbuffer, width, height, layers, levels, format, bits);
 
     end(vulkan, setupbuffer);
 
@@ -893,14 +875,14 @@ namespace Vulkan
 
 
   ///////////////////////// bind_image //////////////////////////////////////
-  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
+  void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count, VkDescriptorType type)
   {
     VkWriteDescriptorSet writeset = {};
     writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writeset.dstSet = descriptorset;
     writeset.dstBinding = binding;
     writeset.descriptorCount = count;
-    writeset.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    writeset.descriptorType = type;
     writeset.pImageInfo = imageinfos;
 
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
@@ -926,20 +908,38 @@ namespace Vulkan
 
   void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index)
   {
-    bind_image(vulkan, descriptorset, binding, texture.imageview, VK_IMAGE_LAYOUT_GENERAL, index);
+    bind_image(vulkan, descriptorset, binding, texture, VK_IMAGE_LAYOUT_GENERAL, index);
   }
 
 
   ///////////////////////// bind_texture ////////////////////////////////////
-  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count)
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkDescriptorImageInfo const *imageinfos, size_t count, VkDescriptorType type)
   {
     VkWriteDescriptorSet writeset = {};
     writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writeset.dstSet = descriptorset;
     writeset.dstBinding = binding;
     writeset.descriptorCount = count;
-    writeset.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writeset.descriptorType = type;
     writeset.pImageInfo = imageinfos;
+
+    vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
+  }
+
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, VkImageView imageview, VkImageLayout layout, uint32_t index)
+  {
+    VkDescriptorImageInfo imageinfo = {};
+    imageinfo.imageView = imageview;
+    imageinfo.imageLayout = layout;
+
+    VkWriteDescriptorSet writeset = {};
+    writeset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeset.dstSet = descriptorset;
+    writeset.dstBinding = binding;
+    writeset.dstArrayElement = index;
+    writeset.descriptorCount = 1;
+    writeset.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    writeset.pImageInfo = &imageinfo;
 
     vkUpdateDescriptorSets(vulkan.device, 1, &writeset, 0, nullptr);
   }
@@ -965,7 +965,12 @@ namespace Vulkan
 
   void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index)
   {
-    bind_texture(vulkan, descriptorset, binding, texture.imageview, texture.sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
+    bind_texture(vulkan, descriptorset, binding, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
+  }
+
+  void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, Sampler const &sampler, uint32_t index)
+  {
+    bind_texture(vulkan, descriptorset, binding, texture, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
   }
 
 

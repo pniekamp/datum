@@ -21,16 +21,16 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D colormap;
-layout(set=0, binding=2) uniform sampler2D diffusemap;
-layout(set=0, binding=3) uniform sampler2D specularmap;
-layout(set=0, binding=4) uniform sampler2D normalmap;
-layout(set=0, binding=5) uniform sampler2D depthmap;
-layout(set=0, binding=6) uniform sampler2D depthmipmap;
-layout(set=0, binding=12) uniform sampler2D ssaomap;
-layout(set=0, binding=27) uniform sampler2D bloommap;
-layout(set=0, binding=29) uniform sampler2D ssrmap;
-layout(set=0, binding=35) uniform sampler3D colorlut;
+layout(set=0, binding=5) uniform sampler2D colormap;
+layout(set=0, binding=6) uniform sampler2D diffusemap;
+layout(set=0, binding=7) uniform sampler2D specularmap;
+layout(set=0, binding=8) uniform sampler2D normalmap;
+layout(set=0, binding=9) uniform sampler2D depthmap;
+layout(set=0, binding=10) uniform sampler2D depthmipmap;
+layout(set=0, binding=16) uniform sampler2D ssaomap;
+layout(set=0, binding=31) uniform sampler2D bloommap;
+layout(set=0, binding=33) uniform sampler2D ssrmap;
+layout(set=0, binding=39) uniform sampler3D colorlut;
 
 layout(location=0) in vec2 texcoord;
 
@@ -43,7 +43,9 @@ void main()
   
   if (DepthOfField)
   {
-    dof = smoothstep(0, scene.camera.focalwidth, abs(scene.camera.focaldistance - view_depth(scene.proj, texture(depthmap, texcoord).r)));
+    float depth = texture(depthmap, texcoord).r;
+    
+    dof = smoothstep(0, scene.camera.focalwidth, abs(scene.camera.focaldistance - view_depth(scene.proj, depth)));
   }
 
   vec3 color = textureLod(colormap, texcoord, 0.5*dof).rgb;
@@ -59,7 +61,7 @@ void main()
   {
     fragcolor = vec4(tonemap(color.rgb + ssr) + bloom, 1);
   }
-  
+
 //  fragcolor = texture(colormap, texcoord);
 //  fragcolor = textureLod(colormap, texcoord, 1);
 //  fragcolor = texture(diffusemap, texcoord);

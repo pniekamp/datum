@@ -43,6 +43,10 @@ namespace
           size += width * height * 4*sizeof(uint32_t) * layers;
           break;
 
+        case VK_FORMAT_R32_SFLOAT:
+          size += width * height * sizeof(uint32_t) * layers;
+          break;
+
         default:
           assert(false);
           break;
@@ -131,6 +135,10 @@ Texture const *ResourceManager::create<Texture>(int width, int height, int layer
 
     case Texture::Format::FLOAT32:
       vkformat = VK_FORMAT_R32G32B32A32_SFLOAT;
+      break;
+
+    case Texture::Format::HEIGHT:
+      vkformat = VK_FORMAT_R32_SFLOAT;
       break;
   }
 
@@ -272,6 +280,10 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
             break;
 
           case Texture::Format::FLOAT32:
+            break;
+
+          case Texture::Format::HEIGHT:
+            vkformat = VK_FORMAT_R32_SFLOAT;
             break;
         }
 

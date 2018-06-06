@@ -141,7 +141,7 @@ Mesh const *ResourceManager::create<Mesh>(uint32_t vertexcount, uint32_t indexco
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump)
+void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump, Bound3 bound)
 {
   assert(lump);
   assert(mesh);
@@ -161,16 +161,6 @@ void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLu
 
   while (!test_fence(vulkan, lump->fence))
     ;
-}
-
-
-///////////////////////// ResourceManager::update ///////////////////////////
-template<>
-void ResourceManager::update<Mesh>(Mesh const *mesh, Bound3 bound)
-{
-  assert(mesh);
-
-  auto slot = const_cast<Mesh*>(mesh);
 
   slot->bound = bound;
 }
@@ -329,7 +319,7 @@ Mesh const *make_plane(ResourceManager &resources, int sizex, int sizey, float s
       }
     }
 
-    resources.update(mesh, lump);
+    resources.update(mesh, lump, Bound3(Vec3(-scale, -scale, 0.0f), Vec3(scale, scale, 0.0f)));
 
     resources.release_lump(lump);
   }

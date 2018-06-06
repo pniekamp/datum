@@ -1,6 +1,6 @@
 #version 440 core
-#include "camera.glsl"
 #include "transform.glsl"
+#include "camera.glsl"
 #include "lighting.glsl"
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
@@ -30,9 +30,9 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=0, binding=1) uniform sampler2D colormap;
-layout(set=0, binding=15) uniform samplerCube envmaps[MaxEnvironments];
-layout(set=0, binding=18) uniform sampler3D fogmap;
+layout(set=0, binding=5) uniform sampler2D colormap;
+layout(set=0, binding=19) uniform samplerCube envmaps[MaxEnvironments];
+layout(set=0, binding=22) uniform sampler3D fogmap;
 
 layout(location=0) in vec3 texcoord;
 

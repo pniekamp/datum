@@ -41,8 +41,7 @@ class Mesh
     friend Mesh const *ResourceManager::create<Mesh>(Asset const *asset);
     friend Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount);
 
-    friend void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump);
-    friend void ResourceManager::update<Mesh>(Mesh const *mesh, lml::Bound3 bound);
+    friend void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump, lml::Bound3 bound);
 
     bool ready() const { return (state == State::Ready); }
 

@@ -1,6 +1,6 @@
 #version 440 core
-#include "gbuffer.glsl"
 #include "camera.glsl"
+#include "gbuffer.glsl"
 
 layout(constant_id = 28) const bool SoftParticles = true;
 
@@ -20,9 +20,12 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(set=1, binding=1) uniform sampler2DArray albedomap;
+layout(set=0, binding=1) uniform sampler repeatsampler;
+layout(set=0, binding=2) uniform sampler clampedsampler;
 
-layout(set=0, binding=11, input_attachment_index=0) uniform subpassInput depthmap;
+layout(set=1, binding=1) uniform texture2DArray albedomap;
+
+layout(set=0, binding=15, input_attachment_index=0) uniform subpassInput depthmap;
 
 layout(location=0) in vec3 texcoord;
 layout(location=1) in vec4 lighting;
@@ -36,7 +39,7 @@ layout(location=1) out vec4 fragweight;
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
-  vec4 color = texture(albedomap, texcoord) * lighting;
+  vec4 color = texture(sampler2DArray(albedomap, clampedsampler), texcoord) * lighting;
 
   if (SoftParticles)
   {
@@ -45,8 +48,8 @@ void main()
 
 #ifdef WEIGHTEDBLEND
 
-  //float weight = color.a * max(3e3 * pow(1 - gl_FragCoord.z, 3), 1e-2);
-  float weight = color.a * max(3e3 * (1 - pow(gl_FragCoord.z, 3)), 1e-2);
+  float weight = color.a * max(3e3 * pow(gl_FragCoord.z, 3), 1e-2);
+  //float weight = color.a * max(3e3 * (1 - pow(1 - gl_FragCoord.z, 3)), 1e-2);
   //float weight = color.a * clamp(0.03 / (1e-5 + pow(view_depth(scene.proj, gl_FragCoord.z)/200, 4)), 1e-2, 3e3);
 
   fragcolor = vec4(scene.camera.exposure * color.rgb * weight, color.a);

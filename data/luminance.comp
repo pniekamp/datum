@@ -5,9 +5,9 @@
 
 layout(local_size_x = SIZEX, local_size_y = SIZEY) in;
 
-layout(set=0, binding=1) uniform sampler2D src;
+layout(set=0, binding=5) uniform sampler2D colormap;
 
-layout(set=0, binding=36, std430, row_major) buffer LumaParams
+layout(set=0, binding=40, std430, row_major) buffer LumaParams
 {
   float luminance;
 
@@ -25,7 +25,7 @@ void main()
   {
     for(float u = (ij.x + 0.05) / SIZEX, end = (ij.x + 0.95) / SIZEX; u < end; u += 0.1/SIZEX)
     {
-      sum += texture(src, vec2(u, v)).rgb;
+      sum += texture(colormap, vec2(u, v)).rgb;
     }
   }
   

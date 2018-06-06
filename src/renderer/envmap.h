@@ -73,14 +73,15 @@ struct ConvolveContext
   Vulkan::CommandBuffer commandbuffer;
 
   Vulkan::DescriptorPool descriptorpool;
-
   Vulkan::PipelineLayout pipelinelayout;
-
   Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::Pipeline convolvepipeline;
+  Vulkan::Sampler repeatsampler;
+  Vulkan::Sampler clampedsampler;
 
   Vulkan::DescriptorSetLayout descriptorsetlayout;
+
+  Vulkan::Pipeline convolvepipeline;
 
   Vulkan::DescriptorSet convolvedescriptors[8];
   Vulkan::ImageView convolveimageviews[8];
@@ -121,14 +122,15 @@ struct ProjectContext
   Vulkan::CommandBuffer commandbuffer;
 
   Vulkan::DescriptorPool descriptorpool;
-
   Vulkan::PipelineLayout pipelinelayout;
-
   Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::Pipeline projectpipeline;
+  Vulkan::Sampler repeatsampler;
+  Vulkan::Sampler clampedsampler;
 
   Vulkan::DescriptorSetLayout descriptorsetlayout;
+
+  Vulkan::Pipeline projectpipeline;
 
   Vulkan::DescriptorSet projectdescriptor;
 

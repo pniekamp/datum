@@ -1,0 +1,28 @@
+#version 440 core
+#include "gbuffer.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x_id = 1, local_size_y_id = 2) in;
+
+layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
+{
+  mat4 proj;
+  mat4 invproj;
+  mat4 view;
+  mat4 invview;
+
+} scene;
+
+layout(set=0, binding=9) uniform sampler2D depthmap;
+
+layout(set=0, binding=38) writeonly uniform image2D dest;
+
+///////////////////////// main //////////////////////////////////////////////
+void main()
+{ 
+  ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+  
+  float depth = view_depth(scene.proj, texelFetch(depthmap, xy, 0).r);
+
+  imageStore(dest, xy, vec4(depth));     
+}

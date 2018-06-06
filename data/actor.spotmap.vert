@@ -22,7 +22,7 @@ layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet
 
 } model;
 
-layout(location=0) out vec2 texcoord;
+layout(location=4) out vec2 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

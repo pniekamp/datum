@@ -1,6 +1,6 @@
 #version 440 core
-#include "camera.glsl"
 #include "transform.glsl"
+#include "camera.glsl"
 #include "lighting.glsl"
 
 layout(triangles) in;
@@ -24,8 +24,8 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
 
 } scene;
 
-layout(location=0) in vec2 texcoords[];
-layout(location=0) out vec2 texcoord;
+layout(location=4) in vec2 texcoords[];
+layout(location=4) out vec2 texcoord;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

@@ -44,7 +44,7 @@ void example_init(PlatformInterface &platform)
   state.defaultmaterial = state.resources.create<Material>(state.assets.find(CoreAsset::default_material));
 
   state.ocean.wavescale = 22.0f;
-  state.ocean.waveamplitude = 0.000117f;
+  state.ocean.waveamplitude = 0.0025f;
   state.ocean.swellamplitude = 0.8f;
   state.ocean.windspeed = 7.9f;
   state.ocean.smoothing = 340.0f;

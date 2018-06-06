@@ -61,7 +61,7 @@ void ResourcePool::initialise(VkPhysicalDevice physicaldevice, VkDevice device, 
   VkDescriptorPoolSize typecounts[2] = {};
   typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
   typecounts[0].descriptorCount = DescriptorSetSlots;
-  typecounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  typecounts[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
   typecounts[1].descriptorCount = 8*DescriptorSetSlots;
 
   VkDescriptorPoolCreateInfo descriptorpoolinfo = {};

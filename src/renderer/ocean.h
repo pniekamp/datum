@@ -26,16 +26,17 @@ struct OceanContext
 
   Vulkan::PipelineCache pipelinecache;
 
-  Vulkan::Pipeline pipeline[5];
+  Vulkan::Sampler repeatsampler;
+  Vulkan::Sampler clampedsampler;
 
   Vulkan::DescriptorSetLayout descriptorsetlayout;
 
   Vulkan::DescriptorSet descriptorset;
 
+  Vulkan::Pipeline pipeline[5];
+
   Vulkan::StorageBuffer oceanset;
-
   Vulkan::StorageBuffer vertexbuffer;
-
   Vulkan::StorageBuffer spectrum;
 
   Vulkan::Texture displacementmap;

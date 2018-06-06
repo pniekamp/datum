@@ -78,6 +78,9 @@ void datumtest_init(PlatformInterface &platform)
   initialise_render_context(platform, state.rendercontext, 16*1024*1024, 0);
   initialise_spotmap_context(platform, state.spotmapcontext, 0);
 
+//  config_render_pipeline(RenderPipelineConfig::EnableDepthOfField, true);
+//  config_render_pipeline(RenderPipelineConfig::EnableColorGrading, true);
+
   state.camera.set_projection(state.fov*pi<float>()/180.0f, state.aspect);
 
   state.scene.initialise_component_storage<NameComponent>();
@@ -546,7 +549,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
       renderparams.height = viewport.height;
   //    renderparams.scale = 2.0f;//0.5f;
       renderparams.aspect = state.aspect;
-      renderparams.ssaoscale = 0.5f;
+      renderparams.ssaoscale = 1.0f;
       renderparams.fogdensity = 0.0f;
 
       prepare_render_pipeline(state.rendercontext, renderparams);
@@ -592,12 +595,15 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
         float height = 2.0f;
         DEBUG_MENU_VALUE("Fog/Height", &height, -20.0f, 100.0f)
 
-        //objects.push_water(buildstate, Transform::translation(0, 0.7f, 0), state.testplane, state.defaultmaterial, state.skybox, Vec2(0.1f));
+//        objects.push_water(buildstate, Transform::translation(0, 0.7f, 0), state.testplane, state.defaultmaterial, state.skybox, Vec2(0.1f));
 
         objects.push_opaque(buildstate, Transform::translation(-1.5f, 0.7f, 0), state.suzanne, state.suzannematerial);
         objects.push_translucent(buildstate, Transform::translation(1.5f, 0.7f, 0), state.suzanne, state.suzannematerial, 0.8f);
 
-        //objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), Plane(Vec3(0.0f, 1.0f, 0.0f), -height), density, startdistance, falloff);
+        objects.push_translucent_wb(buildstate, Transform::translation(4.5f, 0.7f, 0), state.testcube, state.defaultmaterial, 0.8f);
+        objects.push_translucent_wb(buildstate, Transform::translation(7.5f, 0.7f, 0.5f), state.testcube, state.suzannematerial, 0.8f);
+
+        objects.push_fogplane(buildstate, Color4(1, 0, 1, 1), Plane(Vec3(0.0f, 1.0f, 0.0f), -height), density, startdistance, falloff);
 
         objects.finalise(buildstate);
       }
@@ -735,6 +741,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderparams.sundirection = state.readframe->sundirection;
     renderparams.sunintensity = state.readframe->sunintensity;
 //    renderparams.skyboxorientation = Transform::rotation(Vec3(0, 1, 0), -0.1f*state.readframe->time);
+    renderparams.colorlut = state.colorlut;
     renderparams.ssaoscale = 1.0f;
     renderparams.fogdensity = 0.0f;
     renderparams.ssrstrength = 1.0f;

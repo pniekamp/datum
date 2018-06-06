@@ -1,11 +1,14 @@
 #version 440 core
 #include "bound.glsl"
+#include "transform.glsl"
 #include "camera.glsl"
 #include "gbuffer.glsl"
-#include "transform.glsl"
 #include "lighting.glsl"
 
 layout(constant_id = 52) const uint DecalMask = 0;
+
+layout(set=0, binding=1) uniform sampler repeatsampler;
+layout(set=0, binding=2) uniform sampler clampedsampler;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -13,11 +16,11 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
 
 } params;
 
-layout(set=1, binding=1) uniform sampler2DArray albedomap;
-layout(set=1, binding=2) uniform sampler2DArray surfacemap;
-layout(set=1, binding=3) uniform sampler2DArray normalmap;
+layout(set=1, binding=1) uniform texture2DArray albedomap;
+layout(set=1, binding=2) uniform texture2DArray surfacemap;
+layout(set=1, binding=3) uniform texture2DArray normalmap;
 
-layout(set=3, binding=0) uniform sampler2DArray blendmap;
+layout(set=3, binding=2) uniform texture2DArray blendmap;
 
 layout(location=0) in vec3 position;
 layout(location=1) in mat3 tbnworld;
@@ -40,50 +43,50 @@ void main()
   
   for(uint i = 0, end = layers/4; i < end; ++i)
   {  
-    vec4 blend = texture(blendmap, vec3(texcoord, i));
+    vec4 blend = texture(sampler2DArray(blendmap, clampedsampler), vec3(texcoord, i));
     
-    albedo += texture(albedomap, uv) * blend.r;
-    surface += texture(surfacemap, uv) * blend.r;
-    normal += texture(normalmap, uv).xyz * blend.r;
+    albedo += texture(sampler2DArray(albedomap, repeatsampler), uv) * blend.r;
+    surface += texture(sampler2DArray(surfacemap, repeatsampler), uv) * blend.r;
+    normal += texture(sampler2DArray(normalmap, repeatsampler), uv).xyz * blend.r;
     uv.z += 1;
 
-    albedo += texture(albedomap, uv) * blend.g;
-    surface += texture(surfacemap, uv) * blend.g;
-    normal += texture(normalmap, uv).xyz * blend.g;
+    albedo += texture(sampler2DArray(albedomap, repeatsampler), uv) * blend.g;
+    surface += texture(sampler2DArray(surfacemap, repeatsampler), uv) * blend.g;
+    normal += texture(sampler2DArray(normalmap, repeatsampler), uv).xyz * blend.g;
     uv.z += 1;
 
-    albedo += texture(albedomap, uv) * blend.b;
-    surface += texture(surfacemap, uv) * blend.b;
-    normal += texture(normalmap, uv).xyz * blend.b;
+    albedo += texture(sampler2DArray(albedomap, repeatsampler), uv) * blend.b;
+    surface += texture(sampler2DArray(surfacemap, repeatsampler), uv) * blend.b;
+    normal += texture(sampler2DArray(normalmap, repeatsampler), uv).xyz * blend.b;
     uv.z += 1;
 
-    albedo += texture(albedomap, uv) * blend.a;
-    surface += texture(surfacemap, uv) * blend.a;
-    normal += texture(normalmap, uv).xyz * blend.a;
+    albedo += texture(sampler2DArray(albedomap, repeatsampler), uv) * blend.a;
+    surface += texture(sampler2DArray(surfacemap, repeatsampler), uv) * blend.a;
+    normal += texture(sampler2DArray(normalmap, repeatsampler), uv).xyz * blend.a;
     uv.z += 1;
   }
   
   if ((layers & 0x3) > 0)
   {
-    vec4 blend = texture(blendmap, vec3(texcoord, layers/4));
+    vec4 blend = texture(sampler2DArray(blendmap, clampedsampler), vec3(texcoord, layers/4));
 
-    albedo += texture(albedomap, uv) * blend.r;
-    surface += texture(surfacemap, uv) * blend.r;
-    normal += texture(normalmap, uv).xyz * blend.r;
+    albedo += texture(sampler2DArray(albedomap, repeatsampler), uv) * blend.r;
+    surface += texture(sampler2DArray(surfacemap, repeatsampler), uv) * blend.r;
+    normal += texture(sampler2DArray(normalmap, repeatsampler), uv).xyz * blend.r;
     uv.z += 1;
 
     if ((layers & 0x3) > 1)
     {
-      albedo += texture(albedomap, uv) * blend.g;
-      surface += texture(surfacemap, uv) * blend.g;
-      normal += texture(normalmap, uv).xyz * blend.g;
+      albedo += texture(sampler2DArray(albedomap, repeatsampler), uv) * blend.g;
+      surface += texture(sampler2DArray(surfacemap, repeatsampler), uv) * blend.g;
+      normal += texture(sampler2DArray(normalmap, repeatsampler), uv).xyz * blend.g;
       uv.z += 1;
     
       if ((layers & 0x3) > 2)
       {
-        albedo += texture(albedomap, uv) * blend.b;
-        surface += texture(surfacemap, uv) * blend.b;
-        normal += texture(normalmap, uv).xyz * blend.b;
+        albedo += texture(sampler2DArray(albedomap, repeatsampler), uv) * blend.b;
+        surface += texture(sampler2DArray(surfacemap, repeatsampler), uv) * blend.b;
+        normal += texture(sampler2DArray(normalmap, repeatsampler), uv).xyz * blend.b;
         uv.z += 1;
       }
     }    

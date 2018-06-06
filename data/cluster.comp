@@ -1,8 +1,8 @@
 #version 440 core
 #include "bound.glsl"
+#include "transform.glsl"
 #include "camera.glsl"
 #include "gbuffer.glsl"
-#include "transform.glsl"
 #include "lighting.glsl"
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 32) in;
@@ -85,7 +85,7 @@ void main()
   frustum[2] = normalize(vec3(0, scene.proj[1][1], base.y));
   frustum[3] = normalize(vec3(0, -scene.proj[1][1], -base.y - step.y));
 
-  Bound2 tilebound = make_bound((scene.invproj * vec4(base.x, base.y + step.y, 1, 1)).xy, (scene.invproj * vec4(base.x + step.x, base.y, 1, 1)).xy);
+  Bound2 tilebound = make_bound((scene.invproj * vec4(base.x, base.y + step.y, 0, 1)).xy, (scene.invproj * vec4(base.x + step.x, base.y, 0, 1)).xy);
 
   //
   // Environments
@@ -93,8 +93,8 @@ void main()
 
   for(uint tilez = gl_LocalInvocationIndex, end = ClusterSizeZ; tilez < end; tilez += gl_WorkGroupSize.z)
   {
-    float nz = view_depth(scene.proj, cluster_depth(tilez));
-    float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+    float nz = view_depth(scene.proj, 1 - cluster_depth(tilez));
+    float fz = view_depth(scene.proj, 1 - cluster_depth(tilez+1));
     
     Bound3 aabb = make_bound(tilebound, nz, fz);
   
@@ -123,14 +123,14 @@ void main()
 
     if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {    
-      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(centre.z + radius, -0.1)));
-      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(centre.z - radius, -0.1)));
+      uint tilezmin = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)));
+      uint tilezmax = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)));
 
-      float nz = view_depth(scene.proj, cluster_depth(tilezmin));
+      float nz = view_depth(scene.proj, 1 - cluster_depth(tilezmin));
       
       for(uint tilez = tilezmin; tilez <= tilezmax; ++tilez)
       {
-        float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+        float fz = view_depth(scene.proj, 1 - cluster_depth(tilez+1));
 
         if (intersects(make_bound(tilebound, nz, fz), centre, radius))
         {
@@ -156,14 +156,14 @@ void main()
 
     if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {  
-      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(centre.z + radius, -0.1)));
-      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(centre.z - radius, -0.1)));
+      uint tilezmin = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)));
+      uint tilezmax = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)));
 
-      float nz = view_depth(scene.proj, cluster_depth(tilezmin));
+      float nz = view_depth(scene.proj, 1 - cluster_depth(tilezmin));
       
       for(uint tilez = tilezmin; tilez <= tilezmax; ++tilez)
       {
-        float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+        float fz = view_depth(scene.proj, 1 - cluster_depth(tilez+1));
 
         if (intersects(make_bound(tilebound, nz, fz), centre, radius))
         {
@@ -187,14 +187,14 @@ void main()
 
     if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {    
-      uint tilezmin = cluster_tilez(proj_depth(scene.proj, min(centre.z + radius, -0.1)));
-      uint tilezmax = cluster_tilez(proj_depth(scene.proj, min(centre.z - radius, -0.1)));
+      uint tilezmin = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)));
+      uint tilezmax = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)));
 
-      float nz = view_depth(scene.proj, cluster_depth(tilezmin));
+      float nz = view_depth(scene.proj, 1 - cluster_depth(tilezmin));
       
       for(uint tilez = tilezmin; tilez <= tilezmax; ++tilez)
       {
-        float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+        float fz = view_depth(scene.proj, 1 - cluster_depth(tilez+1));
 
         if (intersects(make_bound(tilebound, nz, fz), centre, radius))
         {
@@ -213,8 +213,8 @@ void main()
 
   for(uint tilez = gl_LocalInvocationIndex, end = ClusterSizeZ; tilez < end; tilez += gl_WorkGroupSize.z)
   {
-    float nz = view_depth(scene.proj, cluster_depth(tilez));
-    float fz = view_depth(scene.proj, cluster_depth(tilez+1));
+    float nz = view_depth(scene.proj, 1 - cluster_depth(tilez));
+    float fz = view_depth(scene.proj, 1 - cluster_depth(tilez+1));
     
     Bound3 aabb = make_bound(tilebound, nz, fz);
   

@@ -26,7 +26,9 @@ enum ShaderLocation
   surfacemap = 2,
   normalmap = 3,
 
-  blendmap = 0,
+  heightmap = 0,
+  heightnormalmap = 1,
+  blendmap = 2,
 };
 
 struct MaterialSet
@@ -76,6 +78,11 @@ struct FoilageSet
 struct TerrainSet
 {
   alignas(16) Transform modelworld;
+  alignas(16) Vec4 texcoords;
+  alignas( 4) float morphbeg;
+  alignas( 4) float morphend;
+  alignas( 4) float morphgrid;
+  alignas( 4) float areascale;
   alignas(16) Vec2 uvscale;
   alignas( 4) uint32_t layers;
 };
@@ -355,10 +362,12 @@ void GeometryList::push_foilage(BuildState &state, Transform const *transforms, 
 
 
 ///////////////////////// GeometryList::push_terrain ////////////////////////
-void GeometryList::push_terrain(BuildState &state, Transform const &transform, Mesh const *mesh, Material const *material, ::Texture const *blendmap, int layers, Vec2 const &uvscale)
+void GeometryList::push_terrain(BuildState &state, Transform const &transform, Mesh const *mesh, ::Texture const *heightmap, ::Texture const *normalmap, Rect2 const &region, float areascale, float morphbeg, float morphend, float morphgrid, Material const *material, ::Texture const *blendmap, int layers, Vec2 const &uvscale)
 {
   assert(state.commandlump);
   assert(mesh && mesh->ready());
+  assert(heightmap && heightmap->ready());
+  assert(normalmap && normalmap->ready());
   assert(material && material->ready() && material->albedomap && material->surfacemap && material->normalmap);
   assert(blendmap && blendmap->ready());
 
@@ -399,7 +408,18 @@ void GeometryList::push_terrain(BuildState &state, Transform const &transform, M
 
     auto modelset = state.modelset.memory<TerrainSet>(offset);
 
+    Vec4 extent;
+    extent.z = (region.max.x - region.min.x) / (mesh->bound.max.x - mesh->bound.min.x);
+    extent.w = (region.max.y - region.min.y) / (mesh->bound.max.y - mesh->bound.min.y);
+    extent.x = region.min.x - mesh->bound.min.x * extent.z;
+    extent.y = region.min.y - mesh->bound.min.y * extent.w;
+
     modelset->modelworld = transform;
+    modelset->texcoords = extent;
+    modelset->morphbeg = morphbeg;
+    modelset->morphend = morphend;
+    modelset->morphgrid = morphgrid;
+    modelset->areascale = areascale;
     modelset->uvscale = uvscale;
     modelset->layers = layers;
 
@@ -408,8 +428,11 @@ void GeometryList::push_terrain(BuildState &state, Transform const &transform, M
 
     auto extendedset = commandlump.acquire_descriptor(context.extendedsetlayout);
 
+    bind_texture(context.vulkan, extendedset, ShaderLocation::heightmap, heightmap->texture);
+    bind_texture(context.vulkan, extendedset, ShaderLocation::heightnormalmap, normalmap->texture);
     bind_texture(context.vulkan, extendedset, ShaderLocation::blendmap, blendmap->texture);
 
+    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::extendedset, extendedset, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::extendedset, extendedset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);

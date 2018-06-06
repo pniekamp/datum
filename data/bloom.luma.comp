@@ -6,9 +6,9 @@ layout(local_size_x_id = 1, local_size_y_id = 2) in;
 
 layout(constant_id = 81) const float Cutoff = 11.2;
 
-layout(set=0, binding=1) uniform sampler2D src;
+layout(set=0, binding=5) uniform sampler2D src;
 
-layout(set=0, binding=31) writeonly uniform image2D dest;
+layout(set=0, binding=35) writeonly uniform image2D dest;
 
 ///////////////////////// main //////////////////////////////////////////////
 void main()

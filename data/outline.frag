@@ -14,7 +14,10 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   
 } scene;
 
-layout(set=0, binding=5) uniform sampler2D depthmap;
+layout(set=0, binding=1) uniform sampler repeatsampler;
+layout(set=0, binding=2) uniform sampler clampedsampler;
+
+layout(set=0, binding=9) uniform sampler2D depthmap;
 
 layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet 
 {
@@ -23,7 +26,7 @@ layout(set=1, binding=0, std430, row_major) readonly buffer MaterialSet
 
 } params;
 
-layout(set=1, binding=1) uniform sampler2DArray albedomap;
+layout(set=1, binding=1) uniform texture2DArray albedomap;
 
 layout(location=0) in vec2 texcoord;
 
@@ -37,8 +40,8 @@ void main()
   if (fbocoord.x < 0 || fbocoord.x > 1 || fbocoord.y < 0 || fbocoord.y > 1)
     discard;
   
-  if (texture(depthmap, fbocoord.st).r < gl_FragCoord.z)
+  if (texture(depthmap, fbocoord.st).r > gl_FragCoord.z)
     discard;
 
-  fragcolor = texture(albedomap, vec3(texcoord, 0)).a * params.color;
+  fragcolor = texture(sampler2DArray(albedomap, repeatsampler), vec3(texcoord, 0)).a * params.color;
 }
