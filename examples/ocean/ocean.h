@@ -34,7 +34,7 @@ struct GameState
   OceanContext oceancontext;
 
   OceanParams ocean;
-  Mesh const *oceanmesh;
+  Ocean const *oceanmesh;
   Material const *oceanmaterial;
 
   SkyBox const *skybox;

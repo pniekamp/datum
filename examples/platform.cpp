@@ -351,10 +351,10 @@ namespace DatumPlatform
 
     m_fio.read((char*)buffer, bytes);
 
-    if (!m_fio)
+    if (m_fio.bad())
       throw runtime_error("FileHandle Read Error");
 
-    return bytes;
+    return m_fio.gcount();
   }
 
 } // namespace

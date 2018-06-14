@@ -342,7 +342,7 @@ struct RenderContext
   Vulkan::CommandPool commandpool;
   Vulkan::CommandBuffer commandbuffers[2];
 
-  Vulkan::StorageBuffer transferbuffer;
+  Vulkan::TransferBuffer transferbuffer;
 
   Vulkan::DescriptorPool descriptorpool;
 
@@ -454,7 +454,7 @@ struct RenderContext
   ShadowMap shadows;
   Vulkan::FrameBuffer shadowbuffer;
 
-  std::tuple<size_t, VkImageView> decalmaps[2][16];
+  std::tuple<size_t, VkImage> decalmaps[2][16];
 
   int width, height;
   float scale, aspect;

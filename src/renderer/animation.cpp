@@ -133,7 +133,6 @@ void ResourceManager::request<Animation>(DatumPlatform::PlatformInterface &platf
         auto payload = reinterpret_cast<PackAnimationPayload const *>(bits);
 
         auto jointtable = PackAnimationPayload::jointtable(payload, asset->jointcount, asset->transformcount);
-
         auto jointdata = system_allocator_type<Animation::Joint>{}.allocate(asset->jointcount);
 
         for(int i = 0; i < slot->jointcount; ++i)
@@ -147,7 +146,6 @@ void ResourceManager::request<Animation>(DatumPlatform::PlatformInterface &platf
         slot->joints = jointdata;
 
         auto transformtable = PackAnimationPayload::transformtable(payload, asset->jointcount, asset->transformcount);
-
         auto transformdata = system_allocator_type<Animation::Transform>{}.allocate(asset->transformcount);
 
         for(int i = 0; i < slot->transformcount; ++i)

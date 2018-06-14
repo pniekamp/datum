@@ -7,10 +7,226 @@
 //
 
 #include "vulkan.h"
+#include <vector>
+#include <atomic>
+#include <algorithm>
 #include "debug.h"
 
 using namespace std;
 using namespace lml;
+using leap::alignto;
+
+namespace Vulkan
+{
+  //|---------------------- DeviceAllocator ---------------------------------
+  //|------------------------------------------------------------------------
+
+  struct DeviceAllocator
+  {
+    VkDeviceSize blocksize = 0;
+
+    struct Slab
+    {
+      uint32_t type;
+      VkDeviceMemory memory;
+
+      struct Block
+      {
+        VkDeviceSize offset;
+        VkDeviceSize size;
+      };
+
+      std::vector<Block> freeblocks; // sorted by size
+    };
+
+    std::vector<Slab> slabs;
+
+    VkDeviceSize m_used = 0;
+    VkDeviceSize m_allocated = 0;
+
+    std::atomic_flag lock = ATOMIC_FLAG_INIT;
+  };
+
+  bool less_size(DeviceAllocator::Slab::Block const &lhs, VkDeviceSize size)
+  {
+    return lhs.size < size;
+  }
+
+
+  ///////////////////////// memory_type /////////////////////////////////////
+  uint32_t memory_type(VulkanDevice const &vulkan, VkMemoryRequirements const &requirements, VkMemoryPropertyFlags properties)
+  {
+    for (uint32_t i = 0; i < 32; i++)
+    {
+      if ((requirements.memoryTypeBits >> i) & 1)
+      {
+        if ((vulkan.physicaldevicememoryproperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+          return i;
+        }
+      }
+    }
+
+    return 0;
+  }
+
+
+  ///////////////////////// allocate_memory /////////////////////////////////
+  VkResult allocate_memory(VulkanDevice const &vulkan, VkMemoryRequirements const &requirements, VkMemoryPropertyFlags properties, VkDeviceMemory *memory)
+  {
+    VkMemoryAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateinfo.memoryTypeIndex = memory_type(vulkan, requirements, properties);
+    allocateinfo.allocationSize = requirements.size;
+
+    return vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, memory);
+  }
+
+
+  ///////////////////////// deviceallocater_allocate ////////////////////////
+  VkResult deviceallocater_allocate(VulkanDevice const &vulkan, VkMemoryRequirements const &requirements, VkMemoryPropertyFlags properties, DeviceAllocatorPtr *block)
+  {
+    block->memory = 0;
+    block->offset = 0;
+    block->size = requirements.size;
+
+    assert(properties == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    auto allocator = vulkan.allocator;
+
+    while (allocator->lock.test_and_set(std::memory_order_acquire))
+      ;
+
+    uint32_t type = memory_type(vulkan, requirements, properties);
+
+    VkDeviceSize size = alignto(requirements.size, max(vulkan.physicaldeviceproperties.limits.bufferImageGranularity, VkDeviceSize(1024)));
+
+    for(auto &slab : allocator->slabs)
+    {
+      if (slab.type == type)
+      {
+        auto first = lower_bound(begin(slab.freeblocks), end(slab.freeblocks), size, &less_size);
+
+        for(auto &i = first; i != slab.freeblocks.end(); ++i)
+        {
+          VkDeviceSize offset = alignto(i->offset, requirements.alignment);
+
+          if (offset + size <= i->offset + i->size)
+          {
+            block->memory = slab.memory;
+            block->offset = offset;
+            block->size = size;
+
+            auto head = DeviceAllocator::Slab::Block{ i->offset, offset - i->offset };
+            auto tail = DeviceAllocator::Slab::Block{ offset + size, i->size - (offset - i->offset) - size };
+
+            slab.freeblocks.erase(i);
+
+            if (head.size != 0)
+            {
+              slab.freeblocks.insert(lower_bound(begin(slab.freeblocks), end(slab.freeblocks), head.size, &less_size), head);
+            }
+
+            if (tail.size != 0)
+            {
+              slab.freeblocks.insert(lower_bound(begin(slab.freeblocks), end(slab.freeblocks), tail.size, &less_size), tail);
+            }
+
+            allocator->m_used += size;
+
+            allocator->lock.clear(std::memory_order_release);
+
+            return VK_SUCCESS;
+          }
+        }
+      }
+    }
+
+    VkMemoryAllocateInfo allocateinfo = {};
+    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateinfo.memoryTypeIndex = type;
+    allocateinfo.allocationSize = max(size, allocator->blocksize);
+
+    VkDeviceMemory memory;
+    if (vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, &memory) == VK_SUCCESS)
+    {
+      block->memory = memory;
+      block->offset = 0;
+      block->size = size;
+
+      allocator->slabs.push_back({ type, memory });
+
+      auto &slab = allocator->slabs.back();
+
+      auto tail = DeviceAllocator::Slab::Block{ size, allocateinfo.allocationSize - size };
+
+      if (tail.size != 0)
+      {
+        slab.freeblocks.insert(lower_bound(begin(slab.freeblocks), end(slab.freeblocks), tail.size, &less_size), tail);
+      }
+
+      allocator->m_used += size;
+      allocator->m_allocated += allocateinfo.allocationSize;
+
+      allocator->lock.clear(std::memory_order_release);
+
+      return VK_SUCCESS;
+    }
+
+    allocator->lock.clear(std::memory_order_release);
+
+    return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+  }
+
+
+  ///////////////////////// deviceallocater_free ////////////////////////////
+  void deviceallocater_free(DeviceAllocator *allocator, DeviceAllocatorPtr block)
+  {
+    while (allocator->lock.test_and_set(std::memory_order_acquire))
+      ;
+
+    auto slab = find_if(begin(allocator->slabs), end(allocator->slabs), [&](auto &lhs) { return (lhs.memory == block.memory); });
+
+    assert(slab != allocator->slabs.end());
+
+    auto free = DeviceAllocator::Slab::Block{ block.offset, block.size };
+
+    auto i = find_if(begin(slab->freeblocks), end(slab->freeblocks), [&](auto &lhs) { return (lhs.offset + lhs.size == free.offset); });
+
+    if (i != slab->freeblocks.end())
+    {
+      // Compact head
+
+      free.offset = i->offset;
+      free.size += i->size;
+
+      slab->freeblocks.erase(i);
+    }
+
+    auto j = find_if(begin(slab->freeblocks), end(slab->freeblocks), [&](auto &lhs) { return (lhs.offset == free.offset + free.size); });
+
+    if (j != slab->freeblocks.end())
+    {
+      // Compact tail
+
+      free.size += j->size;
+
+      slab->freeblocks.erase(j);
+    }
+
+    slab->freeblocks.insert(lower_bound(begin(slab->freeblocks), end(slab->freeblocks), free.size, &less_size), free);
+
+    allocator->m_used -= block.size;
+
+    allocator->lock.clear(std::memory_order_release);
+  }
+
+
+  void DeviceAllocatorDeleter::operator()(DeviceAllocatorPtr memory)
+  {
+    deviceallocater_free(allocator, memory);
+  }
+}
 
 namespace Vulkan
 {
@@ -18,7 +234,7 @@ namespace Vulkan
   //|------------------------------------------------------------------------
 
   ///////////////////////// initialise_vulkan_device ////////////////////////
-  void initialise_vulkan_device(VulkanDevice *vulkan, VkPhysicalDevice physicaldevice, VkDevice device, VkQueue queue, uint32_t queuefamily)
+  void initialise_vulkan_device(VulkanDevice *vulkan, VkPhysicalDevice physicaldevice, VkDevice device, VkQueue queue, uint32_t queuefamily, size_t blocksize)
   {
     vulkan->device = device;
 
@@ -30,6 +246,22 @@ namespace Vulkan
 
     vulkan->queue = queue;
     vulkan->queuefamily = queuefamily;
+
+    vulkan->allocator = new DeviceAllocator;
+    vulkan->allocator->blocksize = blocksize;
+  }
+
+  VulkanDevice::~VulkanDevice()
+  {
+    if (device != 0)
+    {
+      for(auto &slab : allocator->slabs)
+      {
+        vkFreeMemory(device, slab.memory, nullptr);
+      }
+
+      delete allocator;
+    }
   }
 
 
@@ -65,30 +297,6 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// allocate_memory /////////////////////////////////
-  VkResult allocate_memory(VulkanDevice const &vulkan, VkMemoryRequirements const &requirements, VkMemoryPropertyFlags properties, VkDeviceMemory *memory)
-  {
-    VkMemoryAllocateInfo allocateinfo = {};
-    allocateinfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocateinfo.memoryTypeIndex = 0;
-    allocateinfo.allocationSize = requirements.size;
-
-    for (uint32_t i = 0; i < 32; i++)
-    {
-      if ((requirements.memoryTypeBits >> i) & 1)
-      {
-        if ((vulkan.physicaldevicememoryproperties.memoryTypes[i].propertyFlags & properties) == properties)
-        {
-          allocateinfo.memoryTypeIndex = i;
-          break;
-        }
-      }
-    }
-
-    return vkAllocateMemory(vulkan.device, &allocateinfo, nullptr, memory);
-  }
-
-
   ///////////////////////// create_commandpool //////////////////////////////
   CommandPool create_commandpool(VulkanDevice const &vulkan, VkCommandPoolCreateFlags flags)
   {
@@ -109,7 +317,6 @@ namespace Vulkan
   DescriptorSetLayout create_descriptorsetlayout(VulkanDevice const &vulkan, VkDescriptorSetLayoutCreateInfo const &createinfo)
   {
     VkDescriptorSetLayout descriptorsetlayout;
-
     if (vkCreateDescriptorSetLayout(vulkan.device, &createinfo, nullptr, &descriptorsetlayout) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateDescriptorSetLayout failed");
 
@@ -121,7 +328,6 @@ namespace Vulkan
   PipelineLayout create_pipelinelayout(VulkanDevice const &vulkan, VkPipelineLayoutCreateInfo const &createinfo)
   {
     VkPipelineLayout pipelinelayout;
-
     if (vkCreatePipelineLayout(vulkan.device, &createinfo, nullptr, &pipelinelayout) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreatePipelineLayout failed");
 
@@ -133,7 +339,6 @@ namespace Vulkan
   Pipeline create_pipeline(VulkanDevice const &vulkan, VkPipelineCache cache, VkGraphicsPipelineCreateInfo const &createinfo)
   {
     VkPipeline pipeline;
-
     if (vkCreateGraphicsPipelines(vulkan.device, cache, 1, &createinfo, nullptr, &pipeline) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateGraphicsPipelines failed");
 
@@ -145,7 +350,6 @@ namespace Vulkan
   Pipeline create_pipeline(VulkanDevice const &vulkan, VkPipelineCache cache, VkComputePipelineCreateInfo const &createinfo)
   {
     VkPipeline pipeline;
-
     if (vkCreateComputePipelines(vulkan.device, cache, 1, &createinfo, nullptr, &pipeline) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateComputePipelines failed");
 
@@ -157,7 +361,6 @@ namespace Vulkan
   PipelineCache create_pipelinecache(VulkanDevice const &vulkan, VkPipelineCacheCreateInfo const &createinfo)
   {
     VkPipelineCache pipelinecache;
-
     if (vkCreatePipelineCache(vulkan.device, &createinfo, nullptr, &pipelinecache) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreatePipelineCache failed");
 
@@ -169,7 +372,6 @@ namespace Vulkan
   DescriptorPool create_descriptorpool(VulkanDevice const &vulkan, VkDescriptorPoolCreateInfo const &createinfo)
   {
     VkDescriptorPool descriptorpool;
-
     if (vkCreateDescriptorPool(vulkan.device, &createinfo, nullptr, &descriptorpool) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateDescriptorPool failed");
 
@@ -187,7 +389,6 @@ namespace Vulkan
     createinfo.flags = 0;
 
     VkShaderModule shadermodule;
-
     if (vkCreateShaderModule(vulkan.device, &createinfo, nullptr, &shadermodule) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateShaderModule failed");
 
@@ -199,7 +400,6 @@ namespace Vulkan
   RenderPass create_renderpass(VulkanDevice const &vulkan, VkRenderPassCreateInfo const &createinfo)
   {
     VkRenderPass renderpass;
-
     if (vkCreateRenderPass(vulkan.device, &createinfo, nullptr, &renderpass) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateRenderPass failed");
 
@@ -211,7 +411,6 @@ namespace Vulkan
   FrameBuffer create_framebuffer(VulkanDevice const &vulkan, VkFramebufferCreateInfo const &createinfo)
   {
     VkFramebuffer framebuffer;
-
     if (vkCreateFramebuffer(vulkan.device, &createinfo, nullptr, &framebuffer) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateFrameBuffer failed");
 
@@ -223,21 +422,10 @@ namespace Vulkan
   Image create_image(VulkanDevice const &vulkan, VkImageCreateInfo const &createinfo)
   {
     VkImage image;
-
     if (vkCreateImage(vulkan.device, &createinfo, nullptr, &image) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateImage failed");
 
-    VkMemoryRequirements memoryrequirements;
-    vkGetImageMemoryRequirements(vulkan.device, image, &memoryrequirements);
-
-    VkDeviceMemory memory;
-    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkAllocateMemory failed");
-
-    if (vkBindImageMemory(vulkan.device, image, memory, 0) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkBindImageMemory failed");
-
-    return { image, { vulkan.device, memory } };
+    return { image, { vulkan.device } };
   }
 
 
@@ -245,7 +433,6 @@ namespace Vulkan
   ImageView create_imageview(VulkanDevice const &vulkan, VkImageViewCreateInfo const &createinfo)
   {
     VkImageView imageview;
-
     if (vkCreateImageView(vulkan.device, &createinfo, nullptr, &imageview) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateImageView failed");
 
@@ -257,7 +444,6 @@ namespace Vulkan
   Sampler create_sampler(VulkanDevice const &vulkan, VkSamplerCreateInfo const &createinfo)
   {
     VkSampler sampler;
-
     if (vkCreateSampler(vulkan.device, &createinfo, nullptr, &sampler) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateImageView failed");
 
@@ -265,82 +451,117 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// create_transferbuffer ///////////////////////////
-  StorageBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size)
+  ///////////////////////// create_buffer ///////////////////////////////////
+  Buffer create_buffer(VulkanDevice const &vulkan, VkBufferCreateInfo const &createinfo)
   {
-    VkBufferCreateInfo createinfo = {};
-    createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    createinfo.size = size;
-
-    VkBuffer transferbuffer;
-    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &transferbuffer) != VK_SUCCESS)
+    VkBuffer buffer;
+    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &buffer) != VK_SUCCESS)
       throw runtime_error("Vulkan vkCreateBuffer failed");
 
-    VkMemoryRequirements memoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, transferbuffer, &memoryrequirements);
-
-    VkDeviceMemory memory;
-    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkAllocateMemory failed");
-
-    if (vkBindBufferMemory(vulkan.device, transferbuffer, memory, 0) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkBindBufferMemory failed");
-
-    return { size, 0, { transferbuffer, { vulkan.device } }, { memory, { vulkan.device } } };
+    return { buffer, { vulkan.device } };
   }
 
 
-  ///////////////////////// create_storagebuffer /////////////////////////////
-  StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize &size)
+  ///////////////////////// create_transferbuffer ///////////////////////////
+  bool create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size, TransferBuffer *transferbuffer)
   {
     VkBufferCreateInfo createinfo = {};
     createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     createinfo.size = size;
 
-    VkBuffer storagebuffer;
-    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &storagebuffer) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkCreateBuffer failed");
+    transferbuffer->buffer = create_buffer(vulkan, createinfo);
 
     VkMemoryRequirements memoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, storagebuffer, &memoryrequirements);
+    vkGetBufferMemoryRequirements(vulkan.device, transferbuffer->buffer, &memoryrequirements);
+
+    VkDeviceMemory memory;
+    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory) != VK_SUCCESS)
+      return false;
+
+    transferbuffer->size = size;
+    transferbuffer->memory = { memory, { vulkan.device } };
+
+    if (vkBindBufferMemory(vulkan.device, transferbuffer->buffer, memory, 0) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
+
+    return true;
+  }
+
+
+  ///////////////////////// create_transferbuffer ///////////////////////////
+  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceSize size)
+  {
+    TransferBuffer transferbuffer = {};
+    if (!create_transferbuffer(vulkan, size, &transferbuffer))
+      throw runtime_error("Vulkan Create TransferBuffer failed");
+
+    return transferbuffer;
+  }
+
+
+  ///////////////////////// create_transferbuffer ///////////////////////////
+  TransferBuffer create_transferbuffer(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize &size)
+  {
+    TransferBuffer transferbuffer = {};
+
+    VkBufferCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    createinfo.size = size;
+
+    transferbuffer.buffer = create_buffer(vulkan, createinfo);
+
+    VkMemoryRequirements memoryrequirements;
+    vkGetBufferMemoryRequirements(vulkan.device, transferbuffer.buffer, &memoryrequirements);
 
     if (offset % memoryrequirements.alignment != 0)
       throw runtime_error("Vulkan VkMemoryRequirements invalid alignment offset");
 
-    if (vkBindBufferMemory(vulkan.device, storagebuffer, memory, offset) != VK_SUCCESS)
+    if (vkBindBufferMemory(vulkan.device, transferbuffer.buffer, memory, offset) != VK_SUCCESS)
       throw runtime_error("Vulkan vkBindBufferMemory failed");
 
-    size = memoryrequirements.size;
+    transferbuffer.size = memoryrequirements.size;
 
-    return { size, offset, { storagebuffer, { vulkan.device } } };
+    return transferbuffer;
+  }
+
+
+  ///////////////////////// create_storagebuffer /////////////////////////////
+  bool create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size, StorageBuffer *storagebuffer)
+  {
+    VkBufferCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    createinfo.size = size;
+
+    storagebuffer->buffer = create_buffer(vulkan, createinfo);
+
+    VkMemoryRequirements memoryrequirements;
+    vkGetBufferMemoryRequirements(vulkan.device, storagebuffer->buffer, &memoryrequirements);
+
+    DeviceAllocatorPtr block;
+    if (deviceallocater_allocate(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &block) != VK_SUCCESS)
+      return false;
+
+    storagebuffer->size = size;
+    storagebuffer->memory = { block, { vulkan.allocator } };
+
+    if (vkBindBufferMemory(vulkan.device, storagebuffer->buffer, block.memory, block.offset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindBufferMemory failed");
+
+    return true;
   }
 
 
   ///////////////////////// create_storagebuffer /////////////////////////////
   StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size)
   {
-    VkBufferCreateInfo createinfo = {};
-    createinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createinfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    createinfo.size = size;
+    StorageBuffer storagebuffer = {};
+    if (!create_storagebuffer(vulkan, size, &storagebuffer))
+      throw runtime_error("Vulkan Create StorageBuffer failed");
 
-    VkBuffer storagebuffer;
-    if (vkCreateBuffer(vulkan.device, &createinfo, nullptr, &storagebuffer) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkCreateBuffer failed");
-
-    VkMemoryRequirements memoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, storagebuffer, &memoryrequirements);
-
-    VkDeviceMemory memory;
-    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkAllocateMemory failed");
-
-    if (vkBindBufferMemory(vulkan.device, storagebuffer, memory, 0) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkBindBufferMemory failed");
-
-    return { size, 0, { storagebuffer, { vulkan.device } }, { memory, { vulkan.device } } };
+    return storagebuffer;
   }
 
 
@@ -348,7 +569,6 @@ namespace Vulkan
   StorageBuffer create_storagebuffer(VulkanDevice const &vulkan, VkDeviceSize size, const void *data)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-
     CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -381,47 +601,64 @@ namespace Vulkan
 
 
   ///////////////////////// create_vertexbuffer /////////////////////////////
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize)
+  bool create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize, VkBufferUsageFlags usage, VertexBuffer *vertexbuffer)
   {
     VkBufferCreateInfo vertexbufferinfo = {};
     vertexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vertexbufferinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    vertexbufferinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage;
     vertexbufferinfo.size = vertexcount * vertexsize;
 
-    VkBuffer vertexbuffer;
-    if (vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkCreateBuffer failed");
+    vertexbuffer->vertexcount = vertexcount;
+    vertexbuffer->vertexsize = vertexsize;
+    vertexbuffer->vertices = create_buffer(vulkan, vertexbufferinfo);
 
     VkMemoryRequirements memoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer, &memoryrequirements);
+    vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer->vertices, &memoryrequirements);
 
-    VkDeviceMemory memory;
-    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkAllocateMemory failed");
+    DeviceAllocatorPtr block;
+    if (deviceallocater_allocate(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &block) != VK_SUCCESS)
+      return false;
 
-    if (vkBindBufferMemory(vulkan.device, vertexbuffer, memory, 0) != VK_SUCCESS)
+    vertexbuffer->memory = { block, { vulkan.allocator } };
+
+    if (vkBindBufferMemory(vulkan.device, vertexbuffer->vertices, block.memory, block.offset) != VK_SUCCESS)
       throw runtime_error("Vulkan vkBindBufferMemory failed");
 
-    return { vertexcount, vertexsize, { vertexbuffer, { vulkan.device } }, 0, 0, { }, memoryrequirements.size, 0, 0, { memory, { vulkan.device } } };
+    return true;
   }
 
 
   ///////////////////////// create_vertexbuffer /////////////////////////////
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize)
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize)
   {
-    VertexBuffer vertexbuffer = create_vertexbuffer(vulkan, commandbuffer, vertexcount, vertexsize);
-
-    update_vertexbuffer(vulkan, commandbuffer, transferbuffer, vertexbuffer, vertices);
+    VertexBuffer vertexbuffer = {};
+    if (!create_vertexbuffer(vulkan, commandbuffer, vertexcount, vertexsize, 0, &vertexbuffer))
+      throw runtime_error("Vulkan Create VertexBuffer failed");
 
     return vertexbuffer;
   }
 
 
   ///////////////////////// create_vertexbuffer /////////////////////////////
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize)
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize)
+  {
+    assert(vertexcount * vertexsize <= transferbuffer.size);
+
+    VertexBuffer vertexbuffer = create_vertexbuffer(vulkan, commandbuffer, vertexcount, vertexsize);
+
+    VkDeviceSize verticessize = vertexbuffer.vertexcount * vertexbuffer.vertexsize;
+
+    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, 0, verticessize), vertices, verticessize);
+    blit(commandbuffer, transferbuffer, 0, vertexbuffer.vertices, 0, verticessize);
+
+    return vertexbuffer;
+  }
+
+
+  ///////////////////////// create_vertexbuffer /////////////////////////////
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-
     CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -439,72 +676,90 @@ namespace Vulkan
 
 
   ///////////////////////// create_vertexbuffer /////////////////////////////
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize, uint32_t indexcount, uint32_t indexsize)
+  bool create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize, uint32_t indexcount, uint32_t indexsize, VkBufferUsageFlags usage, VertexBuffer *vertexbuffer)
   {
     VkBufferCreateInfo vertexbufferinfo = {};
     vertexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     vertexbufferinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     vertexbufferinfo.size = vertexcount * vertexsize;
 
-    VkBuffer vertexbuffer;
-    if (vkCreateBuffer(vulkan.device, &vertexbufferinfo, nullptr, &vertexbuffer) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkCreateBuffer failed");
+    vertexbuffer->vertexcount = vertexcount;
+    vertexbuffer->vertexsize = vertexsize;
+    vertexbuffer->vertices = create_buffer(vulkan, vertexbufferinfo);
 
     VkMemoryRequirements vertexmemoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer, &vertexmemoryrequirements);
+    vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer->vertices, &vertexmemoryrequirements);
 
     VkBufferCreateInfo indexbufferinfo = {};
     indexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     indexbufferinfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     indexbufferinfo.size = indexcount * indexsize;
 
-    VkBuffer indexbuffer;
-    if (vkCreateBuffer(vulkan.device, &indexbufferinfo, nullptr, &indexbuffer) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkCreateBuffer failed");
+    vertexbuffer->indexcount = indexcount;
+    vertexbuffer->indexsize = indexsize;
+    vertexbuffer->indices = create_buffer(vulkan, indexbufferinfo);
 
     VkMemoryRequirements indexmemoryrequirements;
-    vkGetBufferMemoryRequirements(vulkan.device, indexbuffer, &indexmemoryrequirements);
+    vkGetBufferMemoryRequirements(vulkan.device, vertexbuffer->indices, &indexmemoryrequirements);
 
     VkDeviceSize padding = indexmemoryrequirements.alignment - (vertexmemoryrequirements.size % indexmemoryrequirements.alignment);
-
-    VkDeviceSize verticesoffset = 0;
-    VkDeviceSize indicesoffset = verticesoffset + vertexmemoryrequirements.size + padding;
 
     VkMemoryRequirements memoryrequirements;
     memoryrequirements.alignment = vertexmemoryrequirements.alignment;
     memoryrequirements.memoryTypeBits = vertexmemoryrequirements.memoryTypeBits & indexmemoryrequirements.memoryTypeBits;
     memoryrequirements.size = vertexmemoryrequirements.size + padding + indexmemoryrequirements.size;
 
-    VkDeviceMemory memory;
-    if (allocate_memory(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory) != VK_SUCCESS)
-      throw runtime_error("Vulkan vkAllocateMemory failed");
+    DeviceAllocatorPtr block;
+    if (deviceallocater_allocate(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &block) != VK_SUCCESS)
+      return false;
 
-    if (vkBindBufferMemory(vulkan.device, vertexbuffer, memory, verticesoffset) != VK_SUCCESS)
+    vertexbuffer->memory = { block, { vulkan.allocator } };
+
+    if (vkBindBufferMemory(vulkan.device, vertexbuffer->vertices, block.memory, block.offset) != VK_SUCCESS)
       throw runtime_error("Vulkan vkBindBufferMemory failed");
 
-    if (vkBindBufferMemory(vulkan.device, indexbuffer, memory, indicesoffset) != VK_SUCCESS)
+    if (vkBindBufferMemory(vulkan.device, vertexbuffer->indices, block.memory, block.offset + vertexmemoryrequirements.size + padding) != VK_SUCCESS)
       throw runtime_error("Vulkan vkBindBufferMemory failed");
 
-    return { vertexcount, vertexsize, { vertexbuffer, { vulkan.device } }, indexcount, indexsize, { indexbuffer, { vulkan.device } }, memoryrequirements.size, verticesoffset, indicesoffset, { memory, { vulkan.device } } };
+    return true;
   }
 
 
   ///////////////////////// create_vertexbuffer /////////////////////////////
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize)
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t vertexcount, uint32_t vertexsize, uint32_t indexcount, uint32_t indexsize)
   {
-    VertexBuffer vertexbuffer = create_vertexbuffer(vulkan, commandbuffer, vertexcount, vertexsize, indexcount, indexsize);
-
-    update_vertexbuffer(vulkan, commandbuffer, transferbuffer, vertexbuffer, vertices, indices);
+    VertexBuffer vertexbuffer = {};
+    if (!create_vertexbuffer(vulkan, commandbuffer, vertexcount, vertexsize, indexcount, indexsize, 0, &vertexbuffer))
+      throw runtime_error("Vulkan Create VertexBuffer failed");
 
     return vertexbuffer;
   }
 
 
   ///////////////////////// create_vertexbuffer /////////////////////////////
-  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize)
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize)
+  {
+    assert(vertexcount * vertexsize + indexcount * indexsize <= transferbuffer.size);
+
+    VertexBuffer vertexbuffer = create_vertexbuffer(vulkan, commandbuffer, vertexcount, vertexsize, indexcount, indexsize);
+
+    VkDeviceSize verticessize = vertexbuffer.vertexcount * vertexbuffer.vertexsize;
+    VkDeviceSize indicessize = vertexbuffer.indexcount * vertexbuffer.indexsize;
+
+    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, 0, verticessize), vertices, verticessize);
+    blit(commandbuffer, transferbuffer, 0, vertexbuffer.vertices, 0, verticessize);
+
+    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, verticessize, indicessize), indices, indicessize);
+    blit(commandbuffer, transferbuffer, verticessize, vertexbuffer.indices, 0, indicessize);
+
+    return vertexbuffer;
+  }
+
+
+  ///////////////////////// create_vertexbuffer /////////////////////////////
+  VertexBuffer create_vertexbuffer(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, const void *vertices, uint32_t vertexcount, uint32_t vertexsize, const void *indices, uint32_t indexcount, uint32_t indexsize)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-
     CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -521,59 +776,14 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// update_vertexbuffer /////////////////////////////
-  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, VertexBuffer &vertexbuffer)
-  {
-    blit(commandbuffer, transferbuffer, offset, vertexbuffer.vertices, 0, vertexbuffer.vertexcount * vertexbuffer.vertexsize);
-  }
-
-
-  ///////////////////////// update_vertexbuffer /////////////////////////////
-  void update_vertexbuffer(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize verticesoffset, VkDeviceSize indicesoffset, VertexBuffer &vertexbuffer)
-  {
-    blit(commandbuffer, transferbuffer, verticesoffset, vertexbuffer.vertices, 0, vertexbuffer.vertexcount * vertexbuffer.vertexsize);
-    blit(commandbuffer, transferbuffer, indicesoffset, vertexbuffer.indices, 0, vertexbuffer.indexcount * vertexbuffer.indexsize);
-  }
-
-
-  ///////////////////////// update_vertexbuffer /////////////////////////////
-  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices)
-  {
-    assert(vertexbuffer.size <= transferbuffer.size);
-
-    VkDeviceSize verticessize = vertexbuffer.vertexcount * vertexbuffer.vertexsize;
-
-    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, 0, verticessize), vertices, verticessize);
-
-    update_vertexbuffer(commandbuffer, transferbuffer, 0, vertexbuffer);
-  }
-
-
-  ///////////////////////// update_vertexbuffer /////////////////////////////
-  void update_vertexbuffer(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VertexBuffer &vertexbuffer, const void *vertices, const void *indices)
-  {
-    assert(vertexbuffer.size <= transferbuffer.size);
-
-    VkDeviceSize verticessize = vertexbuffer.vertexcount * vertexbuffer.vertexsize;
-    VkDeviceSize indicessize = vertexbuffer.indexcount * vertexbuffer.indexsize;
-
-    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, vertexbuffer.verticesoffset, verticessize), vertices, verticessize);
-    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, vertexbuffer.indicesoffset, indicessize), indices, indicessize);
-
-    update_vertexbuffer(commandbuffer, transferbuffer, vertexbuffer.verticesoffset, vertexbuffer.indicesoffset, vertexbuffer);
-  }
-
-
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkImageViewType type, VkImageLayout layout, VkImageUsageFlags usage, VkImageCreateFlags flags)
+  bool create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkImageViewType type, VkImageLayout layout, VkImageUsageFlags usage, Texture *texture)
   {
-    Texture texture = {};
-
-    texture.width = width;
-    texture.height = height;
-    texture.layers = layers;
-    texture.levels = levels;
-    texture.format = format;
+    texture->width = width;
+    texture->height = height;
+    texture->layers = layers;
+    texture->levels = levels;
+    texture->format = format;
 
     VkImageCreateInfo imageinfo = {};
     imageinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -587,11 +797,10 @@ namespace Vulkan
     imageinfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageinfo.usage = usage;
-    imageinfo.flags = flags;
 
     if (type == VK_IMAGE_VIEW_TYPE_3D)
     {
-      texture.layers = 1;
+      texture->layers = 1;
       imageinfo.imageType = VK_IMAGE_TYPE_3D;
       imageinfo.extent.depth = layers;
       imageinfo.arrayLayers = 1;
@@ -602,14 +811,26 @@ namespace Vulkan
       imageinfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
     }
 
-    texture.image = create_image(vulkan, imageinfo);
+    texture->image = create_image(vulkan, imageinfo);
+
+    VkMemoryRequirements memoryrequirements;
+    vkGetImageMemoryRequirements(vulkan.device, texture->image, &memoryrequirements);
+
+    DeviceAllocatorPtr block;
+    if (deviceallocater_allocate(vulkan, memoryrequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &block) != VK_SUCCESS)
+      return false;
+
+    texture->memory = { block, { vulkan.allocator } };
+
+    if (vkBindImageMemory(vulkan.device, texture->image, block.memory, block.offset) != VK_SUCCESS)
+      throw runtime_error("Vulkan vkBindImageMemory failed");
 
     VkImageViewCreateInfo viewinfo = {};
     viewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewinfo.viewType = type;
     viewinfo.format = format;
     viewinfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, imageinfo.mipLevels, 0, imageinfo.arrayLayers };
-    viewinfo.image = texture.image;
+    viewinfo.image = texture->image;
 
     if (format == VK_FORMAT_D16_UNORM || format == VK_FORMAT_D32_SFLOAT)
       viewinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -617,12 +838,23 @@ namespace Vulkan
     if (format == VK_FORMAT_D16_UNORM_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT)
       viewinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
-    texture.imageview = create_imageview(vulkan, viewinfo);
+    texture->imageview = create_imageview(vulkan, viewinfo);
 
     if (layout != VK_IMAGE_LAYOUT_UNDEFINED)
     {
       setimagelayout(commandbuffer, viewinfo.image, VK_IMAGE_LAYOUT_UNDEFINED, layout, viewinfo.subresourceRange);
     }
+
+    return true;
+  }
+
+
+  ///////////////////////// create_texture //////////////////////////////////
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, VkImageViewType type, VkImageLayout layout, VkImageUsageFlags usage)
+  {
+    Texture texture = {};
+    if (!create_texture(vulkan, commandbuffer, width, height, layers, levels, format, type, layout, usage, &texture))
+      throw runtime_error("Vulkan Create Texture failed");
 
     return texture;
   }
@@ -631,28 +863,39 @@ namespace Vulkan
   ///////////////////////// create_texture //////////////////////////////////
   Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format)
   {
-    Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    Texture texture = {};
+    if (!create_texture(vulkan, commandbuffer, width, height, layers, levels, format, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &texture))
+      throw runtime_error("Vulkan Create Texture failed");
 
     return texture;
   }
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits)
+  Texture create_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, TransferBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits)
   {
     Texture texture = create_texture(vulkan, commandbuffer, width, height, layers, levels, format);
 
-    update_texture(vulkan, commandbuffer, transferbuffer, texture, bits);
+    size_t size = 0;
+    for(size_t i = 0; i < texture.levels; ++i)
+    {
+      size += format_datasize(texture.width >> i, texture.height >> i, texture.format) * texture.layers;
+    }
+
+    assert(size <= transferbuffer.size);
+
+    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, 0, size), bits, size);
+
+    blit(commandbuffer, transferbuffer, 0, texture);
 
     return texture;
   }
 
 
   ///////////////////////// create_texture //////////////////////////////////
-  Texture create_texture(VulkanDevice const &vulkan, StorageBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits)
+  Texture create_texture(VulkanDevice const &vulkan, TransferBuffer const &transferbuffer, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels, VkFormat format, const void *bits)
   {
     CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-
     CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -669,43 +912,6 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// update_texture //////////////////////////////////
-  void update_texture(VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, VkDeviceSize offset, Texture &texture)
-  {
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    for(uint32_t level = 0; level < texture.levels; ++level)
-    {
-      uint32_t width = texture.width >> level;
-      uint32_t height = texture.height >> level;
-      uint32_t layers = texture.layers;
-
-      blit(commandbuffer, transferbuffer, offset, texture.image, 0, 0, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, layers });
-
-      offset += format_datasize(width, height, texture.format) * layers;
-    }
-
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-  }
-
-
-  ///////////////////////// update_texture //////////////////////////////////
-  void update_texture(VulkanDevice const &vulkan, VkCommandBuffer commandbuffer, StorageBuffer const &transferbuffer, Texture &texture, const void *bits)
-  {
-    size_t size = 0;
-    for(size_t i = 0; i < texture.levels; ++i)
-    {
-      size += format_datasize(texture.width >> i, texture.height >> i, texture.format) * texture.layers;
-    }
-
-    assert(size <= transferbuffer.size);
-
-    memcpy(map_memory<uint8_t>(vulkan, transferbuffer, 0, size), bits, size);
-
-    update_texture(commandbuffer, transferbuffer, 0, texture);
-  }
-
-
   ///////////////////////// create_querypool ////////////////////////////////
   QueryPool create_querypool(VulkanDevice const &vulkan, VkQueryPoolCreateInfo const &createinfo)
   {
@@ -716,7 +922,6 @@ namespace Vulkan
     if (createinfo.queryType == VK_QUERY_TYPE_TIMESTAMP)
     {
       CommandPool setuppool = create_commandpool(vulkan, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-
       CommandBuffer setupbuffer = allocate_commandbuffer(vulkan, setuppool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
       begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -743,13 +948,12 @@ namespace Vulkan
 
 
   ///////////////////////// map_memory //////////////////////////////////////
-  Memory map_memory(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size)
+  void *map_memory(VulkanDevice const &vulkan, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size)
   {
     void *data = nullptr;
-
     vkMapMemory(vulkan.device, memory, offset, size, 0, &data);
 
-    return { data, { vulkan.device, memory } };
+    return data;
   }
 
 
@@ -908,7 +1112,7 @@ namespace Vulkan
 
   void bind_image(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index)
   {
-    bind_image(vulkan, descriptorset, binding, texture, VK_IMAGE_LAYOUT_GENERAL, index);
+    bind_image(vulkan, descriptorset, binding, texture.imageview, VK_IMAGE_LAYOUT_GENERAL, index);
   }
 
 
@@ -965,12 +1169,12 @@ namespace Vulkan
 
   void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, uint32_t index)
   {
-    bind_texture(vulkan, descriptorset, binding, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
+    bind_texture(vulkan, descriptorset, binding, texture.imageview, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
   }
 
   void bind_texture(VulkanDevice const &vulkan, VkDescriptorSet descriptorset, uint32_t binding, Texture const &texture, Sampler const &sampler, uint32_t index)
   {
-    bind_texture(vulkan, descriptorset, binding, texture, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
+    bind_texture(vulkan, descriptorset, binding, texture.imageview, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, index);
   }
 
 
@@ -1172,7 +1376,7 @@ namespace Vulkan
   }
 
 
-  ///////////////////////// blit ////////////////////////////////////////////
+  ///////////////////////// mip /////////////////////////////////////////////
   void mip(VkCommandBuffer commandbuffer, VkImage image, uint32_t width, uint32_t height, uint32_t layers, uint32_t levels)
   {
     for(uint32_t level = 1; level < levels; ++level)
@@ -1318,6 +1522,37 @@ namespace Vulkan
     buffercopy.size = size;
 
     vkCmdCopyBuffer(commandbuffer, src, dst, 1, &buffercopy);
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t layer, uint32_t level)
+  {
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, layer, 1 });
+
+    blit(commandbuffer, src, srcoffset, texture.image, x, y, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, level, layer, 1 });
+
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, layer, 1 });
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture)
+  {
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+
+    for(uint32_t level = 0; level < texture.levels; ++level)
+    {
+      uint32_t width = texture.width >> level;
+      uint32_t height = texture.height >> level;
+      uint32_t layers = texture.layers;
+
+      blit(commandbuffer, src, srcoffset, texture.image, 0, 0, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, layers });
+
+      srcoffset += format_datasize(width, height, texture.format) * layers;
+    }
+
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
   }
 
 

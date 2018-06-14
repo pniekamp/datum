@@ -98,11 +98,9 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, vec2 viewport, out vec2 hi
   {
     int multiplier = (1 << level);
 
-#if 1 // accurate
     float a = floor(P.x/multiplier)*multiplier + ((delta.x > 0) ? multiplier : -1);
     float b = floor(P.y/multiplier)*multiplier + ((delta.y > 0) ? multiplier : -1);
     multiplier = clamp(int(min((a - floor(P.x))/dP.x, (b - floor(P.y))/dP.y)), 1, multiplier);  
-#endif
 
     rayzmin = rayzmax;
     rayzmax = (Q.z + multiplier * dQ.z) / (k + multiplier * dk);
@@ -116,10 +114,10 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, vec2 viewport, out vec2 hi
 
     if (rayzmax <= scenezmin && scenezmax - Thickness < rayzmin)
     {
-      multiplier = 0;    
       rayzmax = rayzmin;
       --level;
 
+#if 1
       if (level == 0)
       {
         level = 2;
@@ -142,6 +140,10 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, vec2 viewport, out vec2 hi
           P += dP; Q.z += dQ.z; k += dk; stepcount += 1;
         }
       }
+#else      
+      result = (level == 0 && stepcount > 0 && scenezmin - Thickness < rayzmin);      
+#endif
+
     }
     else
     {
@@ -149,9 +151,9 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, vec2 viewport, out vec2 hi
       {
         level = min(level + 1, 6);
       }
+      
+      P += multiplier*dP; Q.z += multiplier*dQ.z; k += multiplier*dk; stepcount += multiplier;
     }
-
-    P += multiplier*dP; Q.z += multiplier*dQ.z; k += multiplier*dk; stepcount += multiplier;
   }
 
   Q.xy += dQ.xy * stepcount;
@@ -190,14 +192,14 @@ void main()
     
     if (traceray(position, direction, scene.proj, fbosize, hitpixel, hitpoint, stepcount))
     {
-      float edgefade = 1 - 10 * max(max(abs(hitpixel.x / fbosize.x - 0.5), abs(hitpixel.y / fbosize.y - 0.5)) - 0.4, 0);
+      float edgefade = 1 - 10 * clamp(max(abs(hitpixel.x / fbosize.x - 0.5), abs(hitpixel.y / fbosize.y - 0.5)) - 0.4, 0, 0.1);
       float depthfade = 1 - 1000 * max((1 - depth) - 0.997, 0);
       float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
       float anglefade = 10 * clamp(-direction.z, 0, 0.1);
       float roughnessfade = 1 - min(2.5 * specular.w, 1);
 
       vec4 hitcolor = texelFetch(colormap, ivec2(hitpixel), 0);
-      //vec4 hitcolor = textureLod(colormap, hitpixel / textureSize(colormap, 0).xy, specular.w * (2/0.4)); // requires blured colorbuffer
+      //vec4 hitcolor = textureLod(colormap, (hitpixel + 0.5) / fbosize, (specular.w + 0.2) * (1/0.6)); // requires blured colorbuffer
 
       vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), specular.w, 0)).rg;
 

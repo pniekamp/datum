@@ -25,6 +25,8 @@ class EnvMap
       FLOAT32
     };
 
+    VkDeviceSize size() const;
+
   public:
     friend EnvMap const *ResourceManager::create<EnvMap>(Asset const *asset);
     friend EnvMap const *ResourceManager::create<EnvMap>(int width, int height, Format format);
@@ -134,7 +136,7 @@ struct ProjectContext
 
   Vulkan::DescriptorSet projectdescriptor;
 
-  Vulkan::StorageBuffer probebuffer;
+  Vulkan::TransferBuffer probebuffer;
 
   Vulkan::Fence fence;
 };

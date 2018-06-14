@@ -43,7 +43,7 @@ class SpriteList
 
       CommandLump *commandlump = nullptr;
 
-      VkImageView texture;
+      VkImage image;
       lml::Color4 color;
     };
 

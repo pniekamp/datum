@@ -106,7 +106,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
   auto &context = *state.context;
   auto &commandlump = *state.commandlump;
 
-  if (state.materialset.available() < sizeof(MaterialSet) || state.texture != texture)
+  if (state.materialset.available() < sizeof(MaterialSet) || state.image != texture.image)
   {
     state.materialset = commandlump.acquire_descriptor(context.materialsetlayout, sizeof(MaterialSet), std::move(state.materialset));
 
@@ -114,7 +114,7 @@ void SpriteList::push_material(BuildState &state, Vulkan::Texture const &texture
     {
       bind_texture(context.vulkan, state.materialset, ShaderLocation::albedomap, texture);
 
-      state.texture = texture;
+      state.image = texture.image;
     }
   }
 
@@ -174,7 +174,7 @@ void SpriteList::push_line(BuildState &state, Vec2 const &a, Vec2 const &b, Colo
 ///////////////////////// SpriteList::push_rect /////////////////////////////
 void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const &rect, Color4 const &color)
 {
-  if (state.texture != state.context->whitediffuse || state.color != color)
+  if (state.image != state.context->whitediffuse || state.color != color)
   {
     push_material(state, state.context->whitediffuse, color);
   }
@@ -189,7 +189,7 @@ void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const 
 ///////////////////////// SpriteList::push_rect /////////////////////////////
 void SpriteList::push_rect(BuildState &state, Vec2 const &position, Rect2 const &rect, float rotation, Color4 const &color)
 {
-  if (state.texture != state.context->whitediffuse || state.color != color)
+  if (state.image != state.context->whitediffuse || state.color != color)
   {
     push_material(state, state.context->whitediffuse, color);
   }
@@ -238,7 +238,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const
 {
   assert(sprite && sprite->ready());
 
-  if (state.texture != sprite->atlas->texture || state.color != tint)
+  if (state.image != sprite->atlas->texture || state.color != tint)
   {
     push_material(state, sprite->atlas->texture, tint);
   }
@@ -259,7 +259,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const
 {
   assert(sprite && sprite->ready());
 
-  if (state.texture != sprite->atlas->texture || state.color != tint)
+  if (state.image != sprite->atlas->texture || state.color != tint)
   {
     push_material(state, sprite->atlas->texture, tint);
   }
@@ -359,7 +359,7 @@ void SpriteList::push_text(BuildState &state, Vec2 const &position, Vec2 const &
 {
   assert(font && font->ready());
 
-  if (state.texture != font->sheet->texture || state.color != tint)
+  if (state.image != font->sheet->texture || state.color != tint)
   {
     push_material(state, font->sheet->texture, tint);
   }

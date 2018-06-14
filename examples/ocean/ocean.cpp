@@ -56,7 +56,7 @@ void example_init(PlatformInterface &platform)
   auto waternormal = state.resources.create<Texture>(state.assets.find(CoreAsset::wave_normal), Texture::Format::RGBA);
   state.oceanmaterial = state.resources.create<Material>(Color4(0.468f, 0.686f, 0.74f, 1), 0.0f, 0.32f, 0.02f, 0.0f, watercolor, watersurface, waternormal);
 
-  state.oceanmesh = make_plane(state.resources, 1024, 1024);
+  state.oceanmesh = state.resources.create<Ocean>(1024, 1024);
 
   state.skybox = state.resources.create<SkyBox>(state.assets.find(CoreAsset::default_skybox));
 
@@ -157,7 +157,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   {
     auto &camera = state.camera;
 
-    render_ocean_surface(state.oceancontext, state.oceanmesh, 1024, 1024, camera, state.ocean);
+    render_ocean_surface(state.oceancontext, state.oceanmesh, camera, state.ocean);
 
     RenderList renderlist(platform.renderscratchmemory, 8*1024*1024);
 

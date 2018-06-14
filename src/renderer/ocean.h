@@ -35,8 +35,7 @@ struct OceanContext
 
   Vulkan::Pipeline pipeline[5];
 
-  Vulkan::StorageBuffer oceanset;
-  Vulkan::StorageBuffer vertexbuffer;
+  Vulkan::TransferBuffer oceanset;
   Vulkan::StorageBuffer spectrum;
 
   Vulkan::Texture displacementmap;
@@ -73,6 +72,18 @@ struct OceanParams
   lml::Vec2 flow;
 };
 
+class Ocean : public Mesh
+{
+  public:
+    friend Ocean const *ResourceManager::create<Ocean>(int sizex, int sizey);
+
+    int sizex;
+    int sizey;
+
+  protected:
+    Ocean() = default;
+};
+
 void seed_ocean(OceanParams &params);
 void lerp_ocean_swell(OceanParams &params, float swelllength, float swellamplitude, float swellspeed, lml::Vec2 swelldirection, float t);
 void lerp_ocean_waves(OceanParams &params, float wavescale, float waveamplitude, float windspeed, lml::Vec2 winddirection, float t);
@@ -85,4 +96,4 @@ void initialise_ocean_context(DatumPlatform::PlatformInterface &platform, OceanC
 bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, AssetManager &assets);
 
 // Render
-void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params, VkSemaphore const (&dependancies)[8] = {});
+void render_ocean_surface(OceanContext &context, Ocean const *target, Camera const &camera, OceanParams const &params, VkSemaphore const (&dependancies)[8] = {});

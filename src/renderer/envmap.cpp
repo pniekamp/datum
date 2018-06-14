@@ -74,6 +74,7 @@ namespace
   }
 }
 
+VkDeviceSize EnvMap::size() const { return envmap_datasize(texture.width, texture.height, texture.layers, texture.levels, texture.format); }
 
 //|---------------------- EnvMap --------------------------------------------
 //|--------------------------------------------------------------------------
@@ -187,7 +188,7 @@ void ResourceManager::update<EnvMap>(EnvMap const *envmap, ResourceManager::Tran
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+  blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
 
   end(vulkan, lump->commandbuffer);
 
@@ -224,17 +225,24 @@ void ResourceManager::request<EnvMap>(DatumPlatform::PlatformInterface &platform
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-          memcpy(lump->memory(), bits, lump->transferbuffer.size);
-
-          update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+          if (create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &slot->texture))
+          {
+            memcpy(lump->memory(), bits, lump->transferbuffer.size);
+            blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+          }
 
           end(vulkan, lump->commandbuffer);
 
           submit(lump);
 
-          slot->transferlump = lump;
+          if (!slot->texture)
+          {
+            release_lump(lump);
+          }
+          else
+          {
+            slot->transferlump = lump;
+          }
         }
       }
     }

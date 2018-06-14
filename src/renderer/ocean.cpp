@@ -236,6 +236,91 @@ void update_ocean(OceanParams &params, float dt)
 }
 
 
+//|---------------------- Ocean ---------------------------------------------
+//|--------------------------------------------------------------------------
+
+///////////////////////// ResourceManager::create ///////////////////////////
+template<>
+Ocean const *ResourceManager::create<Ocean>(int sizex, int sizey)
+{
+  auto slot = acquire_slot(sizeof(Ocean));
+
+  if (!slot)
+    return nullptr;
+
+  auto ocean = new(slot) Ocean;
+
+  ocean->bound = {};
+  ocean->sizex = sizex;
+  ocean->sizey = sizey;
+  ocean->bonecount = 0;
+  ocean->bones = nullptr;
+  ocean->asset = nullptr;
+  ocean->transferlump = nullptr;
+  ocean->state = Mesh::State::Empty;
+
+  size_t indicessize = 6*(sizex-1)*(sizey-1) * sizeof(uint32_t);
+
+  if (auto lump = acquire_lump(indicessize))
+  {
+    wait_fence(vulkan, lump->fence);
+
+    begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    if (!create_vertexbuffer(vulkan, lump->commandbuffer, sizex*sizey, sizeof(Mesh::Vertex), 6*(sizex-1)*(sizey-1), sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, &ocean->vertexbuffer))
+      throw runtime_error("Vulkan Create VertexBuffer failed");
+
+    auto indices = lump->memory<uint32_t>();
+
+    for(int y = 0; y < sizey-1; ++y)
+    {
+      for(int x = 0; x < sizex-1; ++x)
+      {
+        *indices++ = (y+1)*sizex + (x+0);
+        *indices++ = (y+0)*sizex + (x+0);
+        *indices++ = (y+1)*sizex + (x+1);
+        *indices++ = (y+1)*sizex + (x+1);
+        *indices++ = (y+0)*sizex + (x+0);
+        *indices++ = (y+0)*sizex + (x+1);
+      }
+    }
+
+    blit(lump->commandbuffer, lump->transferbuffer, 0, ocean->vertexbuffer.indices, 0, indicessize);
+
+    end(vulkan, lump->commandbuffer);
+
+    submit(lump);
+
+    release_lump(lump);
+  }
+
+  ocean->state = Mesh::State::Ready;
+
+  return ocean;
+}
+
+
+///////////////////////// ResourceManager::release //////////////////////////
+template<>
+void ResourceManager::release<Ocean>(Ocean const *ocean)
+{
+  defer_destroy(ocean);
+}
+
+
+///////////////////////// ResourceManager::destroy //////////////////////////
+template<>
+void ResourceManager::destroy<Ocean>(Ocean const *ocean)
+{
+  if (ocean)
+  {
+    ocean->~Ocean();
+
+    release_slot(const_cast<Ocean*>(ocean), sizeof(Ocean));
+  }
+}
+
+
 ///////////////////////// initialise_ocean_context //////////////////////////
 void initialise_ocean_context(DatumPlatform::PlatformInterface &platform, OceanContext &context, uint32_t queueindex)
 {
@@ -632,11 +717,10 @@ bool prepare_ocean_context(DatumPlatform::PlatformInterface &platform, OceanCont
 
 
 ///////////////////////// render ////////////////////////////////////////////
-void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t sizex, uint32_t sizey, Camera const &camera, OceanParams const &params, VkSemaphore const (&dependancies)[8])
+void render_ocean_surface(OceanContext &context, Ocean const *target, Camera const &camera, OceanParams const &params, VkSemaphore const (&dependancies)[8])
 {
   assert(context.ready);
   assert(target->ready());
-  assert(target->vertexbuffer.vertexcount == sizex*sizey);
 
   wait_fence(context.vulkan, context.fence);
 
@@ -664,25 +748,23 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
   memcpy(oceanset->h0, params.height, sizeof(oceanset->h0));
   memcpy(oceanset->phase, params.phase, sizeof(oceanset->phase));
 
-  MeshSet mshset;
-  mshset.sizex = sizex;
-  mshset.sizey = sizey;
+  MeshSet meshset;
+  meshset.sizex = target->sizex;
+  meshset.sizey = target->sizey;
 
   VkDeviceSize verticessize = target->vertexbuffer.vertexcount * target->vertexbuffer.vertexsize;
-
-  context.vertexbuffer = create_storagebuffer(context.vulkan, target->vertexbuffer.memory, target->vertexbuffer.verticesoffset, verticessize);
 
   bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::oceanset, context.oceanset, 0, context.oceanset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::spectrum, context.spectrum, 0, context.spectrum.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   bind_texture(context.vulkan, context.descriptorset, ShaderLocation::displacementmap, context.displacementmap, context.repeatsampler);
   bind_image(context.vulkan, context.descriptorset, ShaderLocation::maptarget, context.displacementmap);
-  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer, context.vertexbuffer, 0, context.vertexbuffer.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  bind_buffer(context.vulkan, context.descriptorset, ShaderLocation::vertexbuffer, target->vertexbuffer.vertices, 0, verticessize, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
   bind_descriptor(commandbuffer, context.pipelinelayout, 0, context.descriptorset,VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  push(commandbuffer, context.pipelinelayout, 0, sizeof(mshset), &mshset, VK_SHADER_STAGE_COMPUTE_BIT);
+  push(commandbuffer, context.pipelinelayout, 0, sizeof(meshset), &meshset, VK_SHADER_STAGE_COMPUTE_BIT);
 
   bind_pipeline(commandbuffer, context.pipeline[0], VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -708,9 +790,9 @@ void render_ocean_surface(OceanContext &context, Mesh const *target, uint32_t si
 
   bind_pipeline(commandbuffer, context.pipeline[4], VK_PIPELINE_BIND_POINT_COMPUTE);
 
-  dispatch(commandbuffer, sizex/16, sizey/16, 1);
+  dispatch(commandbuffer, target->sizex/16, target->sizey/16, 1);
 
-  barrier(commandbuffer, context.vertexbuffer, 0, context.vertexbuffer.size);
+//  barrier(commandbuffer, target->vertexbuffer.vertices, 0, verticessize);
 
   end(context.vulkan, commandbuffer);
 

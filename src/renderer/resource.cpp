@@ -152,7 +152,7 @@ void ResourceManager::release(size_t token)
 ///////////////////////// ResourceManager::initialise_device ////////////////
 void ResourceManager::initialise_device(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue transferqueue, uint32_t transferqueuefamily, size_t buffersize, size_t maxbuffersize)
 {
-  initialise_vulkan_device(&vulkan, physicaldevice, device, transferqueue, transferqueuefamily);
+  initialise_vulkan_device(&vulkan, physicaldevice, device, transferqueue, transferqueuefamily, 128*1024*1024);
 
   m_buffers = nullptr;
   m_buffersallocated = 0;
@@ -201,7 +201,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
 
         if (size != 0)
         {
-          buffer->transferlump.transferbuffer = create_storagebuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
+          buffer->transferlump.transferbuffer = create_transferbuffer(vulkan, basebuffer->transferlump.transferbuffer.memory, buffer->offset + BufferAlignment, size);
           buffer->transferlump.transfermemory = (uint8_t*)buffer + BufferAlignment;
 
           assert(size <= bytes);
@@ -225,7 +225,7 @@ ResourceManager::TransferLump const *ResourceManager::acquire_lump(size_t size)
     {
       auto transferbuffer = create_transferbuffer(vulkan, max(bytes + BufferAlignment, m_minallocation));
 
-      auto memory = map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size).release();
+      auto memory = map_memory(vulkan, transferbuffer.memory, 0, transferbuffer.size);
 
       assert((reinterpret_cast<uintptr_t>(memory) & (alignof(Buffer)-1)) == 0);
 

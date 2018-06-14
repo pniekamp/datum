@@ -115,21 +115,26 @@ void ResourceManager::request<ColorLut>(DatumPlatform::PlatformInterface &platfo
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, 1, vkformat, VK_IMAGE_VIEW_TYPE_3D, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-          memcpy(lump->memory(), bits, lump->transferbuffer.size);
-
-          setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-          blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture.image, 0, 0, 0, asset->width, asset->height, asset->layers, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
-
-          setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+          if (create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, 1, vkformat, VK_IMAGE_VIEW_TYPE_3D, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &slot->texture))
+          {
+            memcpy(lump->memory(), bits, lump->transferbuffer.size);
+            setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture.image, 0, 0, 0, asset->width, asset->height, asset->layers, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
+            setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+          }
 
           end(vulkan, lump->commandbuffer);
 
           submit(lump);
 
-          slot->transferlump = lump;
+          if (!slot->texture)
+          {
+            release_lump(lump);
+          }
+          else
+          {
+            slot->transferlump = lump;
+          }
         }
       }
     }

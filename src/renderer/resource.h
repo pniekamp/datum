@@ -109,7 +109,7 @@ class ResourceManager
       Vulkan::Fence fence;
       Vulkan::CommandPool commandpool;
       Vulkan::CommandBuffer commandbuffer;
-      Vulkan::StorageBuffer transferbuffer;
+      Vulkan::TransferBuffer transferbuffer;
 
       template<typename View = void>
       View *memory(VkDeviceSize offset = 0) const

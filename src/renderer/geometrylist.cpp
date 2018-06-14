@@ -248,7 +248,7 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   if (state.pipeline != context.actorgeometrypipeline)
   {
-    bind_pipeline(prepasscommands, context.actorprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
+//    bind_pipeline(prepasscommands, context.actorprepasspipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bind_pipeline(geometrycommands, context.actorgeometrypipeline, 0, 0, context.fbowidth, context.fboheight, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
     state.pipeline = context.actorgeometrypipeline;
@@ -256,9 +256,9 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
   if (state.mesh != mesh)
   {
-    bind_vertexbuffer(prepasscommands, 0, mesh->vertexbuffer);
+//    bind_vertexbuffer(prepasscommands, 0, mesh->vertexbuffer);
     bind_vertexbuffer(geometrycommands, 0, mesh->vertexbuffer);
-    bind_vertexbuffer(prepasscommands, 1, mesh->rigbuffer);
+//    bind_vertexbuffer(prepasscommands, 1, mesh->rigbuffer);
     bind_vertexbuffer(geometrycommands, 1, mesh->rigbuffer);
 
     state.mesh = mesh;
@@ -288,10 +288,10 @@ void GeometryList::push_mesh(BuildState &state, Transform const &transform, Pose
 
     copy(pose.bones, pose.bones + pose.bonecount, modelset->bones);
 
-    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
+//    bind_descriptor(prepasscommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
     bind_descriptor(geometrycommands, context.pipelinelayout, ShaderLocation::modelset, state.modelset, offset, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-    draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
+//    draw(prepasscommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
     draw(geometrycommands, mesh->vertexbuffer.indexcount, 1, 0, 0, 0);
   }
 }

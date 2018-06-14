@@ -37,11 +37,19 @@ class Mesh
       float weight[4];
     };
 
+    VkDeviceSize size() const;
+    VkDeviceSize verticesoffset() const;
+    VkDeviceSize indicesoffset() const;
+    VkDeviceSize rigoffset() const;
+    VkDeviceSize bonesoffset() const;
+
   public:
     friend Mesh const *ResourceManager::create<Mesh>(Asset const *asset);
     friend Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount);
+    friend Mesh const *ResourceManager::create<Mesh>(int vertexcount, int indexcount, int bonecount);
 
     friend void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump, lml::Bound3 bound);
+    friend void ResourceManager::update<Mesh>(Mesh const *mesh, ResourceManager::TransferLump const *lump, uint32_t srcoffset, uint32_t dstoffset, uint32_t size, lml::Bound3 bound);
 
     bool ready() const { return (state == State::Ready); }
 
