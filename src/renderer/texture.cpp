@@ -60,6 +60,7 @@ namespace
   }
 }
 
+VkDeviceSize Texture::size() const { return image_datasize(texture.width, texture.height, texture.layers, texture.levels, texture.format); }
 
 //|---------------------- Texture -------------------------------------------
 //|--------------------------------------------------------------------------
@@ -188,7 +189,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+  blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
 
   end(vulkan, lump->commandbuffer);
 
@@ -201,7 +202,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 
 ///////////////////////// ResourceManager::update ///////////////////////////
 template<>
-void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump, int x, int y, int w, int h, int layer, int level)
+void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump, uint32_t srcoffset, int x, int y, int w, int h, int layer, int level)
 {
   assert(lump);
   assert(texture);
@@ -213,11 +214,7 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 
   begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-  blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture.image, x, y, w, h, { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t)level, (uint32_t)layer, 1 });
-
-  setimagelayout(lump->commandbuffer, slot->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  blit(lump->commandbuffer, lump->transferbuffer, srcoffset, slot->texture, x, y, w, h, layer, level);
 
   end(vulkan, lump->commandbuffer);
 
@@ -225,6 +222,24 @@ void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::T
 
   while (!test_fence(vulkan, lump->fence))
     ;
+}
+
+template<>
+void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump, int srcoffset, int x, int y, int w, int h, int layer, int level)
+{
+  update(texture, lump, (uint32_t)srcoffset, (int)x, (int)y, (int)w, (int)h, (int)layer, (int)level);
+}
+
+template<>
+void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump, uint32_t srcoffset, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t layer, uint32_t level)
+{
+  update(texture, lump, (uint32_t)srcoffset, (int)x, (int)y, (int)w, (int)h, (int)layer, (int)level);
+}
+
+template<>
+void ResourceManager::update<Texture>(Texture const *texture, ResourceManager::TransferLump const *lump, int srcoffset, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t layer, uint32_t level)
+{
+  update(texture, lump, (uint32_t)srcoffset, (int)x, (int)y, (int)w, (int)h, (int)layer, (int)level);
 }
 
 
@@ -295,17 +310,24 @@ void ResourceManager::request<Texture>(DatumPlatform::PlatformInterface &platfor
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat);
-
-          memcpy(lump->memory(), bits, lump->transferbuffer.size);
-
-          update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+          if (create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, asset->layers, asset->levels, vkformat, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &slot->texture))
+          {
+            memcpy(lump->memory(), bits, lump->transferbuffer.size);
+            blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+          }
 
           end(vulkan, lump->commandbuffer);
 
           submit(lump);
 
-          slot->transferlump = lump;
+          if (!slot->texture)
+          {
+            release_lump(lump);
+          }
+          else
+          {
+            slot->transferlump = lump;
+          }
         }
       }
     }

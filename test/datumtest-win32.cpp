@@ -1181,7 +1181,7 @@ int main(int argc, char *args[])
         }
       }
     }
-    catch(const exception &e)
+    catch(exception &e)
     {
       cout << "Critical Error: " << e.what() << endl;
 

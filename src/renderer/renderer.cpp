@@ -450,7 +450,7 @@ void initialise_render_context(DatumPlatform::PlatformInterface &platform, Rende
 
   auto renderdevice = platform.render_device();
 
-  initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex);
+  initialise_vulkan_device(&context.vulkan, renderdevice.physicaldevice, renderdevice.device, renderdevice.queues[queueindex].queue, renderdevice.queues[queueindex].familyindex, 32*1024*1024);
 
   // Command Buffers
 
@@ -1955,8 +1955,10 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     VkPipelineDepthStencilStateCreateInfo depthstate = {};
     depthstate.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthstate.depthTestEnable = VK_TRUE;
-    depthstate.depthWriteEnable = VK_FALSE;
-    depthstate.depthCompareOp = VK_COMPARE_OP_EQUAL;
+    //depthstate.depthWriteEnable = VK_FALSE;
+    //depthstate.depthCompareOp = VK_COMPARE_OP_EQUAL;
+    depthstate.depthWriteEnable = VK_TRUE;
+    depthstate.depthCompareOp = VK_COMPARE_OP_GREATER;
 
     VkPipelineViewportStateCreateInfo viewport = {};
     viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -5942,6 +5944,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     tmp.image.release();
     tmp.imageview.release();
+    tmp.memory.release();
 
     tmp = create_texture(context.vulkan, setupbuffer, 1, 1, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
@@ -5958,6 +5961,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     tmp.image.release();
     tmp.imageview.release();
+    tmp.memory.release();
 
     VkDescriptorImageInfo decalmapinfos[16] = {};
     for(size_t i = 0; i < extentof(decalmapinfos); ++i)
@@ -5972,6 +5976,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     tmp.image.release();
     tmp.imageview.release();
+    tmp.memory.release();
 
     tmp = create_texture(context.vulkan, setupbuffer, 32, 32, 32, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_VIEW_TYPE_3D, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
@@ -5980,6 +5985,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
 
     tmp.image.release();
     tmp.imageview.release();
+    tmp.memory.release();
 #endif
 
     // Finalise

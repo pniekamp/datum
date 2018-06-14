@@ -145,7 +145,7 @@ class ResourcePool
 
   private:
 
-    Vulkan::StorageBuffer m_transferbuffer;
+    Vulkan::TransferBuffer m_transferbuffer;
 
     Vulkan::MemoryView<uint8_t> m_transfermemory;
 

@@ -44,9 +44,9 @@ void example_init(PlatformInterface &platform)
 
   state.mesh = state.resources.create<Mesh>(3, 3);
 
-  if (auto lump = state.resources.acquire_lump(state.mesh->vertexbuffer.size))
+  if (auto lump = state.resources.acquire_lump(state.mesh->size()))
   {
-    auto vertices = lump->memory<Mesh::Vertex>(state.mesh->vertexbuffer.verticesoffset);
+    auto vertices = lump->memory<Mesh::Vertex>(state.mesh->verticesoffset());
 
     vertices[0].position = Vec3(-1.0f, -1.0f, -3.0f);
     vertices[0].normal = Vec3(0.0f, 0.0f, 1.0f);
@@ -63,7 +63,7 @@ void example_init(PlatformInterface &platform)
     vertices[2].tangent = Vec4(1.0f, 0.0f, 0.0f, 1.0f);
     vertices[2].texcoord = Vec2(0.5f, 1.0f);
 
-    auto indices = lump->memory<uint32_t>(state.mesh->vertexbuffer.indicesoffset);
+    auto indices = lump->memory<uint32_t>(state.mesh->indicesoffset());
 
     indices[0] = 0;
     indices[1] = 1;

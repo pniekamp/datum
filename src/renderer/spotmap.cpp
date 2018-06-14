@@ -425,17 +425,24 @@ void ResourceManager::request<SpotMap>(DatumPlatform::PlatformInterface &platfor
 
           begin(vulkan, lump->commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-          slot->texture = create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-          memcpy(lump->memory(), bits, lump->transferbuffer.size);
-
-          update_texture(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+          if (create_texture(vulkan, lump->commandbuffer, asset->width, asset->height, 1, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, &slot->texture))
+          {
+            memcpy(lump->memory(), bits, lump->transferbuffer.size);
+            blit(lump->commandbuffer, lump->transferbuffer, 0, slot->texture);
+          }
 
           end(vulkan, lump->commandbuffer);
 
           submit(lump);
 
-          slot->transferlump = lump;
+          if (!slot->texture)
+          {
+            release_lump(lump);
+          }
+          else
+          {
+            slot->transferlump = lump;
+          }
         }
       }
     }
