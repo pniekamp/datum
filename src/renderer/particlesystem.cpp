@@ -705,7 +705,7 @@ ParticleSystem const *ResourceManager::create<ParticleSystem>(Asset const *asset
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet, size_t emittercount, ParticleEmitter *emitters)
+ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet, size_t emittercount, ParticleEmitter const *emitters)
 {
   auto slot = acquire_slot(sizeof(ParticleSystem) + particlesystem_datasize(emittercount));
 
@@ -740,9 +740,27 @@ ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, 
 }
 
 template<>
+ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet, size_t emittercount, ParticleEmitter *emitters)
+{
+  return create<ParticleSystem>(maxparticles, bound, spritesheet, (size_t)emittercount, (ParticleEmitter const *)emitters);
+}
+
+template<>
+ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet, int emittercount, ParticleEmitter const *emitters)
+{
+  return create<ParticleSystem>(maxparticles, bound, spritesheet, (size_t)emittercount, (ParticleEmitter const *)emitters);
+}
+
+template<>
 ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet, int emittercount, ParticleEmitter *emitters)
 {
-  return create<ParticleSystem>(maxparticles, bound, spritesheet, (size_t)emittercount, emitters);
+  return create<ParticleSystem>(maxparticles, bound, spritesheet, (size_t)emittercount, (ParticleEmitter const *)emitters);
+}
+
+template<>
+ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, Bound3 bound, Texture const *spritesheet)
+{
+  return create<ParticleSystem>(maxparticles, bound, spritesheet, (size_t)0, (ParticleEmitter const *)nullptr);
 }
 
 

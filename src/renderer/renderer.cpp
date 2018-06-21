@@ -5675,7 +5675,7 @@ void prepare_render_pipeline(RenderContext &context, RenderParams const &params)
       shadowbufferinfo.height = context.shadows.height;
       shadowbufferinfo.layers = context.shadows.nslices;
 
-      context.shadowbuffer = create_framebuffer(context.vulkan, shadowbufferinfo);
+      context.shadowframebuffer = create_framebuffer(context.vulkan, shadowbufferinfo);
 
       //
       // Color Attachment
@@ -6042,7 +6042,13 @@ void release_render_pipeline(RenderContext &context)
   context.fogvolumebuffers[0] = {};
   context.fogvolumebuffers[1] = {};
 
-  context.shadowbuffer = {};
+#if 1
+  // I've had lots of trouble with resizing under windows, this seems to help for unknown reasons
+  static Vulkan::Texture defer;
+  swap(defer, context.shadows.shadowmap);
+#endif
+
+  context.shadowframebuffer = {};
   context.esmshadowbuffer = {};
   context.shadows.shadowmap = {};
 
@@ -6445,7 +6451,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
   // Shadows
   //
 
-  beginpass(commandbuffer, context.shadowpass, context.shadowbuffer, 0, 0, context.shadows.width, context.shadows.height, 1, &clearvalues[4]);
+  beginpass(commandbuffer, context.shadowpass, context.shadowframebuffer, 0, 0, context.shadows.width, context.shadows.height, 1, &clearvalues[4]);
 
   for(auto &renderable : renderables)
   {

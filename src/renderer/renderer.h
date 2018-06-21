@@ -452,7 +452,7 @@ struct RenderContext
   Vulkan::StorageBuffer ssaoset;
 
   ShadowMap shadows;
-  Vulkan::FrameBuffer shadowbuffer;
+  Vulkan::FrameBuffer shadowframebuffer;
 
   std::tuple<size_t, VkImage> decalmaps[2][16];
 

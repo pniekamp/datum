@@ -55,7 +55,7 @@ struct Vertex
   float tangent[4];
 };
 
-layout(set=0, binding=4, std430, row_major) buffer VertexBuffer 
+layout(set=0, binding=4, std430, row_major) writeonly buffer VertexBuffer 
 {
   Vertex vertices[];
 

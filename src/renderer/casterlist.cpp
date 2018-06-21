@@ -85,7 +85,7 @@ bool CasterList::begin(BuildState &state, RenderContext &context, ResourceManage
 
   using Vulkan::begin;
 
-  begin(context.vulkan, castercommands, context.shadowbuffer, context.shadowpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
+  begin(context.vulkan, castercommands, context.shadowframebuffer, context.shadowpass, 0, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT);
 
   bind_descriptor(castercommands, context.pipelinelayout, ShaderLocation::sceneset, context.scenedescriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

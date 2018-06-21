@@ -64,6 +64,24 @@ void example_init(PlatformInterface &platform)
 }
 
 
+///////////////////////// game_resize ///////////////////////////////////////
+void example_resize(PlatformInterface &platform, Viewport const &viewport)
+{
+  GameState &state = *static_cast<GameState*>(platform.gamememory.data);
+
+  if (state.rendercontext.ready)
+  {
+    RenderParams renderparams;
+    renderparams.width = viewport.width;
+    renderparams.height = viewport.height;
+    renderparams.aspect = state.aspect;
+    renderparams.fogdensity = 0.0f;
+
+    prepare_render_pipeline(state.rendercontext, renderparams);
+  }
+}
+
+
 ///////////////////////// game_update ///////////////////////////////////////
 void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt)
 {
@@ -135,6 +153,7 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.width = viewport.width;
   renderparams.height = viewport.height;
   renderparams.aspect = state.aspect;
+  renderparams.fogdensity = 0.0f;
 
   if (state.mode == GameState::Startup)
   {
