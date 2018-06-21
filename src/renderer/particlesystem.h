@@ -191,7 +191,8 @@ class ParticleSystem
 
   public:
     friend ParticleSystem const *ResourceManager::create<ParticleSystem>(Asset const *asset);
-    friend ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, lml::Bound3 bound, Texture const *spritesheet, size_t emittercount, ParticleEmitter *emitters);
+    friend ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, lml::Bound3 bound, Texture const *spritesheet);
+    friend ParticleSystem const *ResourceManager::create<ParticleSystem>(int maxparticles, lml::Bound3 bound, Texture const *spritesheet, size_t emittercount, ParticleEmitter const *emitters);
 
     bool ready() const { return (state == State::Ready); }
 

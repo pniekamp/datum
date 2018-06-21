@@ -14,6 +14,7 @@ using namespace leap;
 using namespace DatumPlatform;
 
 void example_init(DatumPlatform::PlatformInterface &platform);
+void example_resize(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt);
 void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 
@@ -196,6 +197,7 @@ class Game
     atomic<bool> m_running;
 
     game_init_t game_init;
+    game_resize_t game_resize;
     game_update_t game_update;
     game_render_t game_render;
 
@@ -222,10 +224,11 @@ Game::Game()
 void Game::init(VkPhysicalDevice physicaldevice, VkDevice device, VkQueue renderqueue, uint32_t renderqueuefamily, VkQueue transferqueue, uint32_t transferqueuefamily)
 {
   game_init = example_init;
+  game_resize = example_resize;
   game_update = example_update;
   game_render = example_render;
 
-  if (!game_init || !game_update || !game_render)
+  if (!game_init || !game_resize || !game_update || !game_render)
     throw std::runtime_error("Unable to init game code");
 
   RenderDevice renderdevice = {};
@@ -247,7 +250,7 @@ void Game::resize(int x, int y, int width, int height)
 {
   if (m_running)
   {
-//    game_resize(m_platform, { x, y, width, height });
+    game_resize(m_platform, { x, y, width, height });
   }
 }
 

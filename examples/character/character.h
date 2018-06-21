@@ -47,5 +47,6 @@ struct GameState
 };
 
 void example_init(DatumPlatform::PlatformInterface &platform);
+void example_resize(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);
 void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::GameInput const &input, float dt);
 void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::Viewport const &viewport);

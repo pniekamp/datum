@@ -35,7 +35,7 @@ layout(set=0, binding=18) uniform sampler2DArray envbrdfmap;
 layout(set=0, binding=37) writeonly uniform image2D dest;
 
 const float Jitter = 1.0;
-const float Thickness = 0.05f;
+const float Thickness = 0.5f;
 const float MaxSteps = 350.0;
 const float MaxDistance = 24.0;
 
