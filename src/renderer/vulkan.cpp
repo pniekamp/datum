@@ -221,7 +221,6 @@ namespace Vulkan
     allocator->lock.clear(std::memory_order_release);
   }
 
-
   void DeviceAllocatorDeleter::operator()(DeviceAllocatorPtr memory)
   {
     deviceallocater_free(allocator, memory);
@@ -680,7 +679,7 @@ namespace Vulkan
   {
     VkBufferCreateInfo vertexbufferinfo = {};
     vertexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vertexbufferinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    vertexbufferinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage;
     vertexbufferinfo.size = vertexcount * vertexsize;
 
     vertexbuffer->vertexcount = vertexcount;
@@ -692,7 +691,7 @@ namespace Vulkan
 
     VkBufferCreateInfo indexbufferinfo = {};
     indexbufferinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    indexbufferinfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    indexbufferinfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage;
     indexbufferinfo.size = indexcount * indexsize;
 
     vertexbuffer->indexcount = indexcount;
@@ -1355,7 +1354,7 @@ namespace Vulkan
     memorybarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
     memorybarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
 
-    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &memorybarrier, 0, nullptr, 0, nullptr);
+    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 1, &memorybarrier, 0, nullptr, 0, nullptr);
   }
 
 
@@ -1372,7 +1371,7 @@ namespace Vulkan
     bufferbarrier.offset = offset;
     bufferbarrier.size = size;
 
-    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 1, &bufferbarrier, 0, nullptr);
+    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &bufferbarrier, 0, nullptr);
   }
 
 
@@ -1646,7 +1645,7 @@ namespace Vulkan
   ///////////////////////// querytimestamp //////////////////////////////////
   void querytimestamp(VkCommandBuffer commandbuffer, VkQueryPool pool, uint32_t query)
   {
-    vkCmdWriteTimestamp(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, pool, query);
+    vkCmdWriteTimestamp(commandbuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, pool, query);
   }
 
 

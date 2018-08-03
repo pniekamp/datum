@@ -33,7 +33,7 @@ layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet
   float morphbeg;
   float morphend;
   float morphgrid;
-  float areascale;
+  vec4 areascale;
   vec2 uvscale;
   uint layers;
 
@@ -53,14 +53,14 @@ void main()
   vec3 camerapos = transform_multiply(transform_inverse(modelworld), scene.camera.position);
   vec2 gridpos = floor(vertex_position.xy / model.morphgrid) * model.morphgrid;
 
-  float alpha = smoothstep(model.morphbeg, model.morphend, distance(camerapos.xy, vertex_position.xy * model.areascale));
+  float alpha = smoothstep(model.morphbeg, model.morphend, distance(camerapos.xy, vertex_position.xy * model.areascale.xy));
   
   vec2 xy = mix(vertex_position.xy, gridpos, alpha);
   vec2 uv = vec2(model.texcoords.zw * xy + model.texcoords.xy); 
 
   float height = texture(sampler2DArray(heightmap, clampedsampler), vec3(uv, 0)).r;
   
-  vec3 vertexpos = vec3(xy * model.areascale, height);
+  vec3 vertexpos = vec3(xy * model.areascale.xy, height);
 
   gl_Position = scene.worldview * vec4(transform_multiply(modelworld, vertexpos), 1);
 }

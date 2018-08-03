@@ -951,7 +951,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
     dependencies[0].dstSubpass = 0;
     dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     dependencies[0].srcAccessMask = 0;
     dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
@@ -1022,7 +1022,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
     dependencies[0].dstSubpass = 0;
     dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     dependencies[0].srcAccessMask = 0;
     dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
@@ -1125,7 +1125,7 @@ bool prepare_render_context(DatumPlatform::PlatformInterface &platform, RenderCo
     dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
     dependencies[0].dstSubpass = 0;
     dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     dependencies[0].srcAccessMask = 0;
     dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
@@ -6042,14 +6042,14 @@ void release_render_pipeline(RenderContext &context)
   context.fogvolumebuffers[0] = {};
   context.fogvolumebuffers[1] = {};
 
-#if 1
+#if 1 // @ResizeHack
   // I've had lots of trouble with resizing under windows, this seems to help for unknown reasons
-  static Vulkan::Texture defer;
-  swap(defer, context.shadows.shadowmap);
+  swap(context.defer, context.shadows.shadowmap);
 #endif
 
   context.shadowframebuffer = {};
   context.esmshadowbuffer = {};
+
   context.shadows.shadowmap = {};
 
   context.width = 0;
@@ -6315,7 +6315,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
 
         sceneset.decals[sceneset.decalcount].halfdim = decals->decals[i].size/2;
         sceneset.decals[sceneset.decalcount].invtransform = inverse(decals->decals[i].transform);
-        sceneset.decals[sceneset.decalcount].color = hada(decals->decals[i].material->color, decals->decals[i].tint);
+        sceneset.decals[sceneset.decalcount].color = decals->decals[i].material->color * decals->decals[i].tint;
         sceneset.decals[sceneset.decalcount].metalness = decals->decals[i].material->metalness;
         sceneset.decals[sceneset.decalcount].roughness = decals->decals[i].material->roughness;
         sceneset.decals[sceneset.decalcount].reflectivity = decals->decals[i].material->reflectivity;

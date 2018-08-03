@@ -24,7 +24,7 @@ class Storage
 
     virtual void clear() = 0;
 
-    virtual void destroyed(Scene::EntityId entity) = 0;
+    virtual void remove(Scene::EntityId entity) = 0;
 
   protected:
 
@@ -60,9 +60,9 @@ class DefaultStorage : public Storage
 
     DefaultStorage(DefaultStorage const &) = delete;
 
-    using EntityId = Scene::EntityId;
-
   public:
+
+    using EntityId = Scene::EntityId;
 
     bool has(EntityId entity) const;
 
@@ -117,9 +117,9 @@ class DefaultStorage : public Storage
 
   protected:
 
-    void clear() override;
-
     size_t index(EntityId entity) const;
+
+    size_t size() const { return std::get<0>(m_data).size(); }
 
     template<size_t typeindex>
     auto &data(size_t index)
@@ -135,14 +135,12 @@ class DefaultStorage : public Storage
 
   protected:
 
-    size_t size() const { return std::get<0>(m_data).size(); }
+    void clear() override;
 
-    size_t add(EntityId entity);
-    virtual void remove(EntityId entity);
+    size_t insert(EntityId entity);
+    size_t append(EntityId entity);
 
-  protected:
-
-    virtual void destroyed(Scene::EntityId entity) override;
+    virtual void remove(EntityId entity) override;
 
   protected:
 
@@ -216,13 +214,11 @@ size_t DefaultStorage<Types...>::index(EntityId entity) const
 }
 
 
-///////////////////////// DefaultStorage::add ///////////////////////////////
+///////////////////////// DefaultStorage::insert ////////////////////////////
 template<typename ...Types>
-size_t DefaultStorage<Types...>::add(EntityId entity)
+size_t DefaultStorage<Types...>::insert(EntityId entity)
 {
   assert(!has(entity));
-
-  m_index.resize(std::max(m_index.size(), entity.index()+1));
 
   size_t index = 0;
 
@@ -239,6 +235,26 @@ size_t DefaultStorage<Types...>::add(EntityId entity)
     index = size() - 1;
   }
 
+  m_index.resize(std::max(m_index.size(), entity.index()+1));
+
+  m_index[entity.index()] = index;
+
+  return index;
+}
+
+
+///////////////////////// DefaultStorage::append ////////////////////////////
+template<typename ...Types>
+size_t DefaultStorage<Types...>::append(EntityId entity)
+{
+  assert(!has(entity));
+
+  size_t index = size();
+
+  for_each(m_data, [](auto &v) { v.resize(v.size()+1); });
+
+  m_index.resize(std::max(m_index.size(), entity.index()+1));
+
   m_index[entity.index()] = index;
 
   return index;
@@ -249,24 +265,14 @@ size_t DefaultStorage<Types...>::add(EntityId entity)
 template<typename ...Types>
 void DefaultStorage<Types...>::remove(EntityId entity)
 {
-  assert(has(entity));
-
-  auto index = m_index[entity.index()];
-
-  for_each(m_data, [=](auto &v) { v[index] = {}; });
-
-  m_freeslots.push_back(index);
-
-  m_index[entity.index()] = 0;
-}
-
-
-///////////////////////// DefaultStorage::destroyed /////////////////////////
-template<typename ...Types>
-void DefaultStorage<Types...>::destroyed(Scene::EntityId entity)
-{
   if (has(entity))
   {
-    remove(entity);
+    auto index = m_index[entity.index()];
+
+    for_each(m_data, [=](auto &v) { v[index] = {}; });
+
+    m_freeslots.push_back(index);
+
+    m_index[entity.index()] = 0;
   }
 }

@@ -38,7 +38,7 @@ void NameComponentStorage::clear()
 ///////////////////////// NameComponentStorage::add /////////////////////////
 void NameComponentStorage::add(EntityId entity, const char *name)
 {
-  DefaultStorage::add(entity);
+  insert(entity);
 
   set_name(entity, name);
 }

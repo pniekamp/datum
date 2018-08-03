@@ -26,7 +26,8 @@ Camera::Camera()
   m_exposure = 1.0f;
   m_focalwidth = 100000.0f;
   m_focaldistance = 0.0f;
-  m_transform = Transform::identity();
+  m_position = Vec3(0);
+  m_rotation = Quaternion3(1, 0, 0, 0);
 }
 
 
@@ -68,7 +69,7 @@ void Camera::set_depthoffield(float focalwidth, float focaldistance)
 ///////////////////////// Camera::view //////////////////////////////////////
 Matrix4f Camera::view() const
 {
-  return inverse(m_transform).matrix();
+  return inverse(transform()).matrix();
 }
 
 
@@ -100,91 +101,92 @@ Matrix4f Camera::viewproj() const
 ///////////////////////// Camera::frustum ///////////////////////////////////
 Frustum Camera::frustum() const
 {
-  return m_transform * Frustum::perspective(m_fov, m_aspect, m_znear, m_zfar);
+  return transform() * Frustum::perspective(m_fov, m_aspect, m_znear, m_zfar);
 }
 
 
 ///////////////////////// Camera::frustum ///////////////////////////////////
 Frustum Camera::frustum(float znear, float zfar) const
 {
-  return m_transform * Frustum::perspective(m_fov, m_aspect, znear, zfar);
+  return transform() * Frustum::perspective(m_fov, m_aspect, znear, zfar);
 }
 
 
 ///////////////////////// Camera::set_position //////////////////////////////
 void Camera::set_position(Vec3 const &position)
 {
-  m_transform = Transform::translation(position) * Transform::rotation(m_transform.rotation());
+  m_position = position;
 }
 
 
 ///////////////////////// Camera::set_rotation //////////////////////////////
-void Camera::set_rotation(Quaternion3f const &rotation)
+void Camera::set_rotation(Quaternion3 const &rotation)
 {
-  m_transform = Transform::translation(m_transform.translation()) * Transform::rotation(rotation);
+  m_rotation = rotation;
 }
 
 
 ///////////////////////// Camera::move //////////////////////////////////////
 void Camera::move(Vec3 const &translation)
 {
-  m_transform = Transform::translation(translation) * m_transform;
+  m_position = m_position + translation;
 }
 
 
 ///////////////////////// Camera::yaw ///////////////////////////////////////
 void Camera::yaw(float angle, Vec3 const &up)
 {
-  m_transform = Transform::translation(m_transform.translation()) * Transform::rotation(up, angle) * Transform::rotation(m_transform.rotation());
+  m_rotation = Quaternion3(up, angle) * m_rotation;
 }
 
 
 ///////////////////////// Camera::lookat ////////////////////////////////////
 void Camera::lookat(Vec3 const &target, Vec3 const &up)
 {
-  m_transform = Transform::lookat(position(), target, up);
+  m_rotation = Transform::lookat(m_position, target, up).rotation();
 }
 
 
 ///////////////////////// Camera::lookat ////////////////////////////////////
 void Camera::lookat(Vec3 const &position, Vec3 const &target, Vec3 const &up)
 {
-  m_transform = Transform::lookat(position, target, up);
+  m_position = position;
+  m_rotation = Transform::lookat(position, target, up).rotation();
 }
 
 
 ///////////////////////// Camera::offset ////////////////////////////////////
 void Camera::offset(Vec3 const &translation)
 {
-  m_transform = m_transform * Transform::translation(translation);
+  m_position = m_position + m_rotation * translation;
 }
 
 
 ///////////////////////// Camera::rotate ////////////////////////////////////
-void Camera::rotate(Quaternion3f const &rotation)
+void Camera::rotate(Quaternion3 const &rotation)
 {
-  m_transform = m_transform * Transform::rotation(rotation);
+  m_rotation = m_rotation * rotation;
 }
 
 
 ///////////////////////// Camera::roll //////////////////////////////////////
 void Camera::roll(float angle)
 {
-  m_transform = m_transform * Transform::rotation(Vec3(0, 0, 1), angle);
+  m_rotation = m_rotation * Quaternion3(Vec3(0, 0, 1), angle);
 }
 
 
 ///////////////////////// Camera::pitch /////////////////////////////////////
 void Camera::pitch(float angle)
 {
-  m_transform = m_transform * Transform::rotation(Vec3(1, 0, 0), angle);
+  m_rotation = m_rotation * Quaternion3(Vec3(1, 0, 0), angle);
 }
 
 
 ///////////////////////// Camera::yaw ///////////////////////////////////////
 void Camera::yaw(float angle)
 {
-  m_transform = m_transform * Transform::rotation(Vec3(0, 1, 0), angle);
+  m_rotation = m_rotation * Quaternion3(Vec3(0, 1, 0), angle);
 }
 
 
@@ -197,7 +199,7 @@ void Camera::pan(Vec3 &target, float dx, float dy)
 
   target += offset;
 
-  m_transform = Transform::lookat(position() + offset, target, up());
+  lookat(position() + offset, target, up());
 }
 
 
@@ -206,16 +208,16 @@ void Camera::dolly(Vec3 const &target, float amount)
 {
   auto speed = clamp(0.1f * norm(position() - target), 0.1f, 10.0f);
 
-  m_transform = Transform::lookat(position() + speed * amount * forward(), target, up());
+  lookat(position() + speed * amount * forward(), target, up());
 }
 
 
 ///////////////////////// Camera::orbit /////////////////////////////////////
-void Camera::orbit(Vec3 const &target, Quaternion3f const &rotation)
+void Camera::orbit(Vec3 const &target, Quaternion3 const &rotation)
 {
   auto speed = clamp(0.1f * norm(position() - target), 0.1f, 1.0f);
 
-  auto angle = normalise(slerp(Quaternion3f(1, 0, 0, 0), rotation, speed));
+  auto angle = normalise(slerp(Quaternion3(1, 0, 0, 0), rotation, speed));
 
-  m_transform = Transform::lookat(target + angle * (position() - target), target, angle * up());
+  lookat(target + angle * (position() - target), target, angle * up());
 }

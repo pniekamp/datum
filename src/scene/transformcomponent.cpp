@@ -25,12 +25,12 @@ TransformComponentStorage::TransformComponentStorage(Scene *scene, StackAllocato
 ///////////////////////// TransformStorage::add /////////////////////////////
 void TransformComponentStorage::add(EntityId entity)
 {
-  auto index = DefaultStorage::add(entity);
+  auto index = insert(entity);
 
-  parent(index) = 0;
-  firstchild(index) = 0;
-  nextsibling(index) = 0;
-  prevsibling(index) = 0;
+  set_parent(index, 0);
+  set_firstchild(index, 0);
+  set_nextsibling(index, 0);
+  set_prevsibling(index, 0);
 }
 
 
@@ -43,19 +43,12 @@ void TransformComponentStorage::remove(EntityId entity)
   auto index = this->index(entity);
 
   if (firstchild(parent(index)) == index)
-    firstchild(parent(index)) = nextsibling(index);
+    set_firstchild(parent(index), nextsibling(index));
 
-  nextsibling(prevsibling(index)) = nextsibling(index);
-  prevsibling(nextsibling(index)) = prevsibling(index);
+  set_nextsibling(prevsibling(index), nextsibling(index));
+  set_prevsibling(nextsibling(index), prevsibling(index));
 
   DefaultStorage::remove(entity);
-}
-
-
-///////////////////////// TransformStorage::set_local ///////////////////////
-void TransformComponentStorage::set_local(size_t index, Transform const &transform)
-{
-  local(index) = transform;
 }
 
 
@@ -63,23 +56,23 @@ void TransformComponentStorage::set_local(size_t index, Transform const &transfo
 void TransformComponentStorage::reparent(size_t index, size_t parentindex)
 {
   if (firstchild(parent(index)) == index)
-    firstchild(parent(index)) = nextsibling(index);
+    set_firstchild(parent(index), nextsibling(index));
 
-  nextsibling(prevsibling(index)) = nextsibling(index);
-  prevsibling(nextsibling(index)) = prevsibling(index);
+  set_nextsibling(prevsibling(index), nextsibling(index));
+  set_prevsibling(nextsibling(index), prevsibling(index));
 
-  parent(index) = parentindex;
-  nextsibling(index) = firstchild(parentindex);
-  prevsibling(index) = 0;
-  firstchild(parentindex) = index;
-  prevsibling(nextsibling(index)) = index;
+  set_parent(index, parentindex);
+  set_nextsibling(index, firstchild(parentindex));
+  set_prevsibling(index, 0);
+  set_firstchild(parentindex, index);
+  set_prevsibling(nextsibling(index), index);
 }
 
 
 ///////////////////////// TransformStorage::update //////////////////////////
 void TransformComponentStorage::update(size_t index)
 {
-  world(index) = parent(index) ? world(parent(index)) * local(index) : local(index);
+  set_world(index, parent(index) ? world(parent(index)) * local(index) : local(index));
 
   for(size_t child = firstchild(index); child != 0; child = nextsibling(child))
   {

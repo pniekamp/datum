@@ -117,7 +117,7 @@ void Scene::destroy(Scene::EntityId entity)
 
   for(auto &system : m_systems)
   {
-    system.second->destroyed(entity);
+    system.second->remove(entity);
   }
 
   RESOURCE_USE(EntitySlot, m_slots.size(), m_slots.capacity())

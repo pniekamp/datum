@@ -473,6 +473,8 @@ struct RenderContext
 
   float luminance = 1.0;
 
+  Vulkan::Texture defer; // @ResizeHack
+
   Camera prevcamera;
 };
 

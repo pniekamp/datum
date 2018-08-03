@@ -30,10 +30,10 @@ class StackAllocator
 
   public:
 
-    StackAllocator(Arena &arena);
+    StackAllocator(Arena &arena) noexcept;
 
     template<typename U>
-    StackAllocator(StackAllocator<U> const &other);
+    StackAllocator(StackAllocator<U> const &other) noexcept;
 
     Arena &arena() const { return *m_arena; }
 
@@ -49,7 +49,7 @@ class StackAllocator
 
 ///////////////////////// StackAllocator::Constructor ///////////////////////
 template<typename T>
-StackAllocator<T>::StackAllocator(Arena &arena)
+StackAllocator<T>::StackAllocator(Arena &arena) noexcept
   : m_arena(&arena)
 {
 }
@@ -58,7 +58,7 @@ StackAllocator<T>::StackAllocator(Arena &arena)
 ///////////////////////// StackAllocator::rebind ////////////////////////////
 template<typename T>
 template<typename U>
-StackAllocator<T>::StackAllocator(StackAllocator<U> const &other)
+StackAllocator<T>::StackAllocator(StackAllocator<U> const &other) noexcept
   : StackAllocator(other.arena())
 {  
 }
@@ -250,13 +250,13 @@ class StackAllocatorWithFreelist : public StackAllocator<T>
 
   public:
 
-    StackAllocatorWithFreelist(Arena &arena, FreeList &freelist);
+    StackAllocatorWithFreelist(Arena &arena, FreeList &freelist) noexcept;
 
     template<typename U>
-    StackAllocatorWithFreelist(StackAllocator<U> const &other, FreeList &freelist);
+    StackAllocatorWithFreelist(StackAllocator<U> const &other, FreeList &freelist) noexcept;
 
     template<typename U>
-    StackAllocatorWithFreelist(StackAllocatorWithFreelist<U> const &other);
+    StackAllocatorWithFreelist(StackAllocatorWithFreelist<U> const &other) noexcept;
 
     FreeList &freelist() const { return *m_freelist; }
 
@@ -272,7 +272,7 @@ class StackAllocatorWithFreelist : public StackAllocator<T>
 
 ///////////////////////// StackAllocatorWithFreelist::Constructor ///////////
 template<typename T>
-StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(Arena &arena, FreeList &freelist)
+StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(Arena &arena, FreeList &freelist) noexcept
   : StackAllocator<T>(arena)
 {
   m_freelist = &freelist;
@@ -282,7 +282,7 @@ StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(Arena &arena, FreeList
 ///////////////////////// StackAllocatorWithFreelist::Constructor ///////////
 template<typename T>
 template<typename U>
-StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocator<U> const &other, FreeList &freelist)
+StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocator<U> const &other, FreeList &freelist) noexcept
   : StackAllocatorWithFreelist(other.arena(), freelist)
 {
 }
@@ -291,7 +291,7 @@ StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocator<U> cons
 ///////////////////////// StackAllocatorWithFreelist::rebind ////////////////
 template<typename T>
 template<typename U>
-StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocatorWithFreelist<U> const &other)
+StackAllocatorWithFreelist<T>::StackAllocatorWithFreelist(StackAllocatorWithFreelist<U> const &other) noexcept
   : StackAllocatorWithFreelist(other.arena(), other.freelist())
 {
 }

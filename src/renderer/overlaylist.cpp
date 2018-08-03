@@ -169,7 +169,7 @@ bool OverlayList::begin(BuildState &state, RenderContext &context, ResourceManag
 
 
 ///////////////////////// OverlayList::push_gizmo ///////////////////////////
-void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3f const &rotation, Mesh const *mesh, Material const *material, Color4 const &tint)
+void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3 const &rotation, Mesh const *mesh, Material const *material, Color4 const &tint)
 {
   assert(state.commandlump);
   assert(mesh && mesh->ready());
@@ -190,7 +190,7 @@ void OverlayList::push_gizmo(OverlayList::BuildState &state, Vec3 const &positio
 
     auto materialset = state.materialset.memory<GizmoMaterialSet>(offset);
 
-    materialset->color = hada(material->color, tint);
+    materialset->color = material->color * tint;
     materialset->metalness = material->metalness;
     materialset->roughness = material->roughness;
     materialset->reflectivity = material->reflectivity;
@@ -632,7 +632,7 @@ void OverlayList::push_line(OverlayList::BuildState &state, Vec3 const &a, Vec3 
 
 
 ///////////////////////// OverlayList::push_volume //////////////////////////
-void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3f const &rotation, Mesh const *mesh, Color4 const &color, float thickness)
+void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const &size, Quaternion3 const &rotation, Mesh const *mesh, Color4 const &color, float thickness)
 {
   assert(state.commandlump);
   assert(mesh && mesh->ready());
@@ -687,7 +687,7 @@ void OverlayList::push_lines(BuildState &state, Vec3 const &position, Vec3 const
 ///////////////////////// OverlayList::push_volume //////////////////////////
 void OverlayList::push_volume(BuildState &state, Bound3 const &bound, Mesh const *mesh, Color4 const &color, float thickness)
 {
-  push_lines(state, bound.centre(), bound.halfdim(), Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), mesh, color, thickness);
+  push_lines(state, bound.centre(), bound.halfdim(), Quaternion3(1.0f, 0.0f, 0.0f, 0.0f), mesh, color, thickness);
 }
 
 
