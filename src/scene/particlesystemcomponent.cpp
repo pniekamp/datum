@@ -26,13 +26,13 @@ ParticleSystemComponentStorage::ParticleSystemComponentStorage(Scene *scene, Sta
 ///////////////////////// ParticleSystemStorage::add ////////////////////////
 void ParticleSystemComponentStorage::add(EntityId entity, Bound3 const &bound, ParticleSystem const *system, int flags)
 {
-  auto index = DefaultStorage::add(entity);
+  auto index = insert(entity);
 
-  data<flagbits>(index) = flags;
-  data<entityid>(index) = entity;
-  data<boundingbox>(index) = bound;
-  data<particlesystem>(index) = system;
-  data<particlesysteminstance>(index) = system->create(m_allocator);
+  set_entity(index, entity);
+  set_flags(index, flags);
+  set_bound(index, bound);
+  set_system(index, system);
+  set_instance(index, system->create(m_allocator));
 }
 
 
@@ -41,7 +41,7 @@ void ParticleSystemComponentStorage::remove(EntityId entity)
 {
   auto index = this->index(entity);
 
-  data<particlesystem>(index)->destroy(data<particlesysteminstance>(index));
+  system(index)->destroy(instance(index));
 
   DefaultStorage::remove(entity);
 }
@@ -54,13 +54,13 @@ void ParticleSystemComponentStorage::update_particlesystem_bounds()
 
   for(size_t index = 1; index < size(); ++index)
   {
-    if (data<entityid>(index))
+    if (entity(index))
     {
-      assert(transformstorage->has(data<entityid>(index)));
+      assert(transformstorage->has(entity(index)));
 
-      auto transform = transformstorage->get(data<entityid>(index));
+      auto transform = transformstorage->get(entity(index));
 
-      data<boundingbox>(index) = transform.world() * data<particlesystem>(index)->bound;
+      set_bound(index, transform.world() * system(index)->bound);
     }
   }
 }

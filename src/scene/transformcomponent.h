@@ -18,18 +18,6 @@
 class TransformComponentStorage : public DefaultStorage<lml::Transform, lml::Transform, size_t, size_t, size_t, size_t>
 {
   public:
-
-    enum DataLayout
-    {
-      localtransform = 0,
-      worldtransform = 1,
-      parentindex = 2,
-      firstchildindex = 3,
-      nextsiblingindex = 4,
-      prevsiblingindex = 5
-    };
-
-  public:
     TransformComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class TransformComponent>
@@ -40,20 +28,25 @@ class TransformComponentStorage : public DefaultStorage<lml::Transform, lml::Tra
 
   protected:
 
-    auto &local(size_t index) { return data<localtransform>(index); }
-    auto &world(size_t index) { return data<worldtransform>(index); }
-    auto &parent(size_t index) { return data<parentindex>(index); }
-    auto &firstchild(size_t index) { return data<firstchildindex>(index); }
-    auto &nextsibling(size_t index) { return data<nextsiblingindex>(index); }
-    auto &prevsibling(size_t index) { return data<prevsiblingindex>(index); }
+    auto &local(size_t index) const { return data<0>(index); }
+    auto &world(size_t index) const { return data<1>(index); }
+    auto &parent(size_t index) const { return data<2>(index); }
+    auto &firstchild(size_t index) const { return data<3>(index); }
+    auto &nextsibling(size_t index) const { return data<4>(index); }
+    auto &prevsibling(size_t index) const { return data<5>(index); }
+
+    void set_local(size_t index, lml::Transform const &local) { data<0>(index) = local; }
+    void set_world(size_t index, lml::Transform const &world) { data<1>(index) = world; }
+    void set_parent(size_t index, size_t parent) { data<2>(index) = parent; }
+    void set_firstchild(size_t index, size_t firstchild) { data<3>(index) = firstchild; }
+    void set_nextsibling(size_t index, size_t nextsibling) { data<4>(index) = nextsibling; }
+    void set_prevsibling(size_t index, size_t prevsibling) { data<5>(index) = prevsibling; }
 
   protected:
 
     void add(EntityId entity);
 
     void remove(EntityId entity) override;
-
-    void set_local(size_t index, lml::Transform const &transform);
 
     void reparent(size_t index, size_t parentindex);
 
@@ -79,8 +72,8 @@ class TransformComponent
     TransformComponent() = default;
     TransformComponent(size_t index, TransformComponentStorage *storage);
 
-    lml::Transform const &local() const { return storage->data<TransformComponentStorage::localtransform>(index); }
-    lml::Transform const &world() const { return storage->data<TransformComponentStorage::worldtransform>(index); }
+    lml::Transform const &local() const { return storage->local(index); }
+    lml::Transform const &world() const { return storage->world(index); }
 
     void set_local(lml::Transform const &transform);
     void set_local_defered(lml::Transform const &transform);

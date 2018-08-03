@@ -20,16 +20,6 @@
 class PointLightComponentStorage : public DefaultStorage<Scene::EntityId, float, lml::Color3, lml::Attenuation>
 {
   public:
-
-    enum DataLayout
-    {
-      entityid = 0,
-      lightrange = 1,
-      lightintensity = 2,
-      lightattenuation = 3,
-    };
-
-  public:
     PointLightComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class PointLightComponent>
@@ -37,6 +27,18 @@ class PointLightComponentStorage : public DefaultStorage<Scene::EntityId, float,
     {
       return { this->index(entity), this };
     }
+
+  protected:
+
+    auto &entity(size_t index) const { return data<0>(index); }
+    auto &range(size_t index) const { return data<1>(index); }
+    auto &intensity(size_t index) const { return data<2>(index); }
+    auto &attenuation(size_t index) const { return data<3>(index); }
+
+    void set_entity(size_t index, Scene::EntityId entity) { data<0>(index) = entity; }
+    void set_range(size_t index, float range) { data<1>(index) = range; }
+    void set_intensity(size_t index, lml::Color3 const &intensity) { data<2>(index) = intensity; }
+    void set_attenuation(size_t index, lml::Attenuation const &attenuation) { data<3>(index) = attenuation; }
 
   protected:
 
@@ -60,9 +62,9 @@ class PointLightComponent
     PointLightComponent() = default;
     PointLightComponent(size_t index, PointLightComponentStorage *storage);
 
-    float range() const { return storage->data<PointLightComponentStorage::lightrange>(index); }
-    lml::Color3 const &intensity() const { return storage->data<PointLightComponentStorage::lightintensity>(index); }
-    lml::Attenuation const &attenuation() const { return storage->data<PointLightComponentStorage::lightattenuation>(index); }
+    float range() const { return storage->range(index); }
+    lml::Color3 const &intensity() const { return storage->intensity(index); }
+    lml::Attenuation const &attenuation() const { return storage->attenuation(index); }
 
     void set_intensity(lml::Color3 const &intensity);
     void set_attenuation(lml::Attenuation const &attenuation);
@@ -80,18 +82,6 @@ class PointLightComponent
 class SpotLightComponentStorage : public DefaultStorage<Scene::EntityId, float, float, lml::Color3, lml::Attenuation, SpotMap const *>
 {
   public:
-
-    enum DataLayout
-    {
-      entityid = 0,
-      lightrange = 1,
-      lightcutoff = 2,
-      lightintensity = 3,
-      lightattenuation = 4,
-      shadowmap = 5
-    };
-
-  public:
     SpotLightComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class SpotLightComponent>
@@ -99,6 +89,22 @@ class SpotLightComponentStorage : public DefaultStorage<Scene::EntityId, float, 
     {
       return { this->index(entity), this };
     }
+
+  protected:
+
+    auto &entity(size_t index) const { return data<0>(index); }
+    auto &range(size_t index) const { return data<1>(index); }
+    auto &cutoff(size_t index) const { return data<2>(index); }
+    auto &intensity(size_t index) const { return data<3>(index); }
+    auto &attenuation(size_t index) const { return data<4>(index); }
+    auto &shadowmap(size_t index) const { return data<5>(index); }
+
+    void set_entity(size_t index, Scene::EntityId entity) { data<0>(index) = entity; }
+    void set_range(size_t index, float range) { data<1>(index) = range; }
+    void set_cutoff(size_t index, float cutoff) { data<2>(index) = cutoff; }
+    void set_intensity(size_t index, lml::Color3 const &intensity) { data<3>(index) = intensity; }
+    void set_attenuation(size_t index, lml::Attenuation const &attenuation) { data<4>(index) = attenuation; }
+    void set_shadowmap(size_t index, SpotMap const *shadowmap) { data<5>(index) = shadowmap; }
 
   protected:
 
@@ -122,11 +128,11 @@ class SpotLightComponent
     SpotLightComponent() = default;
     SpotLightComponent(size_t index, SpotLightComponentStorage *storage);
 
-    float range() const { return storage->data<SpotLightComponentStorage::lightrange>(index); }
-    float cutoff() const { return storage->data<SpotLightComponentStorage::lightcutoff>(index); }
-    lml::Color3 const &intensity() const { return storage->data<SpotLightComponentStorage::lightintensity>(index); }
-    lml::Attenuation const &attenuation() const { return storage->data<SpotLightComponentStorage::lightattenuation>(index); }
-    SpotMap const *shadowmap() const { return storage->data<SpotLightComponentStorage::shadowmap>(index); }
+    float range() const { return storage->range(index); }
+    float cutoff() const { return storage->cutoff(index); }
+    lml::Color3 const &intensity() const { return storage->intensity(index); }
+    lml::Attenuation const &attenuation() const { return storage->attenuation(index); }
+    SpotMap const *shadowmap() const { return storage->shadowmap(index); }
 
     void set_intensity(lml::Color3 const &intensity, float maxrange);
     void set_attenuation(lml::Attenuation const &attenuation, float maxrange);

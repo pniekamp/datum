@@ -18,15 +18,15 @@ class Camera
   public:
     Camera();
 
-    lml::Vec3 position() const { return m_transform.translation(); }
+    lml::Vec3 position() const { return m_position; }
 
-    lml::Quaternion3f rotation() const { return m_transform.rotation(); }
+    lml::Quaternion3 rotation() const { return m_rotation; }
 
-    lml::Vec3 up() const { return m_transform.rotation() * lml::Vec3(0, 1, 0); }
-    lml::Vec3 right() const { return m_transform.rotation() * lml::Vec3(1, 0, 0); }
-    lml::Vec3 backward() const { return m_transform.rotation() * lml::Vec3(0, 0, 1); }
+    lml::Vec3 up() const { return m_rotation * lml::Vec3(0, 1, 0); }
+    lml::Vec3 right() const { return m_rotation * lml::Vec3(1, 0, 0); }
+    lml::Vec3 backward() const { return m_rotation * lml::Vec3(0, 0, 1); }
 
-    lml::Vec3 forward() const { return m_transform.rotation() * lml::Vec3(0, 0, -1); }
+    lml::Vec3 forward() const { return m_rotation * lml::Vec3(0, 0, -1); }
 
     float fov() const { return m_fov; }
     float aspect() const { return m_aspect; }
@@ -45,7 +45,7 @@ class Camera
     lml::Frustum frustum() const;
     lml::Frustum frustum(float znear, float zfar) const;
 
-    lml::Transform transform() const { return m_transform; }
+    lml::Transform transform() const { return lml::Transform::lookat(m_position, m_rotation); }
 
   public:
 
@@ -61,7 +61,7 @@ class Camera
     // world space
 
     void set_position(lml::Vec3 const &position);
-    void set_rotation(lml::Quaternion3f const &rotation);
+    void set_rotation(lml::Quaternion3 const &rotation);
 
     void move(lml::Vec3 const &translation);
 
@@ -73,7 +73,7 @@ class Camera
     // camera space
 
     void offset(lml::Vec3 const &translation);
-    void rotate(lml::Quaternion3f const &rotation);
+    void rotate(lml::Quaternion3 const &rotation);
 
     void roll(float angle);
     void pitch(float angle);
@@ -81,11 +81,7 @@ class Camera
 
     void pan(lml::Vec3 &target, float dx, float dy);
     void dolly(lml::Vec3 const &target, float amount);
-    void orbit(lml::Vec3 const &target, lml::Quaternion3f const &rotation);
-
-  protected:
-
-    friend Camera normalise(Camera const &camera);
+    void orbit(lml::Vec3 const &target, lml::Quaternion3 const &rotation);
 
   private:
 
@@ -97,7 +93,8 @@ class Camera
     float m_focalwidth;
     float m_focaldistance;
 
-    lml::Transform m_transform;
+    lml::Vec3 m_position;
+    lml::Quaternion3 m_rotation;
 };
 
 
@@ -116,7 +113,7 @@ inline Camera normalise(Camera const &camera)
 {
   Camera result = camera;
 
-  result.m_transform = normalise(camera.m_transform);
+  result.set_rotation(normalise(camera.rotation()));
 
   return result;
 }

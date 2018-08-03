@@ -21,17 +21,6 @@
 class MeshComponentStorage : public DefaultStorage<Scene::EntityId, int, lml::Bound3, Mesh const *, Material const *>
 {
   public:
-
-    enum DataLayout
-    {
-      entityid = 0,
-      flagbits = 1,
-      boundingbox = 2,
-      meshresource = 3,
-      materialresource = 4,
-    };
-
-  public:
     MeshComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class MeshComponent>
@@ -48,12 +37,12 @@ class MeshComponentStorage : public DefaultStorage<Scene::EntityId, int, lml::Bo
     {
       operator EntityId() const
       {
-        return storage->data<entityid>(index);
+        return storage->data<0>(index);
       }
 
       lml::Bound3 const &box() const
       {
-        return storage->data<boundingbox>(index);
+        return storage->data<2>(index);
       }
 
       friend bool operator ==(MeshIndex const &lhs, MeshIndex const &rhs)
@@ -80,8 +69,22 @@ class MeshComponentStorage : public DefaultStorage<Scene::EntityId, int, lml::Bo
 
     iterator_pair<EntityId const *> dynamic() const
     {
-      return { std::get<entityid>(m_data).data() + m_staticpartition, std::get<entityid>(m_data).data() + size() };
+      return { std::get<0>(m_data).data() + m_staticpartition, std::get<0>(m_data).data() + size() };
     }
+
+  protected:
+
+    auto &entity(size_t index) const { return data<0>(index); }
+    auto &flags(size_t index) const { return data<1>(index); }
+    auto &bound(size_t index) const { return data<2>(index); }
+    auto &mesh(size_t index) const { return data<3>(index); }
+    auto &material(size_t index) const { return data<4>(index); }
+
+    void set_entity(size_t index, Scene::EntityId entity) { data<0>(index) = entity; }
+    void set_flags(size_t index, int flags) { data<1>(index) = flags; }
+    void set_bound(size_t index, lml::Bound3 const &bound) { data<2>(index) = bound; }
+    void set_mesh(size_t index, Mesh const *mesh) { data<3>(index) = mesh; }
+    void set_material(size_t index, Material const *material) { data<4>(index) = material; }
 
   protected:
 
@@ -129,12 +132,12 @@ class MeshComponent
     MeshComponent() = default;
     MeshComponent(size_t index, MeshComponentStorage *storage);
 
-    int flags() const { return storage->data<MeshComponentStorage::flagbits>(index); }
+    int flags() const { return storage->flags(index); }
 
-    lml::Bound3 const &bound() const { return storage->data<MeshComponentStorage::boundingbox>(index); }
+    lml::Bound3 const &bound() const { return storage->bound(index); }
 
-    Mesh const *mesh() const { return storage->data<MeshComponentStorage::meshresource>(index); }
-    Material const *material() const { return storage->data<MeshComponentStorage::materialresource>(index); }
+    Mesh const *mesh() const { return storage->mesh(index); }
+    Material const *material() const { return storage->material(index); }
 
   protected:
 

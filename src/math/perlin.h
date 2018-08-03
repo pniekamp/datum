@@ -48,7 +48,9 @@ namespace lml
       T dotgrad(uint32_t p, T x, T y, T z) const;
       T dotgrad(uint32_t p, T x, T y, T z, T t) const;
 
-      uint32_t P[2*TableSize+1];
+      static_assert((TableSize & (TableSize - 1)) == 0, "power of two");
+
+      uint32_t P[TableSize];
   };
 
 
@@ -74,9 +76,6 @@ namespace lml
   {
     std::iota(P, P + TableSize, 0);
     std::shuffle(P, P + TableSize, entropy);
-
-    std::copy(P, P + TableSize, P + TableSize);
-    std::copy(P, P + 1, P + 2*TableSize);
   }
 
   template<typename T, size_t N, size_t TableSize>
@@ -200,7 +199,7 @@ namespace lml
 
     auto u = tx * tx * tx * (tx * (tx * 6 - 15) + 10);
 
-    auto hash = [&](int i) { return P[i]; };
+    auto hash = [&](int i) { return P[i & (TableSize - 1)]; };
 
     auto d0 = dotgrad(hash(ix), tx);
     auto d1 = dotgrad(hash(ix+1), tx-1);
@@ -236,7 +235,7 @@ namespace lml
     auto u = tx * tx * tx * (tx * (tx * 6 - 15) + 10);
     auto v = ty * ty * ty * (ty * (ty * 6 - 15) + 10);
 
-    auto hash = [&](int i, int j) { return P[P[i] + j]; };
+    auto hash = [&](int i, int j) { return P[(P[i & (TableSize - 1)] + j) & (TableSize - 1)]; };
 
     auto d00 = dotgrad(hash(ix, iy), tx, ty);
     auto d10 = dotgrad(hash(ix+1, iy), tx-1, ty);
@@ -281,7 +280,7 @@ namespace lml
     auto v = ty * ty * ty * (ty * (ty * 6 - 15) + 10);
     auto w = tz * tz * tz * (tz * (tz * 6 - 15) + 10);
 
-    auto hash = [&](int i, int j, int k) { return P[P[P[i] + j] + k]; };
+    auto hash = [&](int i, int j, int k) { return P[(P[(P[i & (TableSize - 1)] + j) & (TableSize - 1)] + k) & (TableSize - 1)]; };
 
     auto d000 = dotgrad(hash(ix, iy, iz), tx, ty, tz);
     auto d100 = dotgrad(hash(ix+1, iy, iz), tx-1, ty, tz);
@@ -339,7 +338,7 @@ namespace lml
     auto w = tz * tz * tz * (tz * (tz * 6 - 15) + 10);
     auto q = tt * tt * tt * (tt * (tt * 6 - 15) + 10);
 
-    auto hash = [&](int i, int j, int k, int l) { return P[P[P[P[i] + j] + k] + l]; };
+    auto hash = [&](int i, int j, int k, int l) { return P[(P[(P[(P[i & (TableSize - 1)] + j) & (TableSize - 1)] + k) & (TableSize - 1)] + l) & (TableSize - 1)]; };
 
     auto d0000 = dotgrad(hash(ix, iy, iz, it), tx, ty, tz, tt);
     auto d1000 = dotgrad(hash(ix+1, iy, iz, it), tx-1, ty, tz, tt);

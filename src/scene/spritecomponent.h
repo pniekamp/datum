@@ -19,18 +19,6 @@
 class SpriteComponentStorage  : public DefaultStorage<Scene::EntityId, int, Sprite const *, float, float, lml::Color4>
 {
   public:
-
-    enum DataLayout
-    {
-      entityid = 0,
-      flagbits = 1,
-      spriteresource = 2,
-      spritesize  = 3,
-      spritelayer = 4,
-      spritetint = 5,
-    };
-
-  public:
     SpriteComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class SpriteComponent>
@@ -38,6 +26,22 @@ class SpriteComponentStorage  : public DefaultStorage<Scene::EntityId, int, Spri
     {
       return { this->index(entity), this };
     }
+
+  protected:
+
+    auto &entity(size_t index) const { return data<0>(index); }
+    auto &flags(size_t index) const { return data<1>(index); }
+    auto &sprite(size_t index) const { return data<2>(index); }
+    auto &size(size_t index) const { return data<3>(index); }
+    auto &layer(size_t index) const { return data<4>(index); }
+    auto &tint(size_t index) const { return data<5>(index); }
+
+    void set_entity(size_t index, Scene::EntityId entity) { data<0>(index) = entity; }
+    void set_flags(size_t index, int flags) { data<1>(index) = flags; }
+    void set_sprite(size_t index, Sprite const *sprite) { data<2>(index) = sprite; }
+    void set_size(size_t index, float size) { data<3>(index) = size; }
+    void set_layer(size_t index, float layer) { data<4>(index) = layer; }
+    void set_tint(size_t index, lml::Color4 const &tint) { data<5>(index) = tint; }
 
   protected:
 
@@ -69,13 +73,13 @@ class SpriteComponent
     SpriteComponent() = default;
     SpriteComponent(size_t index, SpriteComponentStorage *storage);
 
-    long flags() const { return storage->data<SpriteComponentStorage::flagbits>(index); }
+    long flags() const { return storage->flags(index); }
 
-    Sprite const *sprite() const { return storage->data<SpriteComponentStorage::spriteresource>(index); }
+    Sprite const *sprite() const { return storage->sprite(index); }
 
-    float size() const { return storage->data<SpriteComponentStorage::spritesize>(index); }
-    float layer() const { return storage->data<SpriteComponentStorage::spritelayer>(index); }
-    lml::Color4 const &tint() const { return storage->data<SpriteComponentStorage::spritetint>(index); }
+    float size() const { return storage->size(index); }
+    float layer() const { return storage->layer(index); }
+    lml::Color4 const &tint() const { return storage->tint(index); }
 
     lml::Rect2 bound() const { return lml::Rect2(-sprite()->align, lml::Vec2(size() * sprite()->aspect, size()) - sprite()->align); }
 

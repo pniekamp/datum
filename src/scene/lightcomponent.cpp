@@ -25,12 +25,12 @@ PointLightComponentStorage::PointLightComponentStorage(Scene *scene, StackAlloca
 ///////////////////////// PointLightStorage::add ////////////////////////////
 void PointLightComponentStorage::add(Scene::EntityId entity, Color3 const &intensity, Attenuation const &attenuation)
 {
-  auto index = DefaultStorage::add(entity);
+  auto index = insert(entity);
 
-  data<entityid>(index) = entity;
-  data<lightintensity>(index) = intensity;
-  data<lightattenuation>(index) = attenuation;
-  data<lightrange>(index) = range(attenuation, max_element(intensity));
+  set_entity(index, entity);
+  set_intensity(index, intensity);
+  set_attenuation(index, attenuation);
+  set_range(index, lml::range(attenuation, max_element(intensity)));
 }
 
 
@@ -56,18 +56,18 @@ PointLightComponent::PointLightComponent(size_t index, PointLightComponentStorag
 ///////////////////////// PointLightComponent::set_intensity ////////////////
 void PointLightComponent::set_intensity(Color3 const &intensity)
 {
-  storage->data<PointLightComponentStorage::lightintensity>(index) = intensity;
+  storage->set_intensity(index, intensity);
 
-  storage->data<PointLightComponentStorage::lightrange>(index) = lml::range(attenuation(), max_element(intensity()));
+  storage->set_range(index, lml::range(attenuation(), max_element(intensity())));
 }
 
 
 ///////////////////////// PointLightComponent::set_attenuation //////////////
 void PointLightComponent::set_attenuation(Attenuation const &attenuation)
 {
-  storage->data<PointLightComponentStorage::lightattenuation>(index) = attenuation;
+  storage->set_attenuation(index, attenuation);
 
-  storage->data<PointLightComponentStorage::lightrange>(index) = lml::range(attenuation(), max_element(intensity()));
+  storage->set_range(index, lml::range(attenuation(), max_element(intensity())));
 }
 
 
@@ -130,14 +130,14 @@ SpotLightComponentStorage::SpotLightComponentStorage(Scene *scene, StackAllocato
 ///////////////////////// SpotLightStorage::add ////////////////////////////
 void SpotLightComponentStorage::add(Scene::EntityId entity, float cutoff, float maxrange, Color3 const &intensity, Attenuation const &attenuation, SpotMap const *spotmap)
 {
-  auto index = DefaultStorage::add(entity);
+  auto index = insert(entity);
 
-  data<entityid>(index) = entity;
-  data<lightintensity>(index) = intensity;
-  data<lightattenuation>(index) = attenuation;
-  data<lightrange>(index) = min(range(attenuation, max_element(intensity)), maxrange);
-  data<lightcutoff>(index) = cutoff;
-  data<shadowmap>(index) = spotmap;
+  set_entity(index, entity);
+  set_intensity(index, intensity);
+  set_attenuation(index, attenuation);
+  set_range(index, min(lml::range(attenuation, max_element(intensity)), maxrange));
+  set_cutoff(index, cutoff);
+  set_shadowmap(index, spotmap);
 }
 
 
@@ -163,18 +163,18 @@ SpotLightComponent::SpotLightComponent(size_t index, SpotLightComponentStorage *
 ///////////////////////// SpotLightComponent::set_intensity ////////////////
 void SpotLightComponent::set_intensity(Color3 const &intensity, float maxrange)
 {
-  storage->data<SpotLightComponentStorage::lightintensity>(index) = intensity;
+  storage->set_intensity(index, intensity);
 
-  storage->data<SpotLightComponentStorage::lightrange>(index) = min(lml::range(attenuation(), max_element(intensity())), maxrange);
+  storage->set_range(index, min(lml::range(attenuation(), max_element(intensity())), maxrange));
 }
 
 
 ///////////////////////// SpotLightComponent::set_attenuation //////////////
 void SpotLightComponent::set_attenuation(Attenuation const &attenuation, float maxrange)
 {
-  storage->data<SpotLightComponentStorage::lightattenuation>(index) = attenuation;
+  storage->set_attenuation(index, attenuation);
 
-  storage->data<SpotLightComponentStorage::lightrange>(index) = min(lml::range(attenuation(), max_element(intensity())), maxrange);
+  storage->set_range(index, min(lml::range(attenuation(), max_element(intensity())), maxrange));
 }
 
 

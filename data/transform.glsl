@@ -184,11 +184,11 @@ vec3 transform_detailbend(vec3 v, vec3 pos, float time, vec3 wind, vec3 scale)
 
 
 ///////////////////////// map_parabolic /////////////////////////////////////
-vec4 map_parabolic(vec4 position)
+vec4 map_parabolic(vec4 pos)
 {
-  float L = length(position.xyz);
+  float L = length(pos.xyz);
   
-  vec3 P = position.xyz / L;
+  vec3 P = pos.xyz / L;
 
   return vec4(P.xy / (1 - P.z), L / 1000, 1);
 }

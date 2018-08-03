@@ -42,6 +42,13 @@ namespace lml
   }
 
 
+  //|///////////////////// operator * ///////////////////////////////////////
+  constexpr inline Color3 operator *(Color3 const &c1, Color3 const &c2)
+  {
+    return hada(c1, c2);
+  }
+
+
   //|-------------------- Color4 --------------------------------------------
   //|------------------------------------------------------------------------
 
@@ -77,6 +84,13 @@ namespace lml
   constexpr Color4::Color4(Color3 const &rgb, float a)
     : r(rgb.r), g(rgb.g), b(rgb.b), a(a)
   {
+  }
+
+
+  //|///////////////////// operator * ///////////////////////////////////////
+  constexpr inline Color4 operator *(Color4 const &c1, Color4 const &c2)
+  {
+    return hada(c1, c2);
   }
 
 
@@ -144,7 +158,7 @@ namespace lml
     auto b = clamp(color.b, 0.0f, 65408.0f);
     auto e = std::max(-16.0f, std::floor(std::log2(std::max(r, std::max(g, b))))) + 1;
 
-    return ((uint8_t)(e + 15) << 27) | ((uint16_t)(r / std::exp2(e) * 511) << 0) | ((uint16_t)(g / std::exp2(e) * 511) << 9) | ((uint16_t)(b / std::exp2(e) * 511) << 18);
+    return ((uint8_t)(e + 15) << 27) | ((uint16_t)std::round(r / std::exp2(e) * 511) << 0) | ((uint16_t)std::round(g / std::exp2(e) * 511) << 9) | ((uint16_t)std::round(b / std::exp2(e) * 511) << 18);
   }
 
   inline Color4 rgbe(uint32_t color)

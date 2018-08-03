@@ -15,6 +15,8 @@ namespace lml
 {
   using namespace leap::lml;
 
+  using Quaternion3 = lml::Quaternion3f;
+
   using leap::lml::lerp;
   using leap::lml::slerp;
 
@@ -27,55 +29,74 @@ namespace lml
       Transform() = default;
 
       static Transform identity();
-      static Transform rotation(Quaternion3f const &quaternion);
+      static Transform rotation(Quaternion3 const &quaternion);
       static Transform rotation(Vec3 const &axis, float angle);
       static Transform translation(Vec3 const &vector);
       static Transform translation(float x, float y, float z);
-      static Transform lookat(Vec3 const &eye, Vec3 const &target, Vec3 const &up);
-
-      Quaternion3f rotation() const { return real; }
+      static Transform lookat(Vec3 const &position, Quaternion3 const &orientation);
+      static Transform lookat(Vec3 const &position, Vec3 const &target, Vec3 const &up);
 
       Vec3 translation() const { return 2.0f * (dual*conjugate(real)).vector.to<Vec3>(); }
 
+      Quaternion3 rotation() const { return real; }
+
       Matrix4f matrix() const;
 
-      Quaternion3f real;
-      Quaternion3f dual;
+      Quaternion3 real;
+      Quaternion3 dual;
   };
 
 
   //////////////////////// Transform::identity //////////////////////////////
   inline Transform Transform::identity()
   {
-    return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
+    return { Quaternion3(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
 
   //////////////////////// Transform::rotation //////////////////////////////
-  inline Transform Transform::rotation(Quaternion3f const &quaternion)
+  inline Transform Transform::rotation(Quaternion3 const &quaternion)
   {
-    return { quaternion, Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
+    return { quaternion, Quaternion3(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
 
   //////////////////////// Transform::rotation //////////////////////////////
   inline Transform Transform::rotation(Vec3 const &axis, float angle)
   {
-    return { Quaternion3f(axis, angle), Quaternion3f(0.0f, 0.0f, 0.0f, 0.0f) };
+    return { Quaternion3(axis, angle), Quaternion3(0.0f, 0.0f, 0.0f, 0.0f) };
   }
 
 
   //////////////////////// Transform::translation ///////////////////////////
   inline Transform Transform::translation(Vec3 const &vector)
   {
-    return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5f*vector.x, 0.5f*vector.y, 0.5f*vector.z) };
+    return { Quaternion3(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3(0.0f, 0.5f*vector.x, 0.5f*vector.y, 0.5f*vector.z) };
   }
 
 
   //////////////////////// Transform::translation ///////////////////////////
   inline Transform Transform::translation(float x, float y, float z)
   {
-    return { Quaternion3f(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3f(0.0f, 0.5f*x, 0.5f*y, 0.5f*z) };
+    return { Quaternion3(1.0f, 0.0f, 0.0f, 0.0f), Quaternion3(0.0f, 0.5f*x, 0.5f*y, 0.5f*z) };
+  }
+
+
+  //////////////////////// Transform::lookat ////////////////////////////
+  inline Transform Transform::lookat(Vec3 const &position, Quaternion3 const &orientation)
+  {
+    return { orientation, Quaternion3(0.0f, 0.5f*position) * orientation };
+  }
+
+
+  //////////////////////// Transform::lookat ////////////////////////////////
+  inline Transform Transform::lookat(Vec3 const &position, Vec3 const &target, Vec3 const &up)
+  {
+    auto zaxis = normalise(position - target);
+    auto xaxis = normalise(orthogonal(up, zaxis));
+    auto yaxis = cross(zaxis, xaxis);
+
+    return Transform::lookat(position, Quaternion3(xaxis, yaxis, zaxis));
   }
 
 
@@ -118,8 +139,8 @@ namespace lml
   /// conjugate transform
   inline Transform conjugate(Transform const &t)
   {
-    auto real = Quaternion3f(t.real.scalar, -t.real.vector);
-    auto dual = Quaternion3f(-t.dual.scalar, t.dual.vector);
+    auto real = Quaternion3(t.real.scalar, -t.real.vector);
+    auto dual = Quaternion3(-t.dual.scalar, t.dual.vector);
 
     return { real, dual };
   }
@@ -129,8 +150,8 @@ namespace lml
   /// inverse transform
   inline Transform inverse(Transform const &t)
   {
-    auto real = Quaternion3f(t.real.scalar, -t.real.vector);
-    auto dual = Quaternion3f(t.dual.scalar, -t.dual.vector);
+    auto real = Quaternion3(t.real.scalar, -t.real.vector);
+    auto dual = Quaternion3(t.dual.scalar, -t.dual.vector);
 
     return { real, dual };
   }
@@ -154,17 +175,6 @@ namespace lml
     auto result = t * Transform{{1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, v.x, v.y, v.z}} * conjugate(t);
 
     return { result.dual.x, result.dual.y, result.dual.z };
-  }
-
-
-  //////////////////////// lookat ///////////////////////////////////////////
-  inline Transform Transform::lookat(Vec3 const &eye, Vec3 const &target, Vec3 const &up)
-  {
-    auto zaxis = normalise(eye - target);
-    auto xaxis = normalise(orthogonal(up, zaxis));
-    auto yaxis = cross(zaxis, xaxis);
-
-    return Transform::translation(eye) * Transform::rotation(Quaternion3f(xaxis, yaxis, zaxis));
   }
 
 

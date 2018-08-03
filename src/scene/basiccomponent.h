@@ -15,39 +15,37 @@
 //|---------------------- BasicComponentStorage -----------------------------
 //|--------------------------------------------------------------------------
 
-template<typename Data>
-class BasicComponentStorage : public DefaultStorage<Scene::EntityId, Data>
+template<typename T>
+class BasicComponentStorage : public DefaultStorage<Scene::EntityId, T>
 {
   public:
-
-    using EntityId = Scene::EntityId;
-
-  public:
     BasicComponentStorage(Scene *scene, StackAllocator<> allocator)
-      : DefaultStorage<Scene::EntityId, Data>(scene, allocator)
+      : DefaultStorage<Scene::EntityId, T>(scene, allocator)
     {
     }
 
   protected:
+
+    using EntityId = Scene::EntityId;
 
     EntityId const &entityid(size_t index) const
     {
       return std::get<0>(this->m_data)[index];
     }
 
-    Data *data(EntityId entity)
+    T *data(EntityId entity)
     {
       return &std::get<1>(this->m_data)[this->index(entity)];
     }
 
-    Data const *data(EntityId entity) const
+    T const *data(EntityId entity) const
     {
       return &std::get<1>(this->m_data)[this->index(entity)];
     }
 
-    Data *add(Scene::EntityId entity)
+    T *add(EntityId entity)
     {
-      auto index = DefaultStorage<Scene::EntityId, Data>::add(entity);
+      auto index = this->insert(entity);
 
       std::get<0>(this->m_data)[index] = entity;
 

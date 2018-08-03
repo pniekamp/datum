@@ -33,7 +33,7 @@ layout(set=2, binding=0, std430, row_major) readonly buffer ModelSet
   float morphbeg;
   float morphend;
   float morphgrid;
-  float areascale;
+  vec4 areascale;
   vec2 uvscale;
   uint layers;
 
@@ -57,21 +57,22 @@ void main()
   vec3 camerapos = transform_multiply(transform_inverse(modelworld), scene.camera.position);
   vec2 gridpos = floor(vertex_position.xy / model.morphgrid) * model.morphgrid;
 
-  float alpha = smoothstep(model.morphbeg, model.morphend, distance(camerapos.xy, vertex_position.xy * model.areascale));
+  float alpha = smoothstep(model.morphbeg, model.morphend, distance(camerapos.xy, vertex_position.xy * model.areascale.xy));
   
   vec2 xy = mix(vertex_position.xy, gridpos, alpha);
   vec2 uv = vec2(model.texcoords.zw * xy + model.texcoords.xy);
 
   float height = texture(sampler2DArray(heightmap, clampedsampler), vec3(uv, 0)).r;
   
-  vec3 vertexpos = vec3(xy * model.areascale, height);
+  vec3 vertexpos = vec3(xy * model.areascale.xy, height);
   vec3 vertexnormal = normalize(2 * texture(sampler2DArray(normalmap, clampedsampler), vec3(uv, 0)).xyz - 1);
+  vec3 vertextangent = normalize(vec3(1, 0, 0) - dot(vec3(1, 0, 0), vertexnormal) * vertexnormal);
 
   position = transform_multiply(modelworld, vertexpos);
   
   vec3 normal = quaternion_multiply(modelworld.real, vertexnormal);
-  vec3 tangent = quaternion_multiply(modelworld.real, vertex_tangent.xyz);
-  vec3 bitangent = cross(normal, tangent) * vertex_tangent.w;
+  vec3 tangent = quaternion_multiply(modelworld.real, vertextangent);
+  vec3 bitangent = cross(normal, tangent) * -1;
 
   tbnworld = mat3(tangent, bitangent, normal);
 

@@ -20,17 +20,6 @@
 class ParticleSystemComponentStorage : public DefaultStorage<Scene::EntityId, int, lml::Bound3, ParticleSystem const *, ParticleSystem::Instance *>
 {
   public:
-
-    enum DataLayout
-    {
-      entityid = 0,
-      flagbits = 1,
-      boundingbox = 2,
-      particlesystem = 3,
-      particlesysteminstance = 4,
-    };
-
-  public:
     ParticleSystemComponentStorage(Scene *scene, StackAllocator<> allocator);
 
     template<typename Component = class ParticleSystemComponent>
@@ -40,6 +29,20 @@ class ParticleSystemComponentStorage : public DefaultStorage<Scene::EntityId, in
     }
 
     void update_particlesystem_bounds();
+
+  protected:
+
+    auto &entity(size_t index) const { return data<0>(index); }
+    auto &flags(size_t index) const { return data<1>(index); }
+    auto &bound(size_t index) const { return data<2>(index); }
+    auto &system(size_t index) const { return data<3>(index); }
+    auto &instance(size_t index) const { return data<4>(index); }
+
+    void set_entity(size_t index, Scene::EntityId entity) { data<0>(index) = entity; }
+    void set_flags(size_t index, int flags) { data<1>(index) = flags; }
+    void set_bound(size_t index, lml::Bound3 const &bound) { data<2>(index) = bound; }
+    void set_system(size_t index, ParticleSystem const *system) { data<3>(index) = system; }
+    void set_instance(size_t index, ParticleSystem::Instance *instance) { data<4>(index) = instance; }
 
   protected:
 
@@ -80,12 +83,12 @@ class ParticleSystemComponent
     ParticleSystemComponent() = default;
     ParticleSystemComponent(size_t index, ParticleSystemComponentStorage *storage);
 
-    int flags() const { return storage->data<ParticleSystemComponentStorage::flagbits>(index); }
+    int flags() const { return storage->flags(index); }
 
-    lml::Bound3 const &bound() const { return storage->data<ParticleSystemComponentStorage::boundingbox>(index); }
+    lml::Bound3 const &bound() const { return storage->bound(index); }
 
-    ParticleSystem const *system() const { return storage->data<ParticleSystemComponentStorage::particlesystem>(index); }
-    ParticleSystem::Instance *instance() const { return storage->data<ParticleSystemComponentStorage::particlesysteminstance>(index); }
+    ParticleSystem const *system() const { return storage->system(index); }
+    ParticleSystem::Instance *instance() const { return storage->instance(index); }
 
   protected:
 

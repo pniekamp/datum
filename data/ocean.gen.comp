@@ -116,7 +116,9 @@ void main()
   float smoothing = pow(clamp(dist * params.smoothing - 0.35, 0.0, 1.0), 0.2);
 
   tbn[2] = normalize(mix(tbn * displacementnormal, params.plane.xyz, smoothing));
-
+  tbn[0] = normalize(vec3(1, 0, 0) - dot(vec3(1, 0, 0), tbn[2]) * tbn[2]);
+  tbn[1] = cross(tbn[0], tbn[2]);
+  
   vertexbuffer.vertices[index].position[0] = position.x - displacement.x;
   vertexbuffer.vertices[index].position[1] = position.y - displacement.y;
   vertexbuffer.vertices[index].position[2] = position.z + displacement.z;

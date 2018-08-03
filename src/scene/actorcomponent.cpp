@@ -39,48 +39,36 @@ void ActorComponentStorage::clear()
 ///////////////////////// MeshStorage::add //////////////////////////////////
 void ActorComponentStorage::add(EntityId entity, Bound3 const &bound, Mesh const *mesh, Material const *material, int flags)
 {
-  size_t index = size();
-
-  m_index.resize(std::max(m_index.size(), entity.index()+1));
+  size_t index = 0;
 
   if (flags & ActorComponent::Static)
   {
-    if (m_freeslots.size() != 0)
+    index = insert(entity);
+
+    if (index > m_staticpartition)
     {
-      index = m_freeslots.front();
+      for_each(m_data, [=](auto &v) { swap(v[index], v[m_staticpartition]); });
 
-      m_freeslots.pop_front();
+      swap(m_index[data<0>(index).index()], m_index[entity.index()]);
+
+      index = m_staticpartition;
     }
-    else
-    {
-      for_each(m_data, [](auto &v) { v.resize(v.size()+1); });
 
-      if (index != m_staticpartition)
-      {
-        for_each(m_data, [=](auto &v) { swap(v[index], v[m_staticpartition]); });
-
-        m_index[data<entityid>(index).index()] = index;
-
-        index = m_staticpartition;
-      }
-
-      m_staticpartition += 1;
-    }
+    m_staticpartition += 1;
   }
   else
   {
-    for_each(m_data, [](auto &v) { v.resize(v.size()+1); });
+    index = append(entity);
   }
 
-  m_index[entity.index()] = index;
+  set_entity(index, entity);
+  set_flags(index, flags);
+  set_bound(index, bound);
+  set_mesh(index, mesh);
+  set_material(index, material);
+  set_animator(index, new(allocate<Animator>(m_allocator)) Animator(m_allocator));
 
-  data<entityid>(index) = entity;
-  data<flagbits>(index) = flags;
-  data<boundingbox>(index) = bound;
-  data<meshresource>(index) = mesh;
-  data<materialresource>(index) = material;
-  data<animator>(index) = new(allocate<Animator>(m_allocator)) Animator(m_allocator);
-  data<animator>(index)->set_mesh(mesh);
+  animator(index)->set_mesh(mesh);
 
   if (flags & ActorComponent::Static)
   {
@@ -94,9 +82,9 @@ void ActorComponentStorage::remove(EntityId entity)
 {
   auto index = m_index[entity.index()];
 
-  data<animator>(index)->~Animator();
+  animator(index)->~Animator();
 
-  deallocate(m_allocator, data<animator>(index));
+  deallocate(m_allocator, animator(index));
 
   if (index < m_staticpartition)
   {
@@ -112,7 +100,7 @@ void ActorComponentStorage::remove(EntityId entity)
 
     for_each(m_data, [](auto &v) { v.resize(v.size()-1); });
 
-    m_index[data<entityid>(index).index()] = index;
+    m_index[data<0>(index).index()] = index;
   }
 
   m_index[entity.index()] = 0;
@@ -126,11 +114,11 @@ void ActorComponentStorage::update_mesh_bounds()
 
   for(size_t index = m_staticpartition; index < size(); ++index)
   {
-    assert(transformstorage->has(data<entityid>(index)));
+    assert(transformstorage->has(entity(index)));
 
-    auto transform = transformstorage->get(data<entityid>(index));
+    auto transform = transformstorage->get(entity(index));
 
-    data<boundingbox>(index) = transform.world() * data<meshresource>(index)->bound;
+    set_bound(index, transform.world() * mesh(index)->bound);
   }
 }
 

@@ -50,16 +50,16 @@ namespace leap { namespace lml
       Vector operator()() const { return { (*this)[Indices]... }; }
 
       template<typename V>
-      VectorView &operator +=(V &&v) { assign(*this, *this + std::forward<V>(v)); return *this; }
+      VectorView &operator +=(V &&v) { assign(*this, static_cast<Vector&>(*this) + std::forward<V>(v)); return *this; }
 
       template<typename V>
-      VectorView &operator -=(V &&v) { assign(*this, *this - std::forward<V>(v)); return *this; }
+      VectorView &operator -=(V &&v) { assign(*this, static_cast<Vector&>(*this) - std::forward<V>(v)); return *this; }
 
       template<typename V>
-      VectorView &operator *=(V &&v) { assign(*this, *this * std::forward<V>(v)); return *this; }
+      VectorView &operator *=(V &&v) { assign(*this, static_cast<Vector&>(*this) * std::forward<V>(v)); return *this; }
 
       template<typename V>
-      VectorView &operator /=(V &&v) { assign(*this, *this / std::forward<V>(v)); return *this; }
+      VectorView &operator /=(V &&v) { assign(*this, static_cast<Vector&>(*this) / std::forward<V>(v)); return *this; }
 
       T const &operator[](size_t i) const { return *((T const *)this + i); }
       T &operator[](size_t i) { return *((T*)this + i); }

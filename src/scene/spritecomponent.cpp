@@ -26,14 +26,14 @@ SpriteComponentStorage::SpriteComponentStorage(Scene *scene, StackAllocator<> al
 ///////////////////////// SpriteStorage::Constructor ////////////////////////
 void SpriteComponentStorage::add(EntityId entity, Sprite const *sprite, float size, float layer, Color4 tint, int flags)
 {
-  auto index = DefaultStorage::add(entity);
+  auto index = insert(entity);
 
-  data<entityid>(index) = entity;
-  data<flagbits>(index) = flags;
-  data<spriteresource>(index) = sprite;
-  data<spritesize>(index) = size;
-  data<spritelayer>(index) = layer;
-  data<spritetint>(index) = tint;
+  set_entity(index, entity);
+  set_flags(index, flags);
+  set_sprite(index, sprite);
+  set_size(index,  size);
+  set_layer(index, layer);
+  set_tint(index, tint);
 }
 
 
@@ -59,38 +59,38 @@ SpriteComponent::SpriteComponent(size_t index, SpriteComponentStorage *storage)
 ///////////////////////// SpriteComponent::set_size /////////////////////////
 void SpriteComponent::set_size(float size)
 {
-  storage->data<SpriteComponentStorage::spritesize>(index) = size;
+  storage->set_size(index, size);
 }
 
 
 ///////////////////////// SpriteComponent::set_layer ////////////////////////
 void SpriteComponent::set_layer(float layer)
 {
-  storage->data<SpriteComponentStorage::spritelayer>(index) = layer;
+  storage->set_layer(index, layer);
 }
 
 
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size)
 {
-  storage->data<SpriteComponentStorage::spriteresource>(index) = sprite;
-  storage->data<SpriteComponentStorage::spritesize>(index) = size;
+  storage->set_sprite(index, sprite);
+  storage->set_size(index, size);
 }
 
 
 ///////////////////////// SpriteComponent::set_sprite ///////////////////////
 void SpriteComponent::set_sprite(Sprite const *sprite, float size, Color4 const &tint)
 {
-  storage->data<SpriteComponentStorage::spriteresource>(index) = sprite;
-  storage->data<SpriteComponentStorage::spritesize>(index) = size;
-  storage->data<SpriteComponentStorage::spritetint>(index) = tint;
+  storage->set_sprite(index, sprite);
+  storage->set_size(index, size);
+  storage->set_tint(index, tint);
 }
 
 
 ///////////////////////// SpriteComponent::set_tint /////////////////////////
 void SpriteComponent::set_tint(Color4 const &tint)
 {
-  storage->data<SpriteComponentStorage::spritetint>(index) = tint;
+  storage->set_tint(index, tint);
 }
 
 

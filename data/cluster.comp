@@ -123,8 +123,8 @@ void main()
 
     if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {    
-      uint tilezmin = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)));
-      uint tilezmax = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)));
+      uint tilezmin = cluster_tilez(max(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)), 0.0));
+      uint tilezmax = cluster_tilez(max(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)), 0.0));
 
       float nz = view_depth(scene.proj, 1 - cluster_depth(tilezmin));
       
@@ -156,8 +156,8 @@ void main()
 
     if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {  
-      uint tilezmin = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)));
-      uint tilezmax = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)));
+      uint tilezmin = cluster_tilez(max(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)), 0.0));
+      uint tilezmax = cluster_tilez(max(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)), 0.0));
 
       float nz = view_depth(scene.proj, 1 - cluster_depth(tilezmin));
       
@@ -187,8 +187,8 @@ void main()
 
     if (dot(frustum[0], centre) >= -radius && dot(frustum[1], centre) >= -radius && dot(frustum[2], centre) >= -radius && dot(frustum[3], centre) >= -radius)
     {    
-      uint tilezmin = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)));
-      uint tilezmax = cluster_tilez(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)));
+      uint tilezmin = cluster_tilez(max(1 - proj_depth(scene.proj, min(centre.z + radius, -0.1)), 0.0));
+      uint tilezmax = cluster_tilez(max(1 - proj_depth(scene.proj, min(centre.z - radius, -0.1)), 0.0));
 
       float nz = view_depth(scene.proj, 1 - cluster_depth(tilezmin));
       

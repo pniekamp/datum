@@ -53,7 +53,7 @@ struct OceanMaterialSet
   alignas( 4) float foamwavescale;
   alignas( 4) float foamshoreheight;
   alignas( 4) float foamshorescale;
-  alignas(16) Vec2 flow;
+  alignas( 8) Vec2 flow;
 };
 
 struct ModelSet
@@ -82,8 +82,8 @@ struct TerrainSet
   alignas( 4) float morphbeg;
   alignas( 4) float morphend;
   alignas( 4) float morphgrid;
-  alignas( 4) float areascale;
-  alignas(16) Vec2 uvscale;
+  alignas(16) Vec4 areascale;
+  alignas( 8) Vec2 uvscale;
   alignas( 4) uint32_t layers;
 };
 
@@ -362,7 +362,7 @@ void GeometryList::push_foilage(BuildState &state, Transform const *transforms, 
 
 
 ///////////////////////// GeometryList::push_terrain ////////////////////////
-void GeometryList::push_terrain(BuildState &state, Transform const &transform, Mesh const *mesh, ::Texture const *heightmap, ::Texture const *normalmap, Rect2 const &region, float areascale, float morphbeg, float morphend, float morphgrid, Material const *material, ::Texture const *blendmap, int layers, Vec2 const &uvscale)
+void GeometryList::push_terrain(BuildState &state, Transform const &transform, Mesh const *mesh, ::Texture const *heightmap, ::Texture const *normalmap, Rect2 const &region, lml::Vec4 const &areascale, float morphbeg, float morphend, float morphgrid, Material const *material, ::Texture const *blendmap, int layers, Vec2 const &uvscale)
 {
   assert(state.commandlump);
   assert(mesh && mesh->ready());
