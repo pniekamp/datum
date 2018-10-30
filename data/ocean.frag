@@ -1,6 +1,6 @@
 #version 440 core
-#include "camera.glsl"
-#include "gbuffer.glsl"
+#include "camera.inc"
+#include "gbuffer.inc"
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {

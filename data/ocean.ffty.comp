@@ -1,5 +1,5 @@
 #version 440 core
-#include "transform.glsl"
+#include "transform.inc"
 
 layout(local_size_x = 1, local_size_y = 64) in;
 layout(local_size_x_id = 1, local_size_y_id = 2) in;

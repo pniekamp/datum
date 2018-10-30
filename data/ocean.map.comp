@@ -1,5 +1,5 @@
 #version 440 core
-#include "transform.glsl"
+#include "transform.inc"
 
 layout(local_size_x = 18, local_size_y = 18) in;
 

@@ -147,7 +147,7 @@ namespace
 
   float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
   {
-    float energybias = lerp(0.0f, 0.5f, alpha);
+    float energybias = 0.5f;
     float energyfactor = lerp(1.0f, 1.0f / 1.51f, alpha);
     float f90 = energybias + 2 * LdotH*LdotH * alpha;
 
@@ -208,11 +208,11 @@ namespace
       if (NdotL > 0)
       {
         float G = GGX(NdotL, roughness * roughness) * GGX(NdotV, roughness * roughness);
-        float Vis = G * VdotH / (NdotH * NdotV);
+        float V = G * VdotH / (NdotH * NdotV);
         float Fc = pow(1 - VdotH, 5.0f);
 
-        a += (1 - Fc) * Vis;
-        b += Fc * Vis;
+        a += (1 - Fc) * V;
+        b += Fc * V;
       }
     }
 

@@ -1,5 +1,5 @@
 #version 440 core
-#include "transform.glsl"
+#include "transform.inc"
 
 layout(lines) in;
 layout(triangle_strip, max_vertices = 4) out;

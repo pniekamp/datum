@@ -1,9 +1,9 @@
 #version 440 core
-#include "bound.glsl"
-#include "transform.glsl"
-#include "camera.glsl"
-#include "gbuffer.glsl"
-#include "lighting.glsl"
+#include "bound.inc"
+#include "transform.inc"
+#include "camera.inc"
+#include "gbuffer.inc"
+#include "lighting.inc"
 
 layout(constant_id = 31) const bool CutOut = true;
 layout(constant_id = 52) const uint DecalMask = 0;

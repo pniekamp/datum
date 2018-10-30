@@ -1,7 +1,7 @@
 #version 440 core
-#include "transform.glsl"
-#include "camera.glsl"
-#include "lighting.glsl"
+#include "transform.inc"
+#include "camera.inc"
+#include "lighting.inc"
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 12/*3*ShadowSlices*/) out;

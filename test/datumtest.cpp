@@ -746,6 +746,7 @@ void datumtest_render(PlatformInterface &platform, Viewport const &viewport)
     renderparams.fogdensity = 0.0f;
     renderparams.ssrstrength = 1.0f;
 
+    DEBUG_MENU_VALUE("Lighting/Sun Cutoff", &renderparams.suncutoff, 0.0f, 1.0f)
     DEBUG_MENU_VALUE("Lighting/Fog Strength", &renderparams.fogdensity, 0.0f, 10.0f)
     DEBUG_MENU_VALUE("Lighting/SSR Strength", &renderparams.ssrstrength, 0.0f, 8.0f)
     DEBUG_MENU_VALUE("Lighting/Bloom Strength", &renderparams.bloomstrength, 0.0f, 18.0f)

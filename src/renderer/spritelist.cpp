@@ -243,7 +243,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const
     push_material(state, sprite->atlas->texture, tint);
   }
 
-  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, sprite->extent, layer, fmod(floor(layer) + 1, (float)sprite->layers));
+  push_model(state, position - sprite->pivot.x*xbasis - sprite->pivot.y*ybasis, xbasis, ybasis, sprite->extent, layer, fmod(floor(layer) + 1, (float)sprite->layers));
 }
 
 
@@ -270,7 +270,7 @@ void SpriteList::push_sprite(BuildState &state, Vec2 const &position, Vec2 const
   extent.z = sprite->extent.z * (region.max.x - region.min.x);
   extent.w = sprite->extent.w * (region.max.y - region.min.y);
 
-  push_model(state, position - sprite->align.x*xbasis - sprite->align.y*ybasis, xbasis, ybasis, extent, layer, fmod(floor(layer) + 1, (float)sprite->layers));
+  push_model(state, position - sprite->pivot.x*xbasis - sprite->pivot.y*ybasis, xbasis, ybasis, extent, layer, fmod(floor(layer) + 1, (float)sprite->layers));
 }
 
 

@@ -35,9 +35,18 @@ vec3 reinhard(vec3 color)
 ///////////////////////// filmic ////////////////////////////////////////////
 vec3 filmic(vec3 color)
 {
-  vec3 x = max(vec3(0), color - 0.004);
+  vec3 x = max(color - 0.004, 0);
 
   return (x * (6.2 * x + 0.5)) / (x * (6.2 * x + 1.7) + 0.06);
+}
+
+
+///////////////////////// filmic_ACES ///////////////////////////////////////
+vec3 filmic_ACES(vec3 color)
+{
+  vec3 x = max(color, 0);
+
+  return (x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14);
 }
 
 
@@ -51,21 +60,19 @@ vec3 filmic_uncharted2(vec3 color)
   const float E = 0.02;
   const float F = 0.30;
  
-  return ((color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F)) - E / F;
-}
+  vec3 x = max(color, 0);
 
-
-///////////////////////// whitepoint ////////////////////////////////////////
-vec3 whitepoint()
-{
-  return filmic_uncharted2(vec3(11.2));
+  return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
 }
 
 
 ///////////////////////// tonemap ///////////////////////////////////////////
 vec3 tonemap(vec3 color)
 {
-  return max(filmic_uncharted2(2.0 * color) / whitepoint(), 0);
+//  return color;
+//  return filmic(color);
+//  return filmic_ACES(color);
+  return filmic_uncharted2(2.0 * color) / filmic_uncharted2(vec3(11.2));
 }
 
 

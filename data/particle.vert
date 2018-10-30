@@ -1,7 +1,7 @@
 #version 440 core
-#include "transform.glsl"
-#include "camera.glsl"
-#include "gbuffer.glsl"
+#include "transform.inc"
+#include "camera.inc"
+#include "gbuffer.inc"
 
 layout(location=0) in vec3 vertex_position;
 layout(location=1) in vec2 vertex_texcoord;

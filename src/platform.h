@@ -15,7 +15,6 @@ namespace DatumPlatform
 {
   inline namespace v1
   {
-
     //|---------------------- GameMemory ----------------------------------------
     //|--------------------------------------------------------------------------
 
@@ -38,7 +37,6 @@ namespace DatumPlatform
 
       inline bool down() const { return (state); }
       inline bool pressed() const { return (state && transitions == 1) || (transitions > 1); }
-      inline int presscount(bool autoelapsed = false) const { return (transitions + state) / 2 + (state && transitions == 0)*autoelapsed; }
     };
 
     struct GameController
@@ -76,6 +74,31 @@ namespace DatumPlatform
         Alt = 0x04,
       };
 
+      struct Event
+      {
+        enum Type
+        {
+          Key,
+          Text
+        };
+
+        Type type;
+
+        union
+        {
+          struct
+          {
+            int key;
+            long modifiers;
+          };
+
+          struct
+          {
+            char text[5];
+          };
+        };
+      };
+
       long modifiers;
 
       GameButton keys[256];
@@ -86,7 +109,8 @@ namespace DatumPlatform
 
       GameController controllers[5];
 
-      char text[128];
+      int eventcount;
+      Event events[32];
     };
 
 

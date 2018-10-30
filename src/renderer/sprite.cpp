@@ -23,7 +23,7 @@ enum SpriteFlags
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Sprite const *ResourceManager::create<Sprite>(Asset const *asset, Vec2 align)
+Sprite const *ResourceManager::create<Sprite>(Asset const *asset, Vec2 pivot)
 {
   if (!asset)
     return nullptr;
@@ -40,7 +40,7 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset, Vec2 align)
   sprite->height = asset->height;
   sprite->layers = asset->layers;
   sprite->aspect = (float)asset->width / (float)asset->height;
-  sprite->align = align;
+  sprite->pivot = pivot;
   sprite->extent = Vec4(0.0f, 0.0f, 1.0f, 1.0f);
   sprite->atlas = nullptr;
   sprite->asset = asset;
@@ -58,7 +58,7 @@ Sprite const *ResourceManager::create<Sprite>(Asset const *asset)
 
 ///////////////////////// ResourceManager::create ///////////////////////////
 template<>
-Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 region, Vec2 align)
+Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 region, Vec2 pivot)
 {
   auto slot = acquire_slot(sizeof(Sprite));
 
@@ -72,7 +72,7 @@ Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, Rect2 region
   sprite->height = (int)((region.max.y - region.min.y) * atlas->height);
   sprite->layers = atlas->layers;
   sprite->aspect = (float)sprite->width / (float)sprite->height;
-  sprite->align = align;
+  sprite->pivot = pivot;
   sprite->extent = Vec4(region.min.x, region.min.y, region.max.x - region.min.x, region.max.y - region.min.y);
   sprite->atlas = atlas;
   sprite->asset = nullptr;

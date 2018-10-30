@@ -268,7 +268,7 @@ void ResourceManager::request<Material>(DatumPlatform::PlatformInterface &platfo
 
         if (payload->surfacemap && !slot->surfacemap)
         {
-          slot->surfacemap = create<Texture>(assets()->find(asset->id + payload->surfacemap), Texture::Format::SRGBA);
+          slot->surfacemap = create<Texture>(assets()->find(asset->id + payload->surfacemap), Texture::Format::RGBA);
 
           slot->flags |= MaterialOwnsSurfaceMap;
         }

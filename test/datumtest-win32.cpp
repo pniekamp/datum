@@ -985,9 +985,6 @@ void Window::keypress(UINT msg, WPARAM wParam, LPARAM lParam)
 {
   uint8_t key = wParam;
 
-  if (lParam & (1 << 30))
-    return;
-
   switch(key)
   {
     case VK_SHIFT:

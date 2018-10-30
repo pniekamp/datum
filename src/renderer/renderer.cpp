@@ -137,8 +137,9 @@ enum ShaderLocation
 
 struct MainLight
 {
-  alignas(16) Vec3 direction;
   alignas(16) Color3 intensity;
+  alignas(16) Vec3 direction;
+  alignas( 4) float cutoff;
 
   alignas( 4) float splits[4];
   alignas(16) Matrix4f shadowview[4];
@@ -6231,8 +6232,9 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   sceneset.camera.fogdensity = Vec4(params.fogattenuation, params.fogdensity);
   sceneset.camera.frame = context.frame;
 
-  sceneset.mainlight.direction = params.sundirection;
   sceneset.mainlight.intensity = params.sunintensity;
+  sceneset.mainlight.direction = params.sundirection;
+  sceneset.mainlight.cutoff = params.suncutoff;
 
   assert(sizeof(context.shadows.shadowview) <= sizeof(sceneset.mainlight.shadowview));
   memcpy(sceneset.mainlight.splits, context.shadows.splits.data(), sizeof(context.shadows.splits));

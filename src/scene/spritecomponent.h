@@ -81,7 +81,7 @@ class SpriteComponent
     float layer() const { return storage->layer(index); }
     lml::Color4 const &tint() const { return storage->tint(index); }
 
-    lml::Rect2 bound() const { return lml::Rect2(-sprite()->align, lml::Vec2(size() * sprite()->aspect, size()) - sprite()->align); }
+    lml::Rect2 bound() const { return lml::Rect2(-sprite()->pivot, lml::Vec2(size() * sprite()->aspect, size()) - sprite()->pivot); }
 
     void set_size(float size);
     void set_layer(float layer);
