@@ -34,23 +34,23 @@ namespace DatumPlatform
   {
     public:
 
-      enum class EventType
+      struct Event
       {
-        KeyDown,
-        KeyUp,
-        MouseMoveX,
-        MouseMoveY,
-        MouseDeltaX,
-        MouseDeltaY,
-        MouseDeltaZ,
-        MousePress,
-        MouseRelease,
-        Text
-      };
+        enum Type
+        {
+          KeyDown,
+          KeyUp,
+          MouseMoveX,
+          MouseMoveY,
+          MouseDeltaX,
+          MouseDeltaY,
+          MouseDeltaZ,
+          MousePress,
+          MouseRelease,
+          Text
+        };
 
-      struct InputEvent
-      {
-        EventType type;
+        Type type;
 
         int64_t data;
       };
@@ -82,7 +82,7 @@ namespace DatumPlatform
 
       int m_x, m_y, m_width, m_height;
 
-      std::vector<InputEvent> m_events;
+      std::vector<Event> m_events;
 
       mutable std::mutex m_mutex;
   };

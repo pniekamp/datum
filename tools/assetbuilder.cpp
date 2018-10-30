@@ -317,7 +317,7 @@ uint32_t write_surfacemap_asset(ostream &fout, uint32_t id, string const &path)
   int width = image.width();
   int height = image.height();
   int layers = 1;
-  int levels = min(4, image_maxlevels(width, height));
+  int levels = image_maxlevels(width, height);
 
   vector<char> payload(image_datasize(width, height, layers, levels));
 
@@ -369,7 +369,7 @@ uint32_t write_surfacemap_asset(ostream &fout, uint32_t id, string const &metalp
   int width = image.width();
   int height = image.height();
   int layers = 1;
-  int levels = min(4, image_maxlevels(width, height));
+  int levels = image_maxlevels(width, height);
 
   vector<char> payload(image_datasize(width, height, layers, levels));
 
@@ -399,7 +399,7 @@ uint32_t write_normalmap_asset(ostream &fout, uint32_t id, string const &path)
   int width = image.width();
   int height = image.height();
   int layers = 1;
-  int levels = min(4, image_maxlevels(width, height));
+  int levels = image_maxlevels(width, height);
 
   vector<char> payload(image_datasize(width, height, layers, levels));
 

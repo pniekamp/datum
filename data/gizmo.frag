@@ -1,6 +1,6 @@
 #version 440 core
-#include "transform.glsl"
-#include "camera.glsl"
+#include "transform.inc"
+#include "camera.inc"
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {

@@ -19,8 +19,9 @@ layout(constant_id = 8) const float FogDepthExponent = 3.0;
 
 struct MainLight
 {
-  vec3 direction;
   vec3 intensity;
+  vec3 direction;
+  float cutoff;
   
   float splits[MaxShadowSplits];
   mat4 shadowview[MaxShadowSplits];
@@ -339,10 +340,10 @@ float diffuse_disney(float NdotV, float NdotL, float LdotH, float alpha)
 vec3 specular_ggx(vec3 f0, float f90, float NdotV, float NdotL, float LdotH, float NdotH, float alpha)
 {
   vec3 Fc = fresnel_schlick(f0, f90, LdotH);
-  float Vis = visibility_smith(NdotV, NdotL, alpha);
+  float V = visibility_smith(NdotV, NdotL, alpha);
   float D = distribution_ggx(NdotH, alpha);
 
-  return D * Vis * Fc;
+  return D * V * Fc;
 }
 
 
@@ -388,7 +389,10 @@ void env_light(inout vec3 diffuse, inout vec3 specular, Material material, vec3 
 ///////////////////////// main_light ////////////////////////////////////////
 void main_light(inout vec3 diffuse, inout vec3 specular, MainLight light, vec3 normal, vec3 eyevec, Material material, float shadowfactor)
 {
-  vec3 lightvec = -light.direction;
+  vec3 R = reflect(-eyevec, normal);
+  float LdotR = dot(-light.direction, R);
+
+  vec3 lightvec = (LdotR < light.cutoff) ? -light.direction : mix(-light.direction, R, material.roughness);
 
   vec3 halfvec = normalize(lightvec + eyevec);
 

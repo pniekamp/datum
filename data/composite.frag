@@ -1,6 +1,6 @@
 #version 440 core
-#include "camera.glsl"
-#include "gbuffer.glsl"
+#include "camera.inc"
+#include "gbuffer.inc"
 
 layout(constant_id = 26) const bool DepthOfField = false;
 layout(constant_id = 27) const bool ColorGrading = false;

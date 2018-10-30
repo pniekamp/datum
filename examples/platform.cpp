@@ -122,10 +122,10 @@ namespace DatumPlatform
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::MouseMoveX, x });
-    m_events.push_back({ EventType::MouseMoveY, y });
-    m_events.push_back({ EventType::MouseDeltaX, (int)(deltax) });
-    m_events.push_back({ EventType::MouseDeltaY, (int)(deltay) });
+    m_events.push_back({ Event::MouseMoveX, x });
+    m_events.push_back({ Event::MouseMoveY, y });
+    m_events.push_back({ Event::MouseDeltaX, (int)(deltax) });
+    m_events.push_back({ Event::MouseDeltaY, (int)(deltay) });
   }
 
 
@@ -134,7 +134,7 @@ namespace DatumPlatform
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::MousePress, button });
+    m_events.push_back({ Event::MousePress, button });
   }
 
 
@@ -143,7 +143,7 @@ namespace DatumPlatform
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::MouseRelease, button });
+    m_events.push_back({ Event::MouseRelease, button });
   }
 
 
@@ -152,7 +152,7 @@ namespace DatumPlatform
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::MouseDeltaZ, (int)(z * 120) });
+    m_events.push_back({ Event::MouseDeltaZ, (int)(z * 120) });
   }
 
 
@@ -161,7 +161,7 @@ namespace DatumPlatform
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::KeyDown, key });
+    m_events.push_back({ Event::KeyDown, key });
   }
 
 
@@ -170,7 +170,7 @@ namespace DatumPlatform
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::KeyUp, key });
+    m_events.push_back({ Event::KeyUp, key });
   }
 
 
@@ -179,7 +179,7 @@ namespace DatumPlatform
   {
     lock_guard<mutex> lock(m_mutex);
 
-    m_events.push_back({ EventType::Text, codepoint });
+    m_events.push_back({ Event::Text, codepoint });
   }
 
 
@@ -213,59 +213,73 @@ namespace DatumPlatform
     for(auto &key : m_input.keys)
       key.transitions = 0;
 
-    // Text
-    m_input.text[0] = 0;
+    // Events
+    m_input.eventcount = 0;
+
+    auto processed = 0;
 
     for(auto &evt : m_events)
     {
       switch(evt.type)
       {
-        case EventType::KeyDown:
+        case Event::KeyDown:
           m_input.keys[evt.data].state = true;
           m_input.keys[evt.data].transitions += 1;
           m_input.modifiers |= map_key_to_modifier(evt.data);
+          m_input.events[m_input.eventcount].type = GameInput::Event::Key;
+          m_input.events[m_input.eventcount].key = evt.data;
+          m_input.events[m_input.eventcount].modifiers = m_input.modifiers;
+          ++m_input.eventcount;
           break;
 
-        case EventType::KeyUp:
+        case Event::KeyUp:
           m_input.keys[evt.data].state = false;
           m_input.keys[evt.data].transitions += 1;
           m_input.modifiers &= ~map_key_to_modifier(evt.data);
           break;
 
-        case EventType::MouseMoveX:
+        case Event::MouseMoveX:
           m_input.mousex = evt.data;
           break;
 
-        case EventType::MouseMoveY:
+        case Event::MouseMoveY:
           m_input.mousey = evt.data;
           break;
 
-        case EventType::MouseDeltaX:
+        case Event::MouseDeltaX:
           m_input.deltamousex += evt.data * (1.0f/m_width);
           break;
 
-        case EventType::MouseDeltaY:
+        case Event::MouseDeltaY:
           m_input.deltamousey += evt.data * (1.0f/m_width);
           break;
 
-        case EventType::MouseDeltaZ:
+        case Event::MouseDeltaZ:
           m_input.deltamousez += evt.data * (1.0f/120.0f);
           break;
 
-        case EventType::MousePress:
+        case Event::MousePress:
           m_input.mousebuttons[evt.data].state = true;
           m_input.mousebuttons[evt.data].transitions += 1;
           break;
 
-        case EventType::MouseRelease:
+        case Event::MouseRelease:
           m_input.mousebuttons[evt.data].state = false;
           m_input.mousebuttons[evt.data].transitions += 1;
           break;
 
-        case EventType::Text:
-          append_codepoint(m_input.text, sizeof(m_input.text), evt.data);
+        case Event::Text:
+          m_input.events[m_input.eventcount].type = GameInput::Event::Text;
+          m_input.events[m_input.eventcount].text[0] = 0;
+          append_codepoint(m_input.events[m_input.eventcount].text, sizeof(m_input.events[m_input.eventcount].text), evt.data);
+          ++m_input.eventcount;
           break;
       }
+
+      ++processed;
+
+      if (m_input.eventcount == int(std::extent<decltype(m_input.events)>::value))
+        break;
     }
 
     // keyboard controller
@@ -274,7 +288,7 @@ namespace DatumPlatform
     m_input.controllers[0].move_left = m_input.keys['A'];
     m_input.controllers[0].move_right = m_input.keys['D'];
 
-    m_events.clear();
+    m_events.erase(m_events.begin(), m_events.begin() + processed);
 
     return m_input;
   }

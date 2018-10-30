@@ -18,8 +18,8 @@ class Sprite
 {
   public:
     friend Sprite const *ResourceManager::create<Sprite>(Asset const *asset);
-    friend Sprite const *ResourceManager::create<Sprite>(Asset const *asset, lml::Vec2 align);
-    friend Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, lml::Rect2 region, lml::Vec2 align);
+    friend Sprite const *ResourceManager::create<Sprite>(Asset const *asset, lml::Vec2 pivot);
+    friend Sprite const *ResourceManager::create<Sprite>(Texture const *atlas, lml::Rect2 region, lml::Vec2 pivot);
 
     bool ready() const { return (state == State::Ready); }
 
@@ -29,7 +29,7 @@ class Sprite
     int height;
     int layers;
     float aspect;
-    lml::Vec2 align;
+    lml::Vec2 pivot;
     lml::Vec4 extent;
 
     Texture const *atlas;

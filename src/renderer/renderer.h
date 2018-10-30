@@ -494,6 +494,7 @@ struct RenderParams
 
   lml::Vec3 sundirection = { -0.57735f, -0.57735f, -0.57735f };
   lml::Color3 sunintensity = { 8.0f, 7.65f, 6.71f };
+  float suncutoff = 0.995f;
 
   SkyBox const *skybox = nullptr;
   lml::Transform skyboxorientation = ::lml::Transform::identity();

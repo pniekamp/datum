@@ -1,9 +1,9 @@
 #version 440 core
-#include "bound.glsl"
-#include "transform.glsl"
-#include "camera.glsl"
-#include "gbuffer.glsl"
-#include "lighting.glsl"
+#include "bound.inc"
+#include "transform.inc"
+#include "camera.inc"
+#include "gbuffer.inc"
+#include "lighting.inc"
 
 layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet 
 {

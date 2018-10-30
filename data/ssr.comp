@@ -1,9 +1,9 @@
 #version 440 core
-#include "bound.glsl"
-#include "transform.glsl"
-#include "camera.glsl"
-#include "gbuffer.glsl"
-#include "lighting.glsl"
+#include "bound.inc"
+#include "transform.inc"
+#include "camera.inc"
+#include "gbuffer.inc"
+#include "lighting.inc"
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(local_size_x_id = 1, local_size_y_id = 2) in;
