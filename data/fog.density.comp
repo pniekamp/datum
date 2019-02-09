@@ -22,6 +22,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 orthoview;
   mat4 prevview;
   mat4 skyview;
+  vec4 fbosize;
   vec4 viewport;
 
   Camera camera;
@@ -102,8 +103,8 @@ float mainlight_shadow(MainLight mainlight, vec3 position)
 void main()
 { 
   gl_WorkGroupSize;
+  vec4 fbosize = scene.fbosize;
   ivec3 xyz = ivec3(gl_GlobalInvocationID.xyz);
-  ivec2 fbosize = textureSize(depthmap, 0).xy;
   
   vec3 cellpos = vec3(cell_xy(xyz), cell_depth(xyz));
    

@@ -15,6 +15,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 orthoview;
   mat4 prevview;
   mat4 skyview;
+  vec4 fbosize;
   vec4 viewport;
   
   Camera camera;
@@ -113,8 +114,8 @@ float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
+  vec4 fbosize = scene.fbosize;
   ivec2 xy = ivec2(gl_FragCoord.xy);
-  ivec2 fbosize = textureSize(colormap, 0).xy;
 
   float depth = gl_FragCoord.z;
 

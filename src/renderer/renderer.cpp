@@ -215,6 +215,7 @@ struct SceneSet
   alignas(16) Matrix4f orthoview;
   alignas(16) Matrix4f prevview;
   alignas(16) Matrix4f skyview;
+  alignas(16) Vec4 fbosize;
   alignas(16) Vec4 viewport;
 
   alignas(16) CameraView camera;
@@ -6218,6 +6219,7 @@ void prepare_sceneset(RenderContext &context, PushBuffer const &renderables, Ren
   sceneset.orthoview = OrthographicProjection(0.0f, 0.0f, (float)context.width, (float)context.height, 0.0f, 1000.0f);
   sceneset.prevview = context.prevcamera.view();
   sceneset.skyview = (inverse(params.skyboxorientation) * Transform::rotation(context.camera.rotation())).matrix() * sceneset.invproj;
+  sceneset.fbosize = Vec4(context.fbowidth, context.fboheight, 1.0f/context.fbowidth, 1.0f/context.fboheight);
   sceneset.viewport = Vec4(context.fbox, context.fboy, context.width - 2*context.fbox, context.height - 2*context.fboy);
 
   sceneset.camera.position = context.camera.position();

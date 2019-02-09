@@ -18,6 +18,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 orthoview;
   mat4 prevview;
   mat4 skyview;
+  vec4 fbosize;
   vec4 viewport;
 
   Camera camera;
@@ -108,8 +109,8 @@ float spotlight_shadow(SpotLight spotlight, vec3 position, vec3 normal, sampler2
 void main()
 { 
   gl_WorkGroupSize;
+  vec4 fbosize = scene.fbosize;
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
-  ivec2 fbosize = textureSize(depthmap, 0);
   
   float depth = texelFetch(depthmap, xy, 0).r;
 

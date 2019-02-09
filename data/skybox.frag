@@ -13,6 +13,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 orthoview;
   mat4 prevview;
   mat4 skyview;
+  vec4 fbosize;
   vec4 viewport;
   
   Camera camera;
@@ -42,7 +43,7 @@ void main()
 {
   vec3 skycolor = textureLod(envmaps[scene.environmentcount-1], texcoord, scene.camera.skyboxlod).rgb;
   
-  vec4 fog = global_fog(vec3(gl_FragCoord.xy / textureSize(colormap, 0).xy, 1.0), fogmap);
+  vec4 fog = global_fog(vec3(gl_FragCoord.xy * scene.fbosize.xy, 1.0), fogmap);
 
   fragcolor = vec4(scene.camera.exposure * (skycolor * fog.a + fog.rgb), 0);
 }
