@@ -18,6 +18,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 orthoview;
   mat4 prevview;
   mat4 skyview;
+  vec4 fbosize;
   vec4 viewport;
 
   Camera camera;
@@ -35,7 +36,7 @@ layout(set=0, binding=18) uniform sampler2DArray envbrdfmap;
 layout(set=0, binding=37) writeonly uniform image2D dest;
 
 const float Jitter = 1.0;
-const float Thickness = 0.5f;
+const float Thickness = 0.1f;
 const float MaxSteps = 350.0;
 const float MaxDistance = 24.0;
 
@@ -167,8 +168,8 @@ bool traceray(vec3 origin, vec3 direction, mat4 proj, vec2 viewport, out vec2 hi
 void main()
 { 
   gl_WorkGroupSize;
+  vec4 fbosize = scene.fbosize;
   ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
-  ivec2 fbosize = textureSize(depthmap, 0).xy;
   
   float depth = texelFetch(depthmap, xy, 0).r;
   
@@ -190,16 +191,16 @@ void main()
     vec2 hitpixel = vec2(0);
     vec3 hitpoint  = vec3(0);
     
-    if (traceray(position, direction, scene.proj, fbosize, hitpixel, hitpoint, stepcount))
+    if (traceray(position, direction, scene.proj, fbosize.xy, hitpixel, hitpoint, stepcount))
     {
-      float edgefade = 1 - 10 * clamp(max(abs(hitpixel.x / fbosize.x - 0.5), abs(hitpixel.y / fbosize.y - 0.5)) - 0.4, 0, 0.1);
+      float edgefade = 1 - 10 * clamp(max(abs(hitpixel.x * fbosize.z - 0.5), abs(hitpixel.y * fbosize.w - 0.5)) - 0.4, 0, 0.1);
       float depthfade = 1 - 1000 * max((1 - depth) - 0.997, 0);
-      float distancefade = 1 - min(max(stepcount / MaxSteps, distance(hitpoint, position) / MaxDistance), 1);
+      float distancefade = 1 - min(max(stepcount * (1/MaxSteps), distance(hitpoint, position) * (1/MaxDistance)), 1);
       float anglefade = 10 * clamp(-direction.z, 0, 0.1);
       float roughnessfade = 1 - min(2.5 * specular.w, 1);
 
       vec4 hitcolor = texelFetch(colormap, ivec2(hitpixel), 0);
-      //vec4 hitcolor = textureLod(colormap, (hitpixel + 0.5) / fbosize, (specular.w + 0.2) * (1/0.6)); // requires blured colorbuffer
+      //vec4 hitcolor = textureLod(colormap, (hitpixel + 0.5) * fbosize.zw, (specular.w + 0.2) * (1/0.6)); // requires blured colorbuffer
 
       vec2 envbrdf = texture(envbrdfmap, vec3(dot(normal, eyevec), specular.w, 0)).rg;
 

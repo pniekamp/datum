@@ -1146,6 +1146,7 @@ int main(int argc, char *args[])
 
       int hz = 60;
 
+#if 0
       auto dt = std::chrono::nanoseconds(std::chrono::seconds(1)) / hz;
 
       auto tick = std::chrono::high_resolution_clock::now();
@@ -1159,6 +1160,25 @@ int main(int argc, char *args[])
         while (std::chrono::high_resolution_clock::now() < tick)
           ;
       }
+#else
+      LARGE_INTEGER frequency;
+      QueryPerformanceFrequency(&frequency);
+      auto dt = frequency.QuadPart / hz;
+
+      LARGE_INTEGER now;
+      QueryPerformanceCounter(&now);
+      auto tick = now.QuadPart;
+
+      while (game.running())
+      {
+        game.update(1.0f/hz);
+
+        tick += dt;
+
+        while (now.QuadPart < tick)
+          QueryPerformanceCounter(&now);
+      }
+#endif
     });
 
     try

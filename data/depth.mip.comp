@@ -27,12 +27,12 @@ void main()
  
   if (DepthMipLayer == 0)
   {
-    ivec2 fbosize = textureSize(depthmap, 0).xy;
+    ivec2 srcsize = textureSize(depthmap, 0).xy;
   
-    float depth0 = texelFetch(depthmap, clamp(2*xy, ivec2(0), fbosize-1), 0).r;
-    float depth1 = texelFetch(depthmap, clamp(2*xy + ivec2(1, 0), ivec2(0), fbosize-1), 0).r;
-    float depth2 = texelFetch(depthmap, clamp(2*xy + ivec2(0, 1), ivec2(0), fbosize-1), 0).r;
-    float depth3 = texelFetch(depthmap, clamp(2*xy + ivec2(1, 1), ivec2(0), fbosize-1), 0).r;
+    float depth0 = texelFetch(depthmap, clamp(2*xy, ivec2(0), srcsize-1), 0).r;
+    float depth1 = texelFetch(depthmap, clamp(2*xy + ivec2(1, 0), ivec2(0), srcsize-1), 0).r;
+    float depth2 = texelFetch(depthmap, clamp(2*xy + ivec2(0, 1), ivec2(0), srcsize-1), 0).r;
+    float depth3 = texelFetch(depthmap, clamp(2*xy + ivec2(1, 1), ivec2(0), srcsize-1), 0).r;
   
     float mindepth = view_depth(scene.proj, max(max(depth0, depth1), max(depth2, depth3)));
     float maxdepth = view_depth(scene.proj, min(min(depth0, depth1), min(depth2, depth3)));

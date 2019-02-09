@@ -12,6 +12,7 @@ layout(set=0, binding=0, std430, row_major) readonly buffer SceneSet
   mat4 orthoview;
   mat4 prevview;
   mat4 skyview;
+  vec4 fbosize;
   vec4 viewport;
 
   Camera camera;
@@ -67,8 +68,8 @@ vec2 dither(vec2 uv)
 ///////////////////////// main //////////////////////////////////////////////
 void main()
 {
+  vec4 fbosize = scene.fbosize;
   ivec2 xy = ivec2(gl_FragCoord.xy);
-  ivec2 fbosize = textureSize(colormap, 0).xy;
 
   vec4 bump0 = texture(sampler2DArray(normalmap, repeatsampler), vec3(texcoord*params.bumpscale.xy + params.flow, 0));
   vec4 bump1 = texture(sampler2DArray(normalmap, repeatsampler), vec3(texcoord*params.bumpscale.xy*2.0 + 4.0*params.flow, 0));

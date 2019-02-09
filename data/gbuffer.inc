@@ -43,9 +43,9 @@ vec3 view_position(mat4 proj, mat4 invproj, vec2 texcoord, float depth)
   return view_position(proj, vec3(invproj[0][0] * (2 * texcoord.x - 1), invproj[1][1] * (2 * texcoord.y - 1), -1), depth);
 }
 
-vec3 view_position(mat4 proj, mat4 invproj, ivec2 xy, ivec2 fbosize, float depth)
+vec3 view_position(mat4 proj, mat4 invproj, ivec2 xy, vec4 fbosize, float depth)
 {
-  return view_position(proj, invproj, (xy + 0.5) / fbosize, depth);
+  return view_position(proj, invproj, (xy + 0.5) * fbosize.zw, depth);
 }
 
 vec3 view_position(mat4 view, vec3 position)
@@ -67,7 +67,7 @@ vec3 world_position(mat4 invview, mat4 proj, vec3 viewray, float depth)
   return (invview * vec4(view_position(proj, viewray, depth), 1)).xyz;
 }
 
-vec3 world_position(mat4 invview, mat4 proj, mat4 invproj, ivec2 xy, ivec2 fbosize, float depth)
+vec3 world_position(mat4 invview, mat4 proj, mat4 invproj, ivec2 xy, vec4 fbosize, float depth)
 {
   return (invview * vec4(view_position(proj, invproj, xy, fbosize, depth), 1)).xyz;
 }
