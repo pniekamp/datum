@@ -650,7 +650,7 @@ namespace
             auto &group = g_menu.groups[i];
 
             char buffer[128] = "";
-            strncat(buffer, group.name, group.namelen);
+            strlcat(buffer, group.name, group.namelen + 1);
 
             spritelist.push_text(buildstate, cursor + Vec2(5, font->ascent), font->height(), font, buffer, ishot(Ui::Interaction::ToggleGroup, i) ? Color4(1, 1, 0) : Color4(1, 1, 1));
 
@@ -1067,8 +1067,8 @@ void stream_debuglog(const char *filename)
     DebugLogInfoChunk *infochunk = (DebugLogInfoChunk *)(buffer + sizeof(DebugLogChunk));
 
     infochunk->id = g_infoblocks[lastinfo];
-    strncpy(infochunk->name, g_infoblocks[lastinfo]->name, sizeof(infochunk->name));
-    strncpy(infochunk->filename, g_infoblocks[lastinfo]->filename, sizeof(infochunk->filename));
+    strlcpy(infochunk->name, g_infoblocks[lastinfo]->name, sizeof(infochunk->name));
+    strlcpy(infochunk->filename, g_infoblocks[lastinfo]->filename, sizeof(infochunk->filename));
     infochunk->linenumber = g_infoblocks[lastinfo]->linenumber;
     infochunk->color = g_infoblocks[lastinfo]->color;
 

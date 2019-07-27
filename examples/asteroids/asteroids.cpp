@@ -126,13 +126,8 @@ namespace
 
       orthonormalise(normal, tangent, bitangent);
 
-      vertices[i].normal[0] = normal.x;
-      vertices[i].normal[1] = normal.y;
-      vertices[i].normal[2] = normal.z;
-      vertices[i].tangent[0] = tangent.x;
-      vertices[i].tangent[1] = tangent.y;
-      vertices[i].tangent[2] = tangent.z;
-      vertices[i].tangent[3] = (dot(bitangent, tan2[i]) < 0.0f) ? -1.0f : 1.0f;
+      vertices[i].normal = normal;
+      vertices[i].tangent = Vec4(tangent, (dot(bitangent, tan2[i]) < 0.0f) ? -1.0f : 1.0f);
     }
   }
 

@@ -54,7 +54,7 @@ void ActorComponentStorage::add(EntityId entity, Bound3 const &bound, Mesh const
       index = m_staticpartition;
     }
 
-    m_staticpartition += 1;
+    m_staticpartition = max(m_staticpartition, index + 1);
   }
   else
   {

@@ -230,9 +230,9 @@ size_t DefaultStorage<Types...>::insert(EntityId entity)
   }
   else
   {
-    for_each(m_data, [](auto &v) { v.resize(v.size()+1); });
+    index = size();
 
-    index = size() - 1;
+    for_each(m_data, [](auto &v) { v.resize(v.size()+1); });
   }
 
   m_index.resize(std::max(m_index.size(), entity.index()+1));

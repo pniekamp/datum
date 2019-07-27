@@ -88,6 +88,7 @@ vector<uint8_t> compile_shader(string const &text, ShaderStage stage)
 /*
   string opts;
   opts += "--remove-duplicates ";
+  opts += "--eliminate-dead-branches ";
   opts += "--merge-return ";
   opts += "--inline-entry-points-exhaustive ";
   opts += "--eliminate-dead-functions ";
