@@ -58,7 +58,7 @@ void PointLightComponent::set_intensity(Color3 const &intensity)
 {
   storage->set_intensity(index, intensity);
 
-  storage->set_range(index, lml::range(attenuation(), max_element(intensity())));
+  storage->set_range(index, lml::range(attenuation(), max_element(intensity)));
 }
 
 
@@ -67,7 +67,7 @@ void PointLightComponent::set_attenuation(Attenuation const &attenuation)
 {
   storage->set_attenuation(index, attenuation);
 
-  storage->set_range(index, lml::range(attenuation(), max_element(intensity())));
+  storage->set_range(index, lml::range(attenuation, max_element(intensity())));
 }
 
 
@@ -165,7 +165,7 @@ void SpotLightComponent::set_intensity(Color3 const &intensity, float maxrange)
 {
   storage->set_intensity(index, intensity);
 
-  storage->set_range(index, min(lml::range(attenuation(), max_element(intensity())), maxrange));
+  storage->set_range(index, min(lml::range(attenuation(), max_element(intensity)), maxrange));
 }
 
 
@@ -174,7 +174,7 @@ void SpotLightComponent::set_attenuation(Attenuation const &attenuation, float m
 {
   storage->set_attenuation(index, attenuation);
 
-  storage->set_range(index, min(lml::range(attenuation(), max_element(intensity())), maxrange));
+  storage->set_range(index, min(lml::range(attenuation, max_element(intensity())), maxrange));
 }
 
 

@@ -481,9 +481,9 @@ void write_model(pathstring const &src, pathstring const &dst)
 
       if (fields[0] == "Kd")
       {
-        material->color[0] = ato<float>(fields[1]);
-        material->color[1] = ato<float>(fields[2]);
-        material->color[2] = ato<float>(fields[3]);
+        material->color.r = ato<float>(fields[1]);
+        material->color.g = ato<float>(fields[2]);
+        material->color.b = ato<float>(fields[3]);
       }
 
       if (fields[0] == "Ks")

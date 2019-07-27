@@ -47,22 +47,19 @@ namespace leap { namespace lml
 
       static constexpr size_t size() { return sizeof...(Indices); }
 
-      Vector operator()() const { return { (*this)[Indices]... }; }
+      template<typename V>
+      VectorView& operator +=(V&& v) { static_cast<Vector&>(*this) = static_cast<Vector&>(*this) + std::forward<V>(v); return *this; }
 
       template<typename V>
-      VectorView &operator +=(V &&v) { assign(*this, static_cast<Vector&>(*this) + std::forward<V>(v)); return *this; }
+      VectorView& operator -=(V&& v) { static_cast<Vector&>(*this) = static_cast<Vector&>(*this) - std::forward<V>(v); return *this; }
 
       template<typename V>
-      VectorView &operator -=(V &&v) { assign(*this, static_cast<Vector&>(*this) - std::forward<V>(v)); return *this; }
+      VectorView& operator *=(V&& v) { static_cast<Vector&>(*this) = static_cast<Vector&>(*this) * std::forward<V>(v); return *this; }
 
       template<typename V>
-      VectorView &operator *=(V &&v) { assign(*this, static_cast<Vector&>(*this) * std::forward<V>(v)); return *this; }
-
-      template<typename V>
-      VectorView &operator /=(V &&v) { assign(*this, static_cast<Vector&>(*this) / std::forward<V>(v)); return *this; }
+      VectorView& operator /=(V&& v) { static_cast<Vector&>(*this) = static_cast<Vector&>(*this) / std::forward<V>(v); return *this; }
 
       T const &operator[](size_t i) const { return *((T const *)this + i); }
-      T &operator[](size_t i) { return *((T*)this + i); }
 
     protected:
       VectorView() = default;
@@ -79,14 +76,6 @@ namespace leap { namespace lml
   constexpr auto const &get(VectorView<Vector, T, Indices...> const &v) noexcept
   {
     return v[get<i>(index_sequence<Indices...>())];
-  }
-
-
-  //|///////////////////// VectorView assign ////////////////////////////////
-  template<typename Vector, typename T, size_t... Indices, size_t... Jndices>
-  constexpr void assign(VectorView<Vector, T, Indices...> &lhs, VectorView<Vector, T, Jndices...> const &rhs)
-  {
-    std::tie(lhs[Indices]...) = std::tie(rhs[Jndices]...);
   }
 
 

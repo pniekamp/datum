@@ -50,12 +50,9 @@ namespace leap { namespace lml
       static constexpr size_t size() { return sizeof...(Indices); }
       static constexpr size_t stride() { return Stride; }
 
-      Bound operator()() const { return { { (*this)[0][Indices]... }, { (*this)[1][Indices]... } }; }
-
       BoundView &operator =(Bound const &b) { for(int i = 0; i < 2; ++ i) std::tie((*this)[i][Indices]...) = tie(b[i], make_index_sequence<0, sizeof...(Indices)>()); return *this; }
 
       constexpr T const *operator[](size_t j) const { return ((T const *)this + j*Stride); }
-      T *operator[](size_t j) { return ((T*)this + j*Stride); }
 
     protected:
       BoundView() = default;

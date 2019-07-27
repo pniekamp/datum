@@ -26,7 +26,7 @@
 ![Datum](/bin/datumtest.png?raw=true "Datum")
 
 ### Building
-Head branch is tested against gcc/clang on Linux and Mingw 5.3 on Windows.
+Head branch is tested against gcc/clang on Linux and Mingw 8.1 on Windows.
 
 Download [leap](https://github.com/pniekamp/leap) and [datum](https://github.com/pniekamp/datum) into a single directory (eg code/leap & code/datum)
 
@@ -34,30 +34,30 @@ Download [leap](https://github.com/pniekamp/leap) and [datum](https://github.com
 ```
 $ mkdir leap/build
 $ pushd leap/build
-$ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+$ cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo ..
 $ cmake --build . --target install/strip
 $ popd
 ```
 ```
 $ mkdir datum/build
 $ pushd datum/build
-$ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DEXAMPLES=ON ..
+$ cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo -D EXAMPLES=ON ..
 $ cmake --build . --target install/strip
 $ popd
 ```
 
-#### Visual Studio 15.7
+#### Visual Studio 16
 ```
 > mkdir leap\build
 > pushd leap\build
-> cmake -G "Visual Studio 15 2017 Win64" ..
+> cmake -G "Visual Studio 16 2019" -A x64 ..
 > cmake --build . --target install --config RelWithDebInfo
 > popd
 ```
 ```
 > mkdir datum\build
 > pushd datum\build
-> cmake -G "Visual Studio 15 2017 Win64" -DEXAMPLES=ON ..
+> cmake -G "Visual Studio 16 2019" -A x64 -D EXAMPLES=ON ..
 > cmake --build . --target install --config RelWithDebInfo
 > popd
 ```

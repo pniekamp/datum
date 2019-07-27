@@ -31,7 +31,7 @@ namespace leap { namespace lml
   struct point_traits;
 
 
-  // Point Traits (Pair)
+  // Point Traits (std::pair)
   template<typename T>
   struct point_traits<std::pair<T, T>>
   {
@@ -39,7 +39,7 @@ namespace leap { namespace lml
   };
 
 
-  // Point Traits (Array)
+  // Point Traits (std::array)
   template<typename T, size_t N>
   struct point_traits<std::array<T, N>>
   {
@@ -115,25 +115,13 @@ namespace leap { namespace lml
     return translate(pt, v, make_index_sequence<0, dim<Point>()>());
   }
 
-  template<typename Point, typename T, size_t... Indices, std::enable_if_t<!std::is_same<Point, Vector<std::decay_t<decltype(get<0>(std::declval<Point&>()))>, point_traits<Point>::dimension>>::value>* = nullptr>
-  auto operator -(VectorView<Point, T, Indices...> const &pt, Vector<std::decay_t<decltype(get<0>(std::declval<Point&>()))>, point_traits<Point>::dimension> const &v)
-  {
-    return translate(pt(), -v, make_index_sequence<0, dim<Point>()>());
-  }
-
-  template<typename Point, std::enable_if_t<!is_vector_view<Point>::value>* = nullptr>
+  template<typename Point, std::enable_if_t<!std::is_same<Point, Vector<coord_type_t<Point>, point_traits<Point>::dimension>>::value>* = nullptr>
   auto operator -(Point const &pt, Vector<std::decay_t<decltype(get<0>(std::declval<Point&>()))>, point_traits<Point>::dimension> const &v)
   {
     return translate(pt, -v, make_index_sequence<0, dim<Point>()>());
   }
 
-  template<typename Point, typename T, size_t... Indices, std::enable_if_t<!std::is_same<Point, Vector<std::decay_t<decltype(get<0>(std::declval<Point&>()))>, point_traits<Point>::dimension>>::value>* = nullptr>
-  auto operator +(VectorView<Point, T, Indices...> const &pt, Vector<std::decay_t<decltype(get<0>(std::declval<Point&>()))>, point_traits<Point>::dimension> const &v)
-  {
-    return translate(pt(), v, make_index_sequence<0, dim<Point>()>());
-  }
-
-  template<typename Point, std::enable_if_t<!is_vector_view<Point>::value>* = nullptr>
+  template<typename Point, std::enable_if_t<!std::is_same<Point, Vector<coord_type_t<Point>, point_traits<Point>::dimension>>::value>* = nullptr>
   auto operator +(Point const &pt, Vector<std::decay_t<decltype(get<0>(std::declval<Point&>()))>, point_traits<Point>::dimension> const &v)
   {
     return translate(pt, v, make_index_sequence<0, dim<Point>()>());
