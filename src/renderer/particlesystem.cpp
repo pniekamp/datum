@@ -480,7 +480,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
                 if (normsqr(location) < radius2)
                 {
                   position = location;
-                  direction = Quaternion3(zUnit3f, theta(location)) * Quaternion3(yUnit3f, phi(location) - pi<float>()/2);
+                  direction = Quaternion3(Vec3(0.0f, 0.0f, 1.0f), theta(location)) * Quaternion3(Vec3(0.0f, 1.0f, 0.0f), phi(location) - pi<float>()/2);
                   break;
                 }
               }
@@ -499,7 +499,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
                 if (normsqr(location) < radius2)
                 {
                   position = location;
-                  direction = Quaternion3(zUnit3f, theta(location)) * Quaternion3(yUnit3f, phi(location) - pi<float>()/2);
+                  direction = Quaternion3(Vec3(0.0f, 0.0f, 1.0f), theta(location)) * Quaternion3(Vec3(0.0f, 1.0f, 0.0f), phi(location) - pi<float>()/2);
                   break;
                 }
               }
@@ -518,7 +518,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
                 if (normsqr(location) < radius2)
                 {
                   position = location;
-                  direction = Quaternion3(xUnit3f, atan2(location.y, -location.z)) * Quaternion3(yUnit3f, emitter.shapeangle * norm(location) / emitter.shaperadius);
+                  direction = Quaternion3(Vec3(1.0f, 0.0f, 0.0f), atan2(location.y, -location.z)) * Quaternion3(Vec3(0.0f, 1.0f, 0.0f), emitter.shapeangle * norm(location) / emitter.shaperadius);
                   break;
                 }
               }
@@ -619,7 +619,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
       if (emitter.modules & ParticleEmitter::StretchWithVelocity)
       {
         auto pos = inverse(camera.transform()) * instance->position[i];
-        auto angle = Quaternion3(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * instance->velocity[i];
+        auto angle = Quaternion3(Vec3(0.0f, 1.0f, 0.0f), proj * (-pos.x / pos.z)) * Quaternion3(Vec3(1.0f, 0.0f, 0.0f), proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * instance->velocity[i];
         auto stretch = rotatey(Vec3(1.0f, 1.0f, clamp(norm(angle), emitter.velocitystretchmin, emitter.velocitystretchmax)), phi(abs(angle)));
 
         instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(stretch.xy) * instance->transform[i];
@@ -628,7 +628,7 @@ void ParticleSystem::update(ParticleSystem::Instance *instance, Camera const &ca
       if (emitter.modules & ParticleEmitter::StretchWithAxis)
       {
         auto pos = inverse(camera.transform()) * instance->position[i];
-        auto angle = Quaternion3(yUnit3f, proj * (-pos.x / pos.z)) * Quaternion3(xUnit3f, proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * emitter.stretchaxis;
+        auto angle = Quaternion3(Vec3(0.0f, 1.0f, 0.0f), proj * (-pos.x / pos.z)) * Quaternion3(Vec3(1.0f, 0.0f, 0.0f), proj * (pos.y / pos.z)) * conjugate(camera.rotation()) * emitter.stretchaxis;
         auto stretch = rotatey(Vec3(1.0f, 1.0f, 0.0f), phi(abs(angle)));
 
         instance->transform[i] = RotationMatrix(theta(angle)) * ScaleMatrix(stretch.xy) * instance->transform[i];

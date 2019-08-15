@@ -15,7 +15,7 @@ namespace lml
 {
   using namespace leap::lml;
 
-  using Quaternion3 = lml::Quaternion3f;
+  using Quaternion3 = lml::Quaternion<float, Vec3>;
 
   using leap::lml::lerp;
   using leap::lml::slerp;
@@ -36,7 +36,7 @@ namespace lml
       static constexpr Transform lookat(Vec3 const &position, Quaternion3 const &orientation);
       static constexpr Transform lookat(Vec3 const &position, Vec3 const &target, Vec3 const &up);
 
-      Vec3 translation() const { return 2.0f * (dual*conjugate(real)).vector.to<Vec3>(); }
+      Vec3 translation() const { return 2.0f * (dual*conjugate(real)).xyz; }
 
       Quaternion3 rotation() const { return real; }
 
