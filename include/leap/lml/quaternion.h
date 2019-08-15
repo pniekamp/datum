@@ -10,9 +10,9 @@
 
 #pragma once
 
-#include <leap/util.h>
+#include "lml.h"
+#include <leap/lml/point.h>
 #include <leap/lml/vector.h>
-
 
 /**
  * \namespace leap::lml
@@ -28,7 +28,6 @@
 
 namespace leap { namespace lml
 {
-
   //|-------------------- Quaternion ----------------------------------------
   //|------------------------------------------------------------------------
   /**
@@ -38,26 +37,21 @@ namespace leap { namespace lml
    *
   **/
 
-  template<typename T>
-  class Quaternion : public VectorView<Quaternion<T>, T, 0, 1, 2, 3>
+  template<typename T, typename V = Vector<T, 3>>
+  class Quaternion : public VectorView<Quaternion<T, V>, T, 0, 1, 2, 3>
   {
     public:
 
       using scalar_t = T;
-      using vector_t = Vector<T, 3>;
+      using vector_t = V;
 
     public:
       Quaternion() = default;
       Quaternion(T w, T x, T y, T z);
+      Quaternion(T w, V const &vector);
 
-      template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
-      explicit Quaternion(T w, VectorView<Vector, T, Indices...> const &vector);
-
-      template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
-      explicit Quaternion(VectorView<Vector, T, Indices...> const &axis, T angle);
-
-      template<typename Vector, size_t... Indices, size_t... Jndices, size_t... Kndices, std::enable_if_t<sizeof...(Indices) == 3 && sizeof...(Jndices) == 3 && sizeof...(Kndices) == 3>* = nullptr>
-      explicit Quaternion(VectorView<Vector, T, Indices...> const &xaxis, VectorView<Vector, T, Jndices...> const &yaxis, VectorView<Vector, T, Kndices...> const &zaxis);
+      explicit Quaternion(V const &axis, T angle);
+      explicit Quaternion(V const &xaxis, V const &yaxis, V const &zaxis);
 
       union
       {
@@ -98,17 +92,17 @@ namespace leap { namespace lml
 
 
   //|///////////////////// Quaternion::Constructor //////////////////////////
-  template<typename T>
-  Quaternion<T>::Quaternion(T w, T x, T y, T z)
+  template<typename T, typename V>
+  Quaternion<T, V>::Quaternion(T w, T x, T y, T z)
     : scalar(w),
       vector({ x, y, z })
   {
   }
 
+
   //|///////////////////// Quaternion::Constructor //////////////////////////
-  template<typename T>
-  template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>*>
-  Quaternion<T>::Quaternion(T w, VectorView<Vector, T, Indices...> const &vector)
+  template<typename T, typename V>
+  Quaternion<T, V>::Quaternion(T w, V const &vector)
     : Quaternion(w, get<0>(vector), get<1>(vector), get<2>(vector))
   {
   }
@@ -116,9 +110,8 @@ namespace leap { namespace lml
 
   //|///////////////////// Quaternion::Constructor //////////////////////////
   /// axis should be a unit vector
-  template<typename T>
-  template<typename Vector, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>*>
-  Quaternion<T>::Quaternion(VectorView<Vector, T, Indices...> const &axis, T angle)
+  template<typename T, typename V>
+  Quaternion<T, V>::Quaternion(V const &axis, T angle)
     : Quaternion(std::cos(T(0.5)*angle), axis * std::sin(T(0.5)*angle))
   {
   }
@@ -126,9 +119,8 @@ namespace leap { namespace lml
 
   //|///////////////////// Quaternion::Constructor //////////////////////////
   /// basis axis
-  template<typename T>
-  template<typename Vector, size_t... Indices, size_t... Jndices, size_t... Kndices, std::enable_if_t<sizeof...(Indices) == 3 && sizeof...(Jndices) == 3 && sizeof...(Kndices) == 3>*>
-  Quaternion<T>::Quaternion(VectorView<Vector, T, Indices...> const &xaxis, VectorView<Vector, T, Jndices...> const &yaxis, VectorView<Vector, T, Kndices...> const &zaxis)
+  template<typename T, typename V>
+  Quaternion<T, V>::Quaternion(V const &xaxis, V const &yaxis, V const &zaxis)
   {
     auto sx = get<0>(xaxis);
     auto sy = get<1>(yaxis);
@@ -188,50 +180,56 @@ namespace leap { namespace lml
 
   //|///////////////////// conjugate ////////////////////////////////////////
   /// Conjugate a quaternion
-  template<typename T>
-  Quaternion<T> conjugate(Quaternion<T> const &q)
+  template<typename T, typename V>
+  constexpr Quaternion<T, V> conjugate(Quaternion<T, V> const &q)
   {
-    return Quaternion<T>(q.w, -q.x, -q.y, -q.z);
-  }
-
-
-  //|///////////////////// operator * ///////////////////////////////////////
-  /// Quaternion Multiplication
-  template<typename T>
-  Quaternion<T> operator *(Quaternion<T> const &q1, Quaternion<T> const &q2)
-  {
-    return Quaternion<T>(q1.w*q2.w - dot(q1.vector, q2.vector), q1.w*q2.vector + q2.w*q1.vector + cross(q1.vector, q2.vector));
-  }
-
-
-  //|///////////////////// Quaternion::rotate ///////////////////////////////
-  /// Quaternion Vector Rotation
-  template<typename Vector, typename T, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
-  Vector operator *(Quaternion<T> const &q, VectorView<Vector, T, Indices...> const &v)
-  {
-    auto result = (q * Quaternion<T>(0, get<0>(v), get<1>(v), get<2>(v)) * conjugate(q));
-
-    return { result.x, result.y, result.z };
+    return { q.w, -q.x, -q.y, -q.z };
   }
 
 
   //|///////////////////// rotation /////////////////////////////////////////
-  /// quaternion between two unit vectors
-  template<typename T, typename Vector, size_t... Indices, size_t... Jndices>
-  Quaternion<T> rotation(VectorView<Vector, T, Indices...> const &u, VectorView<Vector, T, Jndices...> const &v)
+  /// Quaternion between two unit vectors
+  template<typename T, typename V>
+  constexpr Quaternion<T, V> rotation(V const &u, V const &v)
   {
     auto costheta = dot(u, v);
 
     auto axis = orthogonal(u, v);
 
-    return normalise(Quaternion<T>(1 + costheta, get<0>(axis), get<1>(axis), get<2>(axis)));
+    return normalise(Quaternion<T, V>(1 + costheta, axis));
+  }
+
+
+  //|///////////////////// operator * ///////////////////////////////////////
+  /// Quaternion Multiplication
+  template<typename T, typename V>
+  constexpr Quaternion<T, V> operator *(Quaternion<T, V> const &q1, Quaternion<T, V> const &q2)
+  {
+    return { q1.w*q2.w - dot(q1.vector, q2.vector), q1.w*q2.vector + q2.w*q1.vector + cross(q1.vector, q2.vector) };
+  }
+
+
+  //|///////////////////// transform ////////////////////////////////////////
+  /// transform a point by a quaternion
+  template<typename T, typename V, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 3>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point transform(Quaternion<T, V> const &q, Point const &pt)
+  {
+    auto result = (q * Quaternion<T, V>(0, get<0>(pt), get<1>(pt), get<2>(pt)) * conjugate(q));
+
+    return { result.x, result.y, result.z };
+  }
+
+  template<typename T, typename V, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 3>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point operator *(Quaternion<T, V> const &q, Point const &pt)
+  {
+    return transform(q, pt);
   }
 
 
   //|///////////////////// Quaternion::slerp ////////////////////////////////
   /// Quaternion slerp
-  template<typename T>
-  Quaternion<T> slerp(Quaternion<T> const &lower, Quaternion<T> const &upper, T alpha)
+  template<typename T, typename V>
+  Quaternion<T, V> slerp(Quaternion<T, V> const &lower, Quaternion<T, V> const &upper, T alpha)
   {
     auto costheta = dot(lower, upper);
 

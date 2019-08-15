@@ -28,6 +28,7 @@ namespace leap { namespace lml
   using leap::fcmp;
   using leap::fmod2;
   using leap::sign;
+  using leap::frac;
   using leap::clamp;
   using leap::lerp;
   using leap::remap;

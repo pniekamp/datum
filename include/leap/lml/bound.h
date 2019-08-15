@@ -11,9 +11,10 @@
 #pragma once
 
 #include "lml.h"
-#include "point.h"
+#include <leap/lml/point.h>
 #include <leap/lml/vector.h>
 #include <leap/lml/matrix.h>
+#include <leap/lml/quaternion.h>
 #include <leap/optional.h>
 #include <cstddef>
 #include <functional>
@@ -34,7 +35,6 @@
 
 namespace leap { namespace lml
 {
-
   //|-------------------- BoundView  ----------------------------------------
   //|------------------------------------------------------------------------
 
@@ -65,14 +65,14 @@ namespace leap { namespace lml
 
   //|///////////////////// BoundView low ////////////////////////////////////
   template<size_t i, typename Bound, typename T, size_t Stride, size_t... Indices>
-  constexpr auto const &low(BoundView<Bound, T, Stride, Indices...>  const &bound) noexcept
+  constexpr T const &low(BoundView<Bound, T, Stride, Indices...>  const &bound) noexcept
   {
     return bound[0][get<i>(index_sequence<Indices...>())];
   }
 
   //|///////////////////// BoundView high ///////////////////////////////////
   template<size_t i, typename Bound, typename T, size_t Stride, size_t... Indices>
-  constexpr auto const &high(BoundView<Bound, T, Stride, Indices...>  const &bound) noexcept
+  constexpr T const &high(BoundView<Bound, T, Stride, Indices...>  const &bound) noexcept
   {
     return bound[1][get<i>(index_sequence<Indices...>())];
   }
@@ -235,6 +235,51 @@ namespace leap { namespace lml
    * @{
   **/
 
+  //|///////////////////// translate ////////////////////////////////////////
+  /// translate a bound
+  template<typename Bound, typename T, size_t IStride, size_t... Indices, typename Vector,size_t... Kndices>
+  auto translate(BoundView<Bound, T, IStride, Indices...> const &b, VectorView<Vector, T, Kndices...> const &v)
+  {
+    return Bound({ (b[0][Indices] + v[Kndices])... }, { (b[1][Indices] + v[Kndices])... });
+  }
+
+
+  //|///////////////////// scale ////////////////////////////////////////////
+  /// scales a bound
+  template<typename Bound, typename T, size_t IStride, size_t... Indices, typename S, std::enable_if_t<!is_vector_view<S>::value>* = nullptr>
+  auto scale(BoundView<Bound, T, IStride, Indices...> const &b, S const &s)
+  {
+    return Bound({ (b[0][Indices] * s)... }, { (b[1][Indices] * s)... });
+  }
+
+
+  //|///////////////////// scale ////////////////////////////////////////////
+  /// scales a bound
+  template<typename Bound, typename T, size_t IStride, size_t... Indices, typename Vector,size_t... Kndices>
+  auto scale(BoundView<Bound, T, IStride, Indices...> const &b, VectorView<Vector, T, Kndices...> const &v)
+  {
+    return Bound({ (b[0][Indices] * v[Kndices])... }, { (b[1][Indices] * v[Kndices])... });
+  }
+
+
+  //|///////////////////// grow /////////////////////////////////////////////
+  /// grow a bound
+  template<typename Bound, typename T, size_t IStride, size_t... Indices, typename S, std::enable_if_t<!is_vector_view<S>::value>* = nullptr>
+  auto grow(BoundView<Bound, T, IStride, Indices...> const &b, S const &s)
+  {
+    return Bound({ (b[0][Indices] - s)... }, { (b[1][Indices] + s)... });
+  }
+
+
+  //|///////////////////// grow /////////////////////////////////////////////
+  /// grow a bound
+  template<typename Bound, typename T, size_t IStride, size_t... Indices, typename Vector,size_t... Kndices>
+  auto grow(BoundView<Bound, T, IStride, Indices...> const &b, VectorView<Vector, T, Kndices...> const &v)
+  {
+    return Bound({ (b[0][Indices] - v[Kndices])... }, { (b[1][Indices] + v[Kndices])... });
+  }
+
+
   //|///////////////////// expand ///////////////////////////////////////////
   /// Expansion of two bounds (union)
   template<typename Bound, typename T, size_t IStride, size_t... Indices, size_t JStride, size_t... Jndices>
@@ -360,7 +405,7 @@ namespace leap { namespace lml
 
   //|///////////////////// nearest_in_bound /////////////////////////////////
   /// nearest point on or within bound
-  template<typename Bound, typename T, size_t Stride, size_t... Indices, typename Point, std::enable_if_t<dim<Point>() == sizeof...(Indices)>* = nullptr>
+  template<typename Bound, typename T, size_t Stride, size_t... Indices, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == sizeof...(Indices)>* = nullptr>
   Point nearest_in_bound(BoundView<Bound, T, Stride, Indices...> const &bound, Point const &pt)
   {
     return { clamp(get<Indices>(pt), bound[0][Indices], bound[1][Indices])... };
@@ -369,14 +414,35 @@ namespace leap { namespace lml
 
   //|///////////////////// transform ////////////////////////////////////////
   /// transform bounding box (affine transform only)
-  template<typename T, size_t N, template<typename, size_t, size_t> class B, typename Bound, size_t Stride, size_t... Indices, std::enable_if_t<sizeof...(Indices) == N-1>* = nullptr>
-  auto transform(Matrix<T, N, N, B> const &matrix, BoundView<Bound, T, Stride, Indices...> const &bound)
+  template<typename T, size_t N, template<typename, size_t, size_t> class B, typename Bound, size_t Stride, size_t... Indices, std::enable_if_t<sizeof...(Indices) == N>* = nullptr>
+  auto transform(Matrix<T, N, N, B> const &m, BoundView<Bound, T, Stride, Indices...> const &bound)
   {
-    auto centre = transform(matrix, Vector<T, N-1>{ ((bound[0][Indices] + bound[1][Indices])/2)... });
-
-    auto halfdim = transform(abs(matrix), Vector<T, N-1>{ ((bound[1][Indices] - bound[0][Indices])/2)... }, T(0));
+    auto centre = m * Vector<T, N>{ ((bound[0][Indices] + bound[1][Indices])/2)... };
+    auto halfdim = abs(m) * Vector<T, N>{ ((bound[1][Indices] - bound[0][Indices])/2)... };
 
     return make_bound<Bound>(centre - halfdim, centre + halfdim);
+  }
+
+  template<typename T, size_t N, template<typename, size_t, size_t> class B, typename Bound, size_t Stride, size_t... Indices, std::enable_if_t<sizeof...(Indices) == N-1>* = nullptr>
+  auto transform(Matrix<T, N, N, B> const &m, BoundView<Bound, T, Stride, Indices...> const &bound)
+  {
+    auto centre = transform(m, Vector<T, N-1>{ ((bound[0][Indices] + bound[1][Indices])/2)... });
+    auto halfdim = transform(abs(m), Vector<T, N-1>{ ((bound[1][Indices] - bound[0][Indices])/2)... }, T(0));
+
+    return make_bound<Bound>(centre - halfdim, centre + halfdim);
+  }
+
+  template<typename T, typename V, typename Bound, size_t Stride, size_t... Indices, std::enable_if_t<sizeof...(Indices) == 3>* = nullptr>
+  auto transform(Quaternion<T, V> const &q, BoundView<Bound, T, Stride, Indices...> const &bound)
+  {
+    auto centre = transform(q, V{ ((bound[0][Indices] + bound[1][Indices])/2)... });
+
+    auto halfdim = V{ ((bound[1][Indices] - bound[0][Indices])/2)... };
+    auto rx = dot(abs(q.xaxis()), halfdim);
+    auto ry = dot(abs(q.yaxis()), halfdim);
+    auto rz = dot(abs(q.zaxis()), halfdim);
+
+    return make_bound<Bound>(centre - V{rx, ry, rz}, centre + V{rx, ry, rz});
   }
 
 

@@ -11,6 +11,7 @@
 #pragma once
 
 #include "lml.h"
+#include <leap/lml/point.h>
 #include <leap/lml/vector.h>
 #include <leap/lml/simplematrix.h>
 
@@ -28,7 +29,6 @@
 
 namespace leap { namespace lml
 {
-
   //|-------------------- Matrix --------------------------------------------
   //|------------------------------------------------------------------------
   /**
@@ -98,11 +98,11 @@ namespace leap { namespace lml
       static constexpr size_t rows() { return M; }
       static constexpr size_t columns() { return N; }
 
-      data_type const &data() const { return base_type::data(); }
+      constexpr data_type const &data() const { return base_type::data(); }
       data_type &data() { return base_type::data(); }
 
       // Element Access
-      T const &operator()(size_t i, size_t j) const { return base_type::operator()(i, j); }
+      constexpr T const &operator()(size_t i, size_t j) const { return base_type::operator()(i, j); }
       T &operator()(size_t i, size_t j) { return base_type::operator()(i, j); }
   };
 
@@ -245,13 +245,13 @@ namespace leap { namespace lml
   //|///////////////////// scale ////////////////////////////////////////////
   /// scale a matrix
   template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S>
-  Matrix<T, M, N, B> scale(Matrix<T, M, N, B> const &m, S const &scalar)
+  Matrix<T, M, N, B> scale(Matrix<T, M, N, B> const &m, S const &s)
   {
     Matrix<T, M, N, B> result;
 
     for(size_t i = 0; i < M; ++i)
       for(size_t j = 0; j < N; ++j)
-        result(i, j) = m(i, j) * scalar;
+        result(i, j) = m(i, j) * s;
 
     return result;
   }
@@ -431,7 +431,7 @@ namespace leap { namespace lml
   //|///////////////////// operator * ///////////////////////////////////////
   /// Matrix multiplication by scalar
   template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
-  Matrix<T, M, N, B> operator *(S s, Matrix<T, M, N, B> const &m)
+  Matrix<T, M, N, B> operator *(S const &s, Matrix<T, M, N, B> const &m)
   {
     return scale(m, s);
   }
@@ -440,7 +440,7 @@ namespace leap { namespace lml
   //|///////////////////// operator * ///////////////////////////////////////
   /// Matrix multiplication by scalar
   template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
-  Matrix<T, M, N, B> operator *(Matrix<T, M, N, B> const &m, S s)
+  Matrix<T, M, N, B> operator *(Matrix<T, M, N, B> const &m, S const &s)
   {
     return scale(m, s);
   }
@@ -449,7 +449,7 @@ namespace leap { namespace lml
   //|///////////////////// operator / ///////////////////////////////////////
   /// Matrix division by scalar
   template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, typename S, std::enable_if_t<std::is_arithmetic<S>::value>* = nullptr>
-  Matrix<T, M, N, B> operator /(Matrix<T, M, N, B> const &m, S s)
+  Matrix<T, M, N, B> operator /(Matrix<T, M, N, B> const &m, S const &s)
   {
     return scale(m, T(1) / s);
   }
@@ -457,7 +457,7 @@ namespace leap { namespace lml
 
   //|///////////////////// operator * ///////////////////////////////////////
   /// Matrix Multiplication by Vector
-  template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B>
+  template<typename T, size_t M, size_t N, template<typename, size_t, size_t> class B, std::enable_if_t<!(N == 2 && M == 2) && !(N == 3 && M == 3) && !(N == 4 && M == 4)>* = nullptr>
   Vector<T, M> operator *(Matrix<T, M, N, B> const &m, Vector<T, N> const &v)
   {
     Vector<T, M> result;
@@ -473,6 +473,76 @@ namespace leap { namespace lml
     return result;
   }
 
+
+  //|///////////////////// transform ////////////////////////////////////////
+  /// transform a point by a transform matrix
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 2>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point transform(Matrix<T, 2, 2, B> const &m, Point const &pt)
+  {
+    auto x = m(0,0)*get<0>(pt) + m(0,1)*get<1>(pt);
+    auto y = m(1,0)*get<0>(pt) + m(1,1)*get<1>(pt);
+
+    return { x, y };
+  }
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 3>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point transform(Matrix<T, 3, 3, B> const &m, Point const &pt)
+  {
+    auto x = m(0,0)*get<0>(pt) + m(0,1)*get<1>(pt) + m(0,2)*get<2>(pt);
+    auto y = m(1,0)*get<0>(pt) + m(1,1)*get<1>(pt) + m(1,2)*get<2>(pt);
+    auto z = m(2,0)*get<0>(pt) + m(2,1)*get<1>(pt) + m(2,2)*get<2>(pt);
+
+    return { x, y, z };
+  }
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 4>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point transform(Matrix<T, 4, 4, B> const &m, Point const &pt)
+  {
+    auto x = m(0,0)*get<0>(pt) + m(0,1)*get<1>(pt) + m(0,2)*get<2>(pt) + m(0,3)*get<3>(pt);
+    auto y = m(1,0)*get<0>(pt) + m(1,1)*get<1>(pt) + m(1,2)*get<2>(pt) + m(1,3)*get<3>(pt);
+    auto z = m(2,0)*get<0>(pt) + m(2,1)*get<1>(pt) + m(2,2)*get<2>(pt) + m(2,3)*get<3>(pt);
+    auto w = m(3,0)*get<0>(pt) + m(3,1)*get<1>(pt) + m(3,2)*get<2>(pt) + m(3,3)*get<3>(pt);
+
+    return { x, y, z, w };
+  }
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 2>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point transform(Matrix<T, 3, 3, B> const &m, Point const &pt, T w = 1)
+  {
+    auto x = m(0,0)*get<0>(pt) + m(0,1)*get<1>(pt) + m(0,2)*w;
+    auto y = m(1,0)*get<0>(pt) + m(1,1)*get<1>(pt) + m(1,2)*w;
+
+    return { x, y };
+  }
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 3>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point transform(Matrix<T, 4, 4, B> const &m, Point const &pt, T w = 1)
+  {
+    auto x = m(0,0)*get<0>(pt) + m(0,1)*get<1>(pt) + m(0,2)*get<2>(pt) + m(0,3)*w;
+    auto y = m(1,0)*get<0>(pt) + m(1,1)*get<1>(pt) + m(1,2)*get<2>(pt) + m(1,3)*w;
+    auto z = m(2,0)*get<0>(pt) + m(2,1)*get<1>(pt) + m(2,2)*get<2>(pt) + m(2,3)*w;
+
+    return { x, y, z };
+  }
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 2>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point operator *(Matrix<T, 2, 2, B> const &m, Point const &pt)
+  {
+    return transform(m, pt);
+  }
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 3>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point operator *(Matrix<T, 3, 3, B> const &m, Point const &pt)
+  {
+    return transform(m, pt);
+  }
+
+  template<typename T, template<typename, size_t, size_t> class B, typename Point, size_t dimension = dim<Point>(), std::enable_if_t<dimension == 4>* = nullptr, std::enable_if_t<std::is_same<coord_type_t<Point>, T>::value>* = nullptr>
+  Point operator *(Matrix<T, 4, 4, B> const &m, Point const &pt)
+  {
+    return transform(m, pt);
+  }
 
   /**
    *  @}

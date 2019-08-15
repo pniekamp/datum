@@ -14,7 +14,6 @@
 #include <leap/lml/quaternion.h>
 #include <cmath>
 
-
 namespace leap { namespace lml
 {
   /**
@@ -225,8 +224,8 @@ namespace leap { namespace lml
     return result;
   }
 
-  template<typename T>
-  Matrix<T, 3, 3> RotationMatrix(Quaternion<T> const &q)
+  template<typename T, typename V>
+  Matrix<T, 3, 3> RotationMatrix(Quaternion<T, V> const &q)
   {
     Matrix<T, 3, 3> result = {};
 

@@ -51,16 +51,6 @@ namespace lml
   }
 
 
-  //|///////////////////// Matrix Multiply //////////////////////////////////
-  inline Vec2 operator *(Matrix2f const &m, Vec2 const &v)
-  {
-    auto x = m(0,0)*v.x + m(0,1)*v.y;
-    auto y = m(1,0)*v.x + m(1,1)*v.y;
-
-    return { x, y };
-  }
-
-
   //|-------------------- Vec3 ----------------------------------------------
   //|------------------------------------------------------------------------
 
@@ -104,17 +94,6 @@ namespace lml
   constexpr Vec3::Vec3(Vec2 const &xy, float z)
     : Vec3(xy.x, xy.y, z)
   {
-  }
-
-
-  //|///////////////////// Matrix Multiply //////////////////////////////////
-  inline Vec3 operator *(Matrix3f const &m, Vec3 const &v)
-  {
-    auto x = m(0,0)*v.x + m(0,1)*v.y + m(0,2)*v.z;
-    auto y = m(1,0)*v.x + m(1,1)*v.y + m(1,2)*v.z;
-    auto z = m(2,0)*v.x + m(2,1)*v.y + m(2,2)*v.z;
-
-    return { x, y, z };
   }
 
 
@@ -174,15 +153,4 @@ namespace lml
   {
   }
 
-
-  //|///////////////////// Matrix Multiply //////////////////////////////////
-  inline Vec4 operator *(Matrix4f const &m, Vec4 const &v)
-  {
-    auto x = m(0,0)*v.x + m(0,1)*v.y + m(0,2)*v.z + m(0,3)*v.w;
-    auto y = m(1,0)*v.x + m(1,1)*v.y + m(1,2)*v.z + m(1,3)*v.w;
-    auto z = m(2,0)*v.x + m(2,1)*v.y + m(2,2)*v.z + m(2,3)*v.w;
-    auto w = m(3,0)*v.x + m(3,1)*v.y + m(3,2)*v.z + m(3,3)*v.w;
-
-    return { x, y, z, w };
-  }
 }

@@ -165,13 +165,13 @@ namespace leap { namespace lml
    * @{
   **/
 
-  template<typename T> class Quaternion;
+  template<typename T, typename V> class Quaternion;
 
 
   //|//////////////////// operator << ///////////////////////////////////////
   /// stream operator for output of lml::quaternion
-  template<typename T>
-  std::ostream &operator <<(std::ostream &os, Quaternion<T> const &q)
+  template<typename T, typename V>
+  std::ostream &operator <<(std::ostream &os, Quaternion<T, V> const &q)
   {
     os << '(' << q.w << ',' << q.x << ',' << q.y << ',' << q.z << ')';
 
@@ -181,8 +181,8 @@ namespace leap { namespace lml
 
   //|//////////////////// operator >> ///////////////////////////////////////
   /// stream operator for input of lml::quaternion
-  template<typename T>
-  std::istream &operator >>(std::istream &is, Quaternion<T> &q)
+  template<typename T,typename V>
+  std::istream &operator >>(std::istream &is, Quaternion<T, V> &q)
   {
     char ch;
 

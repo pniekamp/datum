@@ -56,13 +56,11 @@ namespace lml
     auto centre = transform * bound.centre();
 
     auto halfdim = bound.halfdim();
-    auto rx = dot(abs(transform.rotation().xaxis()), Vector3f::from(halfdim));
-    auto ry = dot(abs(transform.rotation().yaxis()), Vector3f::from(halfdim));
-    auto rz = dot(abs(transform.rotation().zaxis()), Vector3f::from(halfdim));
+    auto rx = dot(abs(transform.rotation().xaxis()), halfdim);
+    auto ry = dot(abs(transform.rotation().yaxis()), halfdim);
+    auto rz = dot(abs(transform.rotation().zaxis()), halfdim);
 
-    halfdim = Vec3(rx, ry, rz);
-
-    return Bound3(centre - halfdim, centre + halfdim);
+    return Bound3(centre - Vec3(rx, ry, rz), centre + Vec3(rx, ry, rz));
   }
 
 }
