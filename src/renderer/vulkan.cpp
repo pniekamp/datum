@@ -925,6 +925,8 @@ namespace Vulkan
 
       begin(vulkan, setupbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
+      reset_querypool(setupbuffer, querypool, 0, createinfo.queryCount);
+
       for(size_t i = 0; i < createinfo.queryCount; ++i)
         querytimestamp(setupbuffer, querypool, i);
 

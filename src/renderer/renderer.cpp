@@ -6432,7 +6432,7 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  reset_querypool(commandbuffer, context.timingquerypool, 0, 1);
+  reset_querypool(commandbuffer, context.timingquerypool, 0, 15);
 
   prepare_shadowview(context.shadows, camera, params.sundirection);
 
