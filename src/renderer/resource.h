@@ -106,10 +106,12 @@ class ResourceManager
 
     struct TransferLump
     {
-      Vulkan::Fence fence;
+      Vulkan::TransferBuffer transferbuffer;
+
       Vulkan::CommandPool commandpool;
       Vulkan::CommandBuffer commandbuffer;
-      Vulkan::TransferBuffer transferbuffer;
+
+      Vulkan::Fence fence;
 
       template<typename View = void>
       View *memory(VkDeviceSize offset = 0) const

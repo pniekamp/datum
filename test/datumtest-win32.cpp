@@ -353,8 +353,8 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 65);
 
 #if VALIDATION
-  const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
-//  const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation", "VK_LAYER_LUNARG_assistant_layer" };
+  const char *validationlayers[] = { "VK_LAYER_KHRONOS_validation" };
+//  const char *validationlayers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_assistant_layer" };
   const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
 #else
   const char **validationlayers = nullptr;

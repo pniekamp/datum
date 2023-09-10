@@ -152,8 +152,10 @@ void ResourceManager::destroy<Font>(Font const *font)
     if (font->sheet)
       destroy(font->sheet);
 
+    auto datasize = font_datasize(font->glyphcount);
+
     font->~Font();
 
-    release_slot(const_cast<Font*>(font), sizeof(Font) + font_datasize(font->glyphcount));
+    release_slot(const_cast<Font*>(font), sizeof(Font) + datasize);
   }
 }

@@ -79,8 +79,8 @@ layout(location=2) out vec4 fragnormal;
 ///////////////////////// mainlight_shadow //////////////////////////////////
 float mainlight_shadow(MainLight mainlight, vec3 position, vec3 normal, sampler2DArrayShadow shadowmap)
 {
-  const float bias[ShadowSlices] = { 0.02, 0.04, 0.08, 0.16 };
-  const float spread[ShadowSlices] = { 1.5, 1.2, 1.0, 0.2 };
+  const float bias[] = { 0.02, 0.04, 0.08, 0.16 };
+  const float spread[] = { 1.5, 1.2, 1.0, 0.2 };
 
   for(uint i = 0; i < ShadowSlices; ++i)
   {

@@ -832,8 +832,10 @@ void ResourceManager::destroy<ParticleSystem>(ParticleSystem const *particlesyst
     if (particlesystem->flags & ParticleSystemOwnsSpritesheet)
       destroy(particlesystem->spritesheet);
 
+    auto datasize = particlesystem_datasize(particlesystem->emittercount);
+
     particlesystem->~ParticleSystem();
 
-    release_slot(const_cast<ParticleSystem*>(particlesystem), sizeof(ParticleSystem) + particlesystem_datasize(particlesystem->emittercount));
+    release_slot(const_cast<ParticleSystem*>(particlesystem), sizeof(ParticleSystem) + datasize);
   }
 }

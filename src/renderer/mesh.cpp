@@ -428,9 +428,11 @@ void ResourceManager::destroy<Mesh>(Mesh const *mesh)
     if (mesh->transferlump)
       release_lump(mesh->transferlump);
 
+    auto datasize = mesh_datasize(mesh->bonecount);
+
     mesh->~Mesh();
 
-    release_slot(const_cast<Mesh*>(mesh), sizeof(Mesh) + mesh_datasize(mesh->bonecount));
+    release_slot(const_cast<Mesh*>(mesh), sizeof(Mesh) + datasize);
   }
 }
 

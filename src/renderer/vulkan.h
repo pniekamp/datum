@@ -312,33 +312,33 @@ namespace Vulkan
 
   struct TransferBuffer
   {
+    VulkanResource<VkDeviceMemory, MemoryDeleter> memory;
+
     Buffer buffer;
     VkDeviceSize size;
-
-    VulkanResource<VkDeviceMemory, MemoryDeleter> memory;
 
     operator VkBuffer() const { return buffer; }
   };
 
   struct StorageBuffer
   {
+    VulkanResource<DeviceAllocatorPtr, DeviceAllocatorDeleter> memory;
+
     Buffer buffer;
     VkDeviceSize size;
-
-    VulkanResource<DeviceAllocatorPtr, DeviceAllocatorDeleter> memory;
 
     operator VkBuffer() const { return buffer; }
   };
 
   struct VertexBuffer
   {
+    VulkanResource<DeviceAllocatorPtr, DeviceAllocatorDeleter> memory;
+
     Buffer vertices;
     uint32_t vertexcount, vertexsize;
 
     Buffer indices;
     uint32_t indexcount, indexsize;
-
-    VulkanResource<DeviceAllocatorPtr, DeviceAllocatorDeleter> memory;
 
     operator VkBuffer() const { return vertices; }
   };
@@ -347,13 +347,13 @@ namespace Vulkan
 
   struct Texture
   {
+    VulkanResource<DeviceAllocatorPtr, DeviceAllocatorDeleter> memory;
+
     Image image;
     ImageView imageview;
 
     VkFormat format;
     uint32_t width, height, layers, levels;
-
-    VulkanResource<DeviceAllocatorPtr, DeviceAllocatorDeleter> memory;
 
     operator VkImage() const { return image; }
   };

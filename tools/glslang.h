@@ -6,6 +6,7 @@
 
 #include <leap/pathstring.h>
 #include <vector>
+#include <cstdint>
 
 enum class ShaderStage
 {

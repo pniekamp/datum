@@ -351,7 +351,7 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 65);
 
 #if VALIDATION
-  const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+  const char *validationlayers[] = { "VK_LAYER_KHRONOS_validation" };
 //  const char *validationlayers[] = { "VK_LAYER_GOOGLE_threading", "VK_LAYER_LUNARG_core_validation", "VK_LAYER_LUNARG_device_limits", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_parameter_validation", "VK_LAYER_LUNARG_image", "VK_LAYER_LUNARG_swapchain", "VK_LAYER_GOOGLE_unique_objects" };
   const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
 #else

@@ -268,24 +268,31 @@ void ResourceManager::release_lump(TransferLump const *lump)
     {
       wait_fence(vulkan, lump->fence);
 
+      m_bufferused -= buffer->next->used;
+
+      auto size = buffer->next->size;
+      auto next = buffer->next->next;
+
       buffer->next->~Buffer();
 
-      RESOURCE_USE(ResourceBuffer, (m_bufferused -= buffer->next->used), m_buffersallocated)
+      RESOURCE_USE(ResourceBuffer, m_bufferused, m_buffersallocated)
 
-      buffer->size += buffer->next->size;
-      buffer->next = buffer->next->next;
+      buffer->size += size;
+      buffer->next = next;
     }
 
     if (buffer->offset == 0 && buffer->size == buffer->transferlump.transferbuffer.size && m_buffersallocated > m_minallocation)
     {
       m_buffersallocated -= buffer->size;
 
+      auto next = buffer->next;
+
       buffer->~Buffer();
 
       RESOURCE_USE(ResourceBuffer, m_bufferused, m_buffersallocated)
 
-      *into = buffer->next;
-      buffer = buffer->next;
+      *into = next;
+      buffer = next;
 
       continue;
     }
