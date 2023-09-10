@@ -46,6 +46,10 @@ enum ShaderLocation
   extendedset = 3,
 
   scenebuf = 0,
+
+  repeatsampler = 1,
+  clampedsampler = 2,
+
   sourcemap = 1,
   albedomap = 1,
 };
@@ -529,20 +533,19 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
   if (!rendercontext.ready)
     return false;
 
-  context.pipelinelayout = rendercontext.pipelinelayout;
-  context.scenedescriptor = rendercontext.scenedescriptor;
-  context.materialsetlayout = rendercontext.materialsetlayout;
-  context.modelsetlayout = rendercontext.modelsetlayout;
-
   if (context.descriptorpool == 0)
   {
     // DescriptorPool
 
-    VkDescriptorPoolSize typecounts[2] = {};
-    typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-    typecounts[0].descriptorCount = 16;
-    typecounts[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    typecounts[1].descriptorCount = 48;
+    VkDescriptorPoolSize typecounts[4] = {};
+    typecounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    typecounts[0].descriptorCount = 1;
+    typecounts[1].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+    typecounts[1].descriptorCount = 2;
+    typecounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    typecounts[2].descriptorCount = 16;
+    typecounts[3].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    typecounts[3].descriptorCount = 48;
 
     VkDescriptorPoolCreateInfo descriptorpoolinfo = {};
     descriptorpoolinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -594,6 +597,68 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     renderpassinfo.pSubpasses = subpasses;
 
     context.renderpass = create_renderpass(context.vulkan, renderpassinfo);
+  }
+
+  if (context.scenesetlayout == 0)
+  {
+    // Scene Set
+
+    VkDescriptorSetLayoutBinding bindings[3] = {};
+    bindings[0].binding = ShaderLocation::scenebuf;
+    bindings[0].stageFlags = VK_SHADER_STAGE_ALL;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[0].descriptorCount = 1;
+    bindings[1].binding = ShaderLocation::repeatsampler;
+    bindings[1].stageFlags = VK_SHADER_STAGE_ALL;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    bindings[1].pImmutableSamplers = rendercontext.repeatsampler.data();
+    bindings[1].descriptorCount = 1;
+    bindings[2].binding = ShaderLocation::clampedsampler;
+    bindings[2].stageFlags = VK_SHADER_STAGE_ALL;
+    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    bindings[2].pImmutableSamplers = rendercontext.clampedsampler.data();
+    bindings[2].descriptorCount = 1;
+
+    VkDescriptorSetLayoutCreateInfo createinfo = {};
+    createinfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createinfo.bindingCount = extentof(bindings);
+    createinfo.pBindings = bindings;
+
+    context.scenesetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
+  }
+
+  if (context.materialsetlayout == 0)
+  {
+    context.materialsetlayout = rendercontext.materialsetlayout;
+  }
+
+  if (context.modelsetlayout == 0)
+  {
+    context.modelsetlayout = rendercontext.modelsetlayout;
+  }
+
+  if (context.pipelinelayout == 0)
+  {
+    // PipelineLayout
+
+    VkDescriptorSetLayout layouts[3] = {};
+    layouts[0] = context.scenesetlayout;
+    layouts[1] = context.materialsetlayout;
+    layouts[2] = context.modelsetlayout;
+
+    VkPipelineLayoutCreateInfo pipelinelayoutinfo = {};
+    pipelinelayoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelinelayoutinfo.setLayoutCount = extentof(layouts);
+    pipelinelayoutinfo.pSetLayouts = layouts;
+
+    context.pipelinelayout = create_pipelinelayout(context.vulkan, pipelinelayoutinfo);
+  }
+
+  if (context.sceneset == 0)
+  {
+    context.sceneset = create_storagebuffer(context.vulkan, sizeof(SceneSet));
+
+    context.scenedescriptor = allocate_descriptorset(context.vulkan, context.descriptorpool, context.scenesetlayout);
   }
 
   if (context.srcblitpipeline == 0)
@@ -999,6 +1064,8 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     context.foilagespotmappipeline = create_pipeline(context.vulkan, context.pipelinecache, pipelineinfo);
   }
 
+  bind_buffer(context.vulkan, context.scenedescriptor, ShaderLocation::scenebuf, context.sceneset, 0, context.sceneset.size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
   context.rendercontext = &rendercontext;
 
   context.ready = true;
@@ -1028,6 +1095,16 @@ void prepare_framebuffer(SpotMapContext &context, SpotMap const *target)
 }
 
 
+///////////////////////// prepare_sceneset //////////////////////////////////
+void prepare_sceneset(SpotMapContext &context, SpotMapInfo const &spotmap)
+{
+  SceneSet sceneset;
+  sceneset.view = inverse(spotmap.spotview).matrix();
+
+  update(context.commandbuffer, context.sceneset, 0, sizeof(SceneSet), &sceneset);
+}
+
+
 ///////////////////////// render ////////////////////////////////////////////
 void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_t spotmapcount, SpotMapParams const &params, VkSemaphore const (&dependancies)[8])
 {
@@ -1052,12 +1129,9 @@ void render_spotmaps(SpotMapContext &context, SpotMapInfo const *spotmaps, size_
 
     assert(target->ready() && target->asset == nullptr);
 
-    SceneSet sceneset;
-    sceneset.view = inverse(spotmaps[i].spotview).matrix();
-
     prepare_framebuffer(context, target);
 
-    push(context.commandbuffer, context.pipelinelayout, 0, sizeof(SceneSet), &sceneset, VK_SHADER_STAGE_VERTEX_BIT);
+    prepare_sceneset(context, spotmaps[i]);
 
     beginpass(commandbuffer, context.renderpass, target->framebuffer, 0, 0, target->width, target->height, 1, &clearvalues[0]);
 

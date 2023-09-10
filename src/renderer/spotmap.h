@@ -123,10 +123,13 @@ struct SpotMapContext
 
   Vulkan::DescriptorPool descriptorpool;
 
-  VkPipelineLayout pipelinelayout;
-  VkDescriptorSet scenedescriptor;
+  Vulkan::PipelineLayout pipelinelayout;
+  Vulkan::DescriptorSetLayout scenesetlayout;
   VkDescriptorSetLayout materialsetlayout;
   VkDescriptorSetLayout modelsetlayout;
+
+  Vulkan::StorageBuffer sceneset;
+  Vulkan::DescriptorSet scenedescriptor;
 
   Vulkan::PipelineCache pipelinecache;
 
