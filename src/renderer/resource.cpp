@@ -262,7 +262,7 @@ void ResourceManager::release_lump(TransferLump const *lump)
   Buffer *buffer = m_buffers;
   Buffer **into = &m_buffers;
 
-  while (buffer != nullptr)
+  while (buffer && buffer->next)
   {
     auto next = buffer->next;
 
