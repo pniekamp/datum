@@ -327,10 +327,11 @@ struct Vulkan
 
   VkImage presentimages[3];
 
-  VkSemaphore rendercomplete;
-  VkSemaphore acquirecomplete;
+  VkSemaphore rendercomplete[2];
+  VkSemaphore acquirecomplete[2];
 
   uint32_t imageindex;
+  size_t frame;
 
   VkDebugReportCallbackEXT debugreportcallback;
 
@@ -640,10 +641,16 @@ void Vulkan::init(xcb_connection_t *connection, xcb_window_t window)
   semaphoreinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   semaphoreinfo.flags = 0;
 
-  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &acquirecomplete) != VK_SUCCESS)
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &acquirecomplete[0]) != VK_SUCCESS)
     throw runtime_error("Vulkan vkCreateSemaphore failed");
 
-  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &rendercomplete) != VK_SUCCESS)
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &acquirecomplete[1]) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateSemaphore failed");
+
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &rendercomplete[0]) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateSemaphore failed");
+
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &rendercomplete[1]) != VK_SUCCESS)
     throw runtime_error("Vulkan vkCreateSemaphore failed");
 }
 
@@ -653,8 +660,11 @@ void Vulkan::destroy()
 {
   vkDeviceWaitIdle(device);
 
-  vkDestroySemaphore(device, acquirecomplete, nullptr);
-  vkDestroySemaphore(device, rendercomplete, nullptr);
+  vkDestroySemaphore(device, acquirecomplete[0], nullptr);
+  vkDestroySemaphore(device, acquirecomplete[1], nullptr);
+
+  vkDestroySemaphore(device, rendercomplete[0], nullptr);
+  vkDestroySemaphore(device, rendercomplete[1], nullptr);
 
   vkDestroyCommandPool(device, commandpool, nullptr);
 
@@ -745,7 +755,7 @@ void Vulkan::resize()
 //|//////////////////// Vulkan::acquire /////////////////////////////////////
 void Vulkan::acquire()
 {
-  vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquirecomplete, VK_NULL_HANDLE, &imageindex);
+  vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquirecomplete[frame & 1], VK_NULL_HANDLE, &imageindex);
 }
 
 
@@ -758,9 +768,11 @@ void Vulkan::present()
   presentinfo.pSwapchains = &swapchain;
   presentinfo.pImageIndices = &imageindex;
   presentinfo.waitSemaphoreCount = 1;
-  presentinfo.pWaitSemaphores = &rendercomplete;
+  presentinfo.pWaitSemaphores = &rendercomplete[frame & 1];
 
   vkQueuePresentKHR(renderqueue, &presentinfo);
+
+  ++frame;
 }
 
 

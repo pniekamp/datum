@@ -625,15 +625,8 @@ bool prepare_spotmap_context(DatumPlatform::PlatformInterface &platform, SpotMap
     createinfo.pBindings = bindings;
 
     context.scenesetlayout = create_descriptorsetlayout(context.vulkan, createinfo);
-  }
 
-  if (context.materialsetlayout == 0)
-  {
     context.materialsetlayout = rendercontext.materialsetlayout;
-  }
-
-  if (context.modelsetlayout == 0)
-  {
     context.modelsetlayout = rendercontext.modelsetlayout;
   }
 

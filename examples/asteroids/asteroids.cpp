@@ -517,8 +517,6 @@ void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::G
     while (latch != 0)
       ;
   }
-
-  state.resourcetoken = state.resources.token();
 }
 
 
@@ -533,6 +531,8 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.aspect = state.aspect;
   renderparams.ssaoscale = 0.0f;
   renderparams.fogdensity = 0.0f;
+
+  state.resourcetoken = state.resources.token();
 
   if (state.mode == GameState::Startup)
   {

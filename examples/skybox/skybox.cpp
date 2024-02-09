@@ -123,8 +123,6 @@ void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::G
 
     state.camera = normalise(state.camera);
   }
-
-  state.resourcetoken = state.resources.token();
 }
 
 
@@ -139,6 +137,8 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.aspect = state.aspect;
   renderparams.skybox = state.skybox;
   renderparams.fogdensity = 0.0f;
+
+  state.resourcetoken = state.resources.token();
 
   if (state.mode == GameState::Startup)
   {

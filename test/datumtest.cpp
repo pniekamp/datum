@@ -13,7 +13,7 @@ using namespace DatumPlatform;
 namespace
 {
   ///////////////////////// random_lights ///////////////////////////////////
-  void random_lights(Scene &scene, int count)
+  [[maybe_unused]] void random_lights(Scene &scene, int count)
   {
     Bound3 bound = bound_limits<Bound3>::min();
 

@@ -134,8 +134,6 @@ void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::G
 
     update_ocean(state.ocean, dt);
   }
-
-  state.resourcetoken = state.resources.token();
 }
 
 
@@ -154,6 +152,8 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.ssaoscale = 0.0f;
   renderparams.fogdensity = 0.0f;
   renderparams.fogattenuation = Vec3(0.0f, 0.0f, 0.5f);
+
+  state.resourcetoken = state.resources.token();
 
   if (state.mode == GameState::Startup)
   {

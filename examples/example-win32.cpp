@@ -340,10 +340,11 @@ struct Vulkan
 
   VkImage presentimages[3];
 
-  VkSemaphore rendercomplete;
-  VkSemaphore acquirecomplete;
+  VkSemaphore rendercomplete[2];
+  VkSemaphore acquirecomplete[2];
 
   uint32_t imageindex;
+  size_t frame;
 
   VkDebugReportCallbackEXT debugreportcallback;
 
@@ -364,7 +365,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   appinfo.apiVersion = VK_MAKE_VERSION(1, 0, 65);
 
 #if VALIDATION
-  const char *validationlayers[] = { "VK_LAYER_LUNARG_standard_validation" };
+  const char *validationlayers[] = { "VK_LAYER_KHRONOS_validation" };
 //  const char *validationlayers[] = { "VK_LAYER_GOOGLE_threading", "VK_LAYER_LUNARG_core_validation", "VK_LAYER_LUNARG_device_limits", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_parameter_validation", "VK_LAYER_LUNARG_image", "VK_LAYER_LUNARG_swapchain", "VK_LAYER_GOOGLE_unique_objects" };
   const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
 #else
@@ -653,10 +654,16 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
   semaphoreinfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   semaphoreinfo.flags = 0;
 
-  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &acquirecomplete) != VK_SUCCESS)
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &acquirecomplete[0]) != VK_SUCCESS)
     throw runtime_error("Vulkan vkCreateSemaphore failed");
 
-  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &rendercomplete) != VK_SUCCESS)
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &acquirecomplete[1]) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateSemaphore failed");
+
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &rendercomplete[0]) != VK_SUCCESS)
+    throw runtime_error("Vulkan vkCreateSemaphore failed");
+
+  if (vkCreateSemaphore(device, &semaphoreinfo, nullptr, &rendercomplete[1]) != VK_SUCCESS)
     throw runtime_error("Vulkan vkCreateSemaphore failed");
 }
 
@@ -666,8 +673,11 @@ void Vulkan::destroy()
 {
   vkDeviceWaitIdle(device);
 
-  vkDestroySemaphore(device, acquirecomplete, nullptr);
-  vkDestroySemaphore(device, rendercomplete, nullptr);
+  vkDestroySemaphore(device, acquirecomplete[0], nullptr);
+  vkDestroySemaphore(device, acquirecomplete[1], nullptr);
+
+  vkDestroySemaphore(device, rendercomplete[0], nullptr);
+  vkDestroySemaphore(device, rendercomplete[1], nullptr);
 
   vkDestroyCommandPool(device, commandpool, nullptr);
 
@@ -758,7 +768,7 @@ void Vulkan::resize()
 //|//////////////////// Vulkan::acquire /////////////////////////////////////
 void Vulkan::acquire()
 {
-  vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquirecomplete, VK_NULL_HANDLE, &imageindex);
+  vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquirecomplete[frame & 1], VK_NULL_HANDLE, &imageindex);
 }
 
 
@@ -771,9 +781,11 @@ void Vulkan::present()
   presentinfo.pSwapchains = &swapchain;
   presentinfo.pImageIndices = &imageindex;
   presentinfo.waitSemaphoreCount = 1;
-  presentinfo.pWaitSemaphores = &rendercomplete;
+  presentinfo.pWaitSemaphores = &rendercomplete[frame & 1];
 
   vkQueuePresentKHR(renderqueue, &presentinfo);
+
+  ++frame;
 }
 
 
@@ -968,7 +980,7 @@ void Window::paint(UINT msg, WPARAM wParam, LPARAM lParam)
   if (window.visible && !window.resizing)
   {
     vulkan.acquire();
-    window.game->render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete, vulkan.rendercomplete, 0, 0, window.width, window.height);
+    window.game->render(vulkan.presentimages[vulkan.imageindex], vulkan.acquirecomplete[vulkan.frame & 1], vulkan.rendercomplete[vulkan.frame & 1], 0, 0, window.width, window.height);
     vulkan.present();
   }
 }

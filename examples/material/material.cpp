@@ -121,8 +121,6 @@ void example_update(DatumPlatform::PlatformInterface &platform, DatumPlatform::G
     if (input.keys[' '].pressed())
       state.activeskybox = (state.activeskybox + 1) % extentof(state.skyboxes);
   }
-
-  state.resourcetoken = state.resources.token();
 }
 
 
@@ -136,6 +134,8 @@ void example_render(DatumPlatform::PlatformInterface &platform, DatumPlatform::V
   renderparams.height = viewport.height;
   renderparams.aspect = state.aspect;
   renderparams.fogdensity = 0.0f;
+
+  state.resourcetoken = state.resources.token();
 
   if (state.mode == GameState::Startup)
   {

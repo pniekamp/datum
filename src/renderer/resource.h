@@ -145,9 +145,7 @@ class ResourceManager
 
     size_t m_buffersallocated, m_minallocation, m_maxallocation;
 
-#ifndef NDEBUG
     size_t m_bufferused;
-#endif
 
     void submit(TransferLump const *lump);
     void submit(VkCommandBuffer setupbuffer, VkFence fence);
