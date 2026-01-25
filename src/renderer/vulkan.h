@@ -479,17 +479,21 @@ namespace Vulkan
 
   void blit(VkCommandBuffer commandbuffer, VkImage src, uint32_t sx, uint32_t sy, uint32_t sw, uint32_t sh, VkImageSubresourceLayers srclayers, VkImage dst, uint32_t dx, uint32_t dy, VkImageSubresourceLayers dstlayers);
   void blit(VkCommandBuffer commandbuffer, VkImage src, uint32_t sx, uint32_t sy, uint32_t sw, uint32_t sh, VkImageSubresourceLayers srclayers, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers, VkFilter filter);
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers);
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dz, uint32_t dw, uint32_t dh, uint32_t dd, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dz, uint32_t dw, uint32_t dh, uint32_t dd, VkImageSubresourceLayers dstlayers);
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t dx, uint32_t dy, uint32_t dz, uint32_t dw, uint32_t dh, uint32_t dd, VkImageSubresourceLayers dstlayers);
   void blit(VkCommandBuffer commandbuffer, VkImage src, uint32_t sx, uint32_t sy, uint32_t sw, uint32_t sh, VkImageSubresourceLayers srclayers, VkBuffer dst, VkDeviceSize offset);
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkBuffer dst, VkDeviceSize dstoffset, VkDeviceSize size);
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture);
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t layer, uint32_t level);
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, uint32_t layer, uint32_t level);
 
   void fill(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t data);
 
+  void setimagelayout(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange, VkAccessFlags srcaccessmask, VkAccessFlags dstaccessmask, VkPipelineStageFlags srcstagemask, VkPipelineStageFlags dststagemask);
+  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout, VkAccessFlags srcaccessmask, VkAccessFlags dstaccessmask, VkPipelineStageFlags srcstagemask, VkPipelineStageFlags dststagemask);
+
   void setimagelayout(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
-  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange);
   void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout);
 
   void reset_querypool(VkCommandBuffer commandbuffer, VkQueryPool querypool, uint32_t first, uint32_t count);

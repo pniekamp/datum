@@ -6074,11 +6074,11 @@ void blit(RenderContext &context, Vulkan::Texture const &src, VkBuffer dst, VkDe
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
   blit(commandbuffer, src.image, 0, 0, src.width, src.height, srclayers, dst, offset);
 
-  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
   barrier(commandbuffer);
 
@@ -6107,15 +6107,15 @@ void blit(RenderContext &context, Vulkan::Texture const &src, VkImage dst, int d
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-  setimagelayout(commandbuffer, dst, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { dstlayers.aspectMask, dstlayers.mipLevel, 1, dstlayers.baseArrayLayer, dstlayers.layerCount });
+	setimagelayout(commandbuffer, dst, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { dstlayers.aspectMask, dstlayers.mipLevel, 1, dstlayers.baseArrayLayer, dstlayers.layerCount });
 
   blit(commandbuffer, src.image, 0, 0, src.width, src.height, srclayers, dst, dx, dy, dw, dh, dstlayers, filter);
 
-  setimagelayout(commandbuffer, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { dstlayers.aspectMask, dstlayers.mipLevel, 1, dstlayers.baseArrayLayer, dstlayers.layerCount });
+	setimagelayout(commandbuffer, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { dstlayers.aspectMask, dstlayers.mipLevel, 1, dstlayers.baseArrayLayer, dstlayers.layerCount });
 
-  setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	setimagelayout(commandbuffer, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
   end(context.vulkan, commandbuffer);
 
@@ -6390,7 +6390,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
 
   begin(context.vulkan, commandbuffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+	setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
   clear(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, Color4(0.0f, 0.0f, 0.0f, 1.0f));
 
@@ -6405,7 +6405,7 @@ void render_fallback(RenderContext &context, DatumPlatform::Viewport const &view
     blit(commandbuffer, context.transferbuffer, 0, viewport.image, max(viewport.width - width, 0)/2, max(viewport.height - height, 0)/2, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 });
   }
 
-  setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+	setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
   end(context.vulkan, commandbuffer);
 
@@ -6796,11 +6796,11 @@ void render(RenderContext &context, DatumPlatform::Viewport const &viewport, Cam
 
   if (viewport.image)
   {
-    setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+		setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     blit(commandbuffer, context.rendertarget.image, 0, 0, context.rendertarget.width, context.rendertarget.height, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, viewport.image, viewport.x, viewport.y, viewport.width, viewport.height, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, VK_FILTER_LINEAR);
 
-    setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+		setimagelayout(commandbuffer, viewport.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }, VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
   }
 
   querytimestamp(commandbuffer, context.timingquerypool, 14);

@@ -358,7 +358,7 @@ void Vulkan::init(HINSTANCE hinstance, HWND hwnd)
 //  const char *validationlayers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_assistant_layer" };
   const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
 #else
-  const char **validationlayers = nullptr;
+  const char *validationlayers[] = { };
   const char *instanceextensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
 #endif
 

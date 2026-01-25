@@ -841,7 +841,7 @@ namespace Vulkan
 
     if (layout != VK_IMAGE_LAYOUT_UNDEFINED)
     {
-      setimagelayout(commandbuffer, viewinfo.image, VK_IMAGE_LAYOUT_UNDEFINED, layout, viewinfo.subresourceRange);
+      setimagelayout(commandbuffer, viewinfo.image, VK_IMAGE_LAYOUT_UNDEFINED, layout, viewinfo.subresourceRange, 0, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
     }
 
     return true;
@@ -1344,7 +1344,7 @@ namespace Vulkan
   ///////////////////////// update //////////////////////////////////////////
   void update(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void *data)
   {
-    vkCmdUpdateBuffer(commandbuffer, buffer, offset, size, (uint32_t const *)data);
+    vkCmdUpdateBuffer(commandbuffer, buffer, offset, size, data);
   }
 
 
@@ -1353,10 +1353,10 @@ namespace Vulkan
   {
     VkMemoryBarrier memorybarrier = {};
     memorybarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    memorybarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+    memorybarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
     memorybarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
 
-    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 1, &memorybarrier, 0, nullptr, 0, nullptr);
+    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 1, &memorybarrier, 0, nullptr, 0, nullptr);
   }
 
 
@@ -1366,14 +1366,14 @@ namespace Vulkan
     VkBufferMemoryBarrier bufferbarrier = {};
     bufferbarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     bufferbarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-    bufferbarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+    bufferbarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
     bufferbarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferbarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferbarrier.buffer = buffer;
     bufferbarrier.offset = offset;
     bufferbarrier.size = size;
 
-    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &bufferbarrier, 0, nullptr);
+    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0, 0, nullptr, 1, &bufferbarrier, 0, nullptr);
   }
 
 
@@ -1454,11 +1454,11 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers)
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers)
   {
     VkBufferImageCopy buffercopy = {};
 
-    buffercopy.bufferOffset = offset;
+    buffercopy.bufferOffset = srcoffset;
 
     buffercopy.imageOffset.x = dx;
     buffercopy.imageOffset.y = dy;
@@ -1474,11 +1474,22 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize offset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dz, uint32_t dw, uint32_t dh, uint32_t dd, VkImageSubresourceLayers dstlayers)
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, VkImageSubresourceLayers dstlayers)
+  {
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+    blit(commandbuffer, src, srcoffset, texture.image, dx, dy, dw, dh, dstlayers);
+
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, VkImage dst, uint32_t dx, uint32_t dy, uint32_t dz, uint32_t dw, uint32_t dh, uint32_t dd, VkImageSubresourceLayers dstlayers)
   {
     VkBufferImageCopy buffercopy = {};
 
-    buffercopy.bufferOffset = offset;
+    buffercopy.bufferOffset = srcoffset;
 
     buffercopy.imageOffset.x = dx;
     buffercopy.imageOffset.y = dy;
@@ -1490,6 +1501,17 @@ namespace Vulkan
     buffercopy.imageExtent.depth = dd;
 
     vkCmdCopyBufferToImage(commandbuffer, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffercopy);
+  }
+
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t dx, uint32_t dy, uint32_t dz, uint32_t dw, uint32_t dh, uint32_t dd, VkImageSubresourceLayers dstlayers)
+  {
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+    blit(commandbuffer, src, srcoffset, texture.image, dx, dy, dz, dw, dh, dd, dstlayers);
+
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
   }
 
 
@@ -1527,20 +1549,9 @@ namespace Vulkan
 
 
   ///////////////////////// blit ////////////////////////////////////////////
-  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t layer, uint32_t level)
-  {
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, layer, 1 });
-
-    blit(commandbuffer, src, srcoffset, texture.image, x, y, width, height, { VK_IMAGE_ASPECT_COLOR_BIT, level, layer, 1 });
-
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, layer, 1 });
-  }
-
-
-  ///////////////////////// blit ////////////////////////////////////////////
   void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture)
   {
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers }, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
     for(uint32_t level = 0; level < texture.levels; ++level)
     {
@@ -1553,7 +1564,17 @@ namespace Vulkan
       srcoffset += format_datasize(width, height, texture.format) * layers;
     }
 
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers });
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers }, VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+  }
+
+  ///////////////////////// blit ////////////////////////////////////////////
+  void blit(VkCommandBuffer commandbuffer, VkBuffer src, VkDeviceSize srcoffset, Texture &texture, uint32_t dx, uint32_t dy, uint32_t dw, uint32_t dh, uint32_t layer, uint32_t level)
+  {
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, layer, 1 }, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+    blit(commandbuffer, src, srcoffset, texture.image, dx, dy, dw, dh, { VK_IMAGE_ASPECT_COLOR_BIT, level, layer, 1 });
+
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, { VK_IMAGE_ASPECT_COLOR_BIT, level, 1, layer, 1 }, VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
   }
 
 
@@ -1561,6 +1582,39 @@ namespace Vulkan
   void fill(VkCommandBuffer commandbuffer, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t data)
   {
     vkCmdFillBuffer(commandbuffer, buffer, offset, size, data);
+  }
+
+
+  ///////////////////////// setimagelayout //////////////////////////////////
+  void setimagelayout(VkCommandBuffer commandbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange, VkAccessFlags srcaccessmask, VkAccessFlags dstaccessmask, VkPipelineStageFlags srcstagemask, VkPipelineStageFlags dststagemask)
+  {
+    VkImageMemoryBarrier imagebarrier = {};
+    imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imagebarrier.oldLayout = oldlayout;
+    imagebarrier.newLayout = newlayout;
+    imagebarrier.image = image;
+    imagebarrier.subresourceRange = subresourcerange;
+    imagebarrier.srcAccessMask = srcaccessmask;
+    imagebarrier.dstAccessMask = dstaccessmask;
+
+    vkCmdPipelineBarrier(commandbuffer, srcstagemask, dststagemask, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+  }
+
+
+  ///////////////////////// setimagelayout //////////////////////////////////
+  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout, VkAccessFlags srcaccessmask, VkAccessFlags dstaccessmask, VkPipelineStageFlags srcstagemask, VkPipelineStageFlags dststagemask)
+  {
+    VkImageSubresourceRange subresourcerange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, texture.levels, 0, texture.layers };
+
+    if (texture.format == VK_FORMAT_D16_UNORM || texture.format == VK_FORMAT_D32_SFLOAT)
+      subresourcerange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+    if (texture.format == VK_FORMAT_D16_UNORM_S8_UINT || texture.format == VK_FORMAT_D24_UNORM_S8_UINT || texture.format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+      subresourcerange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    setimagelayout(commandbuffer, texture, oldlayout, newlayout, subresourcerange, srcaccessmask, dstaccessmask, srcstagemask, dststagemask);
   }
 
 
@@ -1582,8 +1636,14 @@ namespace Vulkan
     if (oldlayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_TRANSFER_WRITE_BIT;
 
+    if (oldlayout == VK_IMAGE_LAYOUT_GENERAL)
+      imagebarrier.srcAccessMask |= VK_ACCESS_SHADER_WRITE_BIT;
+
     if (oldlayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    if (oldlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+      imagebarrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     if (oldlayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_SHADER_READ_BIT;
@@ -1591,17 +1651,14 @@ namespace Vulkan
     if (oldlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
       imagebarrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
-    if (oldlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-      imagebarrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    if (newlayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-      imagebarrier.dstAccessMask |= VK_ACCESS_MEMORY_READ_BIT;
-
     if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;
 
     if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_GENERAL)
+      imagebarrier.srcAccessMask |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 
     if (newlayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -1615,12 +1672,16 @@ namespace Vulkan
     if (newlayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
       imagebarrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
-    vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
-  }
+    VkPipelineStageFlags srcstagemask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkPipelineStageFlags dststagemask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
-  void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout, VkImageSubresourceRange subresourcerange)
-  {
-    setimagelayout(commandbuffer, texture.image, oldlayout, newlayout, subresourcerange);
+    if (oldlayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || oldlayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+      srcstagemask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    if (newlayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || newlayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+      dststagemask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    vkCmdPipelineBarrier(commandbuffer, srcstagemask, dststagemask, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
   }
 
   void setimagelayout(VkCommandBuffer commandbuffer, Texture const &texture, VkImageLayout oldlayout, VkImageLayout newlayout)
@@ -1877,11 +1938,11 @@ namespace Vulkan
   ///////////////////////// dispatch ////////////////////////////////////////
   void dispatch(VkCommandBuffer commandbuffer, Texture const &texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t const (&dim)[3])
   {
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
 
     dispatch(commandbuffer, width, height, depth, dim);
 
-    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    setimagelayout(commandbuffer, texture, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
   }
 
 
